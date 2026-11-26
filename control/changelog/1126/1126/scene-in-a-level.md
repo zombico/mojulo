@@ -19,3 +19,7 @@
   the lens of a shot on what it is watching.
 - A frame operation's marks (`goal.operation.marks: { <name>: [x, y] }`): named places on the field, each a spot of its
   name for the level's scenes (where a walk ends, a shot's place).
+- A foe's intro (`goal.operation.groups[].intro: true | { title?, line?, who? }`, `FOE_INTRO`): the first time a group
+  comes (its down task begins, or the level starts for one awake from it), a short scene: the camera pushed in on its
+  members, its name as a banner (its title, else its card's label), a line said over it where one is written, then the
+  play back. Optional, a group's own; skippable as every scene is.

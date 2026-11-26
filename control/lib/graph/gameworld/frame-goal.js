@@ -109,7 +109,9 @@ export function readOperation(v, at = 'goal.operation') {
     // (wary: it goes about its own work, holding its fire until it is hit: a survey drone spotted before it is fought,
     // the mind's `defensive` temperament, worlds/controllable/mind.js; a unit's, not a frame's)
     if (g.wary !== undefined && (g.wary !== true || g.kind === 'frame')) throw new Error(`${gat}.wary is true: a unit that holds its fire until it is hit (not a frame)`);
-    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(g.reserve ? { reserve: true } : {}) };
+    // (an intro: a short scene as it first comes, FOE_INTRO)
+    const intro = g.intro === undefined || g.intro === false ? null : readIntro(g.intro, `${gat}.intro`);
+    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}) };
   });
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
@@ -165,6 +167,20 @@ export function readOperation(v, at = 'goal.operation') {
   // (its props: things stood on the field for its scenes to move, PROP)
   const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
   return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}) };
+}
+/** A FOE'S INTRO (a group's `intro: true | { title?, line?, who? }`): the first time the group comes (its down task
+ *  begins, or the level starts for a group awake from the start), a short scene: the letterbox, the camera pushed in on
+ *  it, its name as a banner (`title`, else its card's label), a line said over it where one is written (`who` says
+ *  `line`, its id a speaker's), then the play back. Skippable as every scene is (Esc). */
+export const FOE_INTRO = Object.freeze({ hold: 3, banner: 2.6 });
+function readIntro(v, at) {
+  if (v === true) return {};
+  if (!isObj(v)) throw new Error(`${at} is true, or { title?, line?, who? }`);
+  for (const k of Object.keys(v)) if (!['title', 'line', 'who'].includes(k)) throw new Error(`${at}.${k} is not part of an intro (title, line, who)`);
+  if (v.title !== undefined && !(typeof v.title === 'string' && v.title && v.title.length <= 40)) throw new Error(`${at}.title is its name on the banner, up to 40 letters`);
+  if (v.line !== undefined && !(typeof v.line === 'string' && v.line && v.line.length <= 240)) throw new Error(`${at}.line is what is said over it, up to 240 letters`);
+  if ((v.line === undefined) !== (v.who === undefined) || (v.who !== undefined && !/^[a-z][a-z0-9-]{0,40}$/.test(v.who))) throw new Error(`${at}: a line needs its who (a speaker's id), and a who its line`);
+  return { ...(v.title ? { title: v.title } : {}), ...(v.line ? { line: v.line, who: v.who } : {}) };
 }
 // (an operation's marks: { <name>: [x, y] }, each a share of the field, at most 16)
 function readMarks(v, at) {
@@ -361,6 +377,16 @@ export function operationCast(op, ends) {
   // the spot t<n>, for the scenes to frame and to set things down on)
   const spots = [];
   op.tasks.forEach((t, i) => { if (t.reach ?? t.scan) { const [x, y] = placeOf(ends, t.reach ?? t.scan); spots.push({ id: `t${i + 1}`, at: [x, y, r2(ends.ground(x, y))] }); } });
+  // (each group's intro, a scene on the moment it first comes)
+  const intros = op.groups.filter((g) => g.intro).map((g) => {
+    const k = op.tasks.findIndex((t) => t.down && t.down.includes(g.id)), ids = membersOf(g, ends).map((m) => m.id), I = g.intro;
+    const title = I.title ?? (g.kind === 'frame' ? (g.ace ? ACES[g.ace].name : 'enemy frame') : GROUND_UNITS[g.kind]?.label ?? g.kind).toUpperCase();
+    return { id: `intro-${g.id}`, when: k >= 0 ? { on: 'objective:begin', match: { task: `t${k + 1}` } } : { start: true }, beats: [
+      { shot: { frame: 'wide', on: ids, move: 'push' }, for: 0.6 },
+      { do: { say: title, as: 'banner', ttl: FOE_INTRO.banner } },
+      ...(I.line ? [{ line: { who: I.who, say: I.line } }] : [{ wait: FOE_INTRO.hold }]),
+    ] };
+  });
   for (const [k, m] of Object.entries(op.marks ?? {})) { const [x, y] = placeOf(ends, m); spots.push({ id: k, at: [x, y, r2(ends.ground(x, y))] }); }
   for (const p of op.props ?? []) {
     const [x, y] = placeOf(ends, p.at), z = r2(ends.ground(x, y)), fig = `prop-${p.unit}`, face = p.face !== undefined ? (p.face * Math.PI) / 180 : toward([x, y]);
@@ -368,5 +394,5 @@ export function operationCast(op, ends) {
     entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), body: { type: 'figure-rig', figure: fig, hittable: false, radius: unitRadius(p.unit) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
-  return { entities, figures, ...(op.props || op.marks ? { play: { spots } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
+  return { entities, figures, ...(op.props || op.marks || intros.length ? { play: { spots, ...(intros.length ? { scenes: intros } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }
