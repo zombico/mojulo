@@ -85,7 +85,7 @@ import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, foeBattleMove
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
-import { gaitRouted, foeGaitOf, FOE_GAITS } from './foe-families.js';
+import { gaitRouted, foeGaitOf, FOE_GAITS, familyOf } from './foe-families.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
@@ -623,7 +623,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     if (looks && L.args?.manifest) L.args = { ...L.args, manifest: wearLooks(L.args.manifest, looks) };
     // on an epoch's map, a level won goes back to the map
     if (onBoard) L.args = toMap(L.args);
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: levelLit(G, L.args), print: levelPrint(G, levelLit(G, L.args), hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   // (the game made of the accepted levels only, when the ledger names them: composedStages; none accepted, no game yet)
   const C = composedStages(stages, levelRefs, map, onBoard ? undefined : composite);
@@ -823,6 +823,13 @@ const foeSteps = (G, ref, ready, ids = null) => {
     ];
   });
 };
+// a routed rail's level LIT BY ITS OWN CUBE (gameworld/foe-families.js): a map page that is no form page asks the cast rig
+// for its bodies all the same (`castLight`, world-scene.js), from the level's own cube, so the hero and its foes stand in
+// the light and the palette of the level they are on, level by level; a form page's land lights them already
+const levelLit = (G, args) => {
+  const m = args?.manifest;
+  return familyOf(G) && m && m.kind === 'map' && m.level?.geocube !== undefined && m.castLight === undefined ? { ...args, manifest: { ...m, castLight: { cube: m.level.geocube } } } : args;
+};
 // a level's print: its args', and where foes stand its bestiary's (the cast is a function the args' JSON leaves out, so an
 // entry's vanish, states or skin changed would leave the level as it was made); a level with none prints as before
 const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: bestiaryOf(G) }) : fingerprint(args));
@@ -917,7 +924,7 @@ function worldSteps(world, G, ref, composite) {
     // (its foes stand beside its goal's cast; the walker is first person, so it is hit under its eye)
     const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, false, lastOf[s.level] === s.index);
     const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...(s.section === 'street' ? { foeRefs } : {}), ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: levelLit(G, L.args), print: levelPrint(G, levelLit(G, L.args), hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const C = composedStages(stages, levelRefs, map, composite);
   if (C.stages.length) {

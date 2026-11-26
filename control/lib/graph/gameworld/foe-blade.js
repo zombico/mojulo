@@ -7,8 +7,8 @@
  * hit; in its arc, hit.
  *
  *   BLADE                    { margin, coneMin, coneMax }: the cone's degrees over the tip's own sweep, and its bounds
- *   bladeFit(figure, clip, scale?)  → { strikeReach, strikeCone, blade: { low, high } } or null where the clip carries no
- *                              weapon's tip
+ *   bladeFit(figure, clip | [clip], scale?)  → { strikeReach, strikeCone, blade: { low, high } } or null where no clip
+ *                              carries a weapon's tip; over several (a body's swing directions), what covers them all
  *
  * Pure.
  */
@@ -18,8 +18,10 @@ export const BLADE = Object.freeze({ margin: 8, coneMin: 14, coneMax: 80 });
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export function bladeFit(figure, clip = 'swing_neutral', scale = 1) {
-  const R = clipReach(figure, clip);
-  if (!R || !(R.reach > 0)) return null;
+  // (several clips, a body's swing directions: the reach and the cone that cover every one, its height band too)
+  const Rs = [].concat(clip).map((c) => clipReach(figure, c)).filter((x) => x && x.reach > 0);
+  if (!Rs.length) return null;
+  const R = { reach: Math.max(...Rs.map((x) => x.reach)), cone: Math.max(...Rs.map((x) => x.cone)), low: Math.min(...Rs.map((x) => x.low)), high: Math.max(...Rs.map((x) => x.high)) };
   const s = scale > 0 ? scale : 1;
   return {
     strikeReach: r3(R.reach * s),

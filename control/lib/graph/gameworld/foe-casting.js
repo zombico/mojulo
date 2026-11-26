@@ -45,6 +45,7 @@ import { LINEAGES } from '../egocube/ancestry.js';
 import { HEIGHT } from '../egocube/plan.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
 import { fitOfPeople } from '../foes/fit.js';
+import { familyOf } from './foe-families.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
@@ -140,8 +141,19 @@ function pick(scored, ok, taken, named) {
   return (own.length ? own : fresh.length ? fresh : pool).sort((a, b) => b.s - a.s || a.k - b.k)[0] ?? null;
 }
 
+// the card a family gives an entry's body in a role, where the entry can throw it (resolveFoe takes it), else none
+function cardOfFamily(family, role, entry) {
+  const cards = family?.cards?.[role];
+  if (!cards) return null;
+  let topology;
+  try { topology = resolveFoe(entry).measured.topology; } catch { return null; }
+  const card = cards[topology];
+  if (!card) return null;
+  try { resolveFoe({ ...entry, attack: card }); return card; } catch { return null; }
+}
+
 export function castingCall(world) {
-  const G = readGameworld(world);
+  const G = readGameworld(world), family = familyOf(G);
   if (G.foes !== undefined || world.quick) return null;
   // (where a foe can stand: a walk's trails, a building's rooms)
   const walks = G.ids.filter((id) => G.levels[id].walk !== undefined || (G.levels[id].building !== undefined && G.levels[id].building?.ref === undefined));
@@ -250,7 +262,11 @@ export function castingCall(world) {
     const size = !sizedFolk(folk) ? null : led ? (role === 'boss' ? KIN_SIZES.boss : null) : KIN_SIZES[role] !== 'squat' ? KIN_SIZES[role] : null;
     const kin = { ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(size ? { body: { size } } : {}) };
     const skin = folk && fitOfPeople(x.c.id, { people: folk }).ok ? { people: folk, ...file, ...armed, ...(F ? { dress: { faction, kind: kindOf(role, x.c), colourway, ...(hench ?? {}) } } : {}), ...kin } : null;
-    const entry = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
+    const entry0 = { class: x.c.id, ...(rank !== 'minion' ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) };
+    // (a routed rail's cast throws its family's cards, foe-families.js: the rank and file's or the leaders' for its body,
+    // where its class's blow takes one; else its class's own)
+    const card = cardOfFamily(family, rank === 'minion' ? 'file' : 'lead', entry0);
+    const entry = card ? { ...entry0, attack: card } : entry0;
     // (a summoner calls the grunt; a grunt that is itself a summoner never stands, so it always has one to call)
     if (x.c.id === 'summoner') entry.summons = { foe: 'grunt' };
     foes[role] = entry;

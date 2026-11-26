@@ -66,7 +66,7 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
-import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
+import { swingBody, aimSwingKeys, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
 const CARRY_GAITS = ['walk', 'jog', 'sprint', 'run', 'strafe'];   // (the gaits a drawn blade is carried through)
 const RUN_GAITS = ['jog', 'sprint', 'run', 'strafe'];   // (the gaits a pilot's empty hand is carried through: its run)
 import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
@@ -1035,7 +1035,8 @@ export const WORLD_KINDS = {
           for (const [dir, verb] of Object.entries(HELD_SWINGS)) {
             // (an action game's hero, `swings.body`: the swing carried by the whole body, hero-swing.js swingBody; a foe's
             // attack card names the style its body throws it in, `swings.style`, foes/attacks.js)
-            const word = ctx.swings.word ?? verb ?? own, keys0 = swingClipKeys(word, cls, { base, grip }), keys = ctx.swings.body ? swingBody(word, cls, keys0, R, rigNodesAt, ctx.swings.style ?? null) : keys0, T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
+            // (a foe's strike zone, foes/zones.js: each direction its own verb, `swings.words`, aimed at its zone, `swings.aim`)
+            const word = ctx.swings.words?.[dir] ?? ctx.swings.word ?? verb ?? own, keys0 = aimSwingKeys(swingClipKeys(word, cls, { base, grip }), ctx.swings.aim ?? null), keys = ctx.swings.body ? swingBody(word, cls, keys0, R, rigNodesAt, ctx.swings.style ?? null) : keys0, T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
             const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
             const fn = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)); fn.keys = 24;
             fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, ctx.swings.contact[1]], ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: hg.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };

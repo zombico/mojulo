@@ -58,6 +58,8 @@ import { resolveFoe } from '../foes/resolve.js';
 import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './stage-figures.js';
 import { LIBRARY_STATES } from '../playscape/player.js';
 import { gaitRouted, foeGaitOf } from './foe-families.js';
+import { STRIKE_ZONES, zoneOf, zoneAim, zoneBand } from '../foes/zones.js';
+import { HERO } from '../foes/vocab.js';
 import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
@@ -66,7 +68,6 @@ import { taskFoeIds } from './fights.js';
 import { streetFoeIds } from './brawl-cast.js';
 import { factionFoeIds } from './factions.js';
 import { lawFoeIds } from './law.js';
-import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { readVanish, vanishOf } from './vanish.js';
@@ -162,7 +163,7 @@ export function readBestiary(F) {
     try { resolveFoe(specOf(e)); } catch (err) { throw new Error(`${at}: ${err.message.replace(/^foe: /, '')}`); }
     const vanish = e.vanish !== undefined ? readVanish(e.vanish, `${at}.vanish`) : undefined;
     const states = e.states !== undefined ? readStates(e.states, `${at}.states`) : undefined;
-    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
+    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
   }
   // (what a summoner calls: read once every entry is known)
   for (const [id, e] of Object.entries(F)) {
@@ -368,6 +369,15 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
   return beastBody(f.measured, f.scale);
 }
 
+// a held swing's slot and rule thrown at its strike zone (foes/zones.js), for a body `stature` metres tall
+function zonedSlot(stature) {
+  const zone = zoneOf(stature), Z = STRIKE_ZONES[zone], A = Z.words ? zoneAim(stature, HERO, zone) : null;
+  return {
+    slot: { zone: { id: zone, band: zoneBand(zone) }, ...(Z.words ? { words: { ...Z.words } } : {}), ...(A ? { aim: { pitch: Math.round((90 - A.drop) * 10) / 10, sink: A.sink, bend: A.bend } } : {}), ...(Z.moves.lunge ? { strikeLunge: Z.moves.lunge } : {}) },
+    rule: Z.moves.combo ? { meleeCombo: true } : {},
+  };
+}
+
 /**
  * THE STAND STEP every hostile goes through (the bestiary's, a shooter's hunters, a sneak's guards): one foe stood into a
  * part's { figures, entities }, its figure and its entity, with everything layer 0 carries (its class's mind and attack,
@@ -402,16 +412,19 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   const last = chain ? B[chain[chain.length - 1]] : p.entry;
   // (a blade's slot names the body's own figure: the World page draws a body with a loadout as its slots' figures, one
   // per weapon, so a slot naming none would leave the body undrawn)
-  const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: fig })) } : {};
+  // (a routed rail's held swing thrown AT the hero: its STRIKE ZONE by how tall it stands against the hero, foes/zones.js,
+  // each direction's verb, the swing aimed at the zone, the step in with it and, low, the string from side to side)
+  const zoned = gaitRouted(G) && !figure ? zonedSlot(b.rule.collideHeight) : null;
+  const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: fig, ...(zoned && slot.swing ? zoned.slot : {}) })) } : {};
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
     id: p.id, team: T.team ?? 'foes',
-    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}), ...(gaitRouted(G) && !figure ? { gaitFit: true } : {}) },
+    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(zoned && (f.entity.rule.loadout ?? []).some((l) => l.swing) ? zoned.rule : {}), ...(more.rule || {}), ...(T.rule || {}), ...(gaitRouted(G) && !figure ? { gaitFit: true } : {}) },
     ...(weapon ? { weapon: { ...weapon } } : {}),
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)
     // (its base STATES, born in: foes/states.js, carried by layer 0 and so by every mode it wears)
-    body: { type: 'figure-rig', figure: fig, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
+    body: { type: 'figure-rig', figure: fig, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(gaitRouted(G) ? { targetRimOn: 'lock' } : {}), ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
     // (one kept away until it is brought, and where it may be set down then: the law's police, levels.js policeCast)

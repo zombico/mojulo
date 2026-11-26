@@ -4,7 +4,9 @@
  * at a walk and runs at a run, its feet planted (figures/clip-travel.js), and a flier flies. A rail not here, every
  * byte as it was; a rail is routed by its row, one at a time.
  *
- *   FOE_FAMILIES             { <rail id>: { name, gait: true } }
+ *   FOE_FAMILIES             { <rail id>: { name, gait: true, cards?: { file, lead } } }: `cards` the attack card a role's
+ *                              body throws by its topology (the rank and file's, the leaders': the elite and the boss),
+ *                              written into the cast by the casting call (foe-casting.js)
  *   familyOf(G)              → the row (with its rail's id) a gameworld's foes are cast from, or null: the rail its feel's
  *                              template is (rails.js railOfPole)
  *   FOE_GAITS                the hero door's gaits a person or a kin foe is made with: a walk and a jog, solved on its
@@ -24,7 +26,13 @@ import { clipTravel } from '../figures/clip-travel.js';
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 export const FOE_FAMILIES = Object.freeze({
-  'fable-of-artesia': Object.freeze({ name: 'the goblin band and the wilds', gait: true }),
+  'fable-of-artesia': Object.freeze({ name: 'the goblin band and the wilds', gait: true,
+    // the cards its cast throws (foes/attacks.js), by role and by the body's topology: the rank and file chop, the
+    // leaders maul; a beast snaps, its leader mauls. A role or a body with none keeps its class's own blow
+    cards: Object.freeze({
+      file: Object.freeze({ person: 'chop', kin: 'chop', quadruped: 'snap', biped: 'snap', limbless: 'snap' }),
+      lead: Object.freeze({ person: 'maul', kin: 'maul', quadruped: 'maul', biped: 'maul' }),
+    }) }),
 });
 
 export const FOE_GAITS = Object.freeze({ walk: true, jog: true });

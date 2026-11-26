@@ -9,6 +9,9 @@
  *                (`forward`), it strikes (`swing_*`) where it swings a blow, it fires (`fire`) where it carries a gun,
  *                it lifts (`lift`) where it throws a rock, and it winds up (`wind_*`) where the runtime holds it braced
  *                before its move (a charge's brace, a dive's telegraph): a blow's own wind-up is its swing clip's
+ *   foe-zone     every blow thrown at a strike zone (foes/zones.js: the legs, the body, from above) passes its weapon
+ *                through that zone on the hero while it can hit: its measured path (the slot's `blade`, gameworld/foe-blade.js)
+ *                meets the zone's band; a foe that names no zone is not asked
  *
  *   foeAudit(payload) → null (no foe on the page) | { hero: { light } | null, foes: [<row>], laws: [{ law, ok, value }] }
  *     row  { id, figure, body: 'figure' | 'frames' | 'box' | 'none' | 'unmade', light: 'cast' | 'room' | 'baked',
@@ -69,15 +72,19 @@ export function foeAudit(payload) {
   const rows = foes.map((e) => {
     const fig = figures[e.body?.figure], body = bodyOf(e, figures), clips = isObj(fig?.clips) ? fig.clips : {};
     const needs = needsOf(e), missing = body === 'figure' || body === 'frames' ? needs.filter((s) => !HAS[s](clips)) : needs;
-    return { id: e.id, figure: e.body?.figure ?? null, body, light: body === 'box' ? 'baked' : lightOf(fig, roomLit), needs, missing };
+    const zs = (e.rule?.loadout ?? []).find((l) => l && l.zone);
+    const zone = zs ? { id: zs.zone.id, band: zs.zone.band, ...(zs.blade ? { blade: [zs.blade.low, zs.blade.high], meets: zs.blade.low <= zs.zone.band[1] && zs.blade.high >= zs.zone.band[0] } : {}) } : null;
+    return { id: e.id, figure: e.body?.figure ?? null, body, light: body === 'box' ? 'baked' : lightOf(fig, roomLit), needs, missing, ...(zone ? { zone } : {}) };
   });
   const unbodied = rows.filter((r) => r.body !== 'figure' && r.body !== 'frames');
   const unlit = rows.filter((r) => r.light === 'baked');
   const still = rows.filter((r) => r.missing.length);
+  const zoned = rows.filter((r) => r.zone), off = zoned.filter((r) => r.zone.meets === false), unmeasured = zoned.filter((r) => r.zone.meets === undefined);
   const gaps = tally(still.flatMap((r) => r.missing.map((s) => ({ s }))), (x) => x.s);
   const laws = [
     { law: 'foe-bodied', ok: !unbodied.length, value: unbodied.length ? `${unbodied.length} of ${rows.length} foes are not figures (${says(tally(unbodied, (r) => r.body))}): each stands as a body, a stand-in where its own is not made` : `all ${rows.length} foes are figures` },
     { law: 'foe-lit', ok: !unlit.length, value: unlit.length ? `${unlit.length} of ${rows.length} foes are drawn under their own baked light, not the level's${hero ? ` (the hero: ${hero.light})` : ''}` : `all ${rows.length} foes are drawn under the level's light${hero ? ` (the hero: ${hero.light})` : ''}` },
+    ...(zoned.length ? [{ law: 'foe-zone', ok: !off.length && !unmeasured.length, value: off.length ? `${off.length} of ${zoned.length} zoned foes swing their weapon past their zone (${off.map((r) => `${r.figure}: the ${r.zone.id}, ${r.zone.band.join('-')} m, its weapon ${r.zone.blade.join('-')} m`).filter((v, i, a) => a.indexOf(v) === i).join('; ')})` : unmeasured.length ? `${unmeasured.length} of ${zoned.length} zoned foes carry no measured weapon (its swing baked without a tip)` : `every zoned foe's weapon passes through its zone on the hero` }] : []),
     { law: 'foe-moves', ok: !still.length, value: still.length ? `${still.length} of ${rows.length} foes lack a pose for a state they play: ${Object.entries(gaps).map(([s, n]) => `${s} (${n})`).join(', ')}` : `every foe has a pose for each state it plays` },
   ];
   return { hero, foes: rows, laws };

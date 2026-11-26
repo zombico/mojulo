@@ -47,4 +47,14 @@ describe('the foe audit: how a level\'s foes are drawn on its page', () => {
     const A = foeAudit({ entities: [hero, foe('a', { type: 'figure-rig', figure: 'g' }, blow(0.5))], figures: { hero: { cast: {}, clips: {} }, g: { cast: {}, clips: { idle: {}, forward: {}, swing_neutral: {} } } } });
     expect(A.laws.every((l) => l.ok)).toBe(true);
   });
+
+  it('a blow thrown at a zone passes its weapon through it; one that swings past it, or carries no measure, is said', () => {
+    const figs = { g: { clips: { idle: {}, forward: {}, swing_neutral: {} } } };
+    const slot = (blade) => ({ ...blow(0.5), loadout: [{ ...blow(0.5).loadout[0], zone: { id: 'legs', band: [0.17, 0.85] }, ...(blade ? { blade } : {}) }] });
+    const at = (b) => foeAudit({ entities: [foe('a', { type: 'figure-rig', figure: 'g' }, slot(b))], figures: figs });
+    expect(law(at({ low: 0.3, high: 0.7 }), 'foe-zone').ok).toBe(true);
+    expect(law(at({ low: 1.1, high: 1.5 }), 'foe-zone').value).toMatch(/past their zone/);
+    expect(law(at(null), 'foe-zone').value).toMatch(/no measured weapon/);
+    expect(law(foeAudit({ entities: [foe('a', { type: 'figure-rig', figure: 'g' }, blow(0.5))], figures: figs }), 'foe-zone')).toBeUndefined();
+  });
 });

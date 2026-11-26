@@ -993,6 +993,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // edges, a fresnel shell on the bone meshes of whatever body it now wears (a mode swapped in is lit as it comes). No body
   // asks for one → the emitted channel is byte-identical
   const foeRim = foeBars && (entities || []).some((e) => e && e.body && Array.isArray(e.body.targetRim));
+  // (a rim only while the pilot is LOCKED on, `body.targetRimOn: 'lock'`, a routed rail's foes, gameworld/foe-families.js:
+  // the foe merely ahead of the pilot keeps its bar and wears no rim; a body that asks none, the rim as it was)
+  const rimLock = foeRim && (entities || []).some((e) => e && e.body && e.body.targetRimOn === 'lock');
   // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
   // entity carries a gear → the emitted channel is byte-identical
   // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
@@ -4491,7 +4494,7 @@ function __updateEnemyHp() {
   }
   camera.updateMatrixWorld();${foeBars ? `
   const __foeT = __foeTarget(pilot);${foeRim ? `
-  __foeRim(__foeT);` : ''}` : ''}
+  __foeRim(${rimLock ? '__world.lock && __world.lock.target ? __foeT : null' : '__foeT'});` : ''}` : ''}
   for (const r of __ehp) {
     const e = __world.byId[r.id];${foeBars ? `
     if (e && e.body && e.body.hpBar === 'target') {

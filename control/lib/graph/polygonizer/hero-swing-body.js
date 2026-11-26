@@ -506,3 +506,22 @@ export function carryClip(gait, arm, layeredClip, R) {
   for (const k of ['once', 'move', 'held', 'air', 'stop', 'rest']) if (typeof gait === 'function' && gait[k] !== undefined) fn[k] = gait[k];
   return fn;
 }
+
+// (here, beside the body layer, so a page that carries the swing's source, the contest's, carries none of it)
+/**
+ * A swing AIMED (`aim`: { pitch, sink?, bend? }, a foe's strike zone, foes/zones.js): the same verb thrown at a height,
+ * its striking arm at `pitch` (90 level, less below it) at the blow and through the follow-through, the cock and the
+ * recovery moved half as far, the body sinking `sink` and hinging `bend` more with it, so a short body cuts low at a
+ * tall one's legs and a tall one brings it down. The verb's own shape (its yaw, its roll, its elbow, its twist) is kept;
+ * only how high it goes is moved. Absent, the keys as they were.
+ */
+export function aimSwingKeys(keys, aim) {
+  if (!aim || !Number.isFinite(aim.pitch)) return keys;
+  const n = keys.length, strike = keys[n - 3], d = aim.pitch - (strike?.shR?.pitch ?? 90);
+  const w = (i) => (i === n - 3 || i === n - 2 ? 1 : i === n - 4 || i === n - 1 ? 0.5 : 0);
+  return keys.map((k, i) => {
+    const f = w(i);
+    if (!f) return k;
+    return { ...k, ...(k.shR ? { shR: { ...k.shR, pitch: k.shR.pitch + d * f } } : {}), crouch: Math.min(0.45, (k.crouch ?? 0) + (aim.sink ?? 0) * f), hinge: (k.hinge ?? 0) + (aim.bend ?? 0) * f };
+  });
+}
