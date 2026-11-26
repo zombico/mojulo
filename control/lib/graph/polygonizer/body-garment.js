@@ -1115,6 +1115,9 @@ function skirtPart(parts, names, P, worn) {
 const PANEL_SLOTS = 9;
 // a petal hem: from this share of the fall down, the corners rise by this share of the fall
 const PETAL = Object.freeze({ from: 0.45, rise: 0.42 });
+// a cutaway: its front edge swept this share of its arc out by the hem (at `most` degrees, a piece that goes round to
+// the back keeping its back), along a curve of this power (the fall's share)
+const CUTAWAY = Object.freeze({ sweep: 0.9, most: 70, bend: 1.7 });
 function panelPart(parts, names, P, worn) {
   const { N, zs, R, cy, pelvisBone, blendAt } = legHull(parts, names, P, worn), e = P.ease, thick = P.thick ?? 0.005;
   const [a0, a1] = P.around, m = PANEL_SLOTS, n = SLOT_FAMILIES.ring20.length;
@@ -1127,8 +1130,12 @@ function panelPart(parts, names, P, worn) {
   // (`hemCut: 'petal'`: the hem a curve, not a level line: over the panel's lower part its corners are drawn up, the
   // middle left the longest, so the cloth ends as a petal does)
   const fall = zs[0] - zs[N - 1], petal = P.hemCut === 'petal' ? (i, j) => { const f = Math.max(0, (i / (N - 1) - PETAL.from) / (1 - PETAL.from)), edge = Math.abs(2 * j / (m - 1) - 1); return PETAL.rise * fall * f * f * edge * edge; } : () => 0;
-  zs.forEach((z0, i) => { const id = `st${i}`, points = {};
-    slots.forEach((sl, k) => { const inner = k >= m, j = inner ? 2 * m - 1 - k : k, deg = a0 + (a1 - a0) * j / (m - 1), th = deg * Math.PI / 180, z = z0 + petal(i, j);
+  // (`hemCut: 'cutaway'`: its edge nearer the front swept out toward the other as it falls, a curve from the waist, so a
+  // pair split at the front opens on what is under it as a tailcoat's fronts do; its hem the narrow end left)
+  const near = (d) => Math.min(((d % 360) + 360) % 360, 360 - ((d % 360) + 360) % 360), front0 = near(a0) <= near(a1);
+  const arcAt = P.hemCut === 'cutaway' ? (i) => { const t = (i / (N - 1)) ** CUTAWAY.bend * Math.min(CUTAWAY.most, CUTAWAY.sweep * (a1 - a0)); return front0 ? [a0 + t, a1] : [a0, a1 - t]; } : () => [a0, a1];
+  zs.forEach((z0, i) => { const id = `st${i}`, points = {}, [b0, b1] = arcAt(i);
+    slots.forEach((sl, k) => { const inner = k >= m, j = inner ? 2 * m - 1 - k : k, deg = b0 + (b1 - b0) * j / (m - 1), th = deg * Math.PI / 180, z = z0 + petal(i, j);
       const r = rAt(i, deg) + e - (inner ? thick : 0), p = [Math.sin(th) * r, cy + Math.cos(th) * r, z]; points[sl] = p.map(r6); blend[`${id}.${sl}`] = blendAt(p, z); });
     stations.push({ id, u: i, points }); });
   const mid = (i) => mean(Object.values(stations[i].points)), top = mid(0), bot = mid(N - 1);

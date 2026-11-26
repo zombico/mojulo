@@ -31,3 +31,7 @@
   `beltPattern`, where the motif's threads were dropped) and its `clasp` a round plate centred on its front
   (`beltClasp`), each bound as the belt's face under it. A hood worn down takes its own `wrap` round the throat; a crest
   made `round` keeps a circle's sides at any target (`adorn-tier.js` ROUND_DISC); a polyline's section may be squashed.
+- **Her tunic's fronts cut away**: below the belt it is one piece each side, from a split at the clasp round to the back,
+  its fronts curving open over her tights as a tailcoat's do (a panel's `hem: 'cutaway'`: its edge nearer the front swept
+  out toward its side as it falls, at most 70 degrees; a panel's `width` up to 2, a front pair that meets at the back),
+  her top's own hem at the waist.

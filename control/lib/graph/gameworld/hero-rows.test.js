@@ -54,11 +54,12 @@ describe('the clothing words the row is made of', () => {
 
   it('a panel ends as a petal where asked: its corners drawn up, its middle the longest; unasked, a level hem', () => {
     expect(PANEL_HEMS).toContain(row.looks.underlayer.style.language.panels[0].hem);
-    const hem = parts.panel0_panel.stations.at(-1), top = parts.panel0_panel.stations[0];
+    const L0 = row.looks.underlayer.style.language, petals = outfitOf(row.looks.underlayer.pieces, { ...L0, panels: [{ at: 'back', length: 'mini', width: 0.5, hem: 'petal' }] }).recipe.parts;
+    const hem = petals.panel0_panel.stations.at(-1), top = petals.panel0_panel.stations[0];
     expect(zOf(hem, 'p0')).toBeGreaterThan(zOf(hem, 'p4R') + 0.05);
     expect(zOf(hem, 'p8R')).toBeCloseTo(zOf(hem, 'p0'), 6);
     expect(zOf(top, 'p0')).toBeCloseTo(zOf(top, 'p4R'), 6);
-    const L = row.looks.underlayer.style.language, level = outfitOf(row.looks.underlayer.pieces, { ...L, panels: L.panels.map(({ hem: _h, ...q }) => q) }).recipe.parts.panel0_panel.stations.at(-1);
+    const L = L0, level = outfitOf(row.looks.underlayer.pieces, { ...L, panels: [{ at: 'back', length: 'mini', width: 0.5 }] }).recipe.parts.panel0_panel.stations.at(-1);
     expect(zOf(level, 'p0')).toBeCloseTo(zOf(level, 'p4R'), 6);
     expect(validateOutfitCard({ id: 'designed', language: { ...L, panels: [{ at: 'front', length: 'mini', hem: 'scalloped' }] } }).join(' ')).toMatch(/panels\[0\]\.hem/);
     expect(validateOutfitCard({ id: 'designed', language: L }).join(' ')).not.toMatch(/hem: one of/);
@@ -164,6 +165,23 @@ describe('her belt and her cape, on the game body', () => {
     const H = outfitOf([{ kind: 'cloak', wrap: 0.4, hood: { worn: 'down', wrap: 0.95 } }]).plan.garments, hood = H.find((g) => g.fit === 'hood'), cp = H.find((g) => g.fit === 'cape');
     expect(hood.around[1] - hood.around[0]).toBeGreaterThan(cp.around[1] - cp.around[0] + 180);
     expect((outfitOf([{ kind: 'cloak', hood: { worn: 'down', wrap: 2 } }]).plan.garments ?? []).some((g) => g.fit === 'hood')).toBe(false);
+  });
+
+  it('below the belt her tunic is one piece each side round to the back, its fronts cut away: each front edge swept out toward her side as it falls', () => {
+    const fronts = Object.keys(P).filter((k) => /^panel\d+[ab]_panel$/.test(k)).map((k) => P[k]);
+    expect(fronts).toHaveLength(2);
+    expect(Object.keys(P).filter((k) => /_panel$/.test(k))).toHaveLength(2);
+    // (the two meet at the back: each goes round to its centre line)
+
+    // (the edge nearer the front: its angle off the front at the waist and at the hem)
+    const pel = P.pelvis.stations.flatMap((st) => Object.values(st.points)), cy = pel.reduce((t, q) => t + q[1], 0) / pel.length;
+    const off = (st) => Math.min(...Object.values(st.points).map((q) => Math.abs(Math.atan2(q[0], q[1] - cy))));
+    for (const F of fronts) expect(Math.max(...Object.values(F.stations[0].points).map((q) => Math.abs(Math.atan2(q[0], q[1] - cy))))).toBeGreaterThan(3);
+    for (const F of fronts) expect(off(F.stations.at(-1))).toBeGreaterThan(off(F.stations[0]) + 0.3);
+    // (the same pair with a level hem keeps its front edge where it hangs from)
+    const L = GENRE_HERO['action-rpg'].looks.underlayer.style.language, level = outfitOf([], { ...L, panels: [{ at: 'front', length: 'mini', width: 0.56, split: 2 }] }).recipe.parts;
+    const lv = Object.keys(level).filter((k) => /^panel0[ab]_panel$/.test(k)).map((k) => level[k]);
+    for (const F of lv) expect(off(F.stations.at(-1))).toBeLessThan(off(F.stations[0]) + 0.15);
   });
 
   it('a tall belt is cinched to the waist row by row: its face rows narrow in where the waist does', () => {
