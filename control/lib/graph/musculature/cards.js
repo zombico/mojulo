@@ -276,10 +276,17 @@ const ARMSTRONG = slimmed(SAIKYO, { proud: 1.28, r: 1.07, legs: 1.06, note: 'Arm
 const KALE = slimmed(SAIKYO_FEMALE, { proud: 1.28, r: 1.07, legs: 1.06, note: 'Kale\'s: the hulking female\'s muscles, massed (the shoulder\'s cap, the back, the seat and the legs the most, her bust held)',
   groups: { bust: { proud: 1 / 1.28, r: [1 / 1.07, 1 / 1.07, 1 / 1.07] }, deltoid: { proud: 1.05, each: { deltoidCrown: { proud: 0.72 }, deltoidTop: { proud: 0.72 }, deltoidTopHead: { proud: 0.72 } } }, back: { proud: 1.1 }, seat: { proud: 1.05 }, quadriceps: { proud: 1.08 }, flank: { proud: 0.85 } } });
 
-/** the cards by word: each body codename's (anime-bodies.js: toji, mizuki, satoru, maki), and `saikyo`, the base's by
- * its old name, Toji's or, on a female wearer, Mizuki's */
+/** the cards by word: each body codename's (anime-bodies.js: toji, mizuki, satoru, maki), `saikyo`, the base's by its
+ * old name, Toji's or, on a female wearer, Mizuki's, and `arms`, the base's arms alone */
 const TOJI = Object.freeze({ ...SAIKYO, casts: Object.freeze({ female: SAIKYO_FEMALE }) });
-export const MUSCLE_CARDS = Object.freeze({ saikyo: TOJI, 'saikyo-female': SAIKYO_FEMALE, toji: TOJI, mizuki: SAIKYO_FEMALE, satoru: SATORU, maki: MAKI, armstrong: ARMSTRONG, kale: KALE });
+/** ARMS ONLY (`arms`): the base's shoulder and arm groups alone (the deltoid, the biceps, the triceps, the forearm, the
+ * elbow), Toji's or, on a female wearer, Mizuki's, the trunk and the legs left as the body has them: a slim frame whose
+ * arms read as arms and not sticks, its chest and what is drawn on it (a braid, a crest) untouched (Fable of Artesia's
+ * swordswoman, gameworld/hero-rows.js) */
+export const ARM_GROUPS = Object.freeze(['deltoid', 'biceps', 'triceps', 'forearm', 'elbow']);
+const armsOf = (C) => Object.freeze({ ...C, note: `${C.note ?? ''} The arms alone: ${ARM_GROUPS.join(', ')}.`.trim(), groups: Object.freeze(C.groups.filter((g) => ARM_GROUPS.includes(g.id))) });
+const ARMS = Object.freeze({ ...armsOf(SAIKYO), casts: Object.freeze({ female: armsOf(SAIKYO_FEMALE) }) });
+export const MUSCLE_CARDS = Object.freeze({ saikyo: TOJI, 'saikyo-female': SAIKYO_FEMALE, toji: TOJI, mizuki: SAIKYO_FEMALE, satoru: SATORU, maki: MAKI, armstrong: ARMSTRONG, kale: KALE, arms: ARMS });
 export const MUSCLE_CARD_NAMES = Object.freeze(Object.keys(MUSCLE_CARDS));
 export const MUSCLE_FRAMES = Object.freeze(['trunk', 'upperArm', 'foreArm', 'thigh', 'shank']);
 

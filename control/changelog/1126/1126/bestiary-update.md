@@ -16,3 +16,9 @@
 - **Throwers throw** (the `throw` and `toss` cards): the body winds a real throw and the round leaves at its release.
 - **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul,
   wolves, a boar that braces and charges, cave bats; foes lit by each level's own cube, the target rim only on a lock.
+- **Fable of Artesia's swordswoman, cleaned up** (`gameworld/hero-rows.js`, Lucien's lessons in Fallen Angel carried to
+  the anime body): her skirt three petals open at the front over the tights, where a front petal hung between the legs
+  as a flap; her cape stood off far enough that her collar and her shoulder caps no longer come through it at the back,
+  the caps sat close on the shoulders over it; her arms drawn with a shoulder, a biceps and a forearm by a new muscle
+  card of the arms alone (`musculature/cards.js` `arms`: a body's arm groups, its chest and what is drawn on it
+  untouched), the arm's girth a little fuller.
