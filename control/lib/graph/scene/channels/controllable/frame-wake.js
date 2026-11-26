@@ -29,6 +29,8 @@ export const WAKE = Object.freeze({
   qb: Object.freeze({ width: 2.4, ring: Object.freeze([0.8, 7]), life: 1.1, bits: 120, size: Object.freeze([0.1, 0.24]), drift: 2, spread: 0.35 }),
   ab: 1.6,
   rings: 8,
+  // (a body moved further than this in one step was set down, not flown: its wake is broken there, not drawn across)
+  jump: 20,
 });
 
 const WAKE_VERT = `
@@ -188,6 +190,8 @@ function __wakeStep(dt) {
       J.j.holder.getWorldPosition(__wkP); J.j.holder.getWorldQuaternion(__wkQ); __wkD.copy(__wkUp).applyQuaternion(__wkQ);
       const w = J.j.rad * J.ws * __WK.width * (qb ? __WK.qb.width : e.ab ? __WK.ab : 1);
       __wkP.addScaledVector(__wkD, J.j.rad * J.ws * 2.5);
+      // (set down, not flown: a scene's spawn, a respawn; the wake broken where it jumped)
+      if (J.s.length && Math.hypot(__wkP.x - J.s[0].x, __wkP.y - J.s[0].y, __wkP.z - J.s[0].z) > __WK.jump + (t - J.s[0].t) * 200) J.s.length = 0;
       if (on && t - J.last >= __WK.step) { J.s.unshift({ x: __wkP.x, y: __wkP.y, z: __wkP.z, t, w, h: hot, j: jn }); J.last = t; }
       while (J.s.length && (t - J.s[J.s.length - 1].t > __WK.life || J.s.length > __WK_N - 1)) J.s.pop();
       // (its head on the bell while it burns, so the ribbon never stands off it)

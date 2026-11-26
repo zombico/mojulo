@@ -35,3 +35,5 @@
 - The frame's HUD lets its weapons' names go: shown as the level opens and when a weapon's state turns (a reload, run
   dry, a new one in its slot), then faded out after a few seconds (`FRAME_HUD`), so the fight is the screen and only the
   rounds stay.
+- A wake is broken where its body is set down rather than flown (a scene's spawn, a respawn: further in one step than
+  `WAKE.jump` m), never drawn across the gap.

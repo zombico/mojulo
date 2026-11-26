@@ -54,6 +54,10 @@ describe('a frame\'s wake', () => {
     expect(T.jets.every((J) => J.s.length > 5)).toBe(true);
     expect(win.__mojWake.rings.filter((r) => r.m.visible)).toHaveLength(1);
     expect([...T.g.attributes.position.array].every(Number.isFinite)).toBe(true);
+    // (set down far off in one step, a scene's spawn: the wake broken there, never drawn across the gap)
+    P.qbT = 0;
+    step(1, () => { P.transform.pos[0] += 300; });
+    expect(T.jets.every((J) => J.s.length <= 1)).toBe(true);
     // (the burn stopped: the wake drains away and is gone)
     group.userData.rigFig.thrustAmt = 0; P.qbT = 0;
     step(40, () => {});
