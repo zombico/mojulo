@@ -30,6 +30,8 @@ export const ARMORY_ARMS = Object.freeze({
   'war-hammer': { item: 'staff', style: 'grave', parts: { hilt: 'arm', end: 'hammer' } },
   'broken-spear': { item: 'staff', style: 'grave', parts: { hilt: 'long', end: 'spear', hiltLength: 105 } },
   'grave-halberd': { item: 'staff', style: 'grave', parts: { hilt: 'pole', end: 'halberd' } },
+  // (a brute's great axe: a long haft, its bearded blade grown to read at a giant's hand, a minotaur's)
+  'great-axe': { item: 'staff', style: 'grave', dials: { stylize: 1 }, parts: { hilt: 'long', end: 'axe' } },
   'reaper-scythe': { item: 'staff', style: 'grave', parts: { hilt: 'long', end: 'scythe' } },
   'grave-bow': { item: 'bow', style: 'grave' },
   'rotten-buckler': { item: 'shield', style: 'grave', parts: { outline: 'buckler', construction: 'planks' } },
@@ -39,7 +41,7 @@ export const ARMORY_ARMS = Object.freeze({
 });
 export const ARMORY_NAMES = Object.freeze(Object.keys(ARMORY_ARMS));
 /** the arms that take both hands: whoever rolls one carries no shield (its left hand is on the haft or the grip) */
-export const TWO_HANDED = Object.freeze(['old-greatsword', 'grave-halberd', 'reaper-scythe']);
+export const TWO_HANDED = Object.freeze(['old-greatsword', 'grave-halberd', 'reaper-scythe', 'great-axe']);
 
 export const ARMORY_KITS = Object.freeze({
   rabble: { right: ['cudgel', 'bone-club', 'grave-dagger', 'spiked-club', 'broken-spear'], left: [null, null, 'rotten-buckler'] },

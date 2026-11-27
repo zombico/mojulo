@@ -202,7 +202,7 @@ export const HEAD_DERIVATIONS = Object.freeze({
     eye: { shift: [-0.25, 0.35], R: 0.022 },
     regions: { whiskers: null },
     ornaments: { drop: ['ear', 'ruff', 'cheekRuff'], add: [BULL_EAR, BULL_HORN], set: { nose: { spine: [[0, 0, -0.012], [0, 0, 0.012], [0, 0, 0.022]], radii: [0.05, 0.044], squash: [1.7, 1] } }, teeth: 0.3 },
-    palette: { Horns: '#e8dfcc' },
+    palette: { Horns: '#d8ceb8', Iris: '#b8241a', Sclera: '#3a201a' },
   },
   mandibled: {
     from: 'bear', reads: 'an insect: a short face pitched down, compound eyes, mandibles where the mouth is, short antennae', family: 'insect', head: 'mandibles', serves: ['insectoid'],
