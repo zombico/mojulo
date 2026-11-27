@@ -575,7 +575,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const spaceOf = genre ? cubeOfWorld({ intent: { from: genre.id } }).cube.space ?? {} : {};
   const mapped = !!genre && !form && !indoors && !hubbed && spaceOf.worldMap === 'zones' && spaceOf.levelForm === 'map';
   if (mapped) {
-    const mid = `${wid}-map`.slice(0, 48), { level } = worldMapLevel({ n, landscape });
+    // (its settlements in the village's look, era/village-look.js: an action RPG's towns read at a glance)
+    const mid = `${wid}-map`.slice(0, 48), { level } = worldMapLevel({ n, landscape, town: 'storybook' });
     world.levels[mid] = { ...level, seed: seed * 100 + 1 };
     Object.assign(world, { topology: 'interconnected', start: mid });
     decided.push({ level: mid, seed: seed * 100 + 1, tries: 1, laws: [] });

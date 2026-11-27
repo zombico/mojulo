@@ -252,3 +252,15 @@ describe('a party RPG\'s wilds', () => {
   });
 });
 
+
+// THE SETTLEMENTS' LOOK (`town`, era/village-look.js): a world map asked for it marks its village's block and its town's
+// as a town, and no other; absent, no block says it
+describe('the world map\'s settlements', () => {
+  it('its village and its town are a town\'s region; the wilds are not', () => {
+    const K = worldMapLevel({ n: 3, town: 'storybook' }).level.glyphs.plan.key, seg = worldMapLevel({ n: 3, town: 'storybook' }).level.glyphs.segments;
+    const towned = Object.keys(K).filter((S) => K[S].town === 'storybook');
+    expect(towned.sort()).toEqual(Object.keys(seg).sort());
+    expect(towned.length).toBeGreaterThanOrEqual(2);
+    expect(Object.values(worldMapLevel({ n: 3 }).level.glyphs.plan.key).some((k) => k.town !== undefined)).toBe(false);
+  });
+});

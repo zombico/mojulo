@@ -38,6 +38,7 @@
  * Pure: a function of the outdoor payload and the recipe. Colliders stay axis-aligned, so a building turns in
  * quarter turns.
  */
+import { villageOf, villageDress, villageLight, gableDress, VILLAGE } from './village-look.js';
 import { TOWN_TRADES, usedAs } from './town-trades.js';
 import { assembleStageScene, planStage } from './stage.js';
 import { withProgram, PROGRAMS } from './programs.js';
@@ -788,6 +789,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // the planning pass only claims the ground (era/reserve.js): the land is laid again round it before anything is built
     if (ctx.planOnly) {
       reserved.push(...F.boxes.map((B) => B.map(r5)));
+      // (A VILLAGE's building, `_village` (era/village-look.js): the land round it kept clear of trees VILLAGE.clear out)
+      if (manifest._village) for (const B of F.boxes) reserved.push([B[0] - VILLAGE.clear, B[1] - VILLAGE.clear, B[2] + VILLAGE.clear, B[3] + VILLAGE.clear].map(r5));
       // (a composed building's yard, or one set into its slope: the ground before its front, as wide as it and YARD deep,
       // kept clear of what grows)
       if (composedOf(b) || E) { const x0 = Math.min(...rects.map((R0) => R0[0])), x1 = Math.max(...rects.map((R0) => R0[2])), y0 = Math.min(...rects.map((R0) => R0[1])), a = F.toWorld([x0 - 1, y0 - YARD]), c = F.toWorld([x1 + 1, y0]); reserved.push([Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])].map(r5)); }
@@ -930,6 +933,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // (a town's building, its interior the vernacular made from its language (`town.inside`), wears its town's outside
     // as the street's houses do: the language's wall and roof, painted and dressed as theirs, its windows cut through)
     const vern = bay && /^vernacular/.test(P0.compose?.axes?.construction ?? '');
+    // A VILLAGE's look (`_village`, era/village-look.js): this building's colours, by what it is and its dice; lit as
+    // an anime game lights a building, its shade side lifted, never dark
+    const Vg = vern && manifest._village ? villageOf(manifest._village.look, { id, use: b.use }, manifest.seed ?? 1) : null;
+    const litHex = villageLight;
     const X = bay && !vern ? exteriorOf(P0.compose?.axes) : null;
     const shell0 = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
       // (lit by the land's sun where its sky has one, else by its day alone: a dusk under its moon, a night; the fill is
@@ -941,6 +948,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
     }) : shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid, vern ? { holes } : null).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
+      // (a VILLAGE's building in its own palette, never the land's: its walls' plaster and its roof's hue, lit cleanly)
+      if (Vg) return { ...quad(c, `building:${s.group}`, litHex(roof ? Vg.roof : Vg.wall, lam)), normal: P3(nn), outNormal: P3(nn) };
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
       return manifest.town?.dress ? dressTownFace(F0, roof ? roofGroup : wallGroup, manifest.town.dress) : F0;
     });
@@ -959,7 +968,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
         let ar = 0; for (let k = 0; k < n; k++) { const p = f.corners[k], q = f.corners[(k + 1) % n]; ar += p[0] * q[1] - q[0] * p[1]; }
         ar = Math.abs(ar) / 2; all += ar; if (HARD.test(g)) hard += ar; }
       return all > 0 ? r5(hard / all) : 0; })() : 0;
-    const apronKind = b.apron ?? ctx.apron ?? (hardShare >= APRON.hard ? 'ground' : 'slab');
+    const apronKind = b.apron ?? ctx.apron ?? (manifest._village ? 'ground' : hardShare >= APRON.hard ? 'ground' : 'slab');
     if (!['slab', 'ground'].includes(apronKind)) throw new Error(`stage: buildings[${i}].apron is 'slab' (poured concrete) or 'ground' (the land's own, levelled)`);
     if (was && was.apron && apronKind === 'slab') aprons.push({ rect: was.apron, boxes: F.boxes });
     // (what its roofs keep dry: its footprint up to its roof, for the weather that falls, scene/channels/weather.js)
@@ -1036,14 +1045,26 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // ornament, painted and lit as its shell)
     const trims = vern ? (holes ?? []).flatMap((h) => {
       const orn = L.values?.ornaments ?? {}, lin = orn.lintel ?? orn.lintels ?? orn.cornice ?? { group: 'str:stone', value: 0.6 }, sl = orn.sill ?? orn.sills ?? lin;
-      const along = h.n[0] === 0, o = (u, v, z) => (along ? [u, h.plane + h.n[1] * v, z] : [h.plane + h.n[0] * v, u, z]);
+      // (a village's set out on the shell's own face, the wall's half thickness past the room's)
+      const hp = Vg ? h.plane + (h.n[0] === 0 ? h.n[1] : h.n[0]) * 0.25 : h.plane;
+      const along = h.n[0] === 0, o = (u, v, z) => (along ? [u, hp + h.n[1] * v, z] : [hp + h.n[0] * v, u, z]);
       const piece = (u0, u1, z0, z1, d, P0) => {
         const c = (u, v, z) => W(o(u, v, z)), fs = [[[u0, d, z0], [u1, d, z0], [u1, d, z1], [u0, d, z1]], [[u0, 0, z1], [u1, 0, z1], [u1, d, z1], [u0, d, z1]], [[u0, 0, z0], [u0, d, z0], [u0, d, z1], [u0, 0, z1]], [[u1, d, z0], [u1, 0, z0], [u1, 0, z1], [u1, d, z1]], [[u0, 0, z0], [u1, 0, z0], [u1, d, z0], [u0, d, z0]]];
         return fs.map((q) => { const cs = q.map((p) => c(...p)), nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
-          return { ...quad(cs, 'building:trim', paint(P0.group ?? 'str:stone', Math.min(1, (P0.value ?? 0.6) * (0.55 + 0.45 * lam)))), normal: P3(nn), outNormal: P3(nn) }; });
+          return { ...quad(cs, 'building:trim', Vg ? litHex(Vg.frame, lam) : paint(P0.group ?? 'str:stone', Math.min(1, (P0.value ?? 0.6) * (0.55 + 0.45 * lam)))), normal: P3(nn), outNormal: P3(nn) }; });
       };
       return [...piece(h.u0 - 0.14, h.u1 + 0.14, h.z1, h.z1 + 0.2, 0.09, lin), ...piece(h.u0 - 0.08, h.u1 + 0.08, h.z0 - 0.08, h.z0, 0.11, sl)];
     }) : [];
+    // ITS DRESS, a village's (villageDress): its footing, its timber, its shutters, its door's frame, its chimney, a
+    // tavern's sign and a hall's banners, in the plan's frame, mapped and lit as its trims are
+    const dressF = Vg ? villageDress(Vg, { rects, tops: inner.rooms.map((r) => Math.max(r.h, tops[r.id] ?? 0) + 0.35), holes: holes ?? [], ways, entry, below, pitch: L.proportions?.pitch ?? 35, use: b.use })
+      .map((f) => { const cs = f.corners.map(W), nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
+        return { ...quad(cs, f.group, litHex(f.colour, lam)), normal: P3(nn), outNormal: P3(nn) }; }) : [];
+    // (and its gables' timber, on the shell's own gable ends, in the world's frame)
+    if (Vg) for (const g of shell0.filter((f) => f.group === 'building:gable' && f.corners.length === 3)) for (const f of gableDress(g.corners, Vg.timber)) {
+      const cs = f.corners, nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
+      dressF.push({ ...quad(cs, f.group, litHex(f.colour, lam)), normal: P3(nn), outNormal: P3(nn) });
+    }
     // ITS YARD (`yard: { containers }`): shipping containers stacked on its apron before its front, in a row along it,
     // each stack one to three high by the building's dice, each container in a line's colour; the way to its door kept
     // clear. Lit as the shell is; each stack a collider
@@ -1200,7 +1221,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const lit = one ? add(f.cornerLight) : f.cornerLight.map(add);
       return { ...f, cornerLight: lit, sunShare: one ? share(lit) : lit.map(share) };
     });
-    faces = [...faces, ...indoors, ...shell, ...apronF, ...yardLit, ...lampFaces.splice(0), ...trims, ...stoop, ...stairF, ...pathF];
+    faces = [...faces, ...indoors, ...shell, ...apronF, ...yardLit, ...lampFaces.splice(0), ...trims, ...dressF, ...stoop, ...stairF, ...pathF];
     // WET (`wet: true` on the recipe: it has just rained): on a painted page the apron's slab films the sky,
     // channels/wet-road.js; the form render wets the slab itself (its record's `reflect.wet`, below)
     if (manifest.wet && apronF.length && !shellLight) wetQuads.push(...apronF.filter((f) => f.corners.length === 4 && f.normal && f.normal[2] > 0.9).map((f) => f.corners));

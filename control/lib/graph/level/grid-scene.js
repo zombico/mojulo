@@ -530,7 +530,10 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     // (its WAY's rank, path-ranks.js: its width and verge at its middle and at each edge, its dress; a map whose ways are
     // all one, `ways: 'one'`, the kit's one width)
     const R = ranks?.get(`${cell.r},${cell.c}`), way = R ? { way: { width: R.width, fringe: R.fringe, edges: R.edges }, ...(R.surface !== 'earth' ? { dress: { surface: R.surface } } : {}) } : {};
-    const raw = { kind: 'stage', ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
+    // (a TOWN's tile, its region's `town` (era/village-look.js): its buildings in the village's own palette, dressed, the
+    // ground round them cleared; its land laid level by the map's rise, level/grid.js)
+    const village = Rg && Rg.town !== undefined ? { _village: { look: Rg.town } } : {};
+    const raw = { kind: 'stage', ...village, ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
     // (THE GEOCUBE: the map's cube paints every tile as it paints a trail, era/geocube.js withGeocube: its look, its land
     // drawn as the cube's, its flora; lowered here, so the casters handed between tiles read the same tile the build does)
     return cube ? withGeocube({ ...raw, ...(shifted ?? cube) }) : raw;

@@ -64,6 +64,19 @@ describe('the map takes what a stage gives', () => {
     expect(placeSeen.find((t) => t.origin[0] === T).backdrop).toBeUndefined();
   });
 
+  it('a town\'s region: its tiles carry the village\'s look, its land laid level by the map\'s rise; any other as it was', async () => {
+    const seen = [], regions = { rows: ['a a', 'b b'], key: { a: { name: 'the village', town: 'storybook' }, b: { name: 'the meadows' } } };
+    await assembleGridScene({ level: { ...levelR(['# h', '# #'], regions), grid: { ...levelR(['# h', '# #'], regions).grid, key: { h: { use: 'dwelling' } } } } }, {}, { buildStage: async (m) => { seen.push(m); return tileStage(() => 0)(m); } });
+    const north = seen.filter((m) => m.tile.origin[1] === -T), south = seen.filter((m) => m.tile.origin[1] === -2 * T);
+    for (const m of north) expect(m._village).toEqual({ look: 'storybook' });
+    for (const m of south) expect(m._village).toBeUndefined();
+    // (the map's rise carries the town's mask, 1 a town's tile; every reader of the land reads it)
+    expect(north[0].tile.level.rise.flat).toEqual([1, 1, 0, 0]);
+    const plain = [];
+    await assembleGridScene({ level: levelR(['# #', '# #'], two) }, {}, { buildStage: async (m) => { plain.push(m); return tileStage(() => 0)(m); } });
+    for (const m of plain) { expect(m._village).toBeUndefined(); expect(m.tile.level.rise.flat).toBeUndefined(); }
+  });
+
   it('carries the soft groups, the cloud deck, the fauna and the trunks of every tile, on the level\'s frame', async () => {
     const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
     const unb64 = (v) => { const b = Buffer.from(v.__b64, 'base64'); return new globalThis[v.t](b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };

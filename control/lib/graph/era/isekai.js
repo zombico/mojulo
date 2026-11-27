@@ -33,6 +33,7 @@
  * lowers to bodies (worlds/fauna-units.js).
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
+import { VILLAGE } from './village-look.js';
 import { reserveSite, kept, CROWN } from './reserve.js';
 import { lookOf } from './style/looks.js';
 import { poleOf } from './style/pole.js';
@@ -444,9 +445,15 @@ function heroSpot(Hr, site, manifest) {
   if (Math.min(x, y, site.W - x, site.D - y) < Hr.off) return null;
   return { x: r5(x), y: r5(y) };
 }
+// (A VILLAGE's tile, `_village` (era/village-look.js): its groves thinned to VILLAGE.groves and its boulders to
+// VILLAGE.boulders, the meadow and its flowers left, so its houses stand in open ground and not in a wood or a rockery;
+// its casters and its build alike)
+const villaged = (st, manifest) => (st && manifest._village ? { ...st,
+  ...(st.trees && Number.isFinite(st.trees.clusters) ? { trees: { ...st.trees, clusters: Math.min(st.trees.clusters, VILLAGE.groves) } } : {}),
+  ...(st.rubble && Number.isFinite(st.rubble.boulders) ? { rubble: { ...st.rubble, boulders: Math.min(st.rubble.boulders, VILLAGE.boulders) } } : {}) } : st);
 export function isekaiTileCasters(manifest = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
-  const B = st0 && manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null, st = B ? withFlora(st0, B) : st0;
+  const B = st0 && manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null, st = villaged(B ? withFlora(st0, B) : st0, manifest);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   if (!st || !manifest.tile || st.glow) return { trees: [], rocks: [], seed };
   const site = reserveSite(outTileSite(st, manifest.tile, seed), manifest._keepOut ?? null);
@@ -556,7 +563,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   // a `biocube` (era/biocube.js): the level's flora laid over the card's own trees and grass
   // (a cavern grows nothing of a biocube's: underground, its flora is its formations; era/cavern.js)
-  const underground = !!(manifest.trail?.ground?.cavern), B = st0 && manifest.biocube !== undefined && !underground ? readBiocube(manifest.biocube) : null, st1 = B ? withFlora(st0, B) : st0;
+  const underground = !!(manifest.trail?.ground?.cavern), B = st0 && manifest.biocube !== undefined && !underground ? readBiocube(manifest.biocube) : null, st1 = villaged(B ? withFlora(st0, B) : st0, manifest);
   if (!st1) throw new Error(`stage: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, S = seed | 0;
   // the polygon land (`shading`, see the header): the island's drawing, and a gritty one's broken rock

@@ -38,3 +38,18 @@ describe('a glyph map\'s tile', () => {
     expect(none.trailDist(24, 24)).toBe(Infinity);
   });
 });
+
+// A TOWN's land (`rise.flat`, level/grid.js): its tiles laid level, the level's hills eased back in past its edge
+import { TOWN_LAND } from './out-tile.js';
+describe('a town\'s land is laid level', () => {
+  it('its hills kept to a share of the level\'s across its tiles, the land beyond as it was', () => {
+    const T = 24, rise = { tile: T, cols: 4, rows: 1, z: [0, 0, 0, 0] }, flat = { ...rise, flat: [1, 1, 0, 0] };
+    const spread = (L, x0, x1) => { const zs = []; for (let x = x0; x <= x1; x += 1) for (let y = -T + 2; y <= -2; y += 2) zs.push(levelHeight(x, y, L)); return Math.max(...zs) - Math.min(...zs); };
+    const town = spread({ seed: 3, rise: flat }, 6, 30), was = spread({ seed: 3, rise }, 6, 30);
+    expect(town).toBeLessThan(was * (TOWN_LAND.hills + TOWN_LAND.roll + 0.1));
+    // (the far tile, two tiles out, its own land)
+    expect(levelHeight(84, -12, { seed: 3, rise: flat })).toBeCloseTo(levelHeight(84, -12, { seed: 3, rise }), 9);
+    // (absent, every height as it was)
+    expect(levelHeight(10, -10, { seed: 3, rise })).toBe(levelHeight(10, -10, { seed: 3, rise: { ...rise } }));
+  });
+});

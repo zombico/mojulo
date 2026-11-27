@@ -158,7 +158,7 @@ export function wildsLevel({ landscape = 'meadow', at = 0 } = {}) {
 }
 
 /** The world map's level for n levels' worth of world (1 to 6): its plan, its blocks' rows, its scenario. */
-export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', 'harrier', 'elite', 'boss'] } = {}) {
+export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', 'harrier', 'elite', 'boss'], town = null } = {}) {
   const k = WORLD_MAP.first + Math.max(0, Math.min(6, n) - 1), size = WORLD_MAP.size, letters = LETTERS.slice(0, k).split('');
   const [A, B, C] = letters, last = letters[k - 1], middles = letters.slice(WORLD_MAP.first, -1), F = WORLD_MAP.fills;
   const has = (r) => roles.includes(r), grunt = has('grunt') ? 'grunt' : roles[0], harrier = has('harrier') ? 'harrier' : grunt;
@@ -183,6 +183,9 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   if (P.sides[A].out === 'e') { for (let c = 0; c < m; c++) G[A][m][c] = '#'; G[A][m - 1][m] = 'l'; G[A][m + 1][m] = 'h'; segments[A] = { rows: rowsOf(G[A]), key: { l: { use: 'hall' }, h: { use: 'dwelling' } } }; }
   // (the first zone past the ruins is a town: its tavern and a house)
   if (middles.length) { const S = middles[0], kk = besideWay(S, [['t', 'tavern'], ['h', 'dwelling']]); segments[S] = { rows: rowsOf(G[S]), key: kk }; }
+  // (THE SETTLEMENTS' LOOK, `town` (era/village-look.js): the village's block and the town's a region that says it, their
+  // land laid level, their buildings in a palette of their own and dressed, their ground cleared; absent, as laid)
+  if (town) for (const S of Object.keys(segments)) key[S] = { ...key[S], town };
   // THE SCENARIO, beat by beat on the blocks' own tiles (map-sketch.js): the first zone's teaching order, then each
   // zone's fight and its breath, the climb and the climax
   const inOf = (S) => gateTile(size, P.sides[S].in), outOf = (S) => gateTile(size, P.sides[S].out), mid = [m, m];
