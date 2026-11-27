@@ -41,9 +41,10 @@ describe('the encounter\'s script', () => {
     expect(S.when).toEqual({ on: 'objective:begin', match: { task: 't3' } });
     expect(S.beats[0].shot).toMatchObject({ frame: 'wide', on: ['quick', 'heavy'], move: 'push' });
     expect(S.beats[1].do).toEqual({ say: 'Two frames', as: 'banner', ttl: SPLIT.banner });
-    expect(S.beats[3].shot).toMatchObject({ frame: 'two', on: ['cole', 'quick'] });
+    expect(S.beats[3].shot).toMatchObject({ frame: 'low', on: ['cole'] });                  // (the ally alone as it speaks)
     expect(S.beats[4]).toEqual({ line: { who: 'cole', say: "The quick one's mine." } });
     expect(S.beats[5].do).toEqual([{ walk: { who: 'cole', to: 'split-cole', speed: SPLIT.speed } }, { walk: { who: 'quick', to: 'split-cole', speed: SPLIT.speed } }]);
+    expect(S.beats[6].shot).toMatchObject({ frame: 'wide', on: ['cole', 'quick'], move: 'track' });   // (the two as they go)
     expect(S.beats.at(-1).do).toEqual([{ vanish: 'cole' }, { vanish: 'quick' }]);
     expect(cast.play.spots.find((s) => s.id === 'split-cole').at).toEqual([400, 150, 0]);
     expect(() => readScenes({ scenes: cast.play.scenes, spots: cast.play.spots })).not.toThrow();

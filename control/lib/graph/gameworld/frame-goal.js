@@ -444,9 +444,12 @@ export function operationCast(op, ends) {
     const fought = op.tasks[S.at - 1].down ?? [], shown = [...new Set([S.foe, ...fought])].flatMap((id) => membersOf(op.groups.find((g) => g.id === id), ends).map((m) => m.id));
     splits.push({ id: `split-${S.ally}`, when: { on: 'objective:begin', match: { task: `t${S.at}` } }, beats: [
       ...(S.title ? [{ shot: { frame: 'wide', on: shown, move: 'push' }, for: 0.6 }, { do: { say: S.title, as: 'banner', ttl: SPLIT.banner } }, { wait: SPLIT.banner }] : []),
-      { shot: { frame: 'two', on: [S.ally, membersOf(G, ends)[0].id], move: 'track' }, for: 0.6 },
+      // (the ally alone as it speaks: two bodies a fight apart are specks in one frame; then the two of them as they go,
+      // drawing together toward where they fight)
+      { shot: { frame: 'low', on: [S.ally], move: 'track' }, for: 0.6 },
       ...(S.line ? [{ line: { who: S.line.who, say: S.line.say } }] : []),
       { do: [{ walk: { who: S.ally, to, speed: SPLIT.speed } }, { walk: { who: S.foe, to, speed: SPLIT.speed } }] },
+      { shot: { frame: 'wide', on: [S.ally, membersOf(G, ends)[0].id], move: 'track' }, for: 0.6 },
       { wait: SPLIT.leave },
       { do: [{ vanish: S.ally }, { vanish: S.foe }] },
     ] });

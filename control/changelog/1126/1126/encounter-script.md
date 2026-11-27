@@ -10,7 +10,7 @@
   `unhold`, `worlds/controllable/rules-frame.js`). An instructor who comes to help when the alarm goes.
 - A split (`goal.operation.split`, `SPLIT`): an ally and a foe leave the field together for a fight of their own, never
   played (a level's economy). As its task begins, a scene: the foe's group in a wide push (its `title` a banner), the ally
-  and the foe in one frame, its `line` said, both off toward `to` and gone; as task `back` begins the ally comes back
+  alone as its `line` is said, then both off toward `to`, the two in one frame as they go, and gone; as task `back` begins the ally comes back
   from there alone, let go of any hold.
 - A task's ops (`game/objectives.js` `ops`): the cast's ops issued as it begins, once, beside a clear's own foes woken:
   what the encounter's words above lower to, and any level's own.
