@@ -340,10 +340,51 @@ export function moveClip(move, ctx) {
   // (a PLANT splits the feet in place: no travel with it, the body still)
   const plant = !move.air && !travel && move.plant > 0 ? { m: move.plant, window: [contact[0], contact[1]], ...(move.plantOn ? { on: true } : {}) } : null;
   const fn0 = move.air ? (u) => airBody(arm(u), u, from) : plant ? withPlant(arm, plant, ctx) : travel && ctx.footwork && travel.kind !== 'dash' ? withFootwork(arm, travel, ctx) : arm;
-  const fn = isArt(ctx.style) ? reachGuard(fn0, R, rigNodesAt) : fn0;
+  const fn1 = isArt(ctx.style) ? reachGuard(fn0, R, rigNodesAt) : fn0;
+  // (an art's free arm carried by the body's turn, counterArm: never the verb's own off hand, a two-handed grip's)
+  const ownOff = keys0.some((k) => JSON.stringify([k.shL, k.elbowL]) !== JSON.stringify([keys0[0].shL, keys0[0].elbowL]));
+  const fn = isArt(ctx.style) && body && !ownOff ? counterArm(fn1, { seconds: move.dur > 0 ? move.dur : COUNTER_ARM.seconds, floor: SWING_STYLES[ctx.style].offElbow ?? 0 }) : fn1;
   fn.keys = 24;
   fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}), ...(plant ? { plant } : {}), ...(move.air ? { air: true } : {}) };
   return fn;
+}
+
+/**
+ * THE FREE ARM CARRIED BY THE TURN (an art's one-handed move, moveClip): the off arm is not placed key by key but swung by
+ * the body's rotation, as a fighter's is. Its TARGET at each moment is read off how far the trunk has turned from its
+ * stance (`facing` off the clip's first key): coiled away from the target, the arm reaches forward and across (`forward`,
+ * `across` degrees a degree of coil); turned through it, the arm is pulled back and out, the elbow driven back to the hip
+ * (`back`, `open`, `bend`), the pull that starts the unwinding. It reads the turn `lead` of the move AHEAD (the pull begins
+ * the rotation, never follows it), and the arm is a MASS on it: a damped spring (`omega` rad/s, `zeta`) carries it toward
+ * the target over the move's own seconds, so it trails, overshoots a little on the pull and settles, never snapping from
+ * key to key. Over its last stretch (`settle`) it is eased onto the stance again, so every move ends where it began and a
+ * string chains. The elbow never under the art's `floor` (offElbow).
+ *
+ *   counterArm(fn, { seconds, floor }) → the clip with its free arm carried; COUNTER_ARM its numbers
+ */
+export const COUNTER_ARM = Object.freeze({ forward: 1.9, across: 0.3, back: 0.95, open: 0.45, bend: 0.68, lead: 0.08, omega: 24, zeta: 0.5, settle: Object.freeze([0.8, 1]), samples: 120, seconds: 0.6 });
+export function counterArm(fn, { seconds = COUNTER_ARM.seconds, floor = 0 } = {}) {
+  const C = COUNTER_ARM, k0 = fn(0), f0 = k0.facing ?? 0, base = [k0.shL?.pitch ?? 0, k0.shL?.yaw ?? 0, k0.elbowL ?? 0];
+  // (the arm's target off the trunk's turn: d < 0 coiled away, d > 0 turned through)
+  const target = (u) => {
+    const d = (fn(Math.min(1, u + C.lead)).facing ?? f0) - f0;
+    return d < 0 ? [base[0] - C.forward * d, base[1] + C.across * d, Math.max(floor, base[2])]
+      : [base[0] - C.back * d, base[1] + C.open * d, Math.max(floor, base[2] + C.bend * d)];
+  };
+  // (the spring, integrated over the move's seconds at its samples: deterministic, no clock)
+  const N = C.samples, dt = seconds / N, x = [...base], v = [0, 0, 0], track = [x.map((a) => a)];
+  for (let i = 1; i <= N; i++) {
+    const T = target(i / N);
+    for (let a = 0; a < 3; a++) { v[a] += (C.omega * C.omega * (T[a] - x[a]) - 2 * C.zeta * C.omega * v[a]) * dt; x[a] += v[a] * dt; }
+    track.push([...x]);
+  }
+  const r2 = (n) => Math.round(n * 100) / 100, sm = (a, b, u) => { const t = Math.max(0, Math.min(1, (u - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const out = (u) => {
+    const p = fn(u), q = Math.max(0, Math.min(1, u)) * N, i = Math.min(N - 1, Math.floor(q)), t = q - i, A = track[i], B = track[i + 1];
+    const w = sm(C.settle[0], C.settle[1], u), arm = A.map((a, j) => (a + (B[j] - a) * t) * (1 - w) + base[j] * w);
+    return { ...p, shL: { ...(p.shL ?? {}), pitch: r2(arm[0]), yaw: r2(arm[1]) }, elbowL: r2(Math.max(floor, arm[2])) };
+  };
+  return Object.assign(out, fn);
 }
 
 /** THE FIGHTING STANCE (`mv_ready`): the stance a moveset's moves start and end in (the hero's own cut's ready key, the

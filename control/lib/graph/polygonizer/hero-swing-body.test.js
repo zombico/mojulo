@@ -403,3 +403,37 @@ describe('the fighting stance breathes', () => {
     for (const foot of ['ankleL', 'ankleR', 'toeTipL', 'toeTipR']) for (const k of [0, 1]) expect(Math.abs(settle[foot][k] - a[foot][k]), foot).toBeLessThan(0.01);
   });
 });
+
+// THE FREE ARM CARRIED BY THE TURN (counterArm, COUNTER_ARM): an art's one-handed move swings its off arm by the body's
+// rotation, a mass on a spring: forward when the trunk coils away, pulled back to the hip (the elbow driven back) as it
+// turns through, never jumping between samples, ending in the stance; a two-handed grip keeps its own off hand
+import { counterArm, COUNTER_ARM, SWING_STYLES } from './hero-swing-body.js';
+describe('the free arm is carried by the turn', () => {
+  const R = rig('female', 'sword');
+  const ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style: 'inspired', timing: swingTiming('normal', 'action'), contact: [0.44, 0.52], layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
+  const cut = moveClip({ swing: 'neutral', dur: 0.45 }, ctx), S = Array.from({ length: 97 }, (_, i) => cut(i / 96));
+  it('forward while coiled, pulled back with the elbow bent once turned through, ending in the stance', () => {
+    const f0 = S[0].facing, coiled = S.reduce((a, p) => (p.facing < a.facing ? p : a)), through = S.reduce((a, p) => (p.shL.pitch < a.shL.pitch ? p : a));
+    expect(coiled.facing).toBeLessThan(f0);
+    expect(Math.max(...S.filter((p) => p.facing < f0 - 10).map((p) => p.shL.pitch))).toBeGreaterThan(S[0].shL.pitch + 20);
+    expect(through.shL.pitch).toBeLessThan(S[0].shL.pitch - 40);
+    expect(through.elbowL).toBeGreaterThan(S[0].elbowL + 25);
+    expect(through.facing).toBeGreaterThan(f0);
+    for (const k of ['pitch', 'yaw']) expect(S[96].shL[k]).toBeCloseTo(S[0].shL[k], 1);
+    expect(S[96].elbowL).toBeCloseTo(S[0].elbowL, 1);
+    for (const p of S) expect(p.elbowL).toBeGreaterThanOrEqual(SWING_STYLES.inspired.offElbow);
+  });
+  it('a mass, not a switch: it never jumps between samples, and is the same each time', () => {
+    for (let i = 1; i < S.length; i++) expect(Math.abs(S[i].shL.pitch - S[i - 1].shL.pitch), `sample ${i}`).toBeLessThan(12);
+    expect(JSON.stringify(moveClip({ swing: 'neutral', dur: 0.45 }, ctx)(0.6))).toBe(JSON.stringify(cut(0.6)));
+  });
+  it('a two-handed grip keeps its own off hand; a style that is no art is as it was', () => {
+    const cleave = moveClip({ swing: 'back', dur: 0.77 }, ctx), plainCtx = { ...ctx, style: null, timing: null };
+    // (the two-handed grip's own off hand: drawn across onto the hilt, far past anything the turn would carry it to)
+    expect(Math.min(...Array.from({ length: 25 }, (_, i) => cleave(i / 24).shL.yaw))).toBeLessThan(-90);
+    const plain = moveClip({ swing: 'neutral', dur: 0.45 }, plainCtx);
+    expect(JSON.stringify(plain(0.5))).toBe(JSON.stringify(moveClip({ swing: 'neutral', dur: 0.45 }, plainCtx)(0.5)));
+    expect(COUNTER_ARM.lead).toBeGreaterThan(0);
+    expect(typeof counterArm).toBe('function');
+  });
+});
