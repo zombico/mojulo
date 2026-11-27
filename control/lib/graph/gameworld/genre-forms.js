@@ -75,15 +75,18 @@ export const PENDING = Object.freeze({
   'tower-defense': 'form', rts: 'form', tactics: 'form', farming: 'form', rhythm: 'form', roguelike: 'form', 'block-puzzle': 'form',
   'pixel-puzzle': 'form', 'versus-fighter': 'form', 'athletics-meet': 'form', 'net-game': 'form', 'turn-sport': 'form', 'team-goal-game': 'form',
   'co-op-kitchen': 'form',
+  // (the couch's: a party round, a split deathmatch and a crewed ride, each one level of the quick door's for now)
+  'party-mash': 'form', 'split-deathmatch': 'form', 'driver-and-gunner': 'ride',
 });
 // the one level a pending genre plays alone today (quick.js QUICK_GOALS, the one-level door), said beside its refusal
 const ONE_LEVEL = Object.freeze({
   racing: 'race', 'kart-racer': 'race', shooter: 'shoot', 'arena-shooter': 'deathmatch', 'tower-defense': 'defend', rts: 'conquer',
   farming: 'farm', rhythm: 'rhythm', 'block-puzzle': 'puzzle', 'versus-fighter': 'fight', 'athletics-meet': 'meet', 'net-game': 'contest',
   'turn-sport': 'contest', 'team-goal-game': 'contest', 'endless-runner': 'runner', 'co-op-kitchen': 'work',
+  'party-mash': 'mash', 'split-deathmatch': 'deathmatch', 'driver-and-gunner': 'reach',
 });
 // (and the words that make it what the genre is, where the goal alone does not: the cooks a co-op kitchen seats)
-const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }) });
+const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }), 'party-mash': Object.freeze({ players: 4 }), 'split-deathmatch': Object.freeze({ players: 4 }), 'driver-and-gunner': Object.freeze({ ride: 'car', players: 2 }) });
 /** The quick door that plays a pending genre's one level alone, as the producer says it: `{ goal: 'work', cooks: 2 }`. */
 export const oneLevelCall = (id) => (ONE_LEVEL[id] ? `{ goal: '${ONE_LEVEL[id]}'${Object.entries(ONE_WITH[id] ?? {}).map(([k, v]) => `, ${k}: ${JSON.stringify(v)}`).join('')} }` : null);
 

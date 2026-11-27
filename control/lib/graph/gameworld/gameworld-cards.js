@@ -818,6 +818,7 @@ const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
   survive: () => ['  seconds: n (5..600)   how long to last'],
+  mash: () => ['  players: 2..4 (2)   the couch\'s seats, a controller each; a lobby first, each joining with a press', '  seconds: n (10)   the window each mashes in; to: n (5..200)   a race to a count instead, the first to it wins', '  seen from overhead, played by heroes; no ride, climb, building or run'],
   runner: () => [
     '  distance: n (10+)   metres a run is won at (absent: endless, a crash ends it, the best kept)',
     '  runner: { lanes?, speed?, accel?, max?, seed?, palette? }   the run itself; a hero runs it (made when none is named)',
@@ -865,6 +866,7 @@ const QUICK_LEVERS = {
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
     `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
+    '  players: 2 (with a ride)   a driver and a gunner: one drives, the other turns the roof gun with the right stick and fires',
     // (a few of the road's classes by name, the rest by a registry word: every shelf grows a class at a time, so the card
     // names none it would have to keep up with and stays under its ceiling)
     `    vehicle: a physics class (${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').slice(0, 8).join(' | ')}, …) or any registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
@@ -937,6 +939,7 @@ const QUICK_LEVERS = {
   ],
   deathmatch: () => [
     `  bots: n (1..7, 3), frags: n (1..50, 10), seconds: n (10..600) a time limit, foe: ${HERO_WORDS}`,
+    '  players: 2..4   a couch deathmatch, each against each and the bots, a lobby first; in first person a split screen (a view a player)',
     '  arena: \'<words>\' ("a tight three-lane arena with long sightlines"), pole: realistic..stylized (0..1),',
     '    weapons: true (the pole\'s guns on the arena\'s floor; needs a pole)',
     `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,

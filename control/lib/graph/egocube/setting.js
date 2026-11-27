@@ -58,6 +58,8 @@ export const GENRES = Object.freeze({
   work:       { weight: 0.35, mascot: { promise: { comfort: 2, cheer: 3 }, energy: { sturdy: 2, swaying: 1 } }, person: { role: { 'non-combatant': 8, support: 2 }, archetype: { everyman: 4, caregiver: 2, creator: 2 }, age: { seasoned: 1.5 } } },
   battle:     { weight: 0.3, mascot: { promise: { might: 3, pride: 1.5 } }, person: { role: { frontline: 2, flanker: 2, caster: 2 }, archetype: { hero: 1.5, outlaw: 1.5, ruler: 1.5 }, age: combat } },
   shoot:      { weight: 0.1, mascot: { promise: { might: 3 } }, person: { role: { ranged: 4, frontline: 2, flanker: 2 }, archetype: { outlaw: 2, hero: 2, ruler: 1.5 }, age: combat } },
+  // a party round (quick.js mash): the couch's heroes, cheerful and cheeky, mascots welcome, never solemn
+  mash:       { weight: 0.6, mascot: { promise: { cheer: 4, mischief: 2 }, energy: { bouncy: 2, zippy: 1.5 } }, person: { archetype: { jester: 3, everyman: 2, explorer: 1.5 }, role: { 'non-combatant': 2 }, age: { youth: 2 } } },
   deathmatch: { weight: 0.1, mascot: { promise: { might: 3, mischief: 2 } }, person: { role: { ranged: 4, flanker: 3, frontline: 2 }, archetype: { outlaw: 3, hero: 2, jester: 1.5 }, age: combat } },
   // a versus fighter (versus/): every fighter is a person on the hero door (no mascot until non-human fighters exist),
   // never a bystander or a child; the rushdown and the grappler first, the archetypes a fighting game casts
