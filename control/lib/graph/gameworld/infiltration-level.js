@@ -41,30 +41,82 @@ export const INFILTRATION_TASK = 'obj';
 const r2 = (v) => Math.round(v * 100) / 100;
 export { INFILTRATION, readInfiltration };
 
-/** The stage: the floor walled round, the cover's boxes on it (each a collider a body hides behind). */
+// the deck's and the night's values: a ship's grey steel in two tones, its hull darker, its rail lighter; a night's
+// floor the same greys dimmed
+const DECK = Object.freeze({ steel: ['#5d6266', '#565b5f'], hull: '#30363b', rail: '#7a8086', side: 3.2, sea: -3, cell: 2 });
+const NIGHT = Object.freeze({ bg: '#05080d', sky: Object.freeze({ zenith: [6, 10, 18], horizon: [24, 32, 44], day: 0, stars: 0.6, seed: 7 }), dim: 0.55 });
+const quad = (a, b, c, d, fill, group, two = false) => ({ corners: [a, b, c, d], fill, group, ...(two ? { doubleSided: true } : {}) });
+const dimmed = (hex, k) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('');
+// a box's faces (its top and four sides) from z0 to z1, and (where it is walked against) its collider
+function boxOf(x0, x1, y0, y1, z0, z1, fill, group) {
+  return [quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], fill, group, true),
+    quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], fill, group, true), quad([x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1], fill, group, true),
+    quad([x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], fill, group, true), quad([x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1], fill, group, true),
+    ...(z0 > 0 ? [quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], fill, group, true)] : [])];
+}
+
+/** The stage: the floor walled round (or a ship's deck railed round over its sea), the cover's boxes on it (each a
+ *  collider a body hides behind, or crawls under where it is raised), the scenery seen beyond it. */
 export function infiltrationStage(G, P) {
-  const blocks = P.cover.map((c) => ({ id: c.id, x: [r2(c.at[0] - c.size[0] / 2), r2(c.at[0] + c.size[0] / 2)], y: [r2(c.at[1] - c.size[1] / 2), r2(c.at[1] + c.size[1] / 2)], h: c.size[2], group: `cover:${c.id}` }));
-  const { faces, colliders } = floorOf({ half: P.half, blocks });
-  return { kind: 'controllable', title: 'infiltration', bg: '#1b1d22', faces, colliders };
+  const k = P.night ? NIGHT.dim : 1, faces = [], colliders = [];
+  if (P.deck) {
+    const { length, beam, rail } = P.deck, X = beam / 2, Y = length / 2, C = DECK.cell, side = DECK.side;
+    // (the deck in cells of steel, its hull's sides down to the water, a rail round its edge: a body is never off it)
+    for (let x = -X; x < X - 1e-6; x += C) for (let y = -Y; y < Y - 1e-6; y += C) {
+      const x1 = Math.min(X, x + C), y1 = Math.min(Y, y + C), n = Math.round((x + X) / C) + Math.round((y + Y) / C);
+      faces.push(quad([r2(x), r2(y), 0], [r2(x1), r2(y), 0], [r2(x1), r2(y1), 0], [r2(x), r2(y1), 0], dimmed(DECK.steel[n % 2], k), 'deck:floor', true));
+    }
+    const hull = dimmed(DECK.hull, k);
+    faces.push(quad([-X, -Y, -side], [X, -Y, -side], [X, -Y, 0], [-X, -Y, 0], hull, 'deck:hull', true), quad([X, Y, -side], [-X, Y, -side], [-X, Y, 0], [X, Y, 0], hull, 'deck:hull', true),
+      quad([-X, Y, -side], [-X, -Y, -side], [-X, -Y, 0], [-X, Y, 0], hull, 'deck:hull', true), quad([X, -Y, -side], [X, Y, -side], [X, Y, 0], [X, -Y, 0], hull, 'deck:hull', true));
+    // (the rail drawn thin; its collider thick and outboard, deeper than a vault crosses (free-run.js `depth`), so a body
+    // run at it is never carried over it or through it in one step)
+    const T = 0.12, O = 2, R = dimmed(DECK.rail, k);
+    for (const [x0, x1, y0, y1, c] of [[-X, X, -Y, -Y + T, [-X - O, X + O, -Y - O, -Y + T]], [-X, X, Y - T, Y, [-X - O, X + O, Y - T, Y + O]], [-X, -X + T, -Y, Y, [-X - O, -X + T, -Y - O, Y + O]], [X - T, X, -Y, Y, [X - T, X + O, -Y - O, Y + O]]]) {
+      faces.push(...boxOf(x0, x1, y0, y1, 0, rail, R, 'deck:rail'));
+      colliders.push({ min: [r2(c[0]), r2(c[2]), 0], max: [r2(c[1]), r2(c[3]), rail], hold: false });
+    }
+  } else {
+    const F = floorOf({ half: P.half });
+    faces.push(...(k === 1 ? F.faces : F.faces.map((f) => ({ ...f, fill: dimmed(f.fill, k) })))); colliders.push(...F.colliders);
+  }
+  // (the cover: a box on the floor, or raised off it, a pipe run a body crawls under)
+  for (const c of P.cover) {
+    const [x, y] = c.at, [w, d, h] = c.size, z0 = c.z ?? 0, x0 = r2(x - w / 2), x1 = r2(x + w / 2), y0 = r2(y - d / 2), y1 = r2(y + d / 2);
+    faces.push(...boxOf(x0, x1, y0, y1, z0, r2(z0 + h), dimmed(c.colour ?? '#6d6f74', k), `cover:${c.id}`));
+    colliders.push({ min: [x0, y0, z0], max: [x1, y1, r2(z0 + h)], ...(z0 > 0 ? { hold: false } : {}) });
+  }
+  // (the sea: one plane to the horizon under the deck's edge)
+  // (lower than a vault lands, free-run.js: the deck's edge is never a way down to it)
+  if (P.sea) { const S = 2400, z = DECK.sea; faces.push(quad([-S, -S, z], [S, -S, z], [S, S, z], [-S, S, z], P.sea.colour, 'sea', true)); }
+  // (the scenery: seen, never walked; at night its lit faces (a window, a lamp) keep their colour)
+  for (const b of P.scenery ?? []) {
+    const [x, y, z] = b.at, [w, d, h] = b.size;
+    faces.push(...boxOf(r2(x - w / 2), r2(x + w / 2), r2(y - d / 2), r2(y + d / 2), z, r2(z + h), b.lit ?? dimmed(b.colour, k), `scenery:${b.id}`));
+  }
+  return { kind: 'controllable', title: 'infiltration', bg: P.night ? NIGHT.bg : '#1b1d22', faces, colliders, ...(P.night ? { sky: { ...NIGHT.sky } } : {}) };
 }
 
 /** Where the level starts and ends (levels.js reads a stage's ends). */
 export function infiltrationEnds(P) {
   const at3 = (p) => [p[0], p[1], 0];
-  return { spawn: at3(P.start), heading: P.heading, exit: at3(P.exit.at), exitFrom: 'the way on', beats: [{ beat: 'trailhead', at: at3(P.start) }, ...P.tasks.filter((t) => t.at).map((t, k) => ({ beat: `task-${k + 1}`, at: at3(t.at) })), { beat: 'exit', at: at3(P.exit.at) }], planar: true };
+  // (a level with no exit ends where its last placed task is, else where it starts)
+  const last = P.exit?.at ?? [...P.tasks].reverse().find((t) => t.at)?.at ?? P.start;
+  return { spawn: at3(P.start), heading: P.heading, exit: at3(last), exitFrom: 'the way on', beats: [{ beat: 'trailhead', at: at3(P.start) }, ...P.tasks.filter((t) => t.at).map((t, k) => ({ beat: `task-${k + 1}`, at: at3(t.at) })), { beat: 'exit', at: at3(last) }], planar: true, ...(P.marks ? { marks: P.marks.map((m) => ({ id: m.id, at: m.at.slice() })) } : {}) };
 }
 
 /** The level's mechanics: its tasks in order, the way on the last (objectives.js); being seen loses nothing. */
 export function infiltrationMechanics(P) {
   const tasks = [...P.tasks.map((t, k) => ({ id: `t${k + 1}`, kind: t.kind, text: t.text, ...(t.at ? { at: [t.at[0], t.at[1], 0], radius: t.radius, planar: true } : { on: t.on }) })),
-    { id: `t${P.tasks.length + 1}`, kind: 'reach', text: P.exit.text, at: [P.exit.at[0], P.exit.at[1], 0], radius: P.exit.radius, planar: true }];
+    ...(P.exit ? [{ id: `t${P.tasks.length + 1}`, kind: 'reach', text: P.exit.text, at: [P.exit.at[0], P.exit.at[1], 0], radius: P.exit.radius, planar: true }] : [])];
   return [{ kind: 'objectives', id: INFILTRATION_TASK, tasks }];
 }
 
 /** The cast: the yard's operative at the level's start, each guard the yard's guard on its own round, the backup
  *  asleep where it comes from (see the header). */
 export function infiltrationCast(G, P, { refs = {}, stunt = false } = {}) {
-  const room = infiltrationRoom(G, { refs, stunt });
+  // (its kit, where the level names one: carried as a quick kit is, loadout.js, in place of the world's)
+  const room = infiltrationRoom(P.kit ? { ...G, quick: { ...(G.quick ?? {}), arms: P.kit } } : G, { refs, stunt });
   const M = room.manifest, hero0 = M.entities.find((e) => e.id === 'hero'), guard0 = M.entities.find((e) => e.id === room.guards[0]);
   const hero = { ...hero0, transform: { pos: [P.start[0], P.start[1], INFILTRATION.eye], heading: P.heading } };
   const backupIds = Array.from({ length: P.backup?.count ?? 0 }, (_, k) => `backup-${k + 1}`);

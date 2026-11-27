@@ -94,3 +94,31 @@ describe('an infiltration level\'s radio', () => {
     expect(() => readGameworld({ ...WORLD, levels: { dock: { ...WORLD.levels.dock, script: { calls: [{ ...script.calls[0], on: { begin: 9 } }] } } } })).toThrow(/levels\.dock\.script.*task, 1 to 3/);
   });
 });
+
+describe('an infiltration level on a ship\'s deck', () => {
+  const DECKED = { ground: { deck: { length: 40, beam: 12 } }, sea: true, night: true, start: [0, -18], kit: ['dart'],
+    cover: [{ id: 'pipe', at: [0, -6], size: [11.8, 0.6, 0.35], z: 0.55 }], scenery: [{ id: 'island', at: [0, 900, -2], size: [400, 200, 90], lit: '#c8a24a' }],
+    marks: { bow: [0, 19, 1], fortress: [0, 900, 100] }, tasks: [{ take: [0, 18] }, { act: 'scene-end:keycard' }] };
+
+  it('lays the deck railed round, the sea under it lower than a vault lands, the cover raised to crawl under, the scenery seen', () => {
+    const P = readInfiltration(DECKED), S = infiltrationStage({}, P);
+    expect(P.deck).toEqual({ length: 40, beam: 12, rail: 1.1 });
+    expect(() => readInfiltration({ ...DECKED, start: [7, 0] })).toThrow(/off the deck/);
+    // (each rail's collider deeper than a vault crosses, free-run.js depth 1.6)
+    const rails = S.colliders.filter((c) => c.max[2] === 1.1);
+    expect(rails.length).toBe(4);
+    for (const c of rails) expect(Math.min(c.max[0] - c.min[0], c.max[1] - c.min[1])).toBeGreaterThan(1.6);
+    expect(S.faces.find((f) => f.group === 'sea').corners[0][2]).toBeLessThan(-2.5);
+    expect(S.colliders.some((c) => c.min[2] === 0.55 && c.max[2] === 0.9)).toBe(true);
+    expect(S.faces.some((f) => f.group === 'scenery:island' && f.fill === '#c8a24a')).toBe(true);
+    expect(S.sky.day).toBe(0);
+  });
+
+  it('names its marks for its scenes, and with no exit is won as its last task is met', () => {
+    const P = readInfiltration(DECKED), E = infiltrationEnds(P), [O] = infiltrationMechanics(P);
+    expect(E.marks.map((m) => m.id)).toEqual(['bow', 'fortress']);
+    expect(O.tasks.map((t) => t.kind)).toEqual(['take', 'act']);
+    expect(() => readInfiltration({ ...DECKED, tasks: undefined })).toThrow(/an exit .* or tasks/);
+    expect(P.kit).toEqual(['dart']);
+  });
+});

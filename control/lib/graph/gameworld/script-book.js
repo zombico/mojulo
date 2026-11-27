@@ -31,7 +31,7 @@ export function gameScript(G) {
     // objectives number them)
     const L = G.levels[id], op = L?.goal?.operation, raw = op?.script ?? L?.script;
     if (!raw) continue;
-    const tasks = op?.script ? op.tasks?.length ?? 0 : L.infiltration ? (L.infiltration.tasks?.length ?? 0) + 1 : 0;
+    const tasks = op?.script ? op.tasks?.length ?? 0 : L.infiltration ? (L.infiltration.tasks?.length ?? 0) + (L.infiltration.exit !== undefined ? 1 : 0) : 0;
     const S = readScript(raw, { tasks, at: op?.script ? `levels.${id}.goal.operation.script` : `levels.${id}.script` });
     for (const a of op?.allies ?? []) S.speakers[a.id] ??= { name: a.name };
     const name = (w) => S.speakers[w]?.name ?? titled(w);

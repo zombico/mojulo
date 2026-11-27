@@ -667,7 +667,7 @@ export function readGameworld(W) {
     // (its SCRIPT, gameworld/script.js: its lines said over the play and its radio calls, the game held while each is on;
     // its tasks numbered as its objectives number them: an infiltration level's, its tasks and its way on)
     if (L.script !== undefined) {
-      const tasks = L.infiltration && Array.isArray(L.infiltration.tasks) ? L.infiltration.tasks.length + 1 : L.infiltration ? 1 : 0;
+      const tasks = L.infiltration ? (Array.isArray(L.infiltration.tasks) ? L.infiltration.tasks.length : 0) + (L.infiltration.exit !== undefined ? 1 : 0) : 0;
       try { readScript(L.script, { tasks, at: 'script' }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
     }
     if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);

@@ -40,3 +40,17 @@
   number them); the script book reads it, its calls' lines among its lines. Played in headless Chrome on the
   infiltration level: the opening call after the title, the world held and the keys its own, each line passed, play on
   where it was; a call on the first sighting, ended with Escape. Absent, a page emits none of it.
+- **A ship's deck, the sea and what is seen across it** (infiltration-words.js, infiltration-level.js): an infiltration
+  level's ground may be a deck (`ground.deck`: its length, its beam, a rail round it whose collider is deeper than a
+  vault crosses, so the free run never carries a body over it), the sea under it lower than a vault lands (`sea`), boxes
+  seen and never walked (`scenery`: an island's cliff, a fortress, `lit` the colour a window keeps at night), cover
+  raised off the floor to crawl under (`cover[].z`), `night`, the operative's `kit` on this level (a quick kit's arms in
+  place of the world's), and `marks`, named places its scenes frame (levels.js stageSpots). With no `exit` the level is
+  won as its last task is met (a scene's end). A call waits out a scene as it waits out the opening.
+- **The prologue's first level** (`scripts/spikes/jericho/world.json`, `build.mjs`): Hidden Jericho's supply boat, a
+  designed world through the real doors. The title and the chapter's card, the opening scene (the boat on the night sea,
+  the fortress on its island off the bow, then Coral at the stern), the Liaison's call, the lessons as calls (the deck,
+  the pipe run crawled under, the crates vaulted and the container climbed by its lip), the package taken at the bow,
+  the keycard scene, the results. Played end to end in headless Chrome by a bot on the stand-in: every task met, no page
+  error. Coral made through the character door on the operative's body (stubble, swept hair; the watch cap not yet).
+  The lessons' words are placeholders in brackets, for the person's own.

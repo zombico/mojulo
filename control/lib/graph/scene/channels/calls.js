@@ -7,7 +7,8 @@ import { safeJson } from '../emit-util.js';
 // Escape (or Backspace) ends the call. The last line passed, the world goes on where it was. A call is made once unless
 // it says `again`; calls raised while one is up wait their turn. It reads the bus as the page's other listeners do and
 // writes nothing back but `call:<id>:end` (and `:skip`), raised on the bus as the call ends. A call waits while the
-// game's opening is up (channels/game-screens.js), so the first call comes once the level is played. Emitted only on a level with
+// game's opening is up (channels/game-screens.js), so the first call comes once the level is played, and while a scene
+// plays. Emitted only on a level with
 // calls: every other page byte-identical. `window.__mojCalls` { made: [ids], showing: () => { call, line } | null,
 // next(), skip() } is its probe.
 export const CALLS = Object.freeze({ most: 6, fade: 0.2, settle: 0.35 });
@@ -93,7 +94,9 @@ export function callsScript(data) {
   // (a game with an opening is held from its first frame, before the opening has drawn itself: wait for it to be gone)
   // (read before the game's own script has run, the game is not up yet: wait)
   const opens = () => { try { return typeof __GAME !== 'undefined' && !!__GAME && !!__GAME.opening; } catch (e) { return null; } };
-  const clear = () => { const O = opens(), S = window.__mojScreens, o = S && S.opening; return O === null ? false : O ? o === 'gone' : !o || o === 'gone'; };
+  // (nor over a scene while it plays, playscape/ui/scenes.js: a call it raises comes as it ends)
+  const scene = () => { try { return !!(window.__mojScenes && window.__mojScenes.on()); } catch (e) { return false; } };
+  const clear = () => { const O = opens(), S = window.__mojScreens, o = S && S.opening; return O === null || scene() ? false : O ? o === 'gone' : !o || o === 'gone'; };
   function pump() { if (!call && queue.length && clear() && performance.now() - shut > C.fade * 1000 + 60) open(queue.shift()); }
   // (the bus's run: each event of the kind call:<id> heard as it is processed)
   function listen() {

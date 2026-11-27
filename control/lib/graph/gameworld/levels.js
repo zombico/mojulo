@@ -1409,7 +1409,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // play, its radio calls raised so and shown on the call screen with the game held, scene/channels/calls.js)
   const ownScript = G.levels[stage.level]?.script;
   if (ownScript) {
-    const T = stage.section === 'infiltration' ? stage.infiltration.tasks.length + 1 : 0, S = readScript(ownScript, { tasks: T, at: `levels.${stage.level}.script` });
+    const T = stage.section === 'infiltration' ? stage.infiltration.tasks.length + (stage.infiltration.exit ? 1 : 0) : 0, S = readScript(ownScript, { tasks: T, at: `levels.${stage.level}.script` });
     pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), sequences: [...(pilotPart.events?.sequences ?? []), ...scriptSequences(S.lines, S.calls)] },
       ...(S.lines.length ? { comms: commsData(S) } : {}), ...(S.calls.length ? { calls: callsData(S) } : {}) };
   }
@@ -1624,7 +1624,8 @@ export function buildingSpots(ends) {
 export function stageSpots(ends, lane = null) {
   const at = (p) => (lane ? onLane({ at: p }, lane).at : p);
   const named = (kind) => ends.beats.filter((b) => b.beat === kind).map((b, i) => ({ id: i ? `${kind}-${i + 1}` : kind, at: at(b.at) }));
-  return [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark')];
+  // (and the stage's own named places, an infiltration level's marks: infiltration-level.js)
+  return [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark'), ...(ends.marks ?? []).map((m) => ({ id: m.id, at: at(m.at) }))];
 }
 
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */

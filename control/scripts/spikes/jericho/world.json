@@ -1,0 +1,561 @@
+{
+  "id": "hidden-jericho",
+  "name": "Hidden Jericho",
+  "seed": 1127,
+  "style": {
+    "kit": "trail-valley"
+  },
+  "feel": "steel-serpents",
+  "start": "supply-boat",
+  "levels": {
+    "supply-boat": {
+      "name": "The supply boat",
+      "opening": {
+        "title": "Hidden Jericho",
+        "kicker": "US Atlantic seaboard \u00b7 300 km off the coast of Maine",
+        "chapter": {
+          "label": "Prologue"
+        }
+      },
+      "infiltration": {
+        "ground": {
+          "deck": {
+            "length": 70,
+            "beam": 16
+          }
+        },
+        "night": true,
+        "sea": {
+          "colour": "#07121a"
+        },
+        "kit": [
+          "dart"
+        ],
+        "start": [
+          0,
+          -31
+        ],
+        "heading": 90,
+        "cover": [
+          {
+            "id": "bridge",
+            "at": [
+              0,
+              -24
+            ],
+            "size": [
+              10,
+              5,
+              6
+            ],
+            "colour": "#596066"
+          },
+          {
+            "id": "pipe-run",
+            "at": [
+              0,
+              -8
+            ],
+            "size": [
+              15.7,
+              0.6,
+              0.35
+            ],
+            "z": 0.55,
+            "colour": "#7b6a4f"
+          },
+          {
+            "id": "crate-line",
+            "at": [
+              0,
+              3
+            ],
+            "size": [
+              15.7,
+              1.2,
+              1
+            ],
+            "colour": "#5f6b4a"
+          },
+          {
+            "id": "container",
+            "at": [
+              0,
+              11
+            ],
+            "size": [
+              15.7,
+              6,
+              2.1
+            ],
+            "colour": "#7a3b2e"
+          },
+          {
+            "id": "stack-port",
+            "at": [
+              -5.5,
+              22
+            ],
+            "size": [
+              4,
+              6,
+              2.6
+            ],
+            "colour": "#2f5a6b"
+          },
+          {
+            "id": "stack-starboard",
+            "at": [
+              5.5,
+              22
+            ],
+            "size": [
+              4,
+              6,
+              2.6
+            ],
+            "colour": "#6b5a2f"
+          }
+        ],
+        "scenery": [
+          {
+            "id": "island",
+            "at": [
+              -180,
+              950,
+              -2
+            ],
+            "size": [
+              700,
+              260,
+              95
+            ],
+            "colour": "#1c2126"
+          },
+          {
+            "id": "keep",
+            "at": [
+              -210,
+              930,
+              93
+            ],
+            "size": [
+              90,
+              60,
+              38
+            ],
+            "colour": "#2b3036"
+          },
+          {
+            "id": "tower-west",
+            "at": [
+              -300,
+              925,
+              93
+            ],
+            "size": [
+              22,
+              22,
+              64
+            ],
+            "colour": "#2b3036"
+          },
+          {
+            "id": "tower-east",
+            "at": [
+              -80,
+              935,
+              93
+            ],
+            "size": [
+              18,
+              18,
+              52
+            ],
+            "colour": "#2b3036"
+          },
+          {
+            "id": "lamp-keep",
+            "at": [
+              -210,
+              899,
+              115
+            ],
+            "size": [
+              30,
+              1,
+              3
+            ],
+            "colour": "#2b3036",
+            "lit": "#c8a24a"
+          },
+          {
+            "id": "lamp-west",
+            "at": [
+              -300,
+              913,
+              150
+            ],
+            "size": [
+              8,
+              1,
+              2
+            ],
+            "colour": "#2b3036",
+            "lit": "#d6b25a"
+          },
+          {
+            "id": "mast",
+            "at": [
+              0,
+              -24,
+              6
+            ],
+            "size": [
+              0.4,
+              0.4,
+              7
+            ],
+            "colour": "#596066"
+          }
+        ],
+        "marks": {
+          "stern": [
+            0,
+            -32,
+            1.6
+          ],
+          "bow": [
+            0,
+            33,
+            1
+          ],
+          "fortress": [
+            -210,
+            930,
+            110
+          ],
+          "package": [
+            0,
+            30,
+            0.5
+          ]
+        },
+        "tasks": [
+          {
+            "act": "call:signal:end",
+            "text": "Take the Liaison's call"
+          },
+          {
+            "reach": [
+              0,
+              -13
+            ],
+            "text": "Head for the bow"
+          },
+          {
+            "reach": [
+              0,
+              -2
+            ],
+            "radius": 3,
+            "text": "Under the pipe run"
+          },
+          {
+            "reach": [
+              0,
+              16
+            ],
+            "radius": 3,
+            "text": "Over the cargo"
+          },
+          {
+            "take": [
+              0,
+              30
+            ],
+            "text": "The package at the bow"
+          },
+          {
+            "act": "scene-end:keycard",
+            "text": "Open the package"
+          }
+        ]
+      },
+      "script": {
+        "speakers": {
+          "coral": {
+            "name": "Coral",
+            "colour": "#8fb3c9"
+          },
+          "chandler": {
+            "name": "Chandler",
+            "colour": "#d9a441"
+          }
+        },
+        "calls": [
+          {
+            "id": "signal",
+            "on": {
+              "event": "scene-end:opening"
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "op-1",
+                "who": "coral",
+                "text": "... This is Coral."
+              },
+              {
+                "id": "op-2",
+                "who": "chandler",
+                "text": "Just testing the signal. Let's go over the objective one more time."
+              },
+              {
+                "id": "op-3",
+                "who": "coral",
+                "text": "Test the base security by infiltrating it. Non-lethal rounds only."
+              },
+              {
+                "id": "op-4",
+                "who": "chandler",
+                "text": "Small update in the mission params. Orders from high up."
+              },
+              {
+                "id": "op-5",
+                "who": "coral",
+                "text": "We're almost at the approach. What's the situation?"
+              },
+              {
+                "id": "op-6",
+                "who": "chandler",
+                "text": "There's a package in the front of the ship. Instructions will be there."
+              }
+            ]
+          },
+          {
+            "id": "lesson-move",
+            "on": {
+              "begin": 2
+            },
+            "after": 0.5,
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "ls-move-1",
+                "who": "chandler",
+                "text": "[Chandler: the deck is clear. Make your way forward. W A S D to move, the mouse to look.]"
+              }
+            ]
+          },
+          {
+            "id": "lesson-crawl",
+            "on": {
+              "begin": 3
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "ls-crawl-1",
+                "who": "chandler",
+                "text": "[Chandler: a pipe run across the deck. Too low to crouch under: hold C to lie flat and crawl.]"
+              }
+            ]
+          },
+          {
+            "id": "lesson-climb",
+            "on": {
+              "begin": 4
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "ls-climb-1",
+                "who": "chandler",
+                "text": "[Chandler: cargo in the way. Run at the low crates to go over them; hold W into the container to climb it.]"
+              },
+              {
+                "id": "ls-climb-2",
+                "who": "chandler",
+                "text": "[Chandler: off its far side you'll hang by your hands. S to let go.]"
+              }
+            ]
+          }
+        ]
+      },
+      "scenes": [
+        {
+          "id": "opening",
+          "when": {
+            "start": true
+          },
+          "beats": [
+            {
+              "shot": {
+                "frame": "wide",
+                "on": [
+                  "stern",
+                  "bow"
+                ],
+                "move": "orbit"
+              },
+              "for": 5
+            },
+            {
+              "shot": {
+                "frame": "wide",
+                "on": [
+                  "bow",
+                  "fortress"
+                ]
+              },
+              "for": 4
+            },
+            {
+              "shot": {
+                "frame": "close",
+                "on": [
+                  "hero"
+                ],
+                "move": "push"
+              },
+              "for": 3
+            }
+          ]
+        },
+        {
+          "id": "keycard",
+          "when": {
+            "on": "objective:done",
+            "match": {
+              "task": "t5"
+            }
+          },
+          "names": {
+            "coral": "Coral",
+            "chandler": "Chandler"
+          },
+          "beats": [
+            {
+              "shot": {
+                "frame": "close",
+                "on": [
+                  "hero"
+                ]
+              },
+              "for": 1
+            },
+            {
+              "line": {
+                "who": "coral",
+                "say": "It's a keycard..."
+              }
+            },
+            {
+              "line": {
+                "who": "chandler",
+                "say": "These are the orders from Commander Krait himself: insert the card in each of three research terminals."
+              }
+            },
+            {
+              "wait": 1
+            }
+          ]
+        }
+      ]
+    },
+    "hangar-dock": {
+      "name": "The hangar dock",
+      "opening": {
+        "title": "Hidden Jericho",
+        "chapter": {
+          "label": "Prologue",
+          "name": "The hangar dock"
+        }
+      },
+      "infiltration": {
+        "ground": {
+          "half": 16
+        },
+        "night": true,
+        "kit": [
+          "dart"
+        ],
+        "start": [
+          0,
+          -13
+        ],
+        "exit": {
+          "at": [
+            0,
+            14
+          ],
+          "text": "Up the cliff stair, unseen"
+        },
+        "cover": [
+          {
+            "id": "crates",
+            "at": [
+              3,
+              -4
+            ],
+            "size": [
+              2,
+              1.2,
+              1
+            ]
+          },
+          {
+            "id": "stack",
+            "at": [
+              -5,
+              6
+            ],
+            "size": [
+              3,
+              2,
+              2.6
+            ]
+          }
+        ],
+        "guards": [
+          {
+            "id": "dock-1",
+            "kind": "patrol",
+            "at": [
+              -8,
+              2
+            ],
+            "to": [
+              8,
+              2
+            ],
+            "look": {
+              "secs": 2
+            }
+          },
+          {
+            "id": "dock-2",
+            "kind": "post",
+            "at": [
+              6,
+              10
+            ],
+            "facing": [
+              0,
+              10
+            ],
+            "range": 12
+          }
+        ],
+        "backup": {
+          "count": 1,
+          "from": [
+            0,
+            15
+          ]
+        }
+      }
+    }
+  }
+}
