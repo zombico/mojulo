@@ -14,3 +14,5 @@
 - A second, third or fourth player whose health runs out no longer lies down for the rest of the level. Their collapse
   plays, then it counts as a fall: a life is spent where lives are counted, and they get up beside the others with full
   health, or are out when none is left. The first player's knock-down still ends the level, as before.
+- Each extra player's chip at the top of the screen shows a small bar of their own health, which follows it as they
+  are hit. The first player's health stays on the level's own HUD.

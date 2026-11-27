@@ -60,6 +60,30 @@ describe('seats on the World page', () => {
     await page.close();
   }, 60000);
 
+  it('a seat\'s chip carries its body\'s hp as a bar, and follows it', async () => {
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(world({ bodies: ['p2'] }).replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats, { timeout: 20000 });
+    const settle = () => page.evaluate(() => new Promise((r) => { let n = 6; const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }));
+    // pad 0 sits first (seat 1), then pad 1 (seat 2), its body given hp
+    await page.evaluate(() => { window.__pads[0].axes[1] = -1; });
+    await settle();
+    await page.evaluate(() => { const e = window.__mojCtrl.world.byId.p2; e.hpMax = 10; e.body.hp = 10; window.__pads[0].axes[1] = 0; window.__pads[1].axes[1] = -1; });
+    await settle();
+    expect(await page.evaluate(() => window.__mojSeats().seats.map((s) => s.n))).toEqual([1, 2]);
+    // the bar's fill: the last inner span of seat 2's chip
+    const fill = () => page.evaluate(() => { const chips = [...document.querySelectorAll('span')].filter((c) => /^P2/.test(c.textContent)); const f = chips[0] && chips[0].querySelector('span > span > span'); return f ? f.style.width : null; });
+    expect(await fill()).toBe('100%');
+    await page.evaluate(() => { window.__mojCtrl.world.byId.p2.body.hp = 4; });
+    await settle();
+    expect(await fill()).toBe('40%');
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
+
   it('four pads take four seats in the order they press, each driving its own body under its own colour', async () => {
     if (!browser) return;
     const page = await browser.newPage();

@@ -298,7 +298,9 @@ document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {
   const L = __world.seatLives, lives = (n) => (L ? (__world.seatPool === 'shared' ? L.shared : L[n]) : null);
-  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n)).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
+  // a seat's own hp (seats 2 to 4, its body's; seat 1's is the level's HUD): a bar in its chip, in tenths
+  const hpOf = (n) => { const e = n > 1 && __world.byId[__SEAT_BODY[n - 2]]; return e && Number.isFinite(e.hpMax) && e.hpMax > 0 && !e.gone ? Math.max(0, Math.min(1, e.body.hp / e.hpMax)) : null; };
+  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n) + ':' + (hpOf(x.n) == null ? '' : Math.round(hpOf(x.n) * 10))).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
   if (said === __seatSaid) return;
   __seatSaid = said;
   // the shell (game-seats): who sits where, so its pause names the seat that opened it
@@ -309,6 +311,8 @@ function __seatStrip() {
     c.style.cssText = 'padding:2px 8px;border-radius:10px;border:2px solid ' + col + ';color:' + (x ? '#fff' : col) + ';background:' + (x && !x.away ? col : 'rgba(0,0,0,.45)');
     const out = __world.seatOut && __world.seatOut[n];
     c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
+    const hp = x && !out ? hpOf(n) : null;
+    if (hp != null) { const b = document.createElement('span'), f = document.createElement('span'); b.style.cssText = 'display:inline-block;vertical-align:middle;margin-left:6px;width:34px;height:5px;border-radius:3px;background:rgba(0,0,0,.5)'; f.style.cssText = 'display:block;height:100%;border-radius:3px;background:#fff;width:' + Math.round(hp * 100) + '%'; b.appendChild(f); c.appendChild(b); }
     __seatEl.appendChild(c);
   }
   // a shared pool: one count for every seat, after the chips
