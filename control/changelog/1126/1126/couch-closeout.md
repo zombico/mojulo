@@ -40,3 +40,7 @@
   is a count against the clock, or a mash to break free. Its end rings the goal cue, and it has its vocabulary card.
 - The hill-climb marks the lobby and the time-window contest as built, and party mash is now makeable. Driver and
   gunner waits on roles, split-screen deathmatch on split screen.
+- Two players can share one vehicle in roles. On a vehicle level whose game asks for roles with two players, the car
+  carries a gun on a stabilized roof turret: player 1 drives, and player 2 turns the turret with the right stick and
+  fires with the trigger. With nobody in player 2's seat, the driver works the gun. Players 2–4 on a pad now also have a
+  right-stick aim, which the gunner uses.
