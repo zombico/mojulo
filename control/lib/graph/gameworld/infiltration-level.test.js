@@ -81,3 +81,16 @@ describe('an infiltration level in a designed game', () => {
     expect(m.game.opening).toMatchObject({ title: 'Hidden Jericho', chapter: { label: 'Prologue', name: 'The hangar dock' } });
   });
 });
+
+describe('an infiltration level\'s radio', () => {
+  it('lays its script\'s calls for the call screen and raises each at its moment on the bus', () => {
+    const script = { speakers: { coral: { name: 'Coral' }, chandler: { name: 'Chandler' } }, calls: [
+      { id: 'signal', on: 'start', from: 'chandler', lines: [{ id: 'sg-1', who: 'coral', text: '... This is Coral.' }, { id: 'sg-2', who: 'chandler', text: 'Just testing the signal.' }] },
+      { id: 'spotted', on: { event: 'alarm:found' }, lines: [{ id: 'sp-1', who: 'chandler', text: 'Hide.' }] }] };
+    const { L } = order({ ...WORLD, levels: { dock: { ...WORLD.levels.dock, script } } }), m = L.args.manifest;
+    expect(Object.keys(m.calls.calls)).toEqual(['signal', 'spotted']);
+    expect(m.events.sequences.filter((q) => q.id.startsWith('call:')).map((q) => q.trigger)).toEqual([{ on: 'objective:begin', task: 't1' }, { on: 'alarm:found' }]);
+    // (a script's moment past the level's tasks is refused with the world)
+    expect(() => readGameworld({ ...WORLD, levels: { dock: { ...WORLD.levels.dock, script: { calls: [{ ...script.calls[0], on: { begin: 9 } }] } } } })).toThrow(/levels\.dock\.script.*task, 1 to 3/);
+  });
+});

@@ -58,7 +58,12 @@ export const CAST_WHEN = Object.freeze({
 // (or on `seen`: a sighting is counted there too; or `broke`: a block's break; or `down`: a fall, what defeat-all's
 // `who` counts; or `journey`: a castle segment's gain, worlds/controllable/held-gates.js)
 // (or on the runner's `runner:` facts: worlds/controllable/runner.js wraps the cast's facts with them)
-export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke' || r.on === 'journey' || r.on === 'down' || String(r.on).startsWith('runner:')));
+const RUNTIME_FACT = (on) => String(on).startsWith('hit:') || on === 'seen' || on === 'broke' || on === 'journey' || on === 'down' || String(on).startsWith('runner:');
+// (a sequence on what the runtime alone says, a script's line or call on a garrison's alarm or a hand on a ledge:
+// worlds/controllable/alarm.js, ledge.js)
+const RUNTIME_SAYS = (on) => /^(alarm|ledge):/.test(String(on));
+export const listensForHits = (events) => !!events && ((Array.isArray(events.reactions) && events.reactions.some((r) => r && RUNTIME_FACT(r.on)))
+  || (Array.isArray(events.sequences) && events.sequences.some((q) => q && q.trigger && RUNTIME_SAYS(q.trigger.on))));
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
   spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,

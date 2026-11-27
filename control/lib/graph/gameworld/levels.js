@@ -32,7 +32,8 @@ import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/f
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 import { OPERATION_LEGEND, FRAME_LESSON_TASK } from './frame-goal.js';
 import { frameAudio } from './frame-sound.js';
-import { scriptSequences } from './script.js';
+import { scriptSequences, readScript } from './script.js';
+import { callsData } from '../scene/channels/calls.js';
 import { commsData } from '../scene/channels/comms.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
@@ -1404,6 +1405,14 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   const bare = G.hud && readTheme(G.hud).hud === 'bare';
   if (bare && Array.isArray(play?.parts)) play = { ...play, parts: play.parts.filter((p) => !(p.part === 'readout' && p.id === 'level')) };
   play = withBookUi(G, play);
+  // (a level's own SCRIPT, gameworld/script.js: its lines raised on the bus at their moments and shown as comms over the
+  // play, its radio calls raised so and shown on the call screen with the game held, scene/channels/calls.js)
+  const ownScript = G.levels[stage.level]?.script;
+  if (ownScript) {
+    const T = stage.section === 'infiltration' ? stage.infiltration.tasks.length + 1 : 0, S = readScript(ownScript, { tasks: T, at: `levels.${stage.level}.script` });
+    pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), sequences: [...(pilotPart.events?.sequences ?? []), ...scriptSequences(S.lines, S.calls)] },
+      ...(S.lines.length ? { comms: commsData(S) } : {}), ...(S.calls.length ? { calls: callsData(S) } : {}) };
+  }
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (and the action-adventure's HUD where its genre's row asks: gameworld/hud-grammar.js; any other game, as it was)

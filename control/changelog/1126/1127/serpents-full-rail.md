@@ -29,3 +29,14 @@
   it. Played in headless Chrome: the opening loads and waits, the operative runs, a guard's sighting raises the alarm, no
   page error. Not yet: the task's words on the HUD (the count alone), a geocube's land under it (a greybox floor), the
   cover's look.
+- **The radio call** (`gameworld/script.js` `calls`, `scene/channels/calls.js`): a level's script makes calls beside
+  its lines, each at its moment, and a call stops the game: the world held as a menu holds it, a screen over it with the
+  two on the line (the one called on the left, the caller on the right, the speaker lit and named), the words; Enter,
+  Space or a click passes a line, Escape ends the call. Made once unless it says `again`; a call waits while the game's
+  opening is up and its turn behind another; its end is said on the bus (`call:<id>:end`, `:skip`), so a task or another
+  call can wait on it. A moment may now be any event the bus hears (`{ event }`: the garrison's `alarm:found`, a hand on
+  a ledge, a scene's end), and a sequence on the alarm's or the ledge's events has the runtime's facts fed to the bus
+  (playscape/ui/cast.js). A level writes its own `script` (`levels.<id>.script`, its tasks numbered as its objectives
+  number them); the script book reads it, its calls' lines among its lines. Played in headless Chrome on the
+  infiltration level: the opening call after the title, the world held and the keys its own, each line passed, play on
+  where it was; a call on the first sighting, ended with Escape. Absent, a page emits none of it.

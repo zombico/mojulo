@@ -139,6 +139,7 @@
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
 import { readInfiltration } from './infiltration-words.js';
+import { readScript } from './script.js';
 import { readMission as readSpaceMission } from '../campaign/mission.js';
 import { readStage } from '../campaign/stage.js';
 import { readLessonBrief } from './lesson-brief.js';
@@ -332,7 +333,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment', 'infiltration'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment', 'infiltration', 'script'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -662,6 +663,12 @@ export function readGameworld(W) {
       if (!isObj(O) || Object.keys(O).some((k) => !['title', 'kicker', 'chapter', 'press'].includes(k))) throw new Error(`gameworld: ${at}.opening is { title?, kicker?, chapter?: { label?, name? }, press? }: the title screen that loads the level, a chapter's card into it`);
       for (const k of ['title', 'kicker', 'press']) if (O[k] !== undefined && !str(O[k], 60)) throw new Error(`gameworld: ${at}.opening.${k} is words, up to 60 letters`);
       if (O.chapter !== undefined && !(isObj(O.chapter) && Object.keys(O.chapter).every((k) => ['label', 'name'].includes(k)) && ['label', 'name'].every((k) => O.chapter[k] === undefined || str(O.chapter[k], 60)))) throw new Error(`gameworld: ${at}.opening.chapter is { label?: 'Chapter 1', name? (the level's own, unsaid) }`);
+    }
+    // (its SCRIPT, gameworld/script.js: its lines said over the play and its radio calls, the game held while each is on;
+    // its tasks numbered as its objectives number them: an infiltration level's, its tasks and its way on)
+    if (L.script !== undefined) {
+      const tasks = L.infiltration && Array.isArray(L.infiltration.tasks) ? L.infiltration.tasks.length + 1 : L.infiltration ? 1 : 0;
+      try { readScript(L.script, { tasks, at: 'script' }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
     }
     if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
