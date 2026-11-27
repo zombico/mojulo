@@ -58,6 +58,8 @@ export const E2E = [
   'lib/graph/gameworld/gun-rooms.live.test.js',
   'lib/graph/gameworld/mission.live.test.js',
   'lib/graph/gameworld/mission-building.live.test.js',
+  // (a mover's house in Chrome: E lifts, the piece carried, loaded at the door, counted on the bus)
+  'lib/graph/gameworld/movers.live.test.js',
   'lib/graph/gameworld/mission-site.live.test.js',
   'lib/graph/gameworld/mission-industrial.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',

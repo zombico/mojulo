@@ -321,12 +321,16 @@ function withStageLevel(m, ref) {
   // (`complete: false`: its result card put away, as a mission's is: the debrief is its own channel's)
   const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...doorMech, ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' }, ...(m.level.complete === false ? { complete: false } : {}) };
   const doors = D ? { doors: [...(m.doors ?? []), { id: m.level.door, at: { side: '-y', u: D.u }, room: D.room, to: { map: 'outside', door: m.level.door } }] } : {};
-  const spawn = D ? [D.spawn[0], D.spawn[1], 0] : L.spawn, heading = D ? D.heading : L.heading;
+  const spawn = D ? D.spawn.slice() : L.spawn, heading = D ? D.heading : L.heading;
   // a recipe that brings its own pilot (a gameworld's hero) keeps it, its figures and its camera: only the game channel
-  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, ...doors, game };
+  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, ...doors, ...(m.heave && D ? { heave: { ...m.heave, drop: { at: D.spawn.slice(), half: [1.4, 0.9] } } } : {}), game };
+  // (a mover's house, worlds/controllable/heave.js: what is carried out is LOADED just inside its front door, where the walker
+  // comes in, clear of the door's own zone so a piece carried in never walks the mover out)
+  const heave = m.heave && D ? { heave: { ...m.heave, drop: { at: D.spawn.slice(), half: [1.4, 0.9] } } } : {};
   return {
     ...m,
     ...doors,
+    ...heave,
     game,
     // the stage's walls are its payload's colliders: the walker stops at them (no `colliders` here, which would replace them)
     // on storeys it looks for its ground just over its feet (it climbs a flight's treads, never onto the floor above)
@@ -380,8 +384,9 @@ function stageDoor(m, from = null) {
   const mp = m.program !== undefined ? withProgram(m) : m;
   const plan = planStage(mp.geocube !== undefined ? withGeocube(mp) : mp);
   const id = from ?? mp._program?.entry ?? plan.rooms[0].id, r = plan.rooms.find((q) => q.id === id) ?? plan.rooms[0];
-  const mid = r2((r.x0 + r.x1) / 2), y = r.y0;
-  return { room: r.id, u: r2(mid - r.x0), at: [mid, r2(y + 0.8), 0], half: [1.4, 0.7, 2], spawn: [mid, r2(y + 2.6), 0], heading: r2(Math.PI / 2) };
+  // (on its own floor: over a basement the way-in room stands a storey up, era/program-core.js)
+  const mid = r2((r.x0 + r.x1) / 2), y = r.y0, z = r2(r.z0 ?? 0);
+  return { room: r.id, u: r2(mid - r.x0), at: [mid, r2(y + 0.8), z], half: [1.4, 0.7, 2], spawn: [mid, r2(y + 2.6), z], heading: r2(Math.PI / 2) };
 }
 
 /** Is this manifest a building (on the rail, or a room-kit stage) that asks to be a level? */

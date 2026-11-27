@@ -108,6 +108,9 @@ import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
 import { wieldsFigure, armHeld, FIST } from '@/lib/graph/worlds/held-strike';
 
+// a lifted piece's name, said on the page ("lift the couch"): its kind's word, from its id's last part (`living/+y/sofa-2`)
+const heaveName = (id, a) => String(a?.piece ?? id.split('/').pop() ?? id).replace(/@\d+/g, '').replace(/-\d+$/, '').replace(/-/g, ' ');
+
 export { resolveWrapTextures };
 
 // Spatial ("moved through") kinds get first-person traverse on by default; the object-study /
@@ -1466,6 +1469,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and a land's: a trail's rockfall, its trees' fallen wood, its drifts, a cave's heaps, each named on its faces)
     const looseLand = destruction && destruction !== 'none' ? landLoose(payload.faces || []) : null;
     if (looseLand) { payload.faces = looseLand.faces; payload.loose = [...(payload.loose || []), ...looseLand.loose]; }
+    // A MOVER'S HOUSE (worlds/controllable/heave.js, a stage's `heave`): every piece of its rooms liftable, each its
+    // collider's box and its faces a render group of its own (`heave:<id>`, the page moves it as the runtime carries it);
+    // `pieces: 'props'` every solid prop the stage stood (but its plot's own: a find, a prize, a sign), else the ids named.
+    // Absent, nothing changes
+    if (sketch.manifest.heave) {
+      const H = sketch.manifest.heave, props = new Set((payload.anchors ?? []).filter((a) => a && a.kind === 'prop' && a.solid && !/\/(find|prize|sign)(@\d+)?$/.test(a.id)).map((a) => a.id));
+      const want = H.pieces === 'props' || H.pieces === undefined ? props : new Set(H.pieces);
+      const boxes = new Map((payload.colliders ?? []).filter((c) => c && typeof c.of === 'string' && want.has(c.of)).map((c) => [c.of, c]));
+      const forms = new Map((payload.anchors ?? []).filter((a) => a && boxes.has(a.id)).map((a) => [a.id, a]));
+      const pieces = [...boxes.keys()].sort().map((id) => ({ id, min: [...boxes.get(id).min], max: [...boxes.get(id).max], name: H.names?.[id] ?? heaveName(id, forms.get(id)) }));
+      if (pieces.length) {
+        payload.faces = payload.faces.map((f) => (f && boxes.has(f.node) ? { ...f, group: `heave:${f.node}` } : f));
+        payload.heave = { pieces, ...(H.drop ? { drop: H.drop } : {}) };
+      }
+    }
     const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
     // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
     // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)

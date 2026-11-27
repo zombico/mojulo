@@ -111,6 +111,8 @@ export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'dig-and-load', name: 'Dig and load', vehicle: 'excavator', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 70 })]) }),
   // (an office temp's job, the staffing app's: a lifted badge, a desk in Synergetics Tower, its shifts paid in there)
   Object.freeze({ id: 'office-temp', name: 'Office temp', vehicle: 'temp', repeat: true }),
+  // (a removals job: the moving truck from the dock to a house on the block, every piece of it carried out; movers.js)
+  Object.freeze({ id: 'movers', name: 'Movers', vehicle: 'movers', repeat: true }),
   // (the pit dug, the foreman's materials never come: the Dockers' delivery orders, checked in for at their HQ)
   Object.freeze({ id: 'materials', name: 'Delivery orders', vehicle: 'freight', after: 'dig-and-load', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 80 })]) }),
   // (the emergency station's calls: a patient taken in, fires hosed down; a courier's van out of the dock; a mail round)
@@ -143,7 +145,7 @@ const isNight = (h) => (typeof h === 'number' ? h >= 19.5 || h < 5.5 : NIGHT_HOU
 export const HIJACK_MUSEUM = Object.freeze({ name: 'The City Museum' });
 // (its other WALK-INS, geocity/walkins.js: an arcade whose floor keeps the inside games, a public library; and THE GAMES
 // INSIDE THE GAME, gameworld/minigames.js: a blocks cabinet and a match cabinet, kept where a room keeps one)
-export const HIJACK_ENTER = Object.freeze(['arcade', 'library', 'aquarium', 'zoo']);
+export const HIJACK_ENTER = Object.freeze(['arcade', 'house', 'library', 'aquarium', 'zoo']);
 export const HIJACK_MINIGAMES = Object.freeze([Object.freeze({ game: 'blocks', where: 'inside' }), Object.freeze({ game: 'match', where: 'inside' }),
   // (a line cast off the dock's quay, past the crane: its keeper an old hand at the water's edge)
   Object.freeze({ game: 'fishing', where: 'quay' })]);

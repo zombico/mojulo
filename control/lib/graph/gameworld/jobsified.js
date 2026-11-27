@@ -41,7 +41,8 @@
  *   SHIFTS             { <word>: { name, mode, yard, vehicle, item, stops, stop?, done, load?, hold?, fleet?, to?, riders?,
  *                      dropoff?, unload?, marker?, says?, foot?, app?, papers? } }   (`dropoff`: a route's last stop has nobody
  *                      waiting; `unload: 'yard'` a collect emptied back at its yard; `marker` what stands at a stop: call,
- *                      fire, parcel, mailbox; `says` the screen's words: aboard, hold, banner; `foot` worked on foot, a desk's)
+ *                      fire, parcel, mailbox; `says` the screen's words: aboard, hold, banner; `foot` worked on foot, a desk's;
+ *                      `door` the building a desk is worked in, the office tower's by default, the movers' house)
  *   YARD_NAMES         a yard as people call it (the works yard, the bus depot)
  *   SHIFT              the laying's numbers: how far a stop is driven from the one before, how far apart, the depot's reach
  *   shiftOf(word)      → the row, or throws (teaching)
@@ -90,6 +91,11 @@ export const SHIFTS = Object.freeze({
   // (a temp's office job, posted by a staffing app; its papers a lifted badge, its work at a desk in the office tower)
   temp: Object.freeze({ name: 'Office temp', mode: 'desk', yard: 'office', foot: true, app: 'placeholder', papers: 'badge', vehicle: 'desk', item: 'shift', stops: 1, done: 'Shift worked',
     pitch: 'Placeholder Staffing: an office temp position at Synergetics Tower. Nice badge, Gary. Nobody checks the photo.' }),
+  // (a MOVERS' job, gameworld/movers.js: the moving truck had at the dock and driven to a house on the block, `door` its
+  // walk-in's; the work the house's own page, every piece carried out to the truck at its door, its pay into the bag there)
+  movers: Object.freeze({ name: 'Movers', mode: 'desk', yard: 'dock', door: 'house', vehicles: 'moving', calls: 1, vehicle: 'moving truck', item: 'load', stops: 1, done: 'Truck full',
+    pitch: 'Lift & Shift Removals: a house to empty on the block. Everything goes. Yes, the fridge. Truck at the dock.',
+    says: Object.freeze({ clock: 'Take the moving truck from the dock to the house: its front door', in: 'The Hendersons: everything goes. Mind the stairs.', work: 'Carry everything out to the truck at the door: E lifts anything, E sets it down' }) }),
   heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
 // THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
@@ -118,8 +124,10 @@ export const SWEEPERS = Object.freeze([Object.freeze({ model: 'loft:streetSweepe
 export const MOWERS = Object.freeze([Object.freeze({ model: 'loft:rideOnMower', word: 'ride-on mower', paint: '#3f7a3a' })]);
 // THE COURIER'S VAN and THE MAIL TRUCK (a row's `vehicles: 'parcel'`, `'mail'`)
 export const PARCEL_VANS = Object.freeze([Object.freeze({ model: 'loft:courierVan', word: 'courier van', paint: '#d9a520' })]);
+// a removals firm's (the movers' job, gameworld/movers.js): a box truck in its livery
+export const MOVING_TRUCKS = Object.freeze([Object.freeze({ model: 'loft:straightBox', word: 'moving truck', paint: '#f2efe6' })]);
 export const MAIL_TRUCKS = Object.freeze([Object.freeze({ model: 'loft:mailTruck', word: 'mail truck', paint: '#f1f1ee' })]);
-const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES, sweeper: SWEEPERS, mower: MOWERS, parcel: PARCEL_VANS, mail: MAIL_TRUCKS });
+const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES, sweeper: SWEEPERS, mower: MOWERS, parcel: PARCEL_VANS, mail: MAIL_TRUCKS, moving: MOVING_TRUCKS });
 /** Whether a row's vehicle is issued (a fleet's, or one of a list's turn about), not the depot's own. */
 export const issues = (S) => !!(S && (S.fleet || S.vehicles || S.machine));
 for (const [word, S] of Object.entries(SHIFTS)) {
