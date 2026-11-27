@@ -20,10 +20,10 @@ describe('a find, revealed', () => {
   it('stops the game as its task is found, shows it with its yield counted up, then lets the play go on', () => {
     const P = page([F]);
     P.at(0);
-    P.log.push({ type: 'objective:found', task: 't9' });                                 // (another task's: nothing)
+    P.log.push({ type: 'objective:found:t9' });                                 // (another task's: nothing)
     P.at(0.1);
     expect(document.querySelector('.moj-find')).toBeNull();
-    P.log.push({ type: 'objective:found', task: 't2', text: 'Platinum' });
+    P.log.push({ type: 'objective:found:t2' });
     P.at(0.2); P.at(0.3);
     expect(document.querySelector('.moj-find .n').textContent).toBe(F.name);
     expect(window.__mojFreeze).toBe(true);
@@ -39,7 +39,7 @@ describe('a find, revealed', () => {
   it('goes after its time and the world runs again', async () => {
     const P = page([F]);
     P.at(0);
-    P.log.push({ type: 'objective:found', task: 't2' });
+    P.log.push({ type: 'objective:found:t2' });
     P.at(0.1);
     P.at(FIND_REVEAL.hold + 0.2);
     await new Promise((r) => setTimeout(r, FIND_REVEAL.fade * 1000 + 60));

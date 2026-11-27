@@ -99,13 +99,14 @@ export function findRevealScript(finds) {
     window.addEventListener('keydown', key, true);
     requestAnimationFrame(frame);
   }
-  // (each task's find, raised as the objectives say it was found: read off the level's bus as it logs)
+  // (each task's find, raised as the objectives say it was found, \`objective:found:<task>\`: read off the level's bus as
+  // it logs, which keeps each event's type alone)
   let seen = 0;
   (function watch() {
     const B = window.__mojBus, log = B && B.state && B.state.log;
     if (log) {
       if (log.length < seen) seen = 0;
-      for (; seen < log.length; seen++) { const ev = log[seen]; if (ev && ev.type === 'objective:found') { const F = FINDS.find((x) => x.task === ev.task); if (F) show(F); } }
+      for (; seen < log.length; seen++) { const ev = log[seen], ty = ev && ev.type; if (typeof ty === 'string' && ty.indexOf('objective:found:') === 0) { const F = FINDS.find((x) => x.task === ty.slice(16)); if (F) show(F); } }
     }
     requestAnimationFrame(watch);
   })();

@@ -257,6 +257,8 @@ export function lowerObjectives(p, ctx) {
       world.hud.push({ var: held, label: 'Scan', as: 'counter', max: Math.ceil(t.seconds), id: shown });
       if (t.found) {
         world.reactions.push({ on: advE(k), do: 'emit', type: 'objective:found', task: t.id, text: t.found });
+        // (and by its task in its type, objective:found:<task>: what reads the bus's log, which keeps types alone, a find's reveal)
+        world.reactions.push({ on: advE(k), do: 'emit', type: `objective:found:${t.id}` });
         world.hud.push({ on: `${pre}:adv:${k}`, text: t.found, ttl: 4 });
       }
     } else if (t.kind === 'act') {

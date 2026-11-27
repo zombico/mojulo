@@ -30,6 +30,7 @@ describe('a scan', () => {
     expect(P.cur()).toBe(1);
     // (said as it is met: the event in the log, its words on the reaction that raises it; the bus's log keeps the type)
     expect(P.log().some((e) => e.type === 'objective:found')).toBe(true);
+    expect(P.log().some((e) => e.type === 'objective:found:site')).toBe(true);   // (its task in its type, for a log that keeps types alone)
     expect(P.ev.reactions.find((r) => r.type === 'objective:found')).toMatchObject({ task: 'site', text: SCAN.found });
   });
 
