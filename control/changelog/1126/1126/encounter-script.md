@@ -20,3 +20,6 @@
 - A wide shot on big subjects far apart still looks at them: the aim under big subjects (so they ride above the talk
   box) is no more than half their height (`rules-basic.js` shot); it had grown with the distance, and a shot from 200 m
   looked at the ground before them.
+- A shot can keep a body out of it (a scene's `shot.away`, `rules-basic.js`): the camera stands past its subjects, well
+  off the line from that body to them, so a pilot standing between the lens and a candle being set down is out of the
+  frame (it had landed in front of the camera, the candle unseen).

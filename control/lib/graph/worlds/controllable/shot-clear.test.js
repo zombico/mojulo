@@ -33,6 +33,21 @@ describe('a shot on a big subject', () => {
     expect(look[2]).toBeGreaterThanOrEqual(6 - 3);                              // (at them: under their look point by half their height at most)
   });
 
+  it('a shot told to keep a body away stands off its line: the body is out of the frame', () => {
+    // (a candle set down, the pilot 30 m off it to the west; the plain framing would look past the pilot at it)
+    const candle = { id: 'c', rule: { type: 'static' }, body: { type: 'box', size: [4, 4, 20], radius: 4 }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const pilot = { id: 'p', pilotable: true, rule: { type: 'static' }, body: { type: 'box', size: [5, 4, 10], radius: 4.2 }, transform: { pos: [-30, 0, 0], heading: 0 } };
+    const outOfView = (away) => {
+      const st = E.createWorld({ entities: [pilot, candle, { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'p' }, transform: { pos: [-40, 0, 5], heading: 0 } }], pilot: 'p', camera: 'cam' });
+      E.castOps(st, [{ op: 'shot', shot: { frame: 'low', on: ['c'], ...(away ? { away: 'p' } : {}) } }]);
+      E.stepWorld(st, {}, 1 / 60, flat);
+      const C = st.camera.transform.pos, L = st.camera.lookAt, a = [L[0] - C[0], L[1] - C[1]], b = [-30 - C[0], 0 - C[1]];
+      return Math.acos((a[0] * b[0] + a[1] * b[1]) / (Math.hypot(...a) * Math.hypot(...b)));
+    };
+    expect(outOfView(true)).toBeGreaterThan((50 / 2) * (Math.PI / 180) * 1.2);   // (past the edge of a 50° frame)
+    expect(outOfView(false)).toBeLessThan((50 / 2) * (Math.PI / 180));           // (unasked, it stood in the frame)
+  });
+
   it('a tracking shot looks again as its subject moves: a ridge come between them is gone round', () => {
     // (a walker on open ground, then past a ridge the line from the shot's first place would cross)
     let ridge = false;

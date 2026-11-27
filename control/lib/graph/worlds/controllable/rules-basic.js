@@ -408,6 +408,9 @@ export function buildRulesBasic(E) {
       }
       face = 0;
     } else face = subs[0].transform.heading || 0;
+    // (away: a body kept out of the shot, the camera stood past the subjects well off the line from it to them)
+    const A = r.away ? world.byId[r.away] : null;
+    if (A && !A.gone) face = Math.atan2(cy - A.transform.pos[1], cx - A.transform.pos[0]) + 1.2 * side;
     let yaw = (r.yaw ?? face) + off * HALF_PI * side;
     if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
     let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));

@@ -185,7 +185,7 @@ ${guide.steps.some((x) => x && x.from) ? "      else if (gated) put('way', '', '
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-  window.__mojGuide = { view: () => V, step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0 };
+  window.__mojGuide = { view: () => V, step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0${rings ? ', disc: () => ringOn' : ''} };
 })();
 `;
 }

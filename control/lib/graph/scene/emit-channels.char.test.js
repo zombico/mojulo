@@ -1,3 +1,8 @@
+// Re-pinned 2026-11-27 (a shot's away; the screens' second pass): every fixture that embeds the controllable runtime, for
+// the shot rule's `away` (rules-basic.js: a body kept out of the frame, taken only by a shot that names it, no fixture's
+// does), and the game fixtures (game, kitchen-sink and its capture) for game-screens.js (the results screen no longer says
+// the game's title; the opening's loading draws every object once, emitted only with an opening, no fixture's has one).
+// Checked: with rules-basic.js as it was only the three game fixtures move, each the screens' source alone.
 // Re-pinned 2026-11-27 (the game's screens): the fixtures that carry the game channel (game, kitchen-sink and its
 // capture). Its result card is now the results screen (game-screens.js resultsScript, drawn as a level ends, never in a
 // capture), and a level with an `opening` carries its title screen (no fixture's does). Checked: with game.js as it was,
