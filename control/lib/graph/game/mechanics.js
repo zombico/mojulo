@@ -66,23 +66,33 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
 // a mechanic a seat works lowers a hand a seat, the work shift's), seatLives? (true: the seats count lives, so a seat's
 // hp spent is a seat down, rules-basic.js seat-falls, never the level lost) }.
-// FAIL-ON-DEATH WITH SEATS (a level with seats whose hits are counted, docs/local-multiplayer-principles.md principle 4):
+// THE BODIES A SHARED ZONE ANSWERS TO (a level with seats): seat 1's and every seat's (a list, the bus's zone `watch`),
+// so any of them takes a pickup or the way out; without seats seat 1's alone, as it was
+const takers = (ctx) => (Array.isArray(ctx.seats) && ctx.seats.length ? [ctx.player, ...ctx.seats.slice(0, 3)] : ctx.player);
+const seated = (ctx) => Array.isArray(ctx.seats) && ctx.seats.length > 0;
+// (a pickup with seats is taken once: its reactions only while its zone is on, the zone shut last; two seats in it on one
+// frame, or one walking back over it, take nothing more)
+const whileOn = (zone) => ({ if: { entity: zone, field: 'on', eq: true } });
+
+// FAIL-ON-DEATH WITH SEATS (a level with seats keeping the level's hp, docs/local-multiplayer-principles.md principle 4):
 // every seat its own hp, seat 1's the level's `hp` as it was, seat n's `hp:<n>`, each taken by the hits on its own body
+// (where hits are counted) and by the hazards it walks into (hazard-damage's)
 // and shown in its own corner in its colour. A seat's spent is a seat down: its hp whole again and its body felled (the
 // cast's `kill`), which the world takes as a fall (rules-basic.js seat-falls: a life where lives are counted, up beside
 // the others, or out). Seat 1's spent is the level lost, as before, unless the seats count lives (ctx.seatLives): then it
 // is a seat down like the others, and the level is lost when no seat is left.
 function seatedDeath(p, ctx, hits) {
   const start = Number.isFinite(p.startHp) ? p.startHp : 100;
+  const hit = (ent, v) => (hits ? [{ on: `hit:${ent}`, do: 'inc', var: v, by: -hits, min: 0 }] : []);
   const row = (v, n) => (p.bar === true ? { var: v, label: n === 1 ? 'Health' : SEAT_LABELS[n - 1], as: 'bar', max: start, color: n === 1 ? 'harm' : SEAT_COLORS[n - 1] } : { var: v, label: n === 1 ? 'HP' : `${SEAT_LABELS[n - 1]} HP`, ...(n === 1 ? {} : { color: SEAT_COLORS[n - 1] }) });
   const seats = [...(ctx.seatLives ? [{ n: 1, v: 'hp', ent: ctx.player }] : []), ...ctx.seats.slice(0, 3).map((ent, k) => ({ n: k + 2, v: `hp:${k + 2}`, ent }))];
-  const vars = { hp: start }, watches = [], reactions = [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud = [row('hp', 1)];
+  const vars = { hp: start }, watches = [], reactions = hit(ctx.player, 'hp'), hud = [row('hp', 1)];
   if (!ctx.seatLives) watches.push({ type: 'dead', when: { var: 'hp', lte: 0 } });
   for (const S of seats) {
     const down = `seat-down:${S.n}`;
     if (S.n > 1) {
       vars[S.v] = start;
-      reactions.push({ on: `hit:${S.ent}`, do: 'inc', var: S.v, by: -hits, min: 0 });
+      reactions.push(...hit(S.ent, S.v));
       hud.push({ ...row(S.v, S.n), slot: SEAT_CORNERS[S.n] });
     }
     watches.push({ type: down, when: { var: S.v, lte: 0 } });
@@ -114,7 +124,7 @@ const MECHANICS = {
       return {
         world: {
           ...(held ? { vars: { [held.v]: 0 } } : {}),
-          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
+          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: takers(ctx) }],
           reactions: [...(held ? [{ on: 'down', match: { entity: held.who }, do: 'inc', var: held.v, by: 1 }] : []), { on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
         },
         // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
@@ -243,7 +253,14 @@ const MECHANICS = {
         items.add(item);
         world.entities.push({ id: zone, on: true, position: pk.at || [0, 0, 0] });
         // planar unless the pickup says otherwise (one raised on a ledge is reached by climbing to it, not by walking under it)
-        world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: takers(ctx) });
+        if (seated(ctx)) {
+          // (seats: any seat takes it, into the one bag, once)
+          world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'emit', type: 'pickup:' + item });
+          world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'inc', var: heldVar('bag', item), by: 1 });
+          world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+          return;
+        }
         world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'pickup:' + item });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: heldVar('bag', item), by: 1 });
@@ -265,10 +282,17 @@ const MECHANICS = {
       // `of: 'body'`: the player's body's own hp takes it (the stats' hp, its bar), no level hp beside it
       const body = ofBody(p, ctx, 'hazard-damage');
       const world = { sources: [], reactions: [], ...(body ? {} : { vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] }) };
+      // (seats keeping the level's hp: each seat's own, `hp:<n>`, as fail-on-death declares it)
+      if (!body && seated(ctx)) ctx.seats.slice(0, 3).forEach((_, k) => { world.vars[`hp:${k + 2}`] = world.vars.hp; });
       hazards.forEach((hz, j) => {
         const zone = `hz_${ctx.i}_${j}`, by = Number.isFinite(hz.damage) ? hz.damage : 20;
         // (planar, as a hazard on a floor is; `planar: false` meets it at its height: a pillar or a rock in a flight's way)
-        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], ...(Array.isArray(hz.half) ? { half: hz.half } : { radius: hz.radius != null ? hz.radius : 1.5 }), planar: hz.planar !== false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], ...(Array.isArray(hz.half) ? { half: hz.half } : { radius: hz.radius != null ? hz.radius : 1.5 }), planar: hz.planar !== false, watch: takers(ctx) });
+        if (seated(ctx)) {
+          // (seats: whoever walks in is hurt, its body or its own hp: seat 1's the level's `hp`, seat n's `hp:<n>`)
+          takers(ctx).forEach((ent, k) => world.reactions.push(body ? { on: 'enter', match: { zone, entity: ent }, do: 'ctrl', op: 'hurt', who: ent, by } : { on: 'enter', match: { zone, entity: ent }, do: 'inc', var: k ? `hp:${k + 1}` : 'hp', by: -by, min: 0 }));
+          return;
+        }
         world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by, min: 0 });
       });
       return { world };
@@ -352,7 +376,7 @@ const MECHANICS = {
         if (ctx.seatLives) return { world: {}, on: { dead: { end: 'fail' } } };
         return { world: { reactions: [{ on: 'down', match: { entity: ctx.player }, do: 'emit', type: 'dead' }] }, on: { dead: { end: 'fail' } } };
       }
-      if (hits && Array.isArray(ctx.seats) && ctx.seats.length) return seatedDeath(p, ctx, hits);
+      if (seated(ctx)) return seatedDeath(p, ctx, hits);
       return {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
@@ -439,7 +463,13 @@ const MECHANICS = {
       pickups.forEach((pk, j) => {
         const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
         world.entities.push({ id: zone, on: true, position: at });
-        world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: takers(ctx) });
+        if (seated(ctx)) {
+          // (seats: any seat takes it, into the one count, once)
+          const g = whileOn(zone);
+          world.reactions.push({ on: 'enter', match: { zone }, ...g, do: 'emit', type: 'coin' }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: 'coins', by: 1 }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: run, by: 1 }, { on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+          return;
+        }
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'coin' });   // (heard: its chime)
         world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'coins', by: 1 });

@@ -1205,3 +1205,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-27 (1126-couch-closeout: a seat's hp spent): every fixture that embeds the controllable runtime. The
 // 'seat-falls' pass takes seat 1 downed too when the seats count lives, and a seat it brings up lets go of the cast's
 // fell (`castDown`) as well (rules-basic.js: one condition, one assignment, the comment). No fixture seats a second player.
+// Re-pinned 2026-11-27 (1126-couch-closeout: the level's zones answer every seat): `events`, `events-hud`, `action-hero`,
+// `shoot-live`, `kitchen-sink`, `kitchen-sink-capture`, the pages that embed the event bus. A zone's `watch` may be a
+// list of body ids, a level's seats (worlds/event-bus.js deriveZoneEvents: one line replaced); a string watches as before.

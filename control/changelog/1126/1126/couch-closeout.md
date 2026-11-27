@@ -22,3 +22,5 @@
 - When the players count lives, player 1 is a player like the others: running out of health costs a life rather than
   ending the level, and the level is lost only when no player is left. Without lives, player 1's health running out
   ends the level, as before.
+- Every player now works the level, not just the first. Any player picks up coins and items (into the team's count, once
+  each, even when two reach one together) and can take the way out. A hazard hurts whoever steps in, in their own health.

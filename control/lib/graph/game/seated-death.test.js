@@ -11,12 +11,17 @@ const EXIT = { kind: 'reach-exit', at: [40, 0, 0] };
 const hero = (id, x) => ({ id, pilotable: true, rule: { type: 'platform', eye: 0, speed: 4 }, ambient: { type: 'static' }, body: { type: 'none', hittable: true }, transform: { pos: [x, 0, 0], heading: 0 } });
 
 describe('fail-on-death\'s lowering with seats', () => {
-  it('no seats, or no hits counted: byte for byte what it was', () => {
+  it('no seats: what it was', () => {
     const bare = lowerMechanic('fail-on-death', DEATH, { i: 0, player: 'hero' });
-    const seatedNoHits = lowerMechanic('fail-on-death', { startHp: 30 }, { i: 0, player: 'hero', seats: ['hero-2'] });
-    expect(JSON.stringify(seatedNoHits)).toBe(JSON.stringify(lowerMechanic('fail-on-death', { startHp: 30 }, { i: 0, player: 'hero' })));
     expect(bare.world.vars).toEqual({ hp: 30 });
     expect(bare.world.watches).toEqual([{ type: 'dead', when: { var: 'hp', lte: 0 } }]);
+    expect(bare.world.reactions).toEqual([{ on: 'hit:hero', do: 'inc', var: 'hp', by: -10, min: 0 }]);
+  });
+
+  it('seats with no hits counted: each its own hp all the same (a hazard takes it), no hit reactions', () => {
+    const W = lowerMechanic('fail-on-death', { startHp: 30 }, { i: 0, player: 'hero', seats: ['hero-2'] }).world;
+    expect(W.vars).toEqual({ hp: 30, 'hp:2': 30 });
+    expect(W.reactions.filter((r) => r.on.startsWith('hit:'))).toEqual([]);
   });
 
   it('seats: each its own hp on its own hits, in its corner and colour; seat 1 still the level\'s', () => {
@@ -80,5 +85,39 @@ describe('a seat\'s hp spent, played', () => {
     hits(L, 'hero-2', 3);
     L.run(2);
     expect(L.world.seatsOver).toBe(true);
+  });
+});
+
+// THE SHARED ZONES WITH SEATS (mechanics.js takers): any seat takes a pickup (once) and the way out; a hazard hurts whoever
+// walks in, in its own hp
+describe('the level\'s zones answer every seat', () => {
+  const sim = (mechanics) => {
+    const mech = composeMechanics(mechanics, { player: 'hero', seats: ['hero-2'] });
+    return simLevel({ entities: [hero('hero', 0), hero('hero-2', -2)], events: mech.events, world: { seats: { bodies: ['hero-2'] } } });
+  };
+  const put = (L, at) => { for (const [id, x] of Object.entries(at)) L.world.byId[id].transform.pos = [x, 0, 0]; L.frame(1 / 30); L.frame(1 / 30); };
+
+  it('a coin seat 2 walks into counts, once: walked back over, or both in it on one frame', () => {
+    const L = sim([{ kind: 'coins', pickups: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }] }, EXIT]);
+    put(L, { 'hero-2': 5 });
+    expect(L.bus.vars.coins).toBe(1);
+    put(L, { 'hero-2': 0 }); put(L, { 'hero-2': 5 });
+    expect(L.bus.vars.coins).toBe(1);
+    put(L, { hero: 9, 'hero-2': 9 });
+    expect(L.bus.vars.coins).toBe(2);
+  });
+
+  it('seat 2 at the way out takes it', () => {
+    const L = sim([EXIT]);
+    put(L, { 'hero-2': 40 });
+    expect(L.bus.log.map((e) => e && e.type)).toContain('goal:reached');
+  });
+
+  it('a hazard hurts whoever walks in, in its own hp', () => {
+    const L = sim([{ kind: 'hazard-damage', startHp: 30, hazards: [{ at: [5, 0, 0], damage: 10 }] }, { kind: 'fail-on-death', startHp: 30 }, EXIT]);
+    put(L, { 'hero-2': 5 });
+    expect([L.bus.vars.hp, L.bus.vars['hp:2']]).toEqual([30, 20]);
+    put(L, { hero: 5 });
+    expect([L.bus.vars.hp, L.bus.vars['hp:2']]).toEqual([20, 20]);
   });
 });

@@ -506,7 +506,7 @@ export function buildBus() {
       const watch = s.watch || '*';
       for (const e of list) {
         if (!e || !e.id || (e.gone && !e.mountedOn)) continue;   // one asleep or sent away stands in no zone (one riding in a cab is where its car is)
-        if (!glob(e.id, watch)) continue;
+        if (Array.isArray(watch) ? watch.indexOf(e.id) < 0 : !glob(e.id, watch)) continue;   // (a list: those bodies, a level's seats)
         if (s.type === 'gauge' ? !inGauge(e, s) : !inZone(zonePos(e), s)) continue;
         const key = s.zone + '|' + e.id;
         curInside[key] = 1;
