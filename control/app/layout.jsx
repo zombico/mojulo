@@ -1,4 +1,6 @@
-import { Geist, Geist_Mono, Outfit } from 'next/font/google';
+// (the dashboard's faces ship beside it, app/fonts/, each under the SIL Open Font License: a build fetches nothing, so a
+// box with no route to Google's font service builds as any other)
+import localFont from 'next/font/local';
 import './globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getLocale } from 'next-intl/server';
@@ -6,13 +8,9 @@ import AuthNav from '@/components/AuthNav';
 import { rtlLocales } from '@/i18n/config';
 import { isAuthEnabled } from '@/lib/auth/session';
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
-const outfit = Outfit({
-  variable: '--font-outfit',
-  subsets: ['latin'],
-  weight: ['300', '400', '600', '700'],
-});
+const geistSans = localFont({ src: './fonts/geist-variable.woff2', variable: '--font-geist-sans', weight: '100 900', display: 'swap' });
+const geistMono = localFont({ src: './fonts/geist-mono-variable.woff2', variable: '--font-geist-mono', weight: '100 900', display: 'swap' });
+const outfit = localFont({ src: './fonts/outfit-variable.woff2', variable: '--font-outfit', weight: '100 900', display: 'swap' });
 
 export const metadata = {
   title: 'Mojulo',

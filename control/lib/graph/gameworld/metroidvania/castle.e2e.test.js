@@ -65,7 +65,8 @@ describe('a castle of boxes, played as its page resolves it', () => {
     const barbican = B.layout.castle.boxes.find((b) => b.id === 'court').in.room;
     for (let f = 0; f < 60 * 20 && !P.inRoom(barbican); f++) P.step({ strafe: 1 });
     expect(P.inRoom(barbican)).toBe(true);
-  });
+    // (some 17 s alone; a loaded CI shard ran it past the default 30)
+  }, 120000);
 
   it('wakes her in the gatehouse\'s hall, and opens the keep when its Gatekeeper is cut down', () => {
     const J = B.layout.castle.joins.find((x) => x.by === 'gatehouse'), [hall, gate] = J.rooms, d = B.layout.doors.find((x) => x.kind === 'port' && x.a === gate), P = play();
