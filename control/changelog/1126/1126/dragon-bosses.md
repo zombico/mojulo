@@ -13,3 +13,9 @@
   a snout with raised nostril bosses; Rime's short, high, pointed face under crests swept back off its brows; Storm's long,
   narrow blade finned down its bridge; Venom's broad, flat shovel with spikes off its wide cheeks; Gloom's long snout
   hooked down at its tip, tusks at its lip. Each drawn and checked all round.
+- **The dragons' primary forms** (`figures/dragon-primary.js`, `gameworld/beast-boss.js` `dragonPrimaryFigure(id)`): each
+  dragon on four legs, the beast its two-legged form rises from: a monitor lizard's body and walk, grown to a beast's size
+  and bulk (its trunk barrelled, its neck and limbs thickened, its tail kept long), wearing what tells the dragon in either
+  form: the same head (its snout, horns, crests and eyes, with its neck and jaw), the same wings (spread out off its
+  shoulders), the same dorsal spines (in its horns' colour, down its neck, back and tail) and the same scales (the
+  body's own light and dark kept, its value the dragon's).

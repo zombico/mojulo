@@ -14,6 +14,8 @@
  *                                with its answer), its name and its title
  *   ITS FIGHT (dragonBoss)       the idioms first; as it is hurt its signatures join them and it quickens: three phases
  *   ITS BODY (dragonFigure)      the draconic kin on two legs with wings (the castle's Lord Unbound's), its snout its head
+ *   ITS PRIMARY FORM             the beast on four legs the two-legged body rises from, wearing its head, wings, dorsal
+ *                                spines and colours (gameworld/beast-boss.js dragonPrimaryFigure, figures/dragon-primary.js)
  *
  *   DRAGON_IDIOMS, DRAGONS, DRAGON_IDS
  *   dragonBoss(id) → the boss row (readBoss reads it; bossRule stands it)        dragonFigure(id) → its hero-door words
