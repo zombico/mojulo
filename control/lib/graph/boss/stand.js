@@ -48,11 +48,11 @@ export function vehicleRule(id, { route = null, runs = null, packages = null, se
     ...(V.carrier ? { carrier: { ...JSON.parse(JSON.stringify(V.carrier)), packages: (packages || []).map((k) => ({ id: k.id, at: [k.at[0], k.at[1], k.at[2] ?? 0] })) } } : {}) };
 }
 
-export function vehicleEntity(id, { at, heading = 0, hp = 1000, route = null, runs = null, packages = null, team = 'guards', seed = 1 } = {}) {
+export function vehicleEntity(id, { at, heading = 0, hp = 1000, route = null, runs = null, packages = null, team = 'guards', seed = 1, name = null, figure = null } = {}) {
   const V = readVehicle(id), [L, W, H] = V.size, R = vehicleRule(id, { route, runs, packages, seed });
   const hit = { hittable: true, hp, radius: Math.max(L, W) / 2, egg: { a: Math.max(L, W) / 2, c: H / 2, cz: H / 2 } };
-  return { id, team, rule: { type: 'boss-vehicle', boss: R },
-    body: V.frame || V.figure ? { type: 'figure-rig', figure: id, ...hit, hpBar: 'none' } : { type: 'mesh', shape: 'box', size: [0.2, 0.2, 0.2], color: 0x3f4640, ...hit },
+  return { id: name ?? id, team, rule: { type: 'boss-vehicle', boss: R },
+    body: V.frame || V.figure ? { type: 'figure-rig', figure: figure ?? name ?? id, ...hit, hpBar: 'none' } : { type: 'mesh', shape: 'box', size: [0.2, 0.2, 0.2], color: 0x3f4640, ...hit },
     transform: { pos: [at[0], at[1], at[2] ?? 0], heading } };
 }
 

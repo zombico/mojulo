@@ -11,7 +11,9 @@
  *                              (an id, a class, a skin, a people's `arm` from the armory, a second attack `also`
  *                              (foes/attacks.js SECOND_CARDS), how many to a fight), met
  *                              from the second level on (on a world map, one kind to each fight past the opening, in
- *                              order); all written into the cast (foe-casting.js)
+ *                              order); `boss` its boss fight (`vehicle`: a boss of the boss shelf drawn as a beast, the
+ *                              hydra, fought by the director in its boss's place); all written into the cast
+ *                              (foe-casting.js)
  *   familyOf(G)              → the row (with its rail's id) a gameworld's foes are cast from, or null: the rail its feel's
  *                              template is (rails.js railOfPole)
  *   FOE_GAITS                the hero door's gaits a person or a kin foe is made with: a walk and a jog, solved on its
@@ -53,6 +55,9 @@ export const FOE_FAMILIES = Object.freeze({
     // venom drake lying in wait in the grass that spits venom from off; and a fire salamander that hunts and breathes
     // fire before it: each a real body grown into a monster (mutagen/oozes, its chimera grafts) or a people of the dead,
     // its card at its zone, a second attack beside its bite (`also`). Met in this order, one kind to a fight
+    // its BOSS FIGHT: the hydra of the boss shelf (boss/vehicles.js), its heads struck in their turns in the order of its
+    // seals, on the climax of its world map
+    boss: Object.freeze({ vehicle: 'hydra' }),
     extras: Object.freeze([
       Object.freeze({ id: 'skeleton', class: 'pursuer', skin: Object.freeze({ people: 'skeleton' }), arm: 'rusted-sword', count: 2 }),
       Object.freeze({ id: 'centaur', class: 'pursuer', skin: Object.freeze({ people: 'sylvan', taur: 'horse' }), arm: 'old-longsword', count: 1 }),

@@ -18,4 +18,8 @@
   its move's opening (`boss/vehicles.js` turnTimes: the clip timed to the director's own move), where the head's box
   is (a test holds the boxes to the figure). A severed head's neck is hidden (the boss view's bone hook, now a beast's
   too); a vehicle boss with a `figure` stands as a figure-rig and plays its states' clips; no part marks over a beast.
+- **Fable of Artesia's boss is the hydra** (`foe-families.js` `boss: { vehicle: 'hydra' }`): a bestiary entry may stand
+  as a boss of the boss shelf (`vehicle`, `gameworld/foes.js` isDirected), fought by its director under the foe's own id
+  (so a page won by its foes down counts it), its figure built on the page from its row (`{ beastBoss }`,
+  `worlds/world-scene.js`), no figure minted for it. Its lair, a level of its own after the castle heights, is next.
 

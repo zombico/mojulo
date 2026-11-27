@@ -1866,6 +1866,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = workbotFigure(rawSpec.workbot);
           continue;
         }
+        // A BEAST BOSS (gameworld/beast-boss.js: the boss shelf's hydra, a vehicle boss drawn as a beast): a figures-map entry
+        // `beastBoss: <its row>`, built here from the fauna it is grown from, never stored. Absent ⇒ none
+        if (typeof rawSpec.beastBoss === 'string') {
+          const { beastBossFigure } = await import('@/lib/graph/gameworld/beast-boss.js');
+          payload.figures[name] = await beastBossFigure(rawSpec.beastBoss);
+          continue;
+        }
         // A CASTLE'S BELL (gameworld/metroidvania/bell.js: a boss no door makes): a figures-map entry `bell: { card }`,
         // delivered as its rig (its chains the root, the bell on its axle, the clapper), its moves its clips. Absent ⇒ none
         if (rawSpec.bell && typeof rawSpec.bell === 'object') {

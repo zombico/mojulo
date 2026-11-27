@@ -144,5 +144,6 @@ export function hydraFigure(src, { heads = HYDRA.heads, fan = HYDRA.fan, base = 
   clips.heart = clip(HYDRA.keys / 2, 1.6, (h, i, u) => sway(i, u, 0.35, 2));
   const tops = bones.map((b) => Math.max(b.head[2], b.tail[2]));
   const necks = Object.fromEntries(heads.map((h) => [h, neckSrc.slice(tintFrom).map((si) => bones[idx.get(`${h}:${si}`)].id)]));
-  return { bones, parts, clips, figH: r5(Math.max(...tops)), necks, opening: [...HYDRA.opening], lowBend: r5(lowBend) };
+  // (drawn as the serpent's rig is, `rig` and `layered` its pack's: rigid parts, one a bone, so a severed neck's bones hide)
+  return { ...(src.rig !== undefined ? { rig: src.rig } : {}), ...(src.layered !== undefined ? { layered: src.layered } : {}), bones, parts, clips, figH: r5(Math.max(...tops)), necks, opening: [...HYDRA.opening], lowBend: r5(lowBend) };
 }

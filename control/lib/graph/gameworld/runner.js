@@ -86,7 +86,7 @@ import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
 import { gaitRouted, foeGaitOf, FOE_GAITS, familyOf } from './foe-families.js';
-import { fieldedIds, bestiaryOf, foeLook, foeThrowOf, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
+import { fieldedIds, bestiaryOf, foeLook, foeThrowOf, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDirected, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
 import { peopleExtra } from './people.js';
@@ -791,6 +791,8 @@ const foeSteps = (G, ref, ready, ids = null) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
     if (isModel(entry)) return [];
+    // (nor a boss of the boss shelf: its figure is built on the page, gameworld/beast-boss.js)
+    if (isDirected(entry)) return [];
     // (a routed rail's foe is made with gaits of its own: foe-families.js)
     const gaits = gaitRouted(G);
     if (!isPeople(entry)) return [{ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(entry), setting, ...coat, ...(gaits ? { gait: foeGaitOf(entry) } : {}) }, title), ...ready }];

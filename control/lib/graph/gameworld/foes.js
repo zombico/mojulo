@@ -51,6 +51,8 @@
  *
  * Pure and deterministic: no dice (a foe's place is its beat's).
  */
+import { vehicleEntity } from '../boss/stand.js';
+import { VEHICLES } from '../boss/vehicles.js';
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
 import { SIGHTS } from '../mind/vocab.js';
@@ -83,9 +85,14 @@ import { settingOfGame } from './cast-setting.js';
 import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'also', 'vanish', 'states', 'summons', 'pair', 'becomes'];
-// the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's)
-const specOf = ({ vanish, states, summons, pair, becomes, ...spec }) => spec;
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'also', 'vanish', 'states', 'summons', 'pair', 'becomes', 'vehicle'];
+// the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's; a
+// boss of the boss shelf it stands as, its own)
+const specOf = ({ vanish, states, summons, pair, becomes, vehicle, ...spec }) => spec;
+/** A foe that stands as a BOSS OF THE BOSS SHELF (`vehicle`: a row of boss/vehicles.js drawn as a beast, the hydra): the
+ * director fights it (worlds/controllable/boss.js), its figure built by the page (gameworld/beast-boss.js), its own class
+ * and skin only what the cast says it is. */
+export const isDirected = (entry) => typeof entry?.vehicle === 'string';
 /** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
  * calls, the hero's distance that starts them, how far round it they arrive (m) and the transit they arrive by. */
 export const SUMMON = Object.freeze({ count: 3, at: 2, every: 4, radius: 14, ring: 1.8, with: 'smoke' });
@@ -164,7 +171,8 @@ export function readBestiary(F) {
     try { resolveFoe(specOf(e)); } catch (err) { throw new Error(`${at}: ${err.message.replace(/^foe: /, '')}`); }
     const vanish = e.vanish !== undefined ? readVanish(e.vanish, `${at}.vanish`) : undefined;
     const states = e.states !== undefined ? readStates(e.states, `${at}.states`) : undefined;
-    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(e.also !== undefined ? { also: e.also } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
+    if (e.vehicle !== undefined && !(VEHICLES[e.vehicle] && VEHICLES[e.vehicle].figure)) throw new Error(`${at}.vehicle is a boss of the boss shelf drawn as a beast (${Object.keys(VEHICLES).filter((k) => VEHICLES[k].figure).join(', ')})`);
+    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(e.also !== undefined ? { also: e.also } : {}), ...(e.vehicle !== undefined ? { vehicle: e.vehicle } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
   }
   // (what a summoner calls: read once every entry is known)
   for (const [id, e] of Object.entries(F)) {
@@ -408,6 +416,16 @@ function zonedSlot(stature, scale = 1) {
 export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tune = null, ctx = null } = {}) {
   const C = ctx ?? { rim: targetRimOf(G), sheets: {} };
   const f = resolveFoe({ ...specOf(p.entry), ...(p.group ? { group: p.group } : {}) });
+  // A BOSS OF THE BOSS SHELF (`vehicle`, the hydra): stood as the director stands it (boss/stand.js vehicleEntity), under
+  // this foe's own id (so a page won by its foes down counts it), on the foes' team, its health its rank's, its figure the
+  // beast its row is drawn as, built on the page (`beastBoss`, world-scene.js)
+  if (isDirected(p.entry)) {
+    const fig = p.eid ? `foe-${p.eid}` : p.id;
+    part.figures[fig] = { beastBoss: p.entry.vehicle };
+    const e = vehicleEntity(p.entry.vehicle, { at: p.at, heading: p.heading ?? 0, hp: f.toll.hp, team: (tune ?? {}).team ?? 'foes', name: p.id, figure: fig, seed: 1 });
+    part.entities.push(e);
+    return e;
+  }
   // (its figure is its ENTRY's, `foe-<entry>`, shared by every body that entry stands, a summons or a mode included: the
   // page builds each body its own rig from one pack; a game's own figure, made per body, keeps the body's name)
   const fig = !figure && p.eid ? `foe-${p.eid}` : p.id;
