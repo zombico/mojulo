@@ -11,3 +11,6 @@
 - The hill-climb prices couch play as one package (`couch`): versus, free-for-all, teams, roles, window, turns and the
   lobby. Each couch genre needs two or three of them at once, so priced one at a time none of them made a world. The
   lobby's old `seats` package is folded into it. Split screen stays its own package.
+- A second, third or fourth player whose health runs out no longer lies down for the rest of the level. Their collapse
+  plays, then it counts as a fall: a life is spent where lives are counted, and they get up beside the others with full
+  health, or are out when none is left. The first player's knock-down still ends the level, as before.

@@ -523,12 +523,22 @@ export function buildRulesBasic(E) {
   // its seat one, or the shared count one; a seat with none left is out (its body gone), and when no seat is left
   // playing the seats are over (state.seatsOver: the page ends the level, failed). Without lives seat 1's fall is the
   // level's catch, as before.
+  // A SEAT DOWNED (seats 2 to 4, their body's hp spent: combat-hit's `downed`) is taken as a fall once its collapse has
+  // played (SEAT_DOWN_HOLD s): a life, then up again beside the others with its hp whole, or out. Seat 1's down stays the
+  // level's own (fail-on-death's `down`), as before.
+  const SEAT_DOWN_HOLD = 1.5;
   E.registerWorldPass('seat-falls', (state) => {
     if (!state.seatOf) return;
     const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? 1 : state.seatOf[e.id]);
     for (const e of all) {
-      if (e.gone || e.transform.pos[2] >= state.seatFloor) continue;
+      if (e.gone) continue;
       const n = seatN(e);
+      let down = false;
+      if (n > 1 && e.downed) {
+        if (e.seatDownAt == null) e.seatDownAt = state.time;
+        down = state.time - e.seatDownAt >= SEAT_DOWN_HOLD;
+      }
+      if (!down && e.transform.pos[2] >= state.seatFloor) continue;
       if (n === 1 && !state.seatLives) continue;
       if (state.seatLives) {
         const k = state.seatPool === 'shared' ? 'shared' : n;
@@ -543,6 +553,13 @@ export function buildRulesBasic(E) {
       const at = to ? to.transform.pos : null, home = state.seatHome && state.seatHome[e.id];
       e.transform.pos = at ? [at[0], at[1], at[2] + 1] : home ? home.slice() : [e.transform.pos[0], e.transform.pos[1], 0];
       if (e.vel) e.vel = [0, 0, 0];
+      if (down) {
+        // up again: its hp whole, the collapse let go (combat-match.js respawnEntity's reset, where it stands)
+        if (Number.isFinite(e.hpMax)) e.body.hp = e.hpMax;
+        if (Number.isFinite(e.poiseMax)) e.poise = e.poiseMax;
+        e.downed = false; e.seatDownAt = null; e.staggerT = null; e.downPauseT = null; e.reactionEnded = false;
+        e.locomotion = 'forward'; e.moving = false; e.gaitPhase = 0;
+      }
     }
   });
 

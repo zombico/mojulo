@@ -184,8 +184,8 @@ export const SOUL = Object.freeze({
     pool: {
       given: GIVEN,
       values: {
-        shared: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one; at none the level is lost (rules-basic.js seat-falls); falls only, a hit is seat 1\'s hp; web only', requires: TWO },
-        own: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls); falls only, a hit is seat 1\'s hp; scores stay one count; web only', requires: TWO },
+        shared: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one, and a seat 2 to 4 downed (its hp spent) one, up again beside the others; at none the level is lost (rules-basic.js seat-falls); seat 1\'s hp is still the level\'s, and the HUD shows no seat\'s hp; web only', requires: TWO },
+        own: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one, and a seat 2 to 4 downed (its hp spent) one, up again beside the others; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls); seat 1\'s hp is still the level\'s, and scores stay one count; web only', requires: TWO },
       },
     },
     join: {

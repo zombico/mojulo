@@ -1198,3 +1198,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-25 (1124-mech-battle-kai-rail: an operation's briefing): `briefing` only. The table's roster is
 // headed in the design's word, a binding (`rosterTitle`: a squadron's Flight groups, an operation's Forces), where it
 // was the literal; a space mission's briefing says Flight groups as it did, so what it shows is as it was.
+// Re-pinned 2026-11-27 (1126-couch-closeout: a seat downed): every fixture that embeds the controllable runtime. Its
+// 'seat-falls' world pass also takes a seated body (seats 2 to 4) whose hp is spent once its collapse has played: a life,
+// then up beside the others with its hp whole, or out (rules-basic.js: the pass's head and tail, one constant). A world
+// without seats steps as before; no fixture seats a second player.
