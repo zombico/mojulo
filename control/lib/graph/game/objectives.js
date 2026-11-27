@@ -34,10 +34,12 @@
  *
  * Params:
  *   { id?: 'obj', quiet?, tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
- *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive?, pause? }] }
+ *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive?, pause?, ops? }] }
  *   pause  seconds after the one before is met that it begins (a beat let breathe: what was found said, a line spoken,
  *          before the next is set); a pause on the first, after the level starts. Not met before it has begun: a place
  *          reached in the pause is met as it begins
+ *   ops    the cast's ops issued as it begins, once ([{ op, who, … }], worlds/controllable/cast.js: a group that comes with
+ *          it and is not its to down, `spawn`; an ally let go of its post): what its begin sets moving besides its own
  *   quiet  no count of the tasks met on the HUD (a level whose own HUD says what it needs): the task in hand's words, and
  *          a task's own clock while it is in hand, are all it shows
  *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section in an open
@@ -127,6 +129,7 @@ export function lowerObjectives(p, ctx) {
     if (t.door !== undefined && !(t.door && isVec(t.door.at) && isVec(t.door.back))) fail(`${at}.door is { at, back }: the way on and where a body is put back while it is sealed`);
     if (t.pause !== undefined && !(Number.isFinite(t.pause) && t.pause > 0 && t.pause <= 30)) fail(`${at}.pause is the seconds after the one before is met that it begins, up to 30`);
     if (t.pause !== undefined && t.zone !== undefined) fail(`${at}: a task begun by its section (zone) takes no pause`);
+    if (t.ops !== undefined && !(Array.isArray(t.ops) && t.ops.length && t.ops.every((o) => o && typeof o === 'object' && typeof o.op === 'string' && /^[a-z]{2,16}$/.test(o.op) && typeof o.who === 'string' && o.who))) fail(`${at}.ops is [{ op, who, … }]: the cast's ops issued as it begins (a body called in, an ally let go)`);
   });
   const N = T.length, names = objectiveNames(id), cur = names.task, pre = `__${id}`;
   const beginE = (k) => `${pre}:begin:${k}`, metE = (k) => `${pre}:met:${k}`, advE = (k) => `${pre}:adv:${k}`;
@@ -150,6 +153,8 @@ export function lowerObjectives(p, ctx) {
     world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'emit', type: 'objective:begin', n: k + 1, of: N, task: t.id, text: t.text });
     // (its own foes are woken before the mark is set: every reaction of the begin sees it unbegun)
     if (t.kind === 'clear' || t.kind === 'man') for (const f of t.foes) world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'ctrl', op: 'spawn', who: f, fresh: true });
+    // (its ops: the cast told as it begins, once: a group that comes with it uncounted, an ally let go)
+    for (const o of t.ops ?? []) world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, ...o, do: 'ctrl' });
     if (t.kind === 'take' || t.kind === 'reach') {
       const zone = `${id}_at_${k}`;
       // (planar unless the task says otherwise: a place on a storey, read at the body's own height, is not met from the

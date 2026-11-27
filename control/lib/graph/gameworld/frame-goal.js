@@ -20,6 +20,16 @@
  *              text? } met as the level says it (a scene's end: `scene-end:<id>`)
  *     marks    { <name>: [x, y] } named places on the field, each a spot of its name for the level's scenes
  *     a group's `wary: true`: a unit that holds its fire until it is hit (a survey drone spotted, pointed out, engaged)
+ *     a group's `comes: <task number>`: it stands dormant till that task begins and comes then, not that task's to down
+ *     (a frame that comes with the one fought, to be led off by an ally in a split)
+ *     any task's `alarm: '<words>'`: as it begins the enemy is heard coming (OP_ALARM: the words as a banner, the alarm
+ *     sounded, the screen flashed)
+ *     allies[].hold   true: it stands its ground, an instructor on the range; <task number>: till that task begins,
+ *                     then it fights and keeps by the pilot (the cast's `unhold`, rules-frame.js)
+ *     split  { ally, foe: <group id>, at: <task number>, to: [x, y], back?: <task number>, title?, line?: { who, say } }
+ *            as task `at` begins, a scene: the foe's group shown (its title a banner), the ally and the foe in one frame,
+ *            the line said, and the two of them off together toward `to` and gone, a fight of their own off the field;
+ *            as task `back` begins the ally comes back from there, alone (SPLIT)
  *
  *   OPERATION                      the numbers: a unit's armour and guns at a frame's scale, a reach's radius
  *   readOperation(v, at)           → the operation; throws, teaching
@@ -83,7 +93,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -109,9 +119,11 @@ export function readOperation(v, at = 'goal.operation') {
     // (wary: it goes about its own work, holding its fire until it is hit: a survey drone spotted before it is fought,
     // the mind's `defensive` temperament, worlds/controllable/mind.js; a unit's, not a frame's)
     if (g.wary !== undefined && (g.wary !== true || g.kind === 'frame')) throw new Error(`${gat}.wary is true: a unit that holds its fire until it is hit (not a frame)`);
+    // (comes: dormant till a task begins, then woken, not that task's to down; checked against the tasks below)
+    if (g.comes !== undefined && !(Number.isInteger(g.comes) && g.comes >= 2)) throw new Error(`${gat}.comes is the number of the task it comes with (2 or later: one awake from the start needs none)`);
     // (an intro: a short scene as it first comes, FOE_INTRO)
     const intro = g.intro === undefined || g.intro === false ? null : readIntro(g.intro, `${gat}.intro`);
-    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}) };
+    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}), ...(g.comes ? { comes: g.comes } : {}) };
   });
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
@@ -156,17 +168,26 @@ export function readOperation(v, at = 'goal.operation') {
     if (!(Number.isFinite(t.pause) && t.pause > 0 && t.pause <= 30)) throw new Error(`${at}.tasks[${i}].pause is the seconds after the one before is met that it begins, up to 30`);
     tasks[i] = { ...tasks[i], pause: t.pause };
   });
+  // (a task's alarm: the enemy heard coming as it begins, OP_ALARM)
+  v.tasks.forEach((t, i) => {
+    if (t.alarm === undefined) return;
+    if (!(typeof t.alarm === 'string' && t.alarm && t.alarm.length <= 40)) throw new Error(`${at}.tasks[${i}].alarm is the words on its banner as the enemy is heard coming, up to 40 letters`);
+    tasks[i] = { ...tasks[i], alarm: t.alarm };
+  });
+  for (const g of groups) if (g.comes && g.comes > tasks.length) throw new Error(`${at}.groups: '${g.id}' comes with task ${g.comes}, and there are ${tasks.length}`);
   // (its allies: frames on the pilot's side, a wingman who leads it through the operation's places and fights beside it)
-  const allies = v.allies === undefined ? null : readAllies(v.allies, ids, `${at}.allies`);
+  const allies = v.allies === undefined ? null : readAllies(v.allies, ids, `${at}.allies`, tasks.length);
   // (its script: the spoken lines on its moments, gameworld/script.js; its allies speak under their own names)
   const script = v.script === undefined ? null : (() => { const S = readScript(v.script, { tasks: tasks.length, at: `${at}.script` }); for (const a of allies ?? []) S.speakers[a.id] ??= { name: a.name }; return S; })();
   // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
   // (its marks: named places on the field for its scenes, a walk's end, a shot's place: each a spot of its name)
   const marks = v.marks === undefined ? null : readMarks(v.marks, `${at}.marks`);
+  // (its split: an ally and a foe off together, SPLIT)
+  const split = v.split === undefined ? null : readSplit(v.split, { allies: allies ?? [], groups, tasks: tasks.length, speakers: script ? Object.keys(script.speakers) : (allies ?? []).map((a) => a.id) }, `${at}.split`);
   // (its props: things stood on the field for its scenes to move, PROP)
   const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}) };
 }
 /** A FOE'S INTRO (a group's `intro: true | { title?, line?, who? }`): the first time the group comes (its down task
  *  begins, or the level starts for a group awake from the start), a short scene: the letterbox, the camera pushed in on
@@ -181,6 +202,28 @@ function readIntro(v, at) {
   if (v.line !== undefined && !(typeof v.line === 'string' && v.line && v.line.length <= 240)) throw new Error(`${at}.line is what is said over it, up to 240 letters`);
   if ((v.line === undefined) !== (v.who === undefined) || (v.who !== undefined && !/^[a-z][a-z0-9-]{0,40}$/.test(v.who))) throw new Error(`${at}: a line needs its who (a speaker's id), and a who its line`);
   return { ...(v.title ? { title: v.title } : {}), ...(v.line ? { line: v.line, who: v.who } : {}) };
+}
+/** A task's ALARM, as it begins: its words a banner over the field, the alarm sounded off the SFX shelf (`sound`), the
+ *  screen flashed the foe's colour (`flash`, for `for` s). A level cue: no scene, the fight goes on under it. */
+export const OP_ALARM = Object.freeze({ sound: 'missile-warning', flash: '#e0634f', for: 0.5, ttl: 3 });
+/** A SPLIT: an ally and a foe leave the field together, a fight of their own off it (a level's economy: it is never
+ *  played). As its task begins, a scene: the foe's group in a wide push (its `title` a banner), the ally and the foe in
+ *  one frame, its `line` said, then both off toward `to` at `speed` m/s and gone after `leave` s; as task `back` begins,
+ *  the ally comes back from there alone (spawned at its place, let go of any hold), the foe it went with never seen again. */
+export const SPLIT = Object.freeze({ speed: 34, leave: 3.2, banner: 2.6 });
+function readSplit(v, { allies, groups, tasks, speakers }, at) {
+  if (!isObj(v)) throw new Error(`${at} is { ally, foe, at, to, back?, title?, line? }: an ally and a foe off the field together`);
+  for (const k of Object.keys(v)) if (!['ally', 'foe', 'at', 'to', 'back', 'title', 'line'].includes(k)) throw new Error(`${at}.${k} is not part of a split (ally, foe, at, to, back, title, line)`);
+  if (!allies.some((a) => a.id === v.ally)) throw new Error(`${at}.ally is one of the operation's allies (${allies.map((a) => a.id).join(', ') || 'none'})`);
+  const G = groups.find((g) => g.id === v.foe);
+  if (!G || G.count !== 1) throw new Error(`${at}.foe is a group of one (${groups.filter((g) => g.count === 1).map((g) => g.id).join(', ')})`);
+  if (!(Number.isInteger(v.at) && v.at >= 1 && v.at <= tasks)) throw new Error(`${at}.at is the number of the task that begins it (1 to ${tasks})`);
+  if (G.comes && G.comes > v.at) throw new Error(`${at}.foe '${v.foe}' comes with task ${G.comes}, after the split's`);
+  if (!(Array.isArray(v.to) && v.to.length === 2 && v.to.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${at}.to is [x, y], each −1..1 of the field: where the two go`);
+  if (v.back !== undefined && !(Number.isInteger(v.back) && v.back > v.at && v.back <= tasks)) throw new Error(`${at}.back is the number of a task after the split's that brings the ally back (${v.at + 1} to ${tasks})`);
+  if (v.title !== undefined && !(typeof v.title === 'string' && v.title && v.title.length <= 40)) throw new Error(`${at}.title is the foe's name on the banner, up to 40 letters`);
+  if (v.line !== undefined && !(isObj(v.line) && typeof v.line.say === 'string' && v.line.say && v.line.say.length <= 240 && speakers.includes(v.line.who))) throw new Error(`${at}.line is { who, say }: a speaker's id (${speakers.join(', ')}) and what is said, up to 240 letters`);
+  return { ally: v.ally, foe: v.foe, at: v.at, to: v.to.slice(), ...(v.back ? { back: v.back } : {}), ...(v.title ? { title: v.title } : {}), ...(v.line ? { line: { who: v.line.who, say: v.line.say } } : {}) };
 }
 // (an operation's marks: { <name>: [x, y] }, each a share of the field, at most 16)
 function readMarks(v, at) {
@@ -221,7 +264,7 @@ function readProps(v, taken, at) {
  *  awake near it, and with none it leads to the operation's places in order (its reaches' and its scans'), waiting at
  *  each for the pilot, then keeps by the pilot. `ap` its armour's share over its build's (a wingman is hard to lose). */
 export const ALLY = Object.freeze({ most: 3, ap: 3, engage: 500, palette: 'federation', build: 'raptor' });
-function readAllies(v, groupIds, at) {
+function readAllies(v, groupIds, at, taskCount = Infinity) {
   if (!Array.isArray(v) || !v.length || v.length > ALLY.most) throw new Error(`${at} is 1 to ${ALLY.most} allies: [{ id, name, build?, palette?, ap?, lead? }]`);
   const seen = new Set();
   return v.map((a, i) => {
@@ -236,8 +279,9 @@ function readAllies(v, groupIds, at) {
     if (a.lead !== undefined && typeof a.lead !== 'boolean') throw new Error(`${aat}.lead is true where it leads the pilot through the operation's places`);
     // (hold: it stands its ground where it was stood, facing the pilot, an instructor on the range; it fights only a foe
     // that comes within its reach, and leads nowhere)
-    if (a.hold !== undefined && typeof a.hold !== 'boolean') throw new Error(`${aat}.hold is true where it stands its ground, an instructor, and leads nowhere`);
-    return { id: a.id, name: a.name, build: a.build ?? ALLY.build, palette: a.palette ?? ALLY.palette, ap: a.ap ?? ALLY.ap, lead: a.lead !== false && !a.hold, ...(a.hold ? { hold: true } : {}) };
+    // (or a task's number: it holds till that task begins, then fights and keeps by the pilot)
+    if (a.hold !== undefined && typeof a.hold !== 'boolean' && !(Number.isInteger(a.hold) && a.hold >= 2 && a.hold <= taskCount)) throw new Error(`${aat}.hold is true where it stands its ground, an instructor, and leads nowhere; or the number of the task it holds till (2 to ${taskCount})`);
+    return { id: a.id, name: a.name, build: a.build ?? ALLY.build, palette: a.palette ?? ALLY.palette, ap: a.ap ?? ALLY.ap, lead: a.lead !== false && !a.hold, ...(a.hold ? { hold: a.hold } : {}) };
   });
 }
 
@@ -325,8 +369,13 @@ export function operationMechanics(op, ends) {
     if (t.learn) { const L = FRAME_LESSONS[t.learn]; return { id: `t${i + 1}`, kind: 'act', on: `lesson:${L.fact}`, text: t.text ?? learnText(L) }; }
     return { id: `t${i + 1}`, kind: 'hold', text: t.text ?? `Hold for ${t.hold} s`, seconds: t.hold };
   });
+  // (what each task's begin sets moving: the groups that come with it, the allies let go, the ally back from a split)
+  const ops = tasks.map(() => []);
+  for (const g of op.groups) if (g.comes) for (const m of membersOf(g, ends)) ops[g.comes - 1].push({ op: 'spawn', who: m.id, fresh: true });
+  for (const a of op.allies ?? []) if (Number.isInteger(a.hold)) ops[a.hold - 1].push({ op: 'unhold', who: a.id });
+  if (op.split?.back) { const S = op.split, [x, y] = placeOf(ends, S.to); ops[S.back - 1].push({ op: 'spawn', who: S.ally, at: [x, y, r2(ends.ground(x, y))] }, { op: 'unhold', who: S.ally }); }
   // (quiet: the frame's own HUD says what it needs; the objectives show the task in hand and its own clock, no count)
-  return [{ kind: 'objectives', tasks: tasks.map((o, i) => (op.tasks[i].pause ? { ...o, pause: op.tasks[i].pause } : o)), say: 'line', quiet: true }, { kind: 'fail-on-death', of: 'body' }];
+  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}) })), say: 'line', quiet: true }, { kind: 'fail-on-death', of: 'body' }];
 }
 
 export function operationCast(op, ends) {
@@ -334,7 +383,7 @@ export function operationCast(op, ends) {
   const p0 = ends.spawn;
   const toward = (at) => Math.atan2(p0[1] - at[1], p0[0] - at[0]);
   // (a group a down task names stands dormant until its task begins: the objectives wake it)
-  const asleep = new Set([...op.tasks.filter((t, i) => t.down && i > 0).flatMap((t) => t.down), ...op.groups.filter((g) => g.reserve).map((g) => g.id)]);
+  const asleep = new Set([...op.tasks.filter((t, i) => t.down && i > 0).flatMap((t) => t.down), ...op.groups.filter((g) => g.reserve || g.comes).map((g) => g.id)]);
   for (const g of op.groups) {
     for (const m of membersOf(g, ends)) {
       const dormant = asleep.has(g.id);
@@ -387,6 +436,23 @@ export function operationCast(op, ends) {
       ...(I.line ? [{ line: { who: I.who, say: I.line } }] : [{ wait: FOE_INTRO.hold }]),
     ] };
   });
+  // (the split: the scene of an ally and a foe off together, SPLIT; where they go a spot of its own)
+  const S = op.split, splits = [];
+  if (S) {
+    const [x, y] = placeOf(ends, S.to), to = `split-${S.ally}`, G = op.groups.find((g) => g.id === S.foe);
+    spots.push({ id: to, at: [x, y, r2(ends.ground(x, y))] });
+    const fought = op.tasks[S.at - 1].down ?? [], shown = [...new Set([S.foe, ...fought])].flatMap((id) => membersOf(op.groups.find((g) => g.id === id), ends).map((m) => m.id));
+    splits.push({ id: `split-${S.ally}`, when: { on: 'objective:begin', match: { task: `t${S.at}` } }, beats: [
+      ...(S.title ? [{ shot: { frame: 'wide', on: shown, move: 'push' }, for: 0.6 }, { do: { say: S.title, as: 'banner', ttl: SPLIT.banner } }, { wait: SPLIT.banner }] : []),
+      { shot: { frame: 'two', on: [S.ally, membersOf(G, ends)[0].id], move: 'track' }, for: 0.6 },
+      ...(S.line ? [{ line: { who: S.line.who, say: S.line.say } }] : []),
+      { do: [{ walk: { who: S.ally, to, speed: SPLIT.speed } }, { walk: { who: S.foe, to, speed: SPLIT.speed } }] },
+      { wait: SPLIT.leave },
+      { do: [{ vanish: S.ally }, { vanish: S.foe }] },
+    ] });
+  }
+  // (each task's alarm: a level cue as it begins, OP_ALARM)
+  const alarms = op.tasks.map((t, i) => (t.alarm ? { id: `alarm-t${i + 1}`, once: true, when: { on: 'objective:begin', match: { task: `t${i + 1}` } }, then: [{ say: t.alarm, as: 'banner', ttl: OP_ALARM.ttl }, { sound: OP_ALARM.sound }, { screen: { flash: OP_ALARM.flash, for: OP_ALARM.for } }] } : null)).filter(Boolean);
   for (const [k, m] of Object.entries(op.marks ?? {})) { const [x, y] = placeOf(ends, m); spots.push({ id: k, at: [x, y, r2(ends.ground(x, y))] }); }
   for (const p of op.props ?? []) {
     const [x, y] = placeOf(ends, p.at), z = r2(ends.ground(x, y)), fig = `prop-${p.unit}`, face = p.face !== undefined ? (p.face * Math.PI) / 180 : toward([x, y]);
@@ -394,5 +460,6 @@ export function operationCast(op, ends) {
     entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), body: { type: 'figure-rig', figure: fig, hittable: false, radius: unitRadius(p.unit) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
-  return { entities, figures, ...(op.props || op.marks || intros.length ? { play: { spots, ...(intros.length ? { scenes: intros } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
+  const scenes = [...intros, ...splits];
+  return { entities, figures, ...(op.props || op.marks || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }

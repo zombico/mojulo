@@ -56,6 +56,9 @@
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
+ *   • AN ALLY THAT HOLDS (`mind.hold`): it stands its ground turned to the pilot, fighting only a foe that comes to it,
+ *     until the cast's `unhold` op lets it go (a level's task begun: game/objectives.js `ops`), and from then it fights
+ *     and keeps by the pilot as any ally does (e.unheld).
  *
  * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
  * burn the page's thrusters draw, 0..1), stab (its stability left, 0..1 of its bar), stagger (seconds left reeling, 0 when not),
@@ -71,6 +74,12 @@
 export function buildRulesFrame(E) {
   const { clamp, RULES } = E;
   const GRAV = 9.81;
+  // (the cast's `unhold`: an ally that holds its ground let go, the cast's own ops run as they were)
+  const castOps = E.castOps;
+  if (castOps) E.castOps = function (state, ops) {
+    for (const o of ops || []) if (o && o.op === 'unhold' && state.byId && state.byId[o.who]) state.byId[o.who].unheld = true;
+    return castOps(state, (ops || []).filter((o) => !(o && o.op === 'unhold')));
+  };
 
   // a seeded die per body (its id's hash, stepped): a mind's choices, never the browser's
   function dice(e) {
@@ -105,7 +114,7 @@ export function buildRulesFrame(E) {
   function escortKeys(e, dt, M, P, out) {
     const t = e.transform, q = P.transform.pos, L = M.lead || [];
     // (holding its ground, an instructor on the range: where it stands, turned to the pilot)
-    if (M.hold) { e.mindFace = Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]); e.mindPitch = 0; return out; }
+    if (M.hold && !e.unheld) { e.mindFace = Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]); e.mindPitch = 0; return out; }
     let i = e.leadI || 0;
     while (i < L.length && Math.hypot(q[0] - L[i].at[0], q[1] - L[i].at[1]) < (L[i].r || 40)) i++;
     e.leadI = i;
