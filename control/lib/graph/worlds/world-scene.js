@@ -2548,6 +2548,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.comms && sketch.manifest.comms.lines) payload.comms = sketch.manifest.comms;
   // (and its finds, each scan's specimen revealed as it is met: channels/find-reveal.js)
   if (payload && sketch.manifest.kind === 'geocube' && Array.isArray(sketch.manifest.finds) && sketch.manifest.finds.length) payload.finds = sketch.manifest.finds;
+  // (and its plumes, a prop's drive lit: channels/plume.js)
+  if (payload && sketch.manifest.kind === 'geocube' && Array.isArray(sketch.manifest.plumes) && sketch.manifest.plumes.length) payload.plumes = sketch.manifest.plumes;
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
   // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {

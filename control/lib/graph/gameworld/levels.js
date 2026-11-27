@@ -31,6 +31,7 @@ import { frameEntity, frameMounts, frameGravity, FRAME_CAMERA, FRAME_WORLD } fro
 import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 import { OPERATION_LEGEND, FRAME_LESSON_TASK } from './frame-goal.js';
+import { frameScore } from './frame-score.js';
 import { frameAudio } from './frame-sound.js';
 import { scriptSequences } from './script.js';
 import { commsData } from '../scene/channels/comms.js';
@@ -1125,6 +1126,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // (its script, gameworld/script.js: each line raised on the bus at its moment, shown on the page as comms)
     // (its finds, a scan's specimen revealed as it is met: scene/channels/find-reveal.js)
     if (X0?.finds?.length) pilotPart = { ...pilotPart, finds: X0.finds };
+    // (its plumes, a prop's drive lit as the bus says: scene/channels/plume.js)
+    if (X0?.plumes?.length) pilotPart = { ...pilotPart, plumes: X0.plumes };
     if (X0?.script) pilotPart = { ...pilotPart, events: { ...pilotPart.events, sequences: [...(pilotPart.events.sequences ?? []), ...scriptSequences(X0.script.lines)] }, comms: commsData(X0.script) };
     // (a frame level that teaches: each lesson waits for the pilot to do it, no count shown; and the keys' legend along
     // the bottom left off, the lessons saying each key as it comes: the screen is the game's)
@@ -1132,7 +1135,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (X0?.lessons?.length && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: pilotPart.events.hud.filter((h) => !(h.slot === 'bottom' && h.ttl)) } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
-    if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, airless: !!F.airless, flavor: F.flavor ?? null }) };
+    if (!audio) pilotPart = { ...pilotPart, audio: { ...frameScore(), ...frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, airless: !!F.airless, flavor: F.flavor ?? null }) } };
     // (an operation's reward, frame-goal.js: the parts its win grants, the game channel's `wins`)
     if (F.garage && X0?.wins?.length) { game.wins = X0.wins; game.produces = { ...game.produces, events: [...game.produces.events, { type: 'grant', slice: PARTS_SLICE }] }; }
   } else if (stage.section === 'airspace') {

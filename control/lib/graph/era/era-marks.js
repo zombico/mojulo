@@ -58,6 +58,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   // (a level's spoken lines shown as comms, scene/channels/comms.js)
   'comms',
   'finds',
+  'plumes',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

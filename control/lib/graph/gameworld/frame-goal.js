@@ -44,7 +44,7 @@
  * Pure: the dice are the field's, seeded by the group's id.
  */
 import { SPECIMENS, readSpecimen, specimenWire } from '../prospect/specimens.js';
-import { unitRadius, GROUND_UNITS } from '../groundforce/index.js';
+import { unitRadius, GROUND_UNITS, GROUNDFORCE_SCALE } from '../groundforce/index.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
@@ -252,13 +252,15 @@ function readMarks(v, at) {
  *  `hidden` (a scene's spawn wakes it), and its place, where it is set down, is a spot of its own id for the scenes
  *  (`{ glide: { who: 'candle', to: 'candle' } }` lowers it onto it); each reach's and scan's place is the spot `t<n>`. */
 export const PROP = Object.freeze({ most: 12, raise: 3000 });
+/** A prop's plume's colour unsaid: the argon drive's muted violet (assault-frame/parts.js PROPELLANTS' argon). */
+export const PLUME_COLOUR = '#8673bd';
 function readProps(v, taken, at) {
   if (!Array.isArray(v) || !v.length || v.length > PROP.most) throw new Error(`${at} is 1 to ${PROP.most} props: [{ id, unit, at, raise?, hidden?, face? }]`);
   const seen = new Set();
   return v.map((p, i) => {
     const pat = `${at}[${i}]`;
     if (!isObj(p)) throw new Error(`${pat} is { id, unit, at, raise?, hidden?, face? }`);
-    for (const k of Object.keys(p)) if (!['id', 'unit', 'at', 'raise', 'hidden', 'face'].includes(k)) throw new Error(`${pat}.${k} is not part of a prop (id, unit, at, raise, hidden, face)`);
+    for (const k of Object.keys(p)) if (!['id', 'unit', 'at', 'raise', 'hidden', 'face', 'plume'].includes(k)) throw new Error(`${pat}.${k} is not part of a prop (id, unit, at, raise, hidden, face, plume)`);
     if (typeof p.id !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(p.id) || seen.has(p.id) || taken.has(p.id) || /^t\d+$/.test(p.id)) throw new Error(`${pat}.id is its own name, lower-case, not a group's, an ally's or a task's (t<n>)`);
     seen.add(p.id);
     if (!GROUND_UNITS[p.unit]) throw new Error(`${pat}.unit is the card it is drawn as: ${Object.keys(GROUND_UNITS).join(', ')}`);
@@ -266,7 +268,9 @@ function readProps(v, taken, at) {
     if (p.raise !== undefined && !(Number.isFinite(p.raise) && p.raise >= 0 && p.raise <= PROP.raise)) throw new Error(`${pat}.raise is metres over its place, 0 to ${PROP.raise}`);
     if (p.hidden !== undefined && typeof p.hidden !== 'boolean') throw new Error(`${pat}.hidden is true where it waits asleep for a scene to spawn it`);
     if (p.face !== undefined && !Number.isFinite(p.face)) throw new Error(`${pat}.face is degrees`);
-    return { id: p.id, unit: p.unit, at: p.at.slice(), ...(p.raise ? { raise: p.raise } : {}), ...(p.hidden ? { hidden: true } : {}), ...(p.face !== undefined ? { face: p.face } : {}) };
+    // (its plume: its drive lit as the level's bus says ignite:<id>, scene/channels/plume.js; a card with a bell)
+    if (p.plume !== undefined && !((p.plume === true || (isObj(p.plume) && (p.plume.colour === undefined || /^#[0-9a-f]{6}$/i.test(p.plume.colour)))) && GROUND_UNITS[p.unit].bell)) throw new Error(`${pat}.plume is true or { colour?: '#rrggbb' }, on a card with a bell (${Object.keys(GROUND_UNITS).filter((k) => GROUND_UNITS[k].bell).join(', ')})`);
+    return { id: p.id, unit: p.unit, at: p.at.slice(), ...(p.raise ? { raise: p.raise } : {}), ...(p.hidden ? { hidden: true } : {}), ...(p.face !== undefined ? { face: p.face } : {}), ...(p.plume ? { plume: p.plume === true ? {} : { ...p.plume } } : {}) };
   });
 }
 
@@ -478,6 +482,8 @@ export function operationCast(op, ends) {
   }
   const scenes = [...intros, ...splits];
   // (each scan's find, revealed as it is met: find-reveal.js; a scan with no specimen is found in words alone)
+  // (each prop with a plume: its bell's mouth off its foot and its radius as drawn, its axis up, its plasma's colour)
+  const plumes = (op.props ?? []).filter((p) => p.plume).map((p) => { const B = GROUND_UNITS[p.unit].bell, k = GROUNDFORCE_SCALE; return { who: p.id, at: B.at.map((v) => r2(v * k)), r: r2(B.r * k), dir: [0, 0, 1], colour: p.plume.colour ?? PLUME_COLOUR }; });
   const finds = op.tasks.map((t, i) => (t.specimen ? (() => { const S = SPECIMENS[t.specimen]; return { task: `t${i + 1}`, name: S.name, grade: S.grade, about: S.about, ...(t.amount ? { amount: { approx: t.amount, unit: t.unit } } : {}), wire: specimenWire(t.specimen) }; })() : null)).filter(Boolean);
-  return { entities, figures, ...(finds.length ? { finds } : {}), ...(op.props || op.marks || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
+  return { entities, figures, ...(finds.length ? { finds } : {}), ...(plumes.length ? { plumes } : {}), ...(op.props || op.marks || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }

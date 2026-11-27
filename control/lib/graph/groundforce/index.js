@@ -461,6 +461,8 @@ export const GROUND_UNITS = Object.freeze({
   candle: Object.freeze({
     label: 'roman candle', reads: 'a tall pusher rocket on a braced drilled foot, banded tank body, a wide bell to the sky',
     size: 2.2, hp: 1, rof: 0, range: 0, points: 0, prop: true,
+    // (its bell's mouth, life metres: where its drive's plume leaves it, scene/channels/plume.js)
+    bell: Object.freeze({ at: Object.freeze([0, 0, 15.55]), r: 1.7 }),
     parts: () => [
       ...P.prism([0, 0, 0], 0.3, 0.3, -3, -1.5, 'dark', 8),
       ...P.prism([0, 0, 0], 0.55, 0.55, -1.5, 0, 'dark', 8),
