@@ -20,7 +20,7 @@ const LEVELS = 'lib/graph/gameworld/levels.js';
 const PILOT_PER_SEAT = 'a pilot per seat in the action runtime (worlds/controllable/core.js spec.seats), laid by a gameworld\'s hero stages (levels.js seatPart); web only';
 // (11-26, couch closeout) the seat values still to build, one package: each couch probe asks for two or three of them
 // at once, so none makes a world alone (cosmos/packages.js `couch`); split is its own, a view a seat
-const COUCH = { pkg: 'couch', effort: 'L' };
+const COUCH = { pkg: 'couch', effort: 'L' };   // (11-27: versus, teams and free-for-all built; what is left is the couch's)
 const TWO = ['soul.seats=two'];
 // the settings below `seats` mean something only for a game that seats more than one: rolled and nudged only then
 const GIVEN = Object.freeze({ seats: ['two', 'four'] });
@@ -146,9 +146,12 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         'co-op': { status: 'built', lowers: LEVELS, note: `${PILOT_PER_SEAT}: every seat on the hero's side, an empty seat's hero following the hero`, requires: TWO },
-        versus: { status: 'partial', ...COUCH, lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
-        teams: { ...NOT_YET, ...COUCH, requires: ['soul.seats=four'] },
-        'free-for-all': { ...NOT_YET, ...COUCH, requires: TWO },
+        // built 11-27 (1126-couch-closeout): the seats against each other on any level that seats them (levels.js seatPart:
+        // a side a seat, or two; an empty seat hunting), scored by a match's frags (mechanics.js frags: every seat a
+        // contender, its own hp, falls and frags in its corner, the winner kept); the versus fighter besides
+        versus: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/gameworld/levels.js', note: `two seats against each other: each its own side on any level that seats them (levels.js seatPart), a deathmatch's frags their match (mechanics.js frags: each its hp, its falls and frags in its corner, the first to the limit the winner, kept); and ${VERSUS_ONLY.replace('the versus fighter only', 'the versus fighter')}. Only frags keeps a score between seats; over the shoulder (first person waits on soul.frame=split)`, requires: TWO },
+        teams: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/gameworld/levels.js', note: 'four seats in two sides, the odd and the even (levels.js seatPart): a level\'s own two sides where it has them (a team deathmatch\'s red and blue, the odd seats the hero\'s), else seats-a and seats-b; a team deathmatch\'s frags scores each side, the winning side kept. Only frags keeps a score between sides', requires: ['soul.seats=four'] },
+        'free-for-all': { status: 'built', since: '2026-11-27', lowers: 'lib/graph/gameworld/levels.js', note: 'every seat its own side (levels.js seatPart: seat-<n>, an empty one hunting), a deathmatch\'s frags their match: each a contender with its own hp, falls and frags in its corner, the first to the limit the winner (kept). Only frags keeps a score between seats; over the shoulder (first person waits on soul.frame=split)', requires: TWO },
       },
     },
     dependence: {

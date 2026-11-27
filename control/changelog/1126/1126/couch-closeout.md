@@ -28,3 +28,7 @@
   player is their own side: every player has their own health, frag count and corner of the screen, a fallen player
   comes back at a spawn point as the bots do, and the first to the frag limit wins the match, with the winner recorded
   for the results. In co-op the players are one side against the bots, and a player's hit on a partner scores nothing.
+- In a team deathmatch, players split between red and blue: odd-numbered players on the first player's side, even on
+  the other. A team deathmatch with a designed hero would not build at all before; it does now.
+- The hill-climb marks versus, free-for-all and teams as built. The three couch genres still blocked now wait on the
+  lobby, plus the time-window contest (party mash), roles (driver and gunner) or split screen (split deathmatch).

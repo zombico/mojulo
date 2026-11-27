@@ -12,7 +12,8 @@ export const PACKAGES = Object.freeze({
   'strategy-board': { name: 'The strategy board: spots over the ground and the tactical camera that plays them', effort: 'L' },
   shot: { name: 'The 3D shot and banter: a directed camera, subjects, a text box, two speakers', effort: 'L' },
   // (11-26: the seats kernel's lobby folded into the couch: every seat value but split, built as one)
-  couch: { name: 'Couch play: every seat its own (health, score, colour, corner), versus, free-for-all and teams, a seat a job, a contest read over a window, turns, and a lobby before a level', effort: 'L' },
+  // (11-27: every seat its own, versus, free-for-all and teams built; what is left)
+  couch: { name: 'Couch play: a lobby before a level, a seat a job, a contest read over a window, and turns', effort: 'L' },
   'battle-city': { name: 'Battle city: a contest kernel over the movement stack (a meet and a match), the court, the team, the ball and the hit', effort: 'L' },
   // the comic hero pack (10-25): the first pack of game cubes; its gaps, priced so the sweep ranks them
   'comic-look': { name: 'The comic look: a geocube look on the cel register with an ink outline, by day and by night', effort: 'M' },
