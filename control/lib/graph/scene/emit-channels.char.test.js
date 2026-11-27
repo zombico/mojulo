@@ -1211,3 +1211,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-27 (1126-couch-closeout: seats against each other): every fixture that embeds the controllable
 // runtime. `spec.seats.downs: 'level'` (a match's frags owns its fallen) is read into `seatDownsLevel` and the
 // 'seat-falls' pass leaves a downed seat to it (core.js: two lines; rules-basic.js: one condition). No fixture seats two.
+// Pinned 2026-11-27 (1126-couch-closeout: the seat lobby): the `seat-lobby` fixture joins the matrix (two seats joining
+// by lobby: the seats block's lobby lines, controllable/index.js, and the lobby's own block, channels/seat-lobby.js, mana-ui
+// in a scope of its own, the level held until seat 1 starts it). Every other page is byte-identical, and a page whose
+// seats join drop-in, or have none, emits no lobby.

@@ -348,7 +348,9 @@ function __withSeats(inp) {
   __seatStrip();
   return { ...inp, seats };
 }
-window.__mojSeats = () => __SEATS;
+window.__mojSeats = () => __SEATS;${seats.join === 'lobby' ? `
+// (a lobby, channels/seat-lobby.js: its seats are taken while it is open, the world held behind it; it closes them)
+window.__mojSeatsOpen = (open) => { __SEATS = __SK.setOpen(__SEATS, open); __seatStrip(); };` : ''}
 window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color: '#' + __seatRing[n].material.color.getHexString(), visible: __seatRing[n].visible }));
 `;
 }
@@ -6103,7 +6105,8 @@ function __updateBreaks(dt) {
   }
 }
 ${distort ? distortViewScript(weightless ? { weightless } : {}) : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
-${hangarHook}  __msHookParams();
+${hangarHook}  __msHookParams();${seats && seats.join === 'lobby' ? `
+  if (__SEATS.open) { __SEATS = __SK.step(__SEATS, __seatFrame()); __seatStrip(); }   // (the lobby's seats, taken while the world is held)` : ''}
   if (dt > 0 && !window.__mojFreeze${landHold ? ' && window.__formReady' : ''}) {   // a menu up freezes the world (interact-channel)${landHold ? `
     // (and a lean land, form.land.lean: the world waits for the form render's land, the only ground on the page)` : ''}
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
