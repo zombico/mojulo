@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
-import { readMinigameBook, minigamesOfWords } from './minigames.js';
+import { readMinigameBook, minigamesOfWords, minigamePlan, minigameCast } from './minigames.js';
 import { mergeExtras } from './stage-figures.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { withProgram } from '../era/programs.js';
@@ -110,5 +110,24 @@ describe('minigames: the games inside the game, kept on the trails', () => {
   it('two extras merge: figures and entities joined, cue lists joined, a mechanic once', () => {
     const m = mergeExtras({ figures: { a: 1 }, entities: [{ id: 'a' }], play: { rpg: {}, cues: [{ id: 'x' }] }, mechanics: [{ kind: 'bag', slice: 'bag' }] }, { figures: { b: 2 }, entities: [{ id: 'b' }], play: { minigames: [{ id: 'm' }], cues: [{ id: 'y' }] }, mechanics: [{ kind: 'bag', slice: 'bag' }] });
     expect(m).toEqual({ figures: { a: 1, b: 2 }, entities: [{ id: 'a' }, { id: 'b' }], play: { rpg: {}, cues: [{ id: 'x' }, { id: 'y' }], minigames: [{ id: 'm' }] }, mechanics: [{ kind: 'bag', slice: 'bag' }] });
+  });
+});
+
+describe('minigames on a city\'s quay', () => {
+  const G = { minigames: [{ id: 'blocks', game: 'blocks', where: 'inside' }, { id: 'fishing', game: 'fishing', where: 'quay' }] };
+  const city = (dock) => ({ section: 'geocity', manifest: { geocity: dock ? { dock: true } : {} } }), arcade = { section: 'interior', building: { use: 'arcade' } };
+  it('a quay\'s game goes to the city that keeps a dock; with none it is kept beside the way', () => {
+    expect(minigamePlan(G, [city(true), arcade])).toEqual({ 0: [G.minigames[1]], 1: [G.minigames[0]] });
+    expect(minigamePlan(G, [city(false), arcade])[0].map((g) => g.id)).toEqual(['fishing']);
+    expect(() => readMinigameBook([{ game: 'fishing', where: 'pier' }])).toThrow(/quay/);
+  });
+  it('its keeper stands at the quay\'s edge, facing the water; without the quay, beside the way', () => {
+    const ends = { spawn: [0, 0, 0], exit: [40, 0, 0], beats: [], dock: { quay: { at: [10, 50, 1.2], along: [1, 0], out: [0, 1] } } };
+    Object.defineProperty(ends, 'ground', { value: () => 0, enumerable: false });
+    const X = minigameCast({}, {}, ends, { ref: 'gw', games: [G.minigames[1]] });
+    expect(X.play.minigames[0].at.at).toEqual([10, 50]);
+    expect(X.entities[0].transform.heading).toBeCloseTo(Math.PI / 2);
+    const Y = minigameCast({}, {}, { ...ends, dock: null, ground: () => 0 }, { ref: 'gw', games: [G.minigames[1]] });
+    expect(Y.play.minigames[0].at.at).not.toEqual([10, 50]);
   });
 });

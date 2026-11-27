@@ -108,9 +108,9 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(d(gk.back, e.transform.pos)).toBeLessThan(0.01);
     expect(gk.stops.length).toBeGreaterThanOrEqual(40);
     for (const q of gk.stops) expect(q.half).toEqual([MOW.cell / 2, MOW.cell / 2]);
-    // (no other mower in the city; no minigame window)
+    // (no other mower in the city; the mowing is driven, never a minigame window: the city's only window a line off the quay)
     expect(level.entities.filter((x) => x.mount?.pool?.model === 'loft:rideOnMower')).toHaveLength(1);
-    expect(level.play?.minigames).toBeUndefined();
+    expect((level.play?.minigames ?? []).some((g) => g.game === 'mowing')).toBe(false);
     // (a licence's job: taken only with the forger's papers)
     expect(M.find((m) => m.kind === 'task' && m.id === 'groundskeeping').needs).toMatchObject({ item: 'fake-id' });
   });
@@ -190,5 +190,15 @@ describe('the city\'s hidden stars, laid', () => {
     expect(S.length).toBeGreaterThan(HIJACK_HIDDEN / 2);
     expect(S.length).toBeLessThanOrEqual(HIJACK_HIDDEN);
     for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) expect(d(S[i].at, S[j].at)).toBeGreaterThanOrEqual(HIDDEN.apart);
+  });
+});
+
+describe('a line cast off the quay', () => {
+  it('the fishing stall stands on the dock\'s quay, its keeper facing the water', () => {
+    const F = (level.play?.minigames ?? []).find((g) => g.game === 'fishing');
+    expect(F).toBeTruthy();
+    const dock = level.entities.filter((e) => /^keeper-fishing/.test(e.id));
+    expect(dock.length).toBe(1);
+    expect(F.at.at).toEqual([dock[0].transform.pos[0], dock[0].transform.pos[1]]);
   });
 });

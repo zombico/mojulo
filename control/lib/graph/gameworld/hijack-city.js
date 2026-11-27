@@ -144,7 +144,9 @@ export const HIJACK_MUSEUM = Object.freeze({ name: 'The City Museum' });
 // (its other WALK-INS, geocity/walkins.js: an arcade whose floor keeps the inside games, a public library; and THE GAMES
 // INSIDE THE GAME, gameworld/minigames.js: a blocks cabinet and a match cabinet, kept where a room keeps one)
 export const HIJACK_ENTER = Object.freeze(['arcade', 'library', 'aquarium', 'zoo']);
-export const HIJACK_MINIGAMES = Object.freeze([Object.freeze({ game: 'blocks', where: 'inside' }), Object.freeze({ game: 'match', where: 'inside' })]);
+export const HIJACK_MINIGAMES = Object.freeze([Object.freeze({ game: 'blocks', where: 'inside' }), Object.freeze({ game: 'match', where: 'inside' }),
+  // (a line cast off the dock's quay, past the crane: its keeper an old hand at the water's edge)
+  Object.freeze({ game: 'fishing', where: 'quay' })]);
 export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null, people = null, museum = null } = {}) {
   // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
   // air and grade; every word the person names over it wins. None: the starter as it always was)

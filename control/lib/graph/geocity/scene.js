@@ -1935,7 +1935,10 @@ export function assembleGeocityScene(m, ctx = {}) {
           { const ca = mid, legs = [[ca - 9, D - 22], [ca + 9, D - 22], [ca - 9, D - 4], [ca + 9, D - 4]], yellow = '#e3b13a';
             for (const [a, t] of legs) { const p = P(a - 0.7, t - 0.7), q = P(a + 0.7, t + 0.7), z = zq(a); box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), z, z + 30, yellow, yellow, 'geocity:crane'); }
             const p = P(ca - 10, D - 40), q = P(ca + 10, D + 45), z = zq(ca) + 30; box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), z, z + 2.5, yellow, yellow, 'geocity:crane'); }
-          if (Array.isArray(ctx.dockAt)) { const p = P(g.a0, t0c), q = P(g.a1, te); ctx.dockAt.push({ id: `${W.side}-${k}`, at: P3([...P(mid, t0c + 52), zAt(mid, t0c + 52)]), rect: [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])].map(r5), bays }); }
+          // (and its QUAY's edge, past the crane: where a line is cast off it, facing the water; a level that asks is told it)
+          const qa = Math.min(g.a1 - 8, mid + 34), q0 = P(qa, D - 2.5), q1 = P(qa + 1, D - 2.5), q2 = P(qa, D - 1.5);
+          if (Array.isArray(ctx.dockAt)) { const p = P(g.a0, t0c), q = P(g.a1, te); ctx.dockAt.push({ id: `${W.side}-${k}`, at: P3([...P(mid, t0c + 52), zAt(mid, t0c + 52)]), rect: [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])].map(r5), bays,
+            quay: { at: P3([q0[0], q0[1], zq(qa)]), along: [r5(q1[0] - q0[0]), r5(q1[1] - q0[1])], out: [r5(q2[0] - q0[0]), r5(q2[1] - q0[1])] } }); }
           counts.ports = (counts.ports ?? 0) + 1;
         }
         const trees = (t0, t1, every) => { for (let a = g.a0 + 8; a <= g.a1 - 8; a += every) for (let t = t0; t <= t1; t += every) { if (natural && t > teA(a) - 6) continue; const j = (R() - 0.5) * every * 0.5; plant('dense', ...P(a + j, t + j * 0.5), zAt(a, t), `wf:${W.side}:${k}:${Math.round(a)}:${Math.round(t)}`); } };

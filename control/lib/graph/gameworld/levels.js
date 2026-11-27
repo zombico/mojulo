@@ -729,7 +729,7 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'parks', { value: parks.map((Q) => ({ ...Q, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]) })), enumerable: false });
   // (its DOCK, where it asks for one, `geocity.dock`: the port's yard, its middle and its truck bays; and its RAMPS, each
   // between a highway's deck and the street, its top and its foot: the highways driven)
-  Object.defineProperty(out, 'dock', { value: dockAt[0] ? { id: dockAt[0].id, at: dockAt[0].at.map(r3), rect: dockAt[0].rect, bays: dockAt[0].bays.map((b) => ({ at: b.at.map(r3), heading: b.heading })) } : null, enumerable: false });
+  Object.defineProperty(out, 'dock', { value: dockAt[0] ? { id: dockAt[0].id, at: dockAt[0].at.map(r3), rect: dockAt[0].rect, bays: dockAt[0].bays.map((b) => ({ at: b.at.map(r3), heading: b.heading })), ...(dockAt[0].quay ? { quay: { at: dockAt[0].quay.at.map(r3), along: dockAt[0].quay.along, out: dockAt[0].quay.out } } : {}) } : null, enumerable: false });
   Object.defineProperty(out, 'ramps', { value: rampsAt.map((r) => ({ ...r })), enumerable: false });
   // (its DUMP, where it asks for one, `geocity.dump`: the tipping hall's middle on its floor and its box)
   Object.defineProperty(out, 'dump', { value: dumpAt[0] ? { id: dumpAt[0].id, at: on(dumpAt[0].at), half: dumpAt[0].half } : null, enumerable: false });

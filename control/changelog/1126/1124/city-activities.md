@@ -21,3 +21,6 @@
 - **Hidden stars**: ten stars tucked round Hijack City where nobody walks on the way anywhere (a park's far corner,
   the back of an empty lot or a building site, beside a highway ramp's foot, the corners of the dock and the yards),
   spread far apart and picked up into the bag. Any world can hide some (`hidden: true | { stars, item }`).
+- **Fishing off the quay**: Hijack City's dock keeps a fishing stall at its water's edge past the crane, its keeper
+  facing the water. Any world's minigames can be kept there (`where: 'quay'`), and beside the way where no city keeps a
+  dock.

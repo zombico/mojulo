@@ -7,8 +7,9 @@
  *   minigames?: true | false | [{ game, id?, where?, title?, goal?, gold?, prize?, flag? }]
  *     true    the three (fishing, blocks, match); false: none, whatever the prompt says
  *     game    blocks | match | fishing (playscape/ui/minigames.js MINIGAMES)
- *     where   inside (a building's room: the cabinet in the inn) | trail (beside the way); default: fishing on a trail,
- *             blocks and match inside, each on the other when the game has none of its own
+ *     where   inside (a building's room: the cabinet in the inn) | trail (beside the way) | quay (a city's dock, at its
+ *             water's edge past the crane); default: fishing on a trail, blocks and match inside, each on the other when
+ *             the game has none of its own (a quay's on a trail where no city keeps a dock)
  *   Absent: read from the world's prompt (minigames, carnival, fishing, arcade, match-3 …), else none.
  *
  * Each game is spread across the game in order over the stages of its kind, a keeper standing at its stall. On a trail,
@@ -34,13 +35,15 @@ const WORDS = Object.freeze({
   all: ['minigame', 'minigames', 'mini-game', 'mini-games', 'sidegames', 'side-games', 'carnival', 'casino'],
 });
 const ITEM_KEYS = ['game', 'id', 'where', 'title', 'goal', 'gold', 'prize', 'flag'];
-export const WHERE = Object.freeze(['inside', 'trail']);
+export const WHERE = Object.freeze(['inside', 'trail', 'quay']);
 // where a game is kept when the book does not say
 const HOME = Object.freeze({ fishing: 'trail', blocks: 'inside', match: 'inside' });
 // the rooms of a building that keep a stall, by its use (era/programs.js), the best first
 export const ROOMS_KEPT = Object.freeze({ tavern: ['snug', 'taproom'], hall: ['hall'], keep: ['hall'], shop: ['shopfloor'], library: ['reading'], dwelling: ['hall'], arcade: ['floor'] });
 // where a keeper can stand: a stage walked along a trail, or a building with a room that keeps one
 const ON_TRAIL = (s) => !['building', 'interior', 'city', 'roadway', 'airspace', 'arena'].includes(s.section);
+// (a city whose district keeps a dock: its quay's edge, geocity/scene.js `dockAt.quay`)
+const QUAY = (s) => s.section === 'geocity' && !!s.manifest?.geocity?.dock;
 const INSIDE = (s) => (s.section === 'building' || s.section === 'interior') && !!ROOMS_KEPT[s.building?.use];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: minigames${m}`);
@@ -65,7 +68,7 @@ export function readMinigameBook(v) {
     if (typeof g === 'string') g = { game: g };
     if (!isObj(g)) throw err(`[${i}] is { game, id?, … } or a game's name (${MINIGAME_IDS.join(', ')})`);
     for (const k of Object.keys(g)) if (!ITEM_KEYS.includes(k)) throw err(`[${i}].${k} is not part of a minigame here (${ITEM_KEYS.join(', ')})`);
-    if (g.where !== undefined && !WHERE.includes(g.where)) throw err(`[${i}].where is ${WHERE.join(' or ')}: in a building's room, or beside a trail`);
+    if (g.where !== undefined && !WHERE.includes(g.where)) throw err(`[${i}].where is ${WHERE.join(' or ')}: in a building's room, beside a trail, or on a city's quay`);
     return { ...g };
   });
   const out = withIds(list);
@@ -88,10 +91,10 @@ export function minigamesOfWords(text) {
 export function minigamePlan(G, stages) {
   const games = G.minigames ?? [];
   const of = (pick) => stages.map((s, i) => [s, i]).filter(([s]) => pick(s) && !s.building?.ref).map(([, i]) => i);
-  const kinds = { trail: of(ON_TRAIL), inside: of(INSIDE) };
+  const kinds = { trail: of(ON_TRAIL), inside: of(INSIDE), quay: of(QUAY) };
   if (!games.length || (!kinds.trail.length && !kinds.inside.length)) return null;
   // each game's kind of place: its own, or the other when the world has none of its own
-  const placed = games.map((g) => { const w = g.where ?? HOME[g.game] ?? 'trail'; return [g, kinds[w].length ? w : w === 'inside' ? 'trail' : 'inside']; });
+  const placed = games.map((g) => { const w = g.where ?? HOME[g.game] ?? 'trail'; return [g, kinds[w].length ? w : w === 'inside' ? 'trail' : w === 'quay' ? (kinds.trail.length ? 'trail' : 'inside') : 'inside']; });
   const plan = {};
   for (const w of WHERE) {
     const mine = placed.filter(([, x]) => x === w).map(([g]) => g), at = kinds[w];
@@ -118,8 +121,11 @@ function stallInside(ends, j) {
 
 // a stall's place: in a building, its room's (stallInside); on a trail, a few steps on from the start toward the way on,
 // beside it where there is land to stand on
-function stallAt(ends, j) {
+function stallAt(ends, j, where = null) {
   if (Array.isArray(ends.rooms)) return stallInside(ends, j);
+  // (on a quay: at its edge, a few metres along it a game, facing the water)
+  const Q = where === 'quay' ? ends.dock?.quay : null;
+  if (Q) { const o = 4 * j; return { at: [r3(Q.at[0] + Q.along[0] * o), r3(Q.at[1] + Q.along[1] * o), r3(Q.at[2])], face: r3(Math.atan2(Q.out[1], Q.out[0])) }; }
   const s = ends.spawn, ahead = [...(ends.beats ?? []).filter((b) => b.beat !== 'exit').map((b) => b.at), ends.exit];
   const far = ahead.find((a) => Math.hypot(a[0] - s[0], a[1] - s[1]) > 4) ?? ends.exit;
   const dx = far[0] - s[0], dy = far[1] - s[1], d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
@@ -140,7 +146,7 @@ function stallAt(ends, j) {
 export function minigameCast(G, stage, ends, { ref, games = [], bag = true } = {}) {
   const figures = {}, entities = [], minigames = [], cues = [];
   games.forEach((g, j) => {
-    const p = stallAt(ends, j);
+    const p = stallAt(ends, j, g.where ?? null);
     if (!p) return;
     const id = `keeper-${g.id}`;
     stand({ figures, entities }, id, libraryFigure(ref), p.at, p.face);
