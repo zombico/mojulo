@@ -138,7 +138,7 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
-import { readInfiltration } from './infiltration-level.js';
+import { readInfiltration } from './infiltration-words.js';
 import { readMission as readSpaceMission } from '../campaign/mission.js';
 import { readStage } from '../campaign/stage.js';
 import { readLessonBrief } from './lesson-brief.js';
