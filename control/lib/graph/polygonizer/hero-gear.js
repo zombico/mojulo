@@ -107,9 +107,10 @@ export function gearBuild(spec, hero = {}) {
 /**
  * Where each slot's item sits at REST: its bone, the rotation M from the item's frame (cm, +z along the item) into the
  * figure's, the item-space anchor `o` that lands on the rest point `t`, and the scale `k` (cm → m × height ratio).
- * A rest point p in the figure is t + M·(k·(q − o)) for an item point q.
+ * A rest point p in the figure is t + M·(k·(q − o)) for an item point q. `head`: the head's girth read off its skin
+ * (hero-hold.js headGirth), which laws-2 gear clears in place of the canonical head (a beast's skull and muzzle).
  */
-export function gearMounts(hero, R) {
+export function gearMounts(hero, R, { head = null } = {}) {
   const gear = hero?.gear; if (!gear) return [];
   const J = R.joints; const bone = (id) => R.bones.findIndex((b) => b.id === id);
   const height = J.headTop ? J.headTop[2] : CANON_HEIGHT; const k = 0.01 * height / CANON_HEIGHT;
@@ -180,7 +181,7 @@ export function gearMounts(hero, R) {
     // the thigh, a shield off the arm; gear minted before keeps the hold it was minted with
     if (holdsByLaws(build) && (slot === 'right' || slot === 'left')) {
       const S = slot === 'right' ? 'R' : 'L', a = unit(sub(J[`knuckles${S}`], J[`wrist${S}`]));
-      const fit = fitRest(G, R, { out: [S === 'R' ? 1 : -1, 0, 0], f: perp([0, 1, 0], a), a, h: height });
+      const fit = fitRest(G, R, { out: [S === 'R' ? 1 : -1, 0, 0], f: perp([0, 1, 0], a), a, h: height, head });
       G = { ...fit.G, restClearance: r5(fit.clearance.d) };
     }
     out.push(G);

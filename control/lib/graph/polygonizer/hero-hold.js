@@ -3,7 +3,8 @@
 //
 //   1. THE ITEM CLEARS THE BODY AT REST. The body is read as capsules (hero-grip.js's, with a bar across the shoulders
 //      and one across the hips); every item point keeps MARGIN of the figure's height from them, the holding arm's own
-//      forearm aside. A mount that does not is fitted before it rides its bone (hero-gear.js gearMounts): a haft leans
+//      forearm aside. A head girthier than a person's (a beast's skull and muzzle) is read off its skin (headGirth), and
+//      beside it a haft leans out from its grip, never across the face. A mount that does not is fitted before it rides its bone (hero-gear.js gearMounts): a haft leans
 //      out past the shoulder and the head, a blade or a gun turns out from the thigh, a shield stands off the arm.
 //   2. THE HELD IDLE BREATHES THROUGH THE WEAPON. The idle's keys take the holding arm by the item's class — a blade's
 //      elbow eased so its tip lifts and settles with the breath, a shield's forearm up in front of the body, a gun at
@@ -75,12 +76,35 @@ export function skipsOf(slot, hold) {
   return new Set(hold === 'forearm' ? [`elbow${S}-wrist${S}`] : [`elbow${S}-wrist${S}`]);
 }
 
-/** The nearest approach (m, − inside) of world points to the body's capsules at `nodes`, the figure `h` m tall. */
-export function clearanceOf(points, nodes, h, skip = new Set()) {
+/** a head read off its own skin when it is this much girthier than the canonical head capsule (a beast's skull, a
+ * muzzle, horns): a person's head, its hair with it, stays the canonical capsule */
+export const HEAD_OVER = 1.3;
+/** the share of the head's points inside its girth: its outer reach (a brow, a muzzle's sides), not its middle */
+const HEAD_SHARE = 0.9;
+/**
+ * The head's girth read off the body's own skin (m): how far from the head bone's axis (headBase → headTop) HEAD_SHARE of
+ * the points of every part the recipe binds to the head lie (a cranium, its muzzle, the nape). Null when the rig or the
+ * mesh has no head, or it is no girthier than HEAD_OVER times the canonical capsule: then the canonical capsule stands.
+ */
+export function headGirth(mesh, recipe, R) {
+  const J = R?.joints, a = J?.headBase, b = J?.headTop; if (!a || !b || !mesh?.pointIds || !recipe?.parts) return null;
+  const onHead = new Set(Object.entries(recipe.parts).filter(([, P]) => (typeof P?.bind === 'string' ? P.bind : P?.bind?.bone) === 'head').map(([n]) => n));
+  const d = []; mesh.pointIds.forEach((id, i) => { if (onHead.has(String(id).split('/')[0])) d.push(segDist(xyz(mesh.vertices[i]), a, b)); });
+  if (d.length < 8) return null;
+  d.sort((x, y) => x - y);
+  const g = d[Math.floor((d.length - 1) * HEAD_SHARE)], canon = HEAD_CAPSULE * (J.headTop[2] / CANON);
+  return g > HEAD_OVER * canon ? r4(g) : null;
+}
+/** the canonical head capsule's radius (m at 1.75 m) */
+const HEAD_CAPSULE = 0.1;
+
+/** The nearest approach (m, − inside) of world points to the body's capsules at `nodes`, the figure `h` m tall; `head`, a
+ * girth read off the skin (headGirth), stands for the head capsule's radius. */
+export function clearanceOf(points, nodes, h, skip = new Set(), head = null) {
   let best = Infinity, at = null; const k = h / CANON;
   for (const p of points) for (const [a, b, r] of HOLD_CAPSULES) {
     const name = `${a}-${b}`; if (skip.has(name) || !nodes[a] || !nodes[b]) continue;
-    const d = segDist(p, nodes[a], nodes[b]) - r * k; if (d < best) { best = d; at = name; }
+    const d = segDist(p, nodes[a], nodes[b]) - (head && a === 'headBase' ? head : r * k); if (d < best) { best = d; at = name; }
   }
   return { d: best, at };
 }
@@ -122,10 +146,14 @@ function withUpright(key, S) {
  * unit (x away from the midline), `f` forward, `a` the hand's long axis (down at rest), `h` the figure's height. → the
  * mount, turned or stood off as little as clears it, and its worst clearance.
  */
-export function fitRest(G, R, { out, f, a, h }) {
+export function fitRest(G, R, { out, f, a, h, head = null }) {
   const pts = itemPoints(G.build), skip = skipsOf(G.slot, G.hold), need = MARGIN * h / CANON, S = G.slot === 'right' ? 'R' : 'L';
   const poses = ridePoses(S, G.hold, !!R.hands?.[S]).map((pose) => { const nodes = rigNodesAt(R, pose).nodes; return { nodes, frame: boneFrames(R, R.joints, nodes)[G.boneIndex] }; });
-  const clear = (H) => poses.reduce((w, P) => { const c = clearanceOf(posedPoints(H, pts, P.frame), P.nodes, h, skip); return c.d < w.d ? c : w; }, { d: Infinity, at: null });
+  // (beside a head read off its skin, a haft also LEANS OUT: its top no nearer the midline than its grip, so it stands past
+  // the shoulder and never across the face; how far in it leans counts against its clearance, at 'face')
+  const lean = head && G.hold === 'haft' ? [[0, 0, G.o[2]], [0, 0, Math.max(...pts.map((q) => q[2]))]] : null;
+  const leanOf = (H, P) => { const [g, t] = posedPoints(H, lean, P.frame); return dot(sub(t, g), out); };
+  const clear = (H) => poses.reduce((w, P) => { let c = clearanceOf(posedPoints(H, pts, P.frame), P.nodes, h, skip, head); if (lean) { const l = leanOf(H, P); if (l < c.d) c = { d: l, at: 'face' }; } return c.d < w.d ? c : w; }, { d: Infinity, at: null });
   let c = clear(G);
   if (c.d >= need) return { G, clearance: c };
   if (G.hold === 'forearm') {
@@ -164,7 +192,7 @@ const IDLE_BY_HOLD = Object.freeze({
  * idle and the walk takes an arm out from the body until its item clears. `mounts` are hero-gear's (fitted at rest);
  * `R` the validated rig. A clip the operator gave (`own`) is left as written. → { clips, clearance }.
  */
-export function heldClips(clips, { mounts, R, own = {} }) {
+export function heldClips(clips, { mounts, R, own = {}, head = null }) {
   const J = R.joints, h = J.headTop ? J.headTop[2] : CANON, need = MARGIN * h / CANON;
   const held = mounts.filter((G) => (G.slot === 'right' || G.slot === 'left') && holdsByLaws(G.build));
   const worn = mounts.filter((G) => holdsByLaws(G.build));
@@ -188,7 +216,7 @@ export function heldClips(clips, { mounts, R, own = {} }) {
       let key = { ...k0 };
       for (let step = 0; step <= 6; step++) {
         const nodes = rigNodesAt(R, key).nodes, frames = boneFrames(R, J, nodes);
-        const tight = worn.map((G) => ({ G, c: clearanceOf(posedPoints(G, itemPoints(G.build), frames[G.boneIndex]), nodes, h, skipsOf(G.slot, G.hold)) }));
+        const tight = worn.map((G) => ({ G, c: clearanceOf(posedPoints(G, itemPoints(G.build), frames[G.boneIndex]), nodes, h, skipsOf(G.slot, G.hold), head) }));
         // (a haft or a shield is fitted in the hand by rule 1: swinging the arm out tips a rigid haft in toward the head)
         const fix = tight.filter(({ G, c }) => c.d < need && (G.slot === 'right' || G.slot === 'left') && !['haft', 'forearm'].includes(G.hold) && own[name] === undefined);
         if (!fix.length || step === 6) break;
@@ -209,7 +237,7 @@ export function heldClips(clips, { mounts, R, own = {} }) {
     if (!Array.isArray(out[name])) continue;
     for (const key of out[name]) {
       const nodes = rigNodesAt(R, key).nodes, frames = boneFrames(R, J, nodes);
-      for (const G of worn) { const c = clearanceOf(posedPoints(G, itemPoints(G.build), frames[G.boneIndex]), nodes, h, skipsOf(G.slot, G.hold)); const id = `${G.slot}.${name}`; if (!(id in clearance) || c.d < clearance[id].m) clearance[id] = { slot: G.slot, item: G.item, clip: name, m: r4(c.d), at: c.at, clear: c.d >= need - 1e-9 }; }
+      for (const G of worn) { const c = clearanceOf(posedPoints(G, itemPoints(G.build), frames[G.boneIndex]), nodes, h, skipsOf(G.slot, G.hold), head); const id = `${G.slot}.${name}`; if (!(id in clearance) || c.d < clearance[id].m) clearance[id] = { slot: G.slot, item: G.item, clip: name, m: r4(c.d), at: c.at, clear: c.d >= need - 1e-9 }; }
     }
   }
   return { clips: out, clearance };

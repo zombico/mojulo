@@ -375,7 +375,9 @@ a blow from the first one on: the grunt, the flanker and the elite are cast from
 that charges down a line or hurts by a touch, and never a mind whose counter a string cannot answer; the elite is such a
 class a rank up. A people's rank and file stands at its lineage's smallest build, its elite and boss at their own
 roll, and a people that swings a blow carries its lineage's arm (`PEOPLE_ARMS`: a cudgel for the rank and file, a
-spiked club for its leaders, from the armory). In a world armed with a kit the book numbers each foe on the kit's
+spiked club for its leaders, from the armory). What a foe holds clears its body as a hero's held gear does
+(`polygonizer/hero-hold.js`): a kin's head girthier than a person's (a bull's skull and muzzle) is measured off its own
+parts, and a long haft beside it leans out past the shoulder rather than across the face. In a world armed with a kit the book numbers each foe on the kit's
 scale (the strings its rank takes and the health that is, `gameworld/arsenal.js`) and writes a boss's phases as its
 levels carry them. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.

@@ -26,6 +26,11 @@
   deep muzzle with a wide nose, small red eyes, ears sideways under horns that sweep out and up). Artesia's minotaur
   stands bare with a great axe (the armory's `great-axe`, a long haft, its bearded blade grown to read at a giant's
   hand) and cuts down from its height.
+- **Held gear clears a beast's head as its skin measures it** (`polygonizer/hero-hold.js` headGirth): where the clearance
+  rule read every head as a person's capsule, a head girthier than a person's (a bull's skull and muzzle, a wolf's) is
+  read off its own parts, and beside it a long haft leans out from its grip past the shoulder, never across the face.
+  The minotaur's great axe stood leaning in with its blade at its snout; it stands out at its shoulder. The hero's
+  readout says each held item's clearance per clip against the same measure.
 - **A taur: a people on a beast's body** (a people skin's `taur: <species>`, `figures/taur.js`): its torso, arms and head
   stood on a four-legged beast's withers in place of its legs, the beast's neck and head gone, one skeleton and one
   skin; it walks, trots and gallops on the beast's gaits and swings on its own, its swing's hit measured off its weapon

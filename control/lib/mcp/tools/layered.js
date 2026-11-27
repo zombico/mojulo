@@ -137,7 +137,7 @@ import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild, gearTriangles } from '@/lib/graph/polygonizer/hero-gear';
-import { heldClips, holdsByLaws } from '@/lib/graph/polygonizer/hero-hold';
+import { heldClips, holdsByLaws, headGirth } from '@/lib/graph/polygonizer/hero-hold';
 import { ARMORY_VERSION } from '@/lib/graph/equipment/armory';
 import { validateAttach, attachRecord, attachMounts, attachReadout } from '@/lib/graph/polygonizer/hero-attach';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
@@ -2026,10 +2026,10 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(core ? { core } : {}),
     ...(clips ? { clips } : {}),
     ...(hero.attach && recipe?.rig ? { attach: attachReadout(attachMounts(hero, validateRig(recipe.rig)), validateRig(recipe.rig)) } : {}),
-    ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig), mounts = gearMounts(hero, R); const out = gearReadout(mounts, R);
+    ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig), head = mesh ? headGirth(mesh, recipe, R) : null, mounts = gearMounts(hero, R, { head }); const out = gearReadout(mounts, R);
       // the clearance laws-2 gear keeps from the body through the idle and the walk (hero-hold.js): per slot, the
       // nearest approach in metres (− inside) and whether it keeps the margin
-      const held = recipe.clips ? heldClips(recipe.clips, { mounts, R, own: recipe.clips }).clearance : null;
+      const held = recipe.clips ? heldClips(recipe.clips, { mounts, R, own: recipe.clips, head }).clearance : null;
       if (held) for (const c of Object.values(held)) if (out[c.slot]) (out[c.slot].clearance ??= {})[c.clip] = { m: c.m, at: c.at, clear: c.clear }; const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
       // the swing's contact data for a game's hit test (the clip never reads it): the impact's phase, the window, the reach
       if (sw && out[sw.hand]) out[sw.hand].swing = { word: sw.word, class: sw.cls, strike: sw.strike, window: sw.window, reachM: out[sw.hand].lengthM, cone: 70 };

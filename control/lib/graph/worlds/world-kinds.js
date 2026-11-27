@@ -134,6 +134,7 @@ import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig, westernKnots } from '@/lib/graph/polygonizer/western-face-rig';
 import { westernPerformanceTrack } from '@/lib/graph/face-acting/western-read';
 import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
+import { headGirth } from '@/lib/graph/polygonizer/hero-hold';
 import { xrHands } from '@/lib/graph/polygonizer/hero-xr-hands';
 import { attachMounts } from '@/lib/graph/polygonizer/hero-attach';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
@@ -961,10 +962,11 @@ export const WORLD_KINDS = {
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(pagePaint ? { paint: pagePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
-      // the pack carries it). Absent ⇒ nothing here, byte-identical.
+      // the pack carries it). Absent ⇒ nothing here, byte-identical. Held gear clears the head as its skin measures it
+      // (hero-hold.js headGirth: a beast's skull and muzzle, not a person's capsule).
       // and the objects it WEARS of its own (hero-attach.js: a workbench recipe or a solid by ref on a bone), carried the
       // same way. Absent both ⇒ nothing here, byte-identical.
-      const gear = rig && (m.hero?.gear || m.hero?.attach) ? [...(m.hero.gear ? gearMounts(m.hero, rig.R) : []), ...attachMounts(m.hero, rig.R)] : null;
+      const gear = rig && (m.hero?.gear || m.hero?.attach) ? [...(m.hero.gear ? gearMounts(m.hero, rig.R, { head: headGirth(mesh, m.recipe, rig.R) }) : []), ...attachMounts(m.hero, rig.R)] : null;
       const gearShown = gear?.length ? gearFaces(gear, { frames: stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null, light: figLight, dz: restDz, group: 'body' }) : null;
       if (gearShown) faces.push(...gearShown);
       // A STATUE's BASE (statue/base.js): a hero carrying a statue build stands on its base, built under the posed
