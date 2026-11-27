@@ -172,7 +172,8 @@ export const SOUL = Object.freeze({
         // beltScroll: never back, held at a gate until its wave falls, every player kept in the band), up to four seats with
         // drop-in; only in a brawl, so a run, a top-down field or a ride waits on it being lifted to the shared camera
         scroll: { status: 'built', since: '2026-11-16', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'a street level of a designed game scrolls so (gameworld/brawl-cast.js), one player today; no other kind of level does. the brawler\'s belt scrolls one shared view on as the players go, never back, held at a gate until its wave falls, every player in its band (brawl-belt.js beltScroll, brawl-core.js); only in a brawl: a scrolling run, a top-down field or a ride waits on it in the shared camera', requires: TWO },
-        split: { ...NOT_YET, effort: 'L', requires: TWO },
+        // built 11-27 (1127-split-screen): a view a seat (core.js seatCams, controllable/index.js __splitViews)
+        split: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/scene/channels/controllable/index.js', note: 'a view a seat (a level\'s seats.frame: split): each seat\'s body its own camera, the level\'s camera rule on it (core.js seatCams), the group frame off; the page a viewport each present seat, two side by side, three or four in quarters, each first-person eye\'s own body hidden in its own view and seen in the others\'. A first-person level seats players under it. Not yet: a wall\'s pull-in for seats 2 to 4 (their cameras driven plainly), a HUD a view (the seats\' corners stay the page\'s), post effects in any but seat 1\'s view', requires: TWO },
       },
     },
     input: {
