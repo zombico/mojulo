@@ -48,7 +48,10 @@ describe('a village building\'s dress', () => {
     const T = villageDress(villageOf('storybook', { id: 't', use: 'tavern' }), { rects, tops, holes, ways, entry, use: 'tavern' }), H = villageDress(villageOf('storybook', { id: 'l', use: 'hall' }), { rects, tops, holes, ways, entry, use: 'hall' });
     expect(groups(T)['building:dress-sign']).toBeGreaterThan(0);
     expect(groups(H)['building:dress-banner']).toBeGreaterThan(0);
-    expect(Math.max(...H.filter((f) => f.group === 'building:dress-stone').flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(VILLAGE.footing + 1e-9);
+    // (no chimney on a hall: no stone up at its roof; its turret's footing alone stands over its own)
+    expect(Math.max(...H.filter((f) => f.group === 'building:dress-stone').flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(tops[0]);
+    // (a hall's and a tavern's turret at a front corner; a home none)
+    for (const F of [H, T]) expect(F.some((f) => f.group === 'building:turret')).toBe(true);
   });
   it('a gable\'s timber: its barge boards, its tie beam and its king post, proud of its face', () => {
     const tri = [[0, 0, 3], [6, 0, 3], [3, 0, 5.5]], F = gableDress(tri, '#5b3a29');
@@ -56,5 +59,37 @@ describe('a village building\'s dress', () => {
     // (the gable faces -y: its timber a hand in front of it)
     for (const f of F) { for (const c of f.corners) expect(c[1]).toBeLessThan(0); const n = (() => { const [a, b, c] = f.corners; const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]; return [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; })(); expect(n[1]).toBeLessThan(0); }
     expect(gableDress([[0, 0, 0]], '#000000')).toEqual([]);
+  });
+});
+
+// THE STREET (villagePlaces, VILLAGE_LANGUAGE) and THE TURRET (villageTurret, turreted)
+import { villagePlaces, VILLAGE_LANGUAGE, villageTurret, turreted, TURRET, villagePaint, VILLAGE_WAY } from './village-look.js';
+import { townLanguage } from './out-town.js';
+import { structureStyle } from './out-structures.js';
+describe('a village\'s street and its turrets', () => {
+  it('a straight way\'s houses one each side where the land is free, facing it; a bend or a crossing none', () => {
+    const P = villagePlaces(24, ['e', 'w'], 3.4, { n: true, s: true, e: false, w: false });
+    expect(P).toHaveLength(2);
+    expect(P.find((p) => p.facing === '-y').y).toBeGreaterThan(12 + 1.7);
+    expect(P.find((p) => p.facing === '+y').y).toBeLessThan(12 - 1.7);
+    expect(villagePlaces(24, ['e', 'w'], 3.4, { n: false, s: true })).toHaveLength(1);
+    expect(villagePlaces(24, ['n', 's'], 3.4, { e: true, w: true }).map((p) => p.facing).sort()).toEqual(['+x', '-x']);
+    expect(villagePlaces(24, ['n', 'e'], 3.4, { n: true, s: true, e: true, w: true })).toEqual([]);
+    expect(VILLAGE_WAY.surface).toBe('brick-paving');
+  });
+  it('its language is a building language the street speaks; its paint by group', () => {
+    expect(() => townLanguage(structureStyle('isekai-meadow', 1), VILLAGE_LANGUAGE)).not.toThrow();
+    const V = villageOf('storybook', { id: 'a', use: 'shop' });
+    expect(villagePaint(V, 'str:tile')).toBe(V.roof); expect(villagePaint(V, 'str:motif')).toBe(V.sign); expect(villagePaint(V, 'str:plaster')).toBe(V.wall);
+  });
+  it('a turret: its shaft past the eaves, a cone in the roof\'s hue over it, a gold finial at its point; a share of houses', () => {
+    const V = villageOf('storybook', { id: 't', use: 'tavern' }), F = villageTurret(V, { x: 0, y: 0, z0: -0.4, top: 5.8 });
+    const zs = F.flatMap((f) => f.corners.map((c) => c[2])), top = Math.max(...zs);
+    expect(top).toBeGreaterThan(5.8 + TURRET.past + TURRET.r * TURRET.rise);
+    expect(F.filter((f) => f.group === 'building:roof').every((f) => f.colour === V.roof)).toBe(true);
+    expect(F.some((f) => f.group === 'building:dress-sign' && f.colour === V.sign)).toBe(true);
+    const share = Array.from({ length: 200 }, (_, k) => turreted(`town-house-${k}`, 1)).filter(Boolean).length / 200;
+    expect(share).toBeGreaterThan(TURRET.share - 0.15); expect(share).toBeLessThan(TURRET.share + 0.15);
+    expect(turreted('x', 3)).toBe(turreted('x', 3));
   });
 });

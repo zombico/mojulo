@@ -4,7 +4,7 @@
  * the cube's; a village's walls, roofs and paint are this), and each one DRESSED so it reads at a glance and every part of
  * it is considered:
  *
- *   THE PALETTE (VILLAGE_LOOKS[look])  walls of warm lime plaster, timber dark and warm, a footing of cool blue-grey
+ *   THE PALETTE (VILLAGE_LOOKS[look])  walls of pastel lime plaster (cream, blush, lavender, butter), timber dark and warm, a footing of cool blue-grey
  *                     stone, and ROOFS in hues the meadow never wears (cobalt, teal, terracotta, plum, indigo, amber),
  *                     none green: a roof stands off the grass by hue as the walls stand off it by value. Each building
  *                     its own roof by what it is (the hall cobalt, the tavern terracotta) or, a home, by its dice, its
@@ -23,13 +23,17 @@
  *                     wall's half thickness (a window's hole is measured on the room's face, its dress on the shell's)
  *   villageLight(hex, lam) → a face's colour under the sun: the shade side lifted, as an anime game lights a building
  *   gableDress(tri, colour) → a gable end's barge boards, tie beam and king post, in the world's frame
+ *   villagePaint(V, group)  → a building language's group in the village's palette (a street house's)
+ *   VILLAGE_LANGUAGE        the fantasy language a town's street houses are spoken in
+ *   villagePlaces(T, open, width, free) → the street's houses' places on a town's path tile
+ *   villageTurret(V, { x, y, z0, top, r? }) → a round turret with a cone roof; turreted(id, seed) whether a house has one
  *
  * Pure and deterministic: the same building, the same village.
  */
 
 export const VILLAGE_LOOKS = Object.freeze({
   storybook: Object.freeze({
-    walls: Object.freeze(['#f4ead6', '#f1e2c4', '#f7f0e2']),
+    walls: Object.freeze(['#f4ead6', '#f3d9d2', '#e6def0', '#f5ecc6']),
     timber: '#5b3a29', stone: '#8c95a6', frame: '#fbf7ee', sign: '#e2ba2c',
     roofs: Object.freeze({ hall: '#3a63b0', tavern: '#c4533a', homes: Object.freeze(['#2f8a9a', '#8a4a8f', '#4b4f9e', '#d08a2c', '#3f7fae']) }),
   }),
@@ -147,6 +151,11 @@ export function villageDress(V, { rects, tops, holes = [], ways = [], entry = nu
     }
     if (use === 'hall') for (const x of [w.lo - 1.1, w.hi + 1.1]) out.push(...box(x - 0.36, y - 0.14, Math.max(1.2, head - 0.9), x + 0.36, y - 0.1, head + 1.4, 'building:dress-banner', V.roof));
   }
+  // A TURRET on the hall's and the tavern's front corner, the one further from the door
+  if ((use === 'hall' || use === 'tavern') && rects.length && entry && ways.length) {
+    const R = rects[0], w = ways[0], cx = Math.abs(R[0] - w.lo) > Math.abs(R[2] - w.hi) ? R[0] : R[2];
+    out.push(...villageTurret(V, { x: cx, y: R[1], z0: -below, top: tops[0] }));
+  }
   // THE CHIMNEY: a home's or a tavern's, stone, at the far end of its biggest room, standing through its roof
   if (use !== 'hall' && rects.length) {
     const k = rects.map((R, i) => [i, (R[2] - R[0]) * (R[3] - R[1])]).sort((p, q) => q[1] - p[1])[0][0], R = rects[k], top = tops[k];
@@ -177,3 +186,87 @@ export function gableDress(tri, colour) {
     return { corners: nn[0] * n[0] + nn[1] * n[1] + nn[2] * n[2] < 0 ? cs.slice().reverse() : cs, group: 'building:dress-timber', colour, h: Math.hypot(...h) }; })();
   return [band(f0, apex, W), band(apex, f1, W), band(f0, f1, VILLAGE.girt), post].map(({ h: _h, ...f }) => f);
 }
+
+/** A building-language group's colour in a village's palette (a street house spoken in its language, era/out-anchor-structure.js
+ * speak): its plaster the walls', its stone and timber, its tile the roof's, its paint the shutters', its openings dark. */
+const GROUP_OF = Object.freeze({ 'str:plaster': 'wall', 'str:shell': 'wall', 'str:stone': 'stone', 'str:timber': 'timber', 'str:tile': 'roof', 'str:roof': 'roof', 'str:paint': 'shutter', 'str:motif': 'sign', 'str:opening': 'glass', 'str:lens': 'glass' });
+export function villagePaint(V, group) {
+  const k = GROUP_OF[group] ?? 'stone';
+  return k === 'glass' ? '#2c3442' : V[k];
+}
+
+/**
+ * THE VILLAGE'S LANGUAGE (a building language written as its elements, era/out-anchor-elements.js ELEMENT_SETS' shape):
+ * what a fantasy village's street houses are spoken in. A stone ground storey under a plaster one framed in timber,
+ * quoined, a band painted at the storey; a steep gable with a deep eave and a cornice under it, finials at the ridge's
+ * ends; round-headed lights on stone sills under keystone heads, shutters at most; an arched door; a chimney; its own
+ * street of setts between flagged walks, lanterns on brackets (a map's town lays its ways in brick itself, VILLAGE_WAY).
+ * Passed as a street town's `anchor` (a map's town tiles).
+ */
+const SG = (group, value, bond = 'none') => ({ group, value, bond });
+export const VILLAGE_LANGUAGE = Object.freeze({
+  read: 'a storybook house: a stone ground storey under a timber-framed plaster one, a steep gable with finials, round-headed windows with keystones, shutters, an arched door and a chimney; a street of setts with lanterns',
+  storeyH: 2.9,
+  elements: {
+    wall: { kind: 'wall', storeys: [SG('str:stone', 0.62, 'coursed'), SG('str:plaster', 0.88)] },
+    roof: { kind: 'cap', form: 'gable', pitch: 54, eave: 0.95, group: 'str:tile', value: 0.5, courses: true },
+    lights: { kind: 'light', form: 'arch', w: 1.0, h: 1.5, sill: 0.85, bay: 2.6, group: 'str:opening', value: 0.04 },
+    door: { kind: 'door', form: 'arch', w: 1.2, h: 2.3 },
+    socle: { kind: 'socle', h: 0.5, group: 'str:stone', value: 0.48 },
+    sills: { kind: 'sill', h: 0.16, over: 0.08, group: 'str:stone', value: 0.78 },
+    lintels: { kind: 'lintel', h: 0.24, form: 'key', group: 'str:stone', value: 0.7 },
+    quoins: { kind: 'quoins', w: 0.36, course: 0.3, group: 'str:stone', value: 0.8 },
+    cornice: { kind: 'cornice', h: 0.22, proud: 0.14, group: 'str:timber', value: 0.38 },
+    bands: { kind: 'band', w: 0.2, group: 'str:paint', value: 0.55 },
+    finial: { kind: 'point', count: 2, len: 0.22, base: 0.22, group: 'str:motif', value: 0.6 },
+    stack: { kind: 'chimney', w: 0.6, group: 'str:stone', value: 0.55 },
+    frame: { kind: 'frame', member: 0.2, group: 'str:timber', value: 0.25 },
+    shutters: { kind: 'shutters', share: 0.8, group: 'str:paint', value: 0.55 },
+    road: { kind: 'road', paving: 'setts' }, footway: { kind: 'footway', w: 1.5, paving: 'flags' }, kerb: { kind: 'kerb', h: 0.12, w: 0.22 },
+    lamp: { kind: 'lamp', h: 3, head: 'lantern', arm: 'bracket', stride: 14 }, post: { kind: 'post', h: 0.9, form: 'capped', stride: 3.2 },
+    pickets: { kind: 'boundary', form: 'picket', roles: ['front'], lift: 0.6, pier: 2.4 },
+    yards: { kind: 'boundary', form: 'drystone', roles: ['side', 'back', 'field', 'guard', 'retain'], lift: 0.4, pier: 4, cope: 0.06 },
+  },
+  compose: { mass: { kind: 'block', w: 8, d: 7 }, storeys: 2, annex: { scale: 0.6 } },
+});
+
+/**
+ * THE STREET'S HOUSES on a town's path tile (a map's, level/grid-scene.js): one each side of a straight way through it,
+ * its door `off` metres off the way's middle, facing it, on the sides whose neighbour is open land (never against a
+ * place's building, another way, or the map's edge). → [{ x, y, facing }] in the tile's frame (x east, y north, 0 to T).
+ */
+export const VILLAGE_STREET = Object.freeze({ verge: 2.6 });
+/** A town's ways: paved in brick, never narrower than a street. */
+export const VILLAGE_WAY = Object.freeze({ surface: 'brick-paving', width: 3.4 });
+export function villagePlaces(T, open, width, free) {
+  const o = [...(open ?? [])].sort().join(''), off = width / 2 + VILLAGE_STREET.verge, m = T / 2, out = [];
+  if (o === 'ew') { if (free.n) out.push({ x: m, y: m + off, facing: '-y' }); if (free.s) out.push({ x: m, y: m - off, facing: '+y' }); }
+  if (o === 'ns') { if (free.e) out.push({ x: m + off, y: m, facing: '-x' }); if (free.w) out.push({ x: m - off, y: m, facing: '+x' }); }
+  return out;
+}
+
+/**
+ * A TURRET (a fantasy village's mark: on the hall, the tavern and a share of the street's houses): a round tower of
+ * `sides` faces at a front corner, its stone footing, its plaster shaft past the eaves, a band of timber at its top, a cone
+ * roof in the building's roof's hue `rise` times its radius tall, a gold finial at its point. In whatever frame `at` is
+ * given in (metres, z up). → [{ corners, group, colour }]
+ */
+export const TURRET = Object.freeze({ r: 1.3, sides: 12, past: 1.8, rise: 2.4, finial: 0.7, share: 0.4 });
+export function villageTurret(V, { x, y, z0, top, r = TURRET.r }) {
+  const N = TURRET.sides, out = [], ring = (rad, z) => Array.from({ length: N }, (_, k) => { const a = (2 * Math.PI * k) / N; return [x + Math.cos(a) * rad, y + Math.sin(a) * rad, z]; });
+  const shaft = (r0, za, zb, group, colour) => { const A = ring(r0, za), B = ring(r0, zb); for (let k = 0; k < N; k++) { const k1 = (k + 1) % N; out.push({ corners: [A[k], A[k1], B[k1], B[k]], group, colour }); } };
+  const h = top + TURRET.past;
+  shaft(r + 0.06, z0, Math.min(h, z0 + VILLAGE.footing + 0.5), 'building:dress-stone', V.stone);
+  shaft(r, z0 + VILLAGE.footing + 0.5, h - 0.25, 'building:turret', V.wall);
+  shaft(r + 0.05, h - 0.25, h, 'building:dress-timber', V.timber);
+  // (the cone, its eave a little out past the shaft)
+  const eave = ring(r + 0.35, h), apex = [x, y, h + r * TURRET.rise];
+  for (let k = 0; k < N; k++) out.push({ corners: [eave[k], eave[(k + 1) % N], apex], group: 'building:roof', colour: V.roof });
+  for (let k = 0; k < N; k++) out.push({ corners: [eave[(k + 1) % N], eave[k], [x, y, h]], group: 'building:roof', colour: V.roof });
+  // (its finial: a thin gold spike from the cone's point)
+  const f0 = ring(0.07, apex[2] - 0.05);
+  for (let k = 0; k < N; k++) out.push({ corners: [f0[k], f0[(k + 1) % N], [x, y, apex[2] + TURRET.finial]], group: 'building:dress-sign', colour: V.sign });
+  return out;
+}
+/** Whether a street's house of this id carries a turret (TURRET.share of them, by its dice). */
+export const turreted = (id, seed = 1) => (hash(`turret|${id}|${seed}`) % 1000) / 1000 < TURRET.share;

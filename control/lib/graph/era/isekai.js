@@ -1013,12 +1013,15 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
   // the bare ground, then the ribbon's lanes in order, then the rock. A paved trail, era/trail-dress.js `surface`, leans
   // its lanes to its word's colour and, gritty, lays its word's tile for the path's; its fringe is turf to its edge)
-  const nb = bare.length, lane = (i) => (i >= nb && i < nb + ribbon.length ? ribbon[i - nb].cls : null), SD = dirt ? null : surfaceDress(TD.surface, { grit: broken, rock: st.palette.rock });
+  const nb = bare.length, lane = (i) => (i >= nb && i < nb + ribbon.length ? ribbon[i - nb].cls : null), SD = dirt ? null : surfaceDress(TD.surface, { grit: manifest._village ? Math.max(broken, GRIT_PIXELS) : broken, rock: st.palette.rock });
   const lean = (f) => ({ ...f, fill: leanHue(f.fill, SD.colour, SD.share), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((c) => leanHue(c, SD.colour, SD.share)) } : {}) });
   // (a gritty trail in the dirt: its verge fades from the dirt to the land across it, and the dirt spills over its edge
   // in a ragged band, era/trail-dress.js; an outdoor surface's stones leant over the dirt after, so its edge is dirt)
   const landV = broken && inDirt ? verged(land, lane) : land;
-  const landP = SD?.colour ? landV.map((f, i) => (lane(i) === 'trail' ? lean(f) : f)) : landV;
+  const landP0 = SD?.colour ? landV.map((f, i) => (lane(i) === 'trail' ? lean(f) : f)) : landV;
+  // (A VILLAGE's way, `_village` (era/village-look.js): its paving's tile laid on its lanes on a clean land too, at the
+  // least grit, so its bricks read as bricks and not a colour; a gritty land lays it with its ground, below)
+  const landP = manifest._village && !broken && SD?.tile ? (() => { const k = detailKey(SD.tile.params, SD.tile.seed, SD.tile.metres, 0); return landP0.map((f, i) => (lane(i) === 'trail' ? layDetail(f, { key: k, metres: SD.tile.metres, as: 'floor' }) : f)); })() : landP0;
   const TC = GF ? TALUS_CUTS[GF.skin] : null;
   const landD0 = broken ? withGrittyGround(landP, broken, { verge: (i) => inDirt && lane(i) !== null && lane(i) !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]), ...(SD?.tile ? { trail: SD.tile } : {}), ...(TC ? { cuts: TC } : {}) }) : landP;
   // (a gritty talus's edge, formationGround: over the turf of its bands its scree's stones, fewer band by band, coloured

@@ -38,7 +38,7 @@
  * Pure: a function of the outdoor payload and the recipe. Colliders stay axis-aligned, so a building turns in
  * quarter turns.
  */
-import { villageOf, villageDress, villageLight, gableDress, VILLAGE } from './village-look.js';
+import { villageOf, villageDress, villageLight, villagePaint, gableDress, villageTurret, turreted, VILLAGE } from './village-look.js';
 import { TOWN_TRADES, usedAs } from './town-trades.js';
 import { assembleStageScene, planStage } from './stage.js';
 import { withProgram, PROGRAMS } from './programs.js';
@@ -73,6 +73,8 @@ const GROUND = /:(ground|trail|top|scree)$/;
 const ROOF_T = 0.18;
 const CLEARED = /:(wood|crown|tree|bough|rock|hat|blaze|debris|grass|grassblend|shadow|card|bush|flower|ikebana)$/;
 const FACINGS = { '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] };
+// (the uses a street laid on a map's places leaves to the map's own places: its civic buildings)
+const CIVIC_USES = new Set(['hall', 'temple', 'tower', 'keep', 'castle', 'church', 'market']);
 // a composed building's yard: how deep the ground before its front is kept clear (m)
 const YARD = 8;
 // a composed building's own ground: how far its apron reaches past its sides and back and before its front (m), how far
@@ -325,25 +327,31 @@ export function streetLots(town, kitId, seed0, solid = false) {
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'inside', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, inside, recipe, paint, dress, street)`);
+  // (`places`: the lots' own places, [{ x, y, facing }] each a door's point and the way its front faces, a lot to a place:
+  // a town laid where its map's streets run, not along a trail; absent, along the trail as ever)
+  if (town.places !== undefined && !(Array.isArray(town.places) && town.places.every((q) => q && Number.isFinite(q.x) && Number.isFinite(q.y) && FACINGS[q.facing]))) throw new Error('stage: town.places is [{ x, y, facing: +x | -x | +y | -y }], a lot\'s door and the way its front faces');
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'inside', 'recipe', 'paint', 'dress', 'street', 'places'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, inside, recipe, paint, dress, street)`);
   if (town.inside !== undefined && !(town.inside === true || (town.inside && typeof town.inside === 'object' && !Array.isArray(town.inside)))) throw new Error('stage: town.inside is true (its walked-in buildings laid as a town\'s, the vernacular register: rendered walls under beams, furnished by each room\'s role) or { palette }');
   if (town.walls !== undefined && !(town.walls === true || typeof town.walls === 'string' || (town.walls && typeof town.walls === 'object'))) throw new Error('stage: town.walls is true (the town\'s own, from its building language), a fortification\'s id (crenellated, battered), { seed }, or its elements: a gatehouse at each end of the street, its curtain behind the houses');
   if (town.walls !== undefined && !town.street) throw new Error('stage: town.walls closes the street: give the town its street (town.street: true)');
   if (town.walk !== undefined && !(Array.isArray(town.walk) && town.walk.every((u) => typeof u === 'string'))) throw new Error('stage: town.walk is the uses walked into as part of the world (a shop: [\'shop\']), the rest of those entered changing the scene at their door');
   if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
-  const { seed, enter, lots } = streetLots(town, kitId, seed0, solid);
+  // (laid on places, its houses and its shops alone: the map's own places are its hall and its focus)
+  const SL = streetLots(town.places ? { ...town, houses: town.places.length + 8 } : town, kitId, seed0, solid), { seed, enter } = SL;
+  const lots = town.places ? SL.lots.filter(({ l }) => !l.focus && !CIVIC_USES.has(l.use)).slice(0, town.places.length) : SL.lots;
   // (a language written as its elements is spoken by the houses too; a seeded one, { seed }, only by the street)
   const anchor = typeof town.anchor === 'string' || town.anchor?.elements || town.anchor?.pieces ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor
   // is walked into as terrain (the recipe's `doors: false` walks into all of them; `walk` names the uses that are, a
   // single room's shop part of the world while a house keeps its door)
   // (a lot kept for a trade is named for it, `town-inn-<n>`, and entered as its program: the inn's taproom, the temple's nave)
-  return lots.map(({ l }, n) => { const as = usedAs(l), name = l.trade ?? l.use, walked = (town.walk ?? []).includes(name); return (n < enter
+  const placed = (o, n) => (town.places ? { ...o, at: { ...town.places[n] } } : o);
+  return (town.places ? lots.slice(0, town.places.length) : lots).map(({ l }, n) => { const as = usedAs(l), name = l.trade ?? l.use, walked = (town.walk ?? []).includes(name); return placed(n < enter
     ? (town.doors !== false && DOOR_USES.has(as) && !walked
       ? { id: `town-${name}-${n + 1}`, use: as, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
       : { id: `town-${name}-${n + 1}`, use: as, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}), ...insideLook(town, kitId, seed) })
-    : { id: `town-${name}-${n + 1}`, use: l.use, lot: l }); });
+    : { id: `town-${name}-${n + 1}`, use: l.use, lot: l }, n); });
 }
 
 // (a town's walked-in buildings laid as a town's, `town.inside`: the vernacular register composed, its palette the
@@ -713,7 +721,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
       for (const R0 of rects) for (let x = R0[0]; x <= R0[2] + 1e-6; x += 1) for (let y = R0[1]; y <= R0[3] + 1e-6; y += 1) samples.push(toWorld([x, y]));
       const zs = samples.map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       const atDoor = [toWorld([doorPlan[0], doorPlan[1] - 0.6]), toWorld([doorPlan[0], doorPlan[1] + 0.6])].map(([x, y]) => ground(x, y)).filter((z) => z !== null);
-      if (zs.length < samples.length * 0.9 || !atDoor.length) return { off: true };
+      // (a street's house laid on its map tile's place (town.places) may stand past its tile's edge, over the open land
+      // beside it, the map's: its own tile's land need only hold its door)
+      const overhangs = !!manifest.tile && !!lot && !!b.at && typeof b.at === 'object';
+      if ((zs.length < samples.length * 0.9 && !(overhangs && zs.length)) || !atDoor.length) return { off: true };
       // (a door with steps stands its floor up them: the steps' foot on the land, era/out-openings.js)
       const floor = Math.max(...atDoor) + (lot?.design?.dims?.steps ? stepsLift(lot.design.dims.steps) : 0.12);
       const cellsIn = (set) => { let n = 0; for (const B of boxes) for (let i = Math.floor(B[0]); i <= Math.floor(B[2]); i++) for (let j = Math.floor(B[1]); j <= Math.floor(B[3]); j++) if (set.has(`${i},${j}`)) n++; return n; };
@@ -861,11 +872,18 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const Dr = manifest.town?.dress, dressed = (face, grp) => (Dr ? dressTownFace(face, grp, Dr) : face);
       // (its windows GLAZED, glazed(): a pane standing in its wall catches the sky over it and the dark of the room behind,
       // a highlight, its glazing bars across it; its other faces painted, and dressed where the cube is gritty)
-      const shellF = lot.design.faces.flatMap((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), F0 = { ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; return f.group === 'str:opening' ? glazed(F0, nn, Pt('str:timber', 0.3)) : [dressed(F0, f.group)]; });
-      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return dressed({ ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }, 'plinth'); });
+      // (a VILLAGE's house in the village's own palette, era/village-look.js villagePaint: its plaster, stone, timber, roof
+      // and paint by their groups, lit cleanly)
+      const VgL = manifest._village ? villageOf(manifest._village.look, { id, use: b.use }, manifest.seed ?? 1) : null;
+      const Pv = VgL ? (g, v, nn) => villageLight(villagePaint(VgL, g), Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2])) : null;
+      const shellF = lot.design.faces.flatMap((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), F0 = { ...quad(c, `town:${f.part}`, Pv ? Pv(f.group, f.value, nn) : Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; return f.group === 'str:opening' ? glazed(F0, nn, Pv ? VgL.frame : Pt('str:timber', 0.3)) : [dressed(F0, f.group)]; });
+      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return dressed({ ...quad(cs, 'town:plinth', Pv ? Pv('str:stone', 0.45, nn) : Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }, 'plinth'); });
       // (a screen over a light: one card, its star field a cutout texture, era/screen-tiles.js)
       const screenF = (lot.design.screens || []).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn))); cutouts.add(f.texture); return { corners: c.map(P3), group: 'town:screen', fill, cornerFills: c.map(() => fill), normal: P3(nn), outNormal: P3(nn), texture: f.texture, textureLit: true, uv: f.uv }; });
-      faces = [...faces, ...shellF, ...screenF, ...plinth];
+      // (A VILLAGE's house, a share of them by its dice: a turret at its front corner, era/village-look.js villageTurret)
+      const turret = VgL && turreted(id, manifest.seed ?? 1) ? (() => { const R0 = rects[0], dims = lot.design.dims ?? {}, top = (dims.n ?? 2) * (dims.storeyH ?? 2.9);
+        return villageTurret(VgL, { x: R0[2], y: R0[1], z0: -below0, top }).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return { ...quad(c, f.group, villageLight(f.colour, Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]))), normal: P3(nn), outNormal: P3(nn) }; }); })() : [];
+      faces = [...faces, ...shellF, ...screenF, ...plinth, ...turret];
       const top = Math.max(...lot.design.faces.flatMap((f) => f.corners.map((c) => c[2]))), B = F.boxes[0];
       colliders.push({ min: P3([B[0], B[1], floor - below0]), max: P3([B[2], B[3], floor + top]), of: `${id}:house` });
       const door = b.enter === 'door' ? doorOf(id, doorPlan[0], 0, 0, F, ground) : null;

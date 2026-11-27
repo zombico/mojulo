@@ -40,6 +40,7 @@
  * into a rim of hills RIM metres deep, from the land's own height at the border, so the world's edge reads as the
  * valley's sides, never as a drop into the sky.
  */
+import { VILLAGE_LANGUAGE, villagePlaces, VILLAGE_WAY } from '../era/village-look.js';
 import { readGrid, tileCentre, REGION_WORDS, MAP_WORDS, placeDoors, mapStart } from './grid.js';
 import { pathRanks } from './path-ranks.js';
 import { mapWater } from './map-water.js';
@@ -529,10 +530,21 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const own = { ...(heroes.has(`${cell.r},${cell.c}`) ? { hero: true } : {}), ...(cell === ringed || cell.kind === 'place' ? {} : { backdrop: false }) };
     // (its WAY's rank, path-ranks.js: its width and verge at its middle and at each edge, its dress; a map whose ways are
     // all one, `ways: 'one'`, the kit's one width)
-    const R = ranks?.get(`${cell.r},${cell.c}`), way = R ? { way: { width: R.width, fringe: R.fringe, edges: R.edges }, ...(R.surface !== 'earth' ? { dress: { surface: R.surface } } : {}) } : {};
+    const R0 = ranks?.get(`${cell.r},${cell.c}`);
+    // (a TOWN's ways paved in brick and wide enough for a street, unless its region names its own surface)
+    const R = R0 && Rg && Rg.town !== undefined ? { ...R0, width: Math.max(R0.width, VILLAGE_WAY.width), edges: Object.fromEntries(Object.entries(R0.edges ?? {}).map(([k, e]) => [k, { ...e, width: Math.max(e.width, VILLAGE_WAY.width) }])), surface: Rg.path?.surface ?? VILLAGE_WAY.surface } : R0;
+    const way = R ? { way: { width: R.width, fringe: R.fringe, edges: R.edges }, ...(R.surface !== 'earth' ? { dress: { surface: R.surface } } : {}) }
+      : cell.kind === 'path' && Rg && Rg.town !== undefined ? { dress: { surface: Rg.path?.surface ?? VILLAGE_WAY.surface } } : {};
     // (a TOWN's tile, its region's `town` (era/village-look.js): its buildings in the village's own palette, dressed, the
     // ground round them cleared; its land laid level by the map's rise, level/grid.js)
     const village = Rg && Rg.town !== undefined ? { _village: { look: Rg.town } } : {};
+    // (and on a town's straight way, its STREET's houses: one each side where the land beside it is open, spoken in the
+    // village's language (a street town laid on its places, era/stage-buildings.js town.places), never against a place)
+    if (village._village && cell.kind === 'path') {
+      const nb = { n: [-1, 0], s: [1, 0], e: [0, 1], w: [0, -1] }, free = Object.fromEntries(Object.entries(nb).map(([k, [dr, dc]]) => { const y = G.at(cell.r + dr, cell.c + dc); return [k, !!y && cell.r + dr >= 0 && cell.c + dc >= 0 && cell.r + dr < G.rows && cell.c + dc < G.cols && y.kind === 'land' && !(MW?.near(y.r, y.c))]; }));
+      const Rw = ranks?.get(`${cell.r},${cell.c}`), places = villagePlaces(T, cell.open, Math.max(VILLAGE_WAY.width, Rw?.width ?? 0), free);
+      if (places.length) village.town = { houses: places.length, enter: 0, anchor: VILLAGE_LANGUAGE, places };
+    }
     const raw = { kind: 'stage', ...village, ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
     // (THE GEOCUBE: the map's cube paints every tile as it paints a trail, era/geocube.js withGeocube: its look, its land
     // drawn as the cube's, its flora; lowered here, so the casters handed between tiles read the same tile the build does)

@@ -72,9 +72,16 @@ describe('the map takes what a stage gives', () => {
     for (const m of south) expect(m._village).toBeUndefined();
     // (the map's rise carries the town's mask, 1 a town's tile; every reader of the land reads it)
     expect(north[0].tile.level.rise.flat).toEqual([1, 1, 0, 0]);
+    // (its ways paved in brick; a straight way's tile with open land beside it lays its street's houses on their places)
+    const st = [], R3 = { rows: ['a a a', 'a a a', 'a a a'], key: { a: { name: 'the village', town: 'storybook' } } };
+    await assembleGridScene({ level: levelR(['. . .', '# # #', '. . .'], R3) }, {}, { buildStage: async (m) => { st.push(m); return tileStage(() => 0)(m); } });
+    const mid = st.find((m) => m.tile.origin[0] === T && m.tile.origin[1] === -2 * T);
+    expect(mid.tile.dress?.surface).toBe('brick-paving');
+    expect(mid.town.places.map((p) => p.facing).sort()).toEqual(['+y', '-y']);
+    expect(mid.town.houses).toBe(2);
     const plain = [];
     await assembleGridScene({ level: levelR(['# #', '# #'], two) }, {}, { buildStage: async (m) => { plain.push(m); return tileStage(() => 0)(m); } });
-    for (const m of plain) { expect(m._village).toBeUndefined(); expect(m.tile.level.rise.flat).toBeUndefined(); }
+    for (const m of plain) { expect(m._village).toBeUndefined(); expect(m.town).toBeUndefined(); expect(m.tile.level.rise.flat).toBeUndefined(); }
   });
 
   it('carries the soft groups, the cloud deck, the fauna and the trunks of every tile, on the level\'s frame', async () => {

@@ -1,4 +1,4 @@
-### Artesia's towns: a storybook village, level and open, its buildings in their own palette
+### Artesia's towns: a fantasy village, level and open, its streets of brick lined with houses in their own palette
 
 - **A town's region** (`level/grid.js` region word `town`, `era/village-look.js`): a glyph map's region that says
   `town: 'storybook'` is built as an anime game's village. Absent, every byte is as it was.
@@ -22,3 +22,22 @@
 - **The action RPG's world map asks for it** (`gameworld/world-map.js` `town`, `gameworld/compose.js`): the village's
   block and the first town's say `town: 'storybook'`. A world designed before keeps its stored plan, and takes the look by
   adding `town: 'storybook'` to those blocks' keys.
+- **Its streets: the geocube's street town laid on a flat map** (`era/stage-buildings.js` `town.places`,
+  `era/village-look.js` `villagePlaces`, `VILLAGE_LANGUAGE`):
+  - **Places, not a trail:** the geocube's street town (its lots, each house spoken in a building language) now takes its
+    lots' places as well as laying them along a trail. A lot stands at a given door and facing, and may stand past its
+    map tile's edge over the open land beside it. Laid on places, it leaves its hall and its civic uses to the map's own
+    places.
+  - **The map's street:** a town region's straight way lays a house each side, facing the street, wherever the land
+    beside it is open (never against a place, another way or the map's edge).
+  - **The language:** its houses are spoken in a fantasy language written as its elements. A stone ground storey under a
+    timber-framed plaster one; a steep gable with gold finials, a cornice and painted bands; round-headed windows on
+    sills under keystones; an arched door; quoins, shutters and a chimney.
+  - **The paint:** each house in the village's palette by its groups (`villagePaint`).
+- **Brick roads** (`VILLAGE_WAY`): a town's ways are paved in brick (`brick-paving`, herringbone) and are at least a
+  street wide. On a clean land too, the paving's tile is laid on the way at the least grit, so its bricks read as
+  bricks and not a colour. A region's own `path` surface wins.
+- **More fantasy, less 18th-century** (`villageTurret`, `turreted`, the palette):
+  - **Turrets:** a round turret at a front corner of the hall, the tavern and two houses in five, its shaft past the
+    eaves, a cone roof in the building's hue, and a gold finial.
+  - **Pastel walls:** cream, blush, lavender or butter, by each building's dice.

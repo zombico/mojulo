@@ -241,3 +241,29 @@ describe('a building on storeys', () => {
     expect(Math.min(...shut.map((c) => c.max[2]))).toBeGreaterThanOrEqual(top - 1e-6);
   }, 120_000);
 });
+
+// A STREET TOWN LAID ON PLACES (`town.places`, a map's town tiles: era/village-look.js): each lot at its given door and
+// facing, its houses and shops alone (the map's own places its hall), in the village's palette where the stage is a
+// village's (`_village`); a place that is not one, refused
+import { VILLAGE_LANGUAGE, villageOf, villagePaint, villageLight } from './village-look.js';
+describe('a street town laid on places', () => {
+  const pockets = plain.anchors.filter((a) => a.kind === 'beat' && a.beat === 'pocket').slice(0, 2);
+  const places = pockets.map((p) => ({ x: p.at[0], y: p.at[1], facing: '-y' }));
+  it('stands a lot on each place, never the town\'s hall, painted in the village\'s palette', () => {
+    if (places.length < 2) return;
+    const P = assembleStageScene({ ...TRAIL, _village: { look: 'storybook' }, town: { houses: places.length, enter: 0, anchor: VILLAGE_LANGUAGE, places } });
+    const houses = P.anchors.filter((a) => a.kind === 'house');
+    expect(houses).toHaveLength(places.length);
+    for (const h of houses) expect(['hall', 'temple', 'tower', 'keep', 'castle', 'church', 'market']).not.toContain(h.use);
+    houses.forEach((h, k) => { expect(h.at[0]).toBeCloseTo(places[k].x, 3); expect(h.at[1]).toBeCloseTo(places[k].y, 3); });
+    // (its walls the village's plaster, lit: no wall of the kit's own paint)
+    const V = villageOf('storybook', { id: 'x', use: 'shop' }), walls = new Set(['#f4ead6', '#f3d9d2', '#e6def0', '#f5ecc6']);
+    const lum = (h) => [1, 3, 5].reduce((a, i, k) => a + parseInt(h.slice(i, i + 2), 16) * [0.2126, 0.7152, 0.0722][k], 0);
+    expect(P.faces.filter((f) => f.group === 'town:wall').every((f) => lum(f.fill) > 0.75 * 200)).toBe(true);
+    expect(walls.has(villagePaint(V, 'str:plaster'))).toBe(true);
+    expect(villageLight('#ffffff', 1)).toBe('#ffffff');
+  });
+  it('a place that is no door and facing is refused', () => {
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 1, enter: 0, places: [{ x: 1, y: 2, facing: 'up' }] } })).toThrow(/places/);
+  });
+});
