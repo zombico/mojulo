@@ -11,6 +11,8 @@
  *   tail      the tail it carries (the creature biped's TAILS: thin, thick, brush, stub; or none)
  *   toes      the toes a foot keeps (a plantigrade foot its big toe among them; a digitigrade paw the middle ones)
  *   claws     'none' | 'blunt' | 'long': a hooked claw out of each digit's tip
+ *   feet      'hooves': a digitigrade foot stands on a cloven hoof in place of its pad and toes (legs.js HOOF), `hoof`
+ *             its colour
  *   mass      each part family's girth against the person's (1 the hero's): `trunk` the chest and the hips, `waist` the
  *             trunk at the waist on top of it (over 1 a barrel, under 1 a wasp's waist), `neck`, `upperArm`, `foreArm`,
  *             `hand` (the palm and the digits), `thigh`, `shank`, `foot`, and `hips` (the pelvis and the belly over it, an insect's
@@ -80,7 +82,7 @@ export const BEAST_KINS = Object.freeze({
   },
   bovine: {
     reads: 'bull-kin, the minotaur: a brute that stands tall and comes at you head down, a massive chest and a hump of muscle behind the neck, a neck as thick as the head, heavy arms held out from the body, a thin tail with a switch',
-    fingers: 4, toes: 3, tail: 'thin', claws: 'none', claw: HORN_CLAW, cover: 'fur',
+    fingers: 4, toes: 3, tail: 'thin', claws: 'none', claw: HORN_CLAW, cover: 'fur', feet: 'hooves', hoof: '#2a2420',
     frame: { shoulders: 1.18, depth: 1.2, legs: 1.02, neck: 0.72, waist: 1.02 },
     mass: { trunk: 1.28, waist: 1.12, hips: 1.05, neck: 1.9, upperArm: 1.4, foreArm: 1.35, hand: 1.3, thigh: 1.32, shank: 1.22, foot: 1.25 }, hump: 0.55, keel: 0.2, hands: 1.15,
     rest: { hunch: 18, crouch: 0.14, arm: { x: 0.36, y: 0.26, z: -0.9 } }, stands: 1.08,

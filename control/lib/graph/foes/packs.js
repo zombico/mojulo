@@ -13,7 +13,14 @@
  *             and how many pieces it keeps. So a crowd reads as one band at a glance, its fighters told from its
  *             casters by their gear, its leaders by wearing more of the same
  *
- *   skin: { people: <a kin>, adorned?: true, pack?: { style, colourway?, motif? }, body?: { coat?, size? } }
+ *   OWN       `wears`: the pieces a kin wears of its own, named (its bracers, its belt), what tells it at a glance where a
+ *             rank and a role would not: a minotaur's bronze on its wrists. Coloured as the principles colour any kin's
+ *             adornment (its sheet's palette: the leather, the metal, the trim)
+ *
+ *   skin: { people: <a kin>, adorned?: true, pack?: { style, colourway?, motif? }, body?: { coat?, size? }, wears?: [piece] }
+ *     wears           a list of frame pieces (polygonizer/outfit-plan.js OUTFIT_KINDS): a kind's word, or { kind, … } with
+ *                     its own words (a `colour` role, a belt's `at` and `width`); worn bare, a pack's or the adorned's
+ *                     pieces are their own
  *     pack.style      a pack style (PACK_STYLE_IDS)
  *     pack.colourway  the pack's colours (one of its colourways); absent, its first. A bestiary dressed alike shares them
  *     pack.motif      the pack's mark, embossed on its plates (one of the style's motifs); absent, its first
@@ -32,6 +39,7 @@
  *                                `outfit` and `palette` and a leader's `headgear`, a body's `tune` and coat; null when
  *                                the skin names neither a pack nor a body. `sheet` its rolled sheet (a pack is dressed
  *                                from it)
+ *   readWears(w, people, at)  → the pieces a kin wears of its own, read (throw teaching the words)
  *   kinBare(skin, sheet)      → the kin stands BARE: its sheet's people is adorned by the cube (below the clothed line,
  *                                on the tiered body) and its skin names neither `adorned` nor a pack (the wild)
  *   packSays(skin) / bodySays(skin)   → the words in a line, for a book
@@ -42,7 +50,7 @@ import { BEAST_KINS, kinCoat } from '../beast/cards.js';
 import { LINEAGES } from '../egocube/ancestry.js';
 import { HEIGHT, BUILD_TUNE, CLOTHED_H, beastOnTiered } from '../egocube/plan.js';
 import { adornFromSheet, heroAdornOf } from '../egocube/outfit.js';
-import { outfitLaws } from '../polygonizer/outfit-plan.js';
+import { outfitLaws, OUTFIT_KIND_NAMES } from '../polygonizer/outfit-plan.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -155,8 +163,19 @@ export function packAdornment(skin, { rank = 'minion', sheet } = {}) {
  * a pack's adornment over its cloth in its colours, its leaders' helmet, the body's one coat; the body's size as its
  * tune. A kin that names neither takes none: null.
  */
+/** The pieces a kin wears of its own (`wears`): each a frame piece's kind, or { kind, … } with its own words. */
+export function readWears(w, people, at = 'skin.wears') {
+  if (!isKin(people)) throw new Error(`${at}: a kin's own pieces (${Object.keys(BEAST_KINS).join(', ')}); a ${people} wears its own roll`);
+  if (!Array.isArray(w) || !w.length) throw new Error(`${at} is a list of pieces: a kind's word or { kind, … } (${OUTFIT_KIND_NAMES.join(', ')})`);
+  return w.map((p, i) => {
+    const P = typeof p === 'string' ? { kind: p } : isObj(p) ? { ...p } : null;
+    if (!P || !OUTFIT_KIND_NAMES.includes(P.kind)) throw new Error(`${at}[${i}]: a piece's kind (${OUTFIT_KIND_NAMES.join(', ')})`);
+    return P;
+  });
+}
+
 export function kinWords(skin, { rank = 'minion', sheet } = {}) {
-  if (!skin || !isKin(skin.people) || (skin.pack === undefined && skin.body === undefined)) return null;
+  if (!skin || !isKin(skin.people) || (skin.pack === undefined && skin.body === undefined && skin.wears === undefined)) return null;
   const people = skin.people, P = skin.pack !== undefined ? readPack(skin.pack, people) : null, B = skin.body !== undefined ? readKinBody(skin.body, people) : {};
   const out = {};
   // (a pack's members share one coat, the lineage's first where the body names none; any other keeps its sheet's roll)
@@ -169,6 +188,9 @@ export function kinWords(skin, { rank = 'minion', sheet } = {}) {
     out.palette = { Skin: coat, ...tones };
     if (S.head?.[rank]) out.headgear = S.head[rank];
   } else if (coat) out.palette = { Skin: coat };
+  // (its own pieces, in its sheet's palette as the principles would colour them: on its bare frame, no cut)
+  if (skin.wears !== undefined && !sheet) throw new Error('foes/packs: a kin\'s own pieces are coloured from its member\'s sheet (kinWords(skin, { sheet }))');
+  if (skin.wears !== undefined) out.outfit = heroAdornOf({ intent: adornFromSheet(sheet, { coat: coat ?? undefined }).outfit.intent, pieces: readWears(skin.wears, people) });
   if (B.size !== undefined) {
     const Z = WILD_SIZES[B.size], frame = BEAST_KINS[people].frame ?? {};
     out.tune = { stature: r3(sheetStature(people, skin.facets?.build) * Z.stature), ...Object.fromEntries(Object.entries(Z.frame).map(([k, m]) => [k, r3((frame[k] ?? 1) * m)])) };

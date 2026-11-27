@@ -810,7 +810,8 @@ const foeSteps = (G, ref, ready, ids = null) => {
     // (and a KIN's dress and size, its skin's `pack`, `adorned` and `body`, foes/packs.js: a pack's adornment by the
     // frame-adorned principles at its rank, read off its own sheet, in the pack's cloth and colours; its size as its
     // tune. A kin the cube would adorn stands BARE where its skin names neither, the wild: its order says so, its print
-    // as it was; one `adorned` is dressed as the cube dresses any kin, by its own sheet)
+    // as it was; one `adorned` is dressed as the cube dresses any kin, by its own sheet; one that `wears` pieces of its
+    // own wears them on its bare frame, in its sheet's palette)
     const kinSheet = isKin(entry.skin && entry.skin.people) ? rollEgocube(roll) : null;
     // (a kin drawn on the beast's tiered body, egocube/plan.js beastOnTiered, has a body and a head of its own: the
     // henchman's, a person's, is never laid over it, or the tradition's head would meet the kin's skull and the door refuse)

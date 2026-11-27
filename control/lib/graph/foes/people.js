@@ -11,7 +11,8 @@
  *                       `gear` what it carries, the hero door's own words (hero-gear.js: a sword in the right hand, a
  *                       shield on the left: a skeleton's basic arms), laid over its rolled person when it is made; a kin's
  *                       `pack` what its band wears alike and `body` its own colour and size (./packs.js), laid the same way;
- *                       `adorned: true` a kin geared by its own role and standing (the frame-adorned principles)
+ *                       `adorned: true` a kin geared by its own role and standing (the frame-adorned principles); a
+ *                       kin's `wears` the pieces it wears of its own (a minotaur's bracers and belt)
  *   peopleBody(skin)    → the body ./fit.js measures: { support: 'two', wings: false, swimmer: false, size, extent,
  *                         height, scale: 1, gaits, people }; its height the build's and the age's (egocube/plan.js HEIGHT,
  *                         AGE_SCALE), the facets' when named, else the canonical adult's
@@ -35,10 +36,10 @@ import { MOVES } from './vocab.js';
 import { BEAST_KINS } from '../beast/cards.js';
 import { readDress } from './dress.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
-import { readPack, readKinBody, WILD_SIZES, isKin } from './packs.js';
+import { readPack, readKinBody, readWears, WILD_SIZES, isKin } from './packs.js';
 
 export const PEOPLE = Object.freeze(['human', ...Object.keys(LINEAGES)]);
-const SKIN_KEYS = ['people', 'facets', 'dress', 'gear', 'pack', 'body', 'adorned', 'taur'];
+const SKIN_KEYS = ['people', 'facets', 'dress', 'gear', 'pack', 'body', 'adorned', 'taur', 'wears'];
 // (the facets a skin may name: the egocube's own, its frame's build beside them)
 const FACET_KEYS = [...Object.keys(FACETS).filter((k) => k !== 'frame'), 'build', 'pole'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -71,8 +72,11 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
     if (!isKin(skin.people)) throw new Error(`${at}.adorned: a kin's word (${Object.keys(BEAST_KINS).join(', ')}); a ${skin.people} wears its own roll`);
     if (skin.pack !== undefined) throw new Error(`${at}.adorned: a pack is adorned alike already; name one or the other`);
   }
+  // (a kin's own pieces, ./packs.js readWears: worn bare; a pack's or the adorned's pieces are their own)
+  const wears = skin.wears !== undefined ? readWears(skin.wears, skin.people, `${at}.wears`) : undefined;
+  if (wears && (skin.pack !== undefined || skin.adorned)) throw new Error(`${at}.wears: a kin's own pieces, worn bare; a pack or the adorned are dressed by the principles (name one or the other)`);
   return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}), ...(skin.gear !== undefined ? { gear: structuredClone(skin.gear) } : {}),
-    ...(pack ? { pack } : {}), ...(body ? { body } : {}), ...(skin.adorned ? { adorned: true } : {}), ...(skin.taur ? { taur: skin.taur } : {}) };
+    ...(pack ? { pack } : {}), ...(body ? { body } : {}), ...(skin.adorned ? { adorned: true } : {}), ...(skin.taur ? { taur: skin.taur } : {}), ...(wears ? { wears } : {}) };
 }
 
 /** How tall a people stands against its sheet's person: a kin's share of it (beast/cards.js `stands`: short legs under a

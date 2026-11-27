@@ -25,7 +25,18 @@
   tail, a dark coat; its head the bear's skull re-drawn as a bull's, creature-heads/derive.js: a broad flat poll, a long
   deep muzzle with a wide nose, small red eyes, ears sideways under horns that sweep out and up). Artesia's minotaur
   stands bare with a great axe (the armory's `great-axe`, a long haft, its bearded blade grown to read at a giant's
-  hand) and cuts down from its height.
+  hand) and cuts down from its height. Its bull's head is ringed through the nose in brass under great horns that
+  sweep out and up; it stands on heavy cloven hooves, and wears a steel breastplate across the middle of its chest,
+  bronze bracers and leather gloves on both arms and a wide belt with a heavy buckle: a kin foe's `wears`
+  (`foes/packs.js` readWears), the pieces it wears of its own on its bare frame in its sheet's palette, where a pack or
+  the adorned are dressed by the principles. It STOMPS: rears up on one leg and drives its hoof down, and the ground
+  bursts round it, staggering whoever stands near (the `stomp` card, a second attack whose burst is at its feet as the
+  hoof lands, `from: 'feet'`, in the earth's colour; thrown by a folk's legs, `hero-foot-strike.js` FOOT_STRIKES, baked as its
+  `fire` clip on its own rig).
+- **New words on the shelves**: a kin card's `feet: 'hooves'` (`beast/legs.js` HOOF: the digitigrade foot's two middle
+  toes fused into a cloven hoof, flat on the floor, in its `hoof` colour); a `gloves` piece (the hands and every finger
+  the body has painted, a cuff at each wrist); a chest plate's `width` (the share of the chest's front width it spans);
+  a bracers piece's `pair` (both arms whatever the order, as arm rings).
 - **Held gear clears a beast's head as its skin measures it** (`polygonizer/hero-hold.js` headGirth): where the clearance
   rule read every head as a person's capsule, a head girthier than a person's (a bull's skull and muzzle, a wolf's) is
   read off its own parts, and beside it a long haft leans out from its grip past the shoulder, never across the face.

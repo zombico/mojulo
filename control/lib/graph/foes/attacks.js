@@ -37,6 +37,7 @@
 import { ATTACKS, TOPOLOGIES } from './vocab.js';
 import { STRIKE_WAYS } from '../fauna/behavior/strike.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
+import { FOOT_WORDS } from '../polygonizer/hero-foot-strike.js';
 import { STRIKES } from '../polygonizer/hero-strike.js';
 import { SWING_STYLES } from '../polygonizer/hero-swing-body.js';
 import { THROW_WORDS } from '../polygonizer/hero-held-words.js';
@@ -63,11 +64,17 @@ export const ATTACK_CARDS = Object.freeze({
   // its flight before it bursts wherever it is, `rof` rounds a second while the mind holds its trigger (a spit one a
   // while, a breath a stream through the mind's burst), `share` of the blow's damage a round deals, `gap` s a body its
   // rounds hurt is spared them (a breath lands as one hit, however many of its rounds catch you), `band`
-  // [near, far] metres it is thrown at (the mind closes to bite inside it); its way the clip its body fires it in
+  // [near, far] metres it is thrown at (the mind closes to bite inside it); its way the clip its body fires it in; `from`
+  // 'feet' a burst where it stands (its head's, absent), `element` its own colour over its body's
   spit: card({ kind: 'lob', reads: 'rears its head back and spits a ball of fire that flies slow and bursts where it lands: step out of its line', timing: { startup: 36, active: 2, recovery: 24 },
     second: true, round: Object.freeze({ speed: 11, splash: 1.3, life: 1.6, rof: 0.42, share: 0.8 }), band: Object.freeze([3.5, 16]), ways: each(BEASTS, 'snap') }),
   breath: card({ kind: 'lob', reads: 'draws a breath and pours a jet of fire over the ground before it: get out of its front, or over it', timing: { startup: 30, active: 12, recovery: 30 },
     second: true, round: Object.freeze({ speed: 9, splash: 1.1, life: 0.7, rof: 12, share: 0.5, gap: 1.2 }), band: Object.freeze([2.5, 6]), ways: each(BEASTS, 'roar') }),
+  // (a STOMP: no round thrown, the ground itself bursting round its feet as its hoof lands, `from: 'feet'`, its
+  // `element` its own, earth; its burst a splash, which staggers whoever it catches; a body with legs to stamp on: a folk's
+  // foot strike, hero-foot-strike.js FOOT_STRIKES)
+  stomp: card({ kind: 'lob', reads: 'rears up on one leg and brings its hoof down: the ground bursts round it and staggers whoever stands near: back off when its leg goes up', timing: { startup: 24, active: 4, recovery: 30 },
+    second: true, round: Object.freeze({ speed: 0.5, splash: 2.6, life: 0.22, rof: 0.35, share: 1, from: 'feet', element: 'earth' }), band: Object.freeze([0.8, 3]), ways: each(FOLK, 'stomp') }),
 });
 /** the cards that are a second attack (an entry's `also`), never its blow */
 export const SECOND_CARDS = Object.freeze(Object.keys(ATTACK_CARDS).filter((k) => ATTACK_CARDS[k].second));
@@ -79,7 +86,7 @@ for (const [id, C] of Object.entries(ATTACK_CARDS)) {
   if (C.art !== undefined && !SWING_STYLES[C.art]) throw new Error(`foe: attack card '${id}': no art '${C.art}' (${Object.keys(SWING_STYLES).join(', ')})`);
   for (const [t, w] of Object.entries(C.ways)) {
     if (!TOPOLOGIES.includes(t)) throw new Error(`foe: attack card '${id}': no topology '${t}' (${TOPOLOGIES.join(', ')})`);
-    const ok = FOLK.includes(t) ? SWING_WORDS.includes(w) || !!STRIKES[w] || !!THROW_WORDS[w] : STRIKE_WAYS.includes(w);
+    const ok = FOLK.includes(t) ? SWING_WORDS.includes(w) || FOOT_WORDS.includes(w) || !!STRIKES[w] || !!THROW_WORDS[w] : STRIKE_WAYS.includes(w);
     if (!ok) throw new Error(`foe: attack card '${id}': '${w}' is not a way a ${t} throws a blow`);
   }
 }

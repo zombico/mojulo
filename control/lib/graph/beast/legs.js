@@ -12,7 +12,8 @@
  *   beastLegs(plan, hero)   → the plan before the tiered passes: a digitigrade kin's knee, hock and toes moved (the thigh
  *                      turned and stretched onto its new line about the hip, the shank on its joints as they are), the
  *                      foot a metatarsus from the hock to the toes' base on the hock's fold, a pad under the ball and
- *                      the card's toes splayed ahead of it on the toes' bone; a plantigrade kin keeps the person's foot
+ *                      the card's toes splayed ahead of it on the toes' bone (or, its card's `feet: 'hooves'`, a cloven
+ *                      hoof: HOOF); a plantigrade kin keeps the person's foot
  *                      with the card's toes (the outer ones go). Absent a beast, the plan as it was.
  *   beastJoints(hero, list)  → the joints the tiered pass bridges: the hero's, the hock on a digitigrade kin, the second
  *                      arms' elbow and wrist (./topology.js)
@@ -50,6 +51,10 @@ export const HOCK_JOINT = TIERED_HOCK;
  * metatarsus' end; how far the toes reach past the toes' base, of the toes' run; their spread, of the pad's half width */
 const META = { hock: 1.3, ball: 1.0 }, PAD = { width: 1.5, height: 0.75, back: 0.35, front: 0.3 }, TOE = { r: 0.36, reach: 0.62, root: 0.1, spread: 0.72 };
 const TOE_NAMES = ['hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
+/** a HOOF (a card's `feet: 'hooves'`): the digitigrade foot's two middle toes fused into the cloven halves of a hoof, each
+ * a blunt wedge flat on the floor, tall at the heel and sloping to the toe, the two meeting on the cleft; its sizes as
+ * shares of the metatarsus' end (`scale` the whole, a heavy hoof under a stamping brute), its reach of the toes' run */
+export const HOOF = Object.freeze({ halves: ['toe3', 'toe4'], scale: 1.3, w: 0.62, h: 0.95, back: 0.3, front: 0.5, cleft: 0.92 });
 /** the toes a foot keeps by the card's count: a plantigrade foot keeps the big toe, the outer ones go first; a digitigrade
  * paw's toes are the middle ones (no big toe: a dog's dewclaw, a bird's hind toe are not drawn) */
 export const KEPT_TOES = Object.freeze({ plantigrade: { 3: ['hallux', 'toe2', 'toe3'], 4: ['hallux', 'toe2', 'toe3', 'toe4'], 5: TOE_NAMES },
@@ -65,7 +70,8 @@ const RING12 = SLOT_FAMILIES.ring12, LIMB6 = SLOT_FAMILIES.limb6;
 export function beastLegs(plan, hero) {
   const card = beastCard(hero);
   if (!card || card.legs === 'serpent') return plan;   // (a coil's in place of the legs: ./serpent.js)
-  const kept = new Set(KEPT_TOES[card.legs][card.toes] ?? TOE_NAMES), side = (n) => n.replace(/(\$S|[RL])$/, '');
+  const hooved = card.legs === 'digitigrade' && card.feet === 'hooves';
+  const kept = new Set(hooved ? HOOF.halves : KEPT_TOES[card.legs][card.toes] ?? TOE_NAMES), side = (n) => n.replace(/(\$S|[RL])$/, '');
   if (card.legs !== 'digitigrade') {
     // (a plantigrade kin: the person's foot, its outer toes gone from the skin and the dials)
     const gone = (n) => TOE_NAMES.includes(side(n)) && !kept.has(side(n));
@@ -98,13 +104,21 @@ export function beastLegs(plan, hero) {
     return { name: `${name}R`, kind: 'rings', slots: 'limb6', stations: st, caps: { back: [root[0], root[1] - r, r * 1.15].map(r6), tip: [tip[0] + F[0] * r * 0.7, tip[1] + F[1] * r * 0.7, r * 0.7].map(r6) },
       group: 'Skin', mirror: 'name', bind: { bone: 'toesR', blend: { back: { footR: 1 }, st0: { footR: 0.5, toesR: 0.5 } } } };
   });
+  // (the hoof's halves in place of the pad and the toes: each a wedge on the floor, the cleft between them)
+  const hooves = hooved ? HOOF.halves.map((name, i) => {
+    const w = rMeta * HOOF.w * HOOF.scale, h = rMeta * HOOF.h * HOOF.scale, off = mul(out, (i ? 1 : -1) * w * HOOF.cleft);
+    const back = add(add(J.toeBase, mul(F, -runToes * HOOF.back)), off), front = add(add(J.toeBase, mul(F, runToes * HOOF.front)), off);
+    const st = [[back, 0.9, 0.95], [add(back, mul(sub(front, back), 0.45)), 1, 0.8], [front, 0.8, 0.42]].map(([c, f, z], j) => ({ id: `st${j}`, points: ring([c[0], c[1], h * z], S, U, w * f, h * z, LIMB6) }));
+    return { name: `${name}R`, kind: 'rings', slots: 'limb6', stations: st, caps: { back: [back[0] - F[0] * w * 0.5, back[1] - F[1] * w * 0.5, h * 0.95].map(r6), tip: [front[0] + F[0] * w * 0.4, front[1] + F[1] * w * 0.4, h * 0.35].map(r6) },
+      group: 'Hooves', mirror: 'name', bind: { bone: 'toesR', blend: { back: { footR: 1 }, st0: { footR: 0.5, toesR: 0.5 } } } };
+  }) : null;
   for (const s of plan.segments) {
     if (s.name === 'thighR' && s.kind === 'loft') { segments.push({ ...s, stations: s.stations.map((st) => ({ ...st, at: onLine(st.at) })), caps: { ...s.caps, ...(s.caps?.back ? { back: onLine(s.caps.back) } : {}), ...(s.caps?.tip ? { tip: onLine(s.caps.tip) } : {}) } }); continue; }
     if (s.name === 'footR') {
       // THE METATARSUS: the hock to the toes' base, the hock's fold at its top ring, the toes' bone at its foot
       segments.push({ name: 'footR', kind: 'segment', from: 'ankle', to: 'toeBase', rA: r6(rEnd * META.hock), rB: [r6(rMeta), r6(rMeta * 0.9)], over: [0.5, 0.35], group: s.group, mirror: 'name',
         bind: { bone: 'footR', blend: { back: { shankR: 1 }, st0: { hockFoldR: 1 }, st2: { footR: 0.5, toesR: 0.5 }, tip: { toesR: 1 } }, zone: r6(1.3 * rMeta) } });
-      segments.push(pad, ...toes); continue;
+      segments.push(...(hooves ?? [pad, ...toes])); continue;
     }
     if (TOE_NAMES.includes(side(s.name)) || s.name === 'toesR') continue;
     // (the shank's foot ring on the hock's fold, its knee ring on the knee's as it was)
@@ -119,7 +133,7 @@ export function beastLegs(plan, hero) {
   folds['hockFold$S'] = { joint: 'ankle$S', from: 'knee$S', to: 'toeBase$S', front: [0, -1, 0], push: r6(rEnd), bones: ['shank$S', 'foot$S'], head: 'hockFold$S', tail: 'hockFoldTip$S', aim: 'hockFoldAim$S' };
   const bones = plan.rig.bones.map((b) => (b.perSide && b.perSide.some((x) => x.id === 'kneeFold$S') ? { ...b, perSide: [...b.perSide, { id: 'hockFold$S', head: 'hockFold$S', tail: 'hockFoldTip$S', aux: ['hockFold$S', 'hockFoldAim$S'] }] } : b));
   // the dials: the paw and its toes where the foot was
-  const footParts = ['paw$S', ...[...kept].map((t) => `${t}$S`)];
+  const footParts = [...(hooved ? [] : ['paw$S']), ...[...kept].map((t) => `${t}$S`)];
   const dials = Object.fromEntries(Object.entries(plan.dials ?? {}).map(([id, d]) => {
     if (!Array.isArray(d.parts)) return [id, d];
     const parts = d.parts.filter((p) => !TOE_NAMES.includes(side(p)) && side(p) !== 'toes');

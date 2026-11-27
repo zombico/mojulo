@@ -114,7 +114,10 @@ const HUMAN_EAR = { kind: 'sweep', name: 'ear', at: [1.3, 2.7], space: 'local', 
 /** a bull's ear: a broad leaf set sideways, low on the poll under the horn */
 const BULL_EAR = { kind: 'sweep', name: 'ear', at: [1.45, 1.35], space: 'local', spine: [[0, 0, -0.01], [0, -0.008, 0.03], [0, -0.016, 0.062], [0, -0.022, 0.085]], radii: [0.046, 0.036, 0.016], m: 8, squash: [0.32, 1], group: 'Ears' };
 /** a bull's horn: out of the corner of its poll, then forward and up, thick at its root and drawn to a point */
-const BULL_HORN = { kind: 'sweep', name: 'horn', at: [1.15, 0.8], space: 'local', spine: [[0, 0, -0.012], [0, -0.045, 0.03], [0.03, -0.1, 0.05], [0.07, -0.14, 0.085], [0.1, -0.15, 0.13]], radii: [0.036, 0.03, 0.021, 0.011], m: 8, group: 'Horns' };
+const BULL_HORN = { kind: 'sweep', name: 'horn', at: [1.15, 0.8], space: 'local', spine: [[0, 0, -0.015], [0, -0.06, 0.04], [0.04, -0.14, 0.075], [0.1, -0.2, 0.12], [0.16, -0.21, 0.19], [0.19, -0.17, 0.25]], radii: [0.052, 0.045, 0.035, 0.024, 0.012], m: 8, group: 'Horns' };
+// (the ring through the septum: a hoop across the muzzle's front, under the nose pad, face-on; its local frame the pad's,
+// x forward along the muzzle, y across it, z up)
+const BULL_RING = { kind: 'sweep', name: 'noseRing', at: [5.75, 0.0001], side: 'R', space: 'local', spine: [[0.068, 0.0, -0.008], [0.068, 0.02, -0.0134], [0.068, 0.0346, -0.028], [0.068, 0.04, -0.048], [0.068, 0.0346, -0.068], [0.068, 0.02, -0.0826], [0.068, 0.0, -0.088], [0.068, -0.02, -0.0826], [0.068, -0.0346, -0.068], [0.068, -0.04, -0.048], [0.068, -0.0346, -0.028], [0.068, -0.02, -0.0134], [0.068, -0.0, -0.008]], radii: [0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007], m: 6, group: 'Ring' };
 
 const HUMAN_SKULL_MOVES = [
   { op: 'length', k: 0.78, about: -0.04 },
@@ -191,7 +194,7 @@ export const HEAD_DERIVATIONS = Object.freeze({
     palette: { Iris: '#c9b03a', Pupil: '#0e0e0c', Tongue: '#3a1a22' },
   },
   bovine: {
-    from: 'bear', reads: 'a bull: a broad flat poll, a long deep muzzle with a wide nose, eyes set to the sides, ears sideways under horns that sweep out and forward',
+    from: 'bear', reads: 'a bull: a broad flat poll, a long deep muzzle with a wide nose and a brass ring through it, eyes set to the sides, ears sideways under great horns that sweep out and up',
     family: 'mammal', head: 'long muzzle', serves: ['bovine'],
     units: { scale: 0.84 },
     moves: [
@@ -201,8 +204,8 @@ export const HEAD_DERIVATIONS = Object.freeze({
     ],
     eye: { shift: [-0.25, 0.35], R: 0.022 },
     regions: { whiskers: null },
-    ornaments: { drop: ['ear', 'ruff', 'cheekRuff'], add: [BULL_EAR, BULL_HORN], set: { nose: { spine: [[0, 0, -0.012], [0, 0, 0.012], [0, 0, 0.022]], radii: [0.05, 0.044], squash: [1.7, 1] } }, teeth: 0.3 },
-    palette: { Horns: '#d8ceb8', Iris: '#b8241a', Sclera: '#3a201a' },
+    ornaments: { drop: ['ear', 'ruff', 'cheekRuff'], add: [BULL_EAR, BULL_HORN, BULL_RING], set: { nose: { spine: [[0, 0, -0.012], [0, 0, 0.012], [0, 0, 0.022]], radii: [0.05, 0.044], squash: [1.7, 1] } }, teeth: 0.3 },
+    palette: { Horns: '#d8ceb8', Iris: '#b8241a', Sclera: '#3a201a', Ring: '#b8923a' },
   },
   mandibled: {
     from: 'bear', reads: 'an insect: a short face pitched down, compound eyes, mandibles where the mouth is, short antennae', family: 'insect', head: 'mandibles', serves: ['insectoid'],

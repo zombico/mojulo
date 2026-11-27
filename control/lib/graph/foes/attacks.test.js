@@ -11,6 +11,7 @@ import { beastMovesOf } from '../egocube/moves.js';
 import { strikeWaysOf } from '../fauna/behavior/strike.js';
 import { PEOPLE } from './people.js';
 import { isKin } from './packs.js';
+import { FOOT_STRIKES, FOOT_WORDS, footStrikeKeys } from '../polygonizer/hero-foot-strike.js';
 
 const melee = (c) => ATTACKS[c.attack.kind].verb === 'melee';
 // (one melee class on a four-legged stand-in, picked in code: the procedure every beast card runs through)
@@ -139,5 +140,26 @@ describe('the attack cards: the blow apart from the body that throws it', () => 
     };
     expect(hits(true)).toBe(1);
     expect(hits(false)).toBeGreaterThan(1);
+  });
+
+  it('a foot strike is thrown with the legs: a folk\'s second slot fires at its feet in its card\'s element, its foot named for the page to bake; a beast has no way for it', () => {
+    const stomp = SECOND_CARDS.find((k) => Object.values(ATTACK_CARDS[k].ways).some((w) => FOOT_WORDS.includes(w))), C = ATTACK_CARDS[stomp];
+    const folk = Object.values(FOE_CLASSES).find((c) => melee(c) && fitOfPeople(c.id, { people: 'human' }).ok);
+    const f = resolveFoe({ class: folk.id, skin: { people: 'human' }, also: stomp }), slot = f.entity.rule.loadout.at(-1);
+    expect(slot).toMatchObject({ name: stomp, fireFoot: C.ways.person });
+    expect(slot.weapon.muzzleOffset.u).toBeLessThan(0.1);
+    expect(slot.weapon.fxColor).toBe(ELEMENT_ROUNDS[C.round.element]);
+    expect(slot.weapon.fuse).toBe(C.round.life);
+    expect(() => resolveFoe({ class: beastClass.id, also: stomp })).toThrow(/thrown by/);
+  });
+  it('its foot strike\'s keys: the swing\'s ready, the leg up on the other foot, the leg down on both; a word it has not, refused', () => {
+    const [word] = FOOT_WORDS, keys = footStrikeKeys(word);
+    expect(keys).toHaveLength(3);
+    expect(keys[1].support).toBe('L');
+    expect(keys[1].hipR.pitch).toBeGreaterThan(keys[2].hipR.pitch);
+    expect(keys[2]).toMatchObject({ support: 'both' });
+    expect(keys[2].crouch).toBeGreaterThan(keys[1].crouch);
+    expect(FOOT_STRIKES[word].up.kneeR).toBeGreaterThan(45);
+    expect(() => footStrikeKeys('kick')).toThrow(/no foot strike/);
   });
 });

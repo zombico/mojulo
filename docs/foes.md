@@ -103,6 +103,12 @@ foe's round in that colour and leaving at its head; its body fires in the card's
 `fire` state. A second card is never a blow, and goes only beside one: a class whose attack is a contact (a charge, a
 dive) or a shot is refused by name.
 
+A body with legs to stamp on may STOMP instead (`also: 'stomp'`): no round is thrown; the ground bursts round its feet
+as its foot lands (the card's `from: 'feet'`, its fuse the time the foot takes to come down), and the burst, a splash,
+staggers whoever it catches. A folk throws it with its legs (`polygonizer/hero-swing.js` FOOT_STRIKES: the weight onto
+one foot, the other thigh raised high, the foot driven down with the body dropped onto it), baked as its `fire` clip.
+Artesia's minotaur stomps.
+
 ### Strike zone: thrown at the hero, by height
 
 A routed rail's foe throws its blow AT the hero (`foes/zones.js`): its strike zone is read off how tall it stands
@@ -377,7 +383,10 @@ class a rank up. A people's rank and file stands at its lineage's smallest build
 roll, and a people that swings a blow carries its lineage's arm (`PEOPLE_ARMS`: a cudgel for the rank and file, a
 spiked club for its leaders, from the armory). What a foe holds clears its body as a hero's held gear does
 (`polygonizer/hero-hold.js`): a kin's head girthier than a person's (a bull's skull and muzzle) is measured off its own
-parts, and a long haft beside it leans out past the shoulder rather than across the face. In a world armed with a kit the book numbers each foe on the kit's
+parts, and a long haft beside it leans out past the shoulder rather than across the face. A kin may also wear pieces
+of its own, bare (`wears: [kind | { kind, … }]`, `foes/packs.js` readWears: Artesia's minotaur in bronze bracers and a
+wide belt, a breastplate and gloves), in its sheet's palette; a pack or the adorned are dressed by the principles
+instead. In a world armed with a kit the book numbers each foe on the kit's
 scale (the strings its rank takes and the health that is, `gameworld/arsenal.js`) and writes a boss's phases as its
 levels carry them. `design_game`'s `foes` step carries the proposal and the patch that
 writes it; the agent writes it only once the creator has seen the sheet.

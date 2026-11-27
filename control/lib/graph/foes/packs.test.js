@@ -5,7 +5,7 @@
 // principles keep still hold in the pack's colours; a WILD kin is bare and told apart by its size; the words are the
 // hero door's own; a skin that names neither takes none; a word it does not know is refused by name.
 import { describe, it, expect } from 'vitest';
-import { PACK_STYLES, PACK_STYLE_IDS, PACK_RANKS, WILD_SIZES, WILD_SIZE_IDS, packStylesOf, readPack, readKinBody, kinWords, kinBare, packAdornment, packSheet, packSays, bodySays } from './packs.js';
+import { PACK_STYLES, PACK_STYLE_IDS, PACK_RANKS, WILD_SIZES, WILD_SIZE_IDS, packStylesOf, readPack, readKinBody, readWears, kinWords, kinBare, packAdornment, packSheet, packSays, bodySays } from './packs.js';
 import { readPeopleSkin, peopleBody, peopleStands, peopleRoll, peopleRole, peopleSeed } from './people.js';
 import { FOE_CLASSES } from './index.js';
 import { fitOfPeople } from './fit.js';
@@ -149,6 +149,26 @@ describe('a kin\'s body, its own colour and size', () => {
     expect(kinWords({ people: 'human' })).toBeNull();
     expect(kinWords(undefined)).toBeNull();
     expect(packSays({ people: KIN })).toBeNull(); expect(bodySays({ people: KIN })).toBeNull();
+  });
+});
+
+describe('a kin\'s own pieces (`wears`): worn on its bare frame', () => {
+  const WEARS = [{ kind: 'bracers', colour: 'metal' }, 'belt'], skin = { people: KIN, wears: WEARS };
+  it('wears what it names, in its sheet\'s palette, and stands bare; its figure is a valid hero', () => {
+    const sheet = sheetOf(skin, FIGHTER, 'o'), words = kinWords(skin, { sheet });
+    expect(words.outfit.pieces.map((p) => p.kind)).toEqual(['bracers', 'belt']);
+    expect(words.outfit.pieces[0].colour).toBe('metal');
+    expect(words.outfit.intent.palette.metal).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(kinBare(skin, sheet)).toBe(true);
+    const spec = withDefaultWalk(beastWords(withDefaultForm({ form: 'tiered', cast: { pole: 'male', build: LINEAGES[KIN].builds[0] }, beast: { kin: KIN }, ...words })));
+    expect(validateHeroSpec(spec)).toEqual([]);
+    expect(() => kinWords(skin)).toThrow(/member's sheet/);
+  });
+  it('its words read: a kind or { kind, … }, a kin\'s only, never beside a pack or the adorned', () => {
+    expect(readPeopleSkin(skin)).toEqual({ people: KIN, wears: readWears(WEARS, KIN) });
+    expect(() => readWears(['cape'], KIN)).toThrow(/a piece's kind/);
+    expect(() => readWears(['belt'], 'human')).toThrow(/a kin's own pieces/);
+    expect(() => readPeopleSkin({ ...PACK, wears: WEARS })).toThrow(/worn bare/);
   });
 });
 

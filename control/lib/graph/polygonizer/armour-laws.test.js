@@ -53,6 +53,14 @@ describe('how much of the chest a breastplate covers', () => {
     expect(lo.length).toBeLessThan(mid.length); expect(mid.length).toBeLessThan(hi.length);
     expect(width(lo)).toBeLessThan(width(mid)); expect(width(hi)).toBe(width(mid));
   });
+  it('spans the share of the chest\'s front width it is asked (`width`): its wrap the angle whose sine it is, the lames with it', () => {
+    const own = (width) => compileOutfit(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', outfit: { type: 'outfit', style: 'adventurer', pieces: [{ kind: 'chestPlate', colour: 'metal', width }] } }))).adorn.filter((A) => /^chestPlateR/.test(A.id));
+    const K = own(0.8), drawn = own(undefined);
+    expect(width(K)).toBeCloseTo(Math.asin(0.8) / Math.PI, 2);
+    expect(width(K)).toBeLessThan(width(drawn));
+    const lame = (L) => L.find((A) => /Lame0$/.test(A.id)).t[1];
+    expect(lame(K) / lame(drawn)).toBeCloseTo(width(K) / width(drawn), 2);
+  });
   it('one buckle at the waist: with a belt worn, a sash ties with a knot', () => {
     const P = compileOutfit(heroPlanOf(heroRecord({ cast: 'female', head: 'anime', outfit: { type: 'outfit', style: 'adventurer', pieces: [{ kind: 'sash' }] } })));   // the card wears its own belt
     expect(P.adorn.filter((A) => A.signature?.kind === 'buckle' && !/mantle|cloak/i.test(A.id)).length).toBe(1);

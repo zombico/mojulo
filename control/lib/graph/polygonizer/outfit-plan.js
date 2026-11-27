@@ -86,6 +86,8 @@ const TALL_BELT = 0.1;
 const shell = (id, part, s, extra = {}) => ({ id, mode: 'shell', part, s: s.map(r3), t: 'wrap', nt: 16, ns: 2, ...extra });
 
 /** THE CATALOGUE: each kind's layer, class, colour role and compile (piece, body, groupOf) → { garments?, adorn?, segments? } */
+/** the parts a glove paints beside the hand, where the body has them: its digits and the bridge at its wrist */
+const GLOVED = Object.freeze(['thumb', 'index', 'middle', 'ring', 'little', 'pinky', 'wristBridge']);
 export const OUTFIT_KINDS = Object.freeze({
   // L2: a GOWN, a ROBE, a TUNIC: a fitted bodice and a skirt tailored from the waist to its hem
   gown: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'shin', flare: 0.45, material: 'silk' }) },
@@ -187,6 +189,12 @@ export const OUTFIT_KINDS = Object.freeze({
   // L1: WRAPS at the wrists
   wraps: { layer: 1, cls: 'soft', colour: 'secondary', compile: (p, B, G) => ({ adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'wrap'}${S}`, mode: 'band', part: `foreArm${S}`, s: [1.25, 1.75], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.008 * B.k), thick: r3(0.006 * B.k), group: G(p),
     signature: { kind: 'ribbon', k: 0, j: 1, spine: [[0, 0, 0], [0.01 * B.k, -0.02 * B.k, -0.04 * B.k], [0.015 * B.k, -0.03 * B.k, -0.09 * B.k]], width: r3(0.022 * B.k), thick: r3(0.002 * B.k), tip: 'swallow', group: G(p) } })) }) },
+  // L1: GLOVES: the hands and every finger the body has painted the glove's colour, and a turned-back cuff at the wrist
+  // (`cuff: false`, none); both hands
+  gloves: { layer: 1, cls: 'soft', colour: 'leather', compile: (p, B, G) => ({
+    paint: [{ part: ['hand', ...GLOVED.filter((n) => B.names.has(n))], group: G(p) }],
+    ...(p.cuff === false ? {} : { adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'glove'}${S}`, mode: 'shell', part: `foreArm${S}`, s: [1.55, 1.95], t: 'wrap', mugen: r3(0.01 * B.k), thick: r3(0.008 * B.k), edge: 'roll', interior: G({ colour: 'shade' }), group: G(p),
+      signature: { kind: 'studs', r: r3(0.004 * B.k), h: r3(0.002 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })) }) }) },
   // L4: ARMOUR pieces (rigid; one bone each)
   // ARMOUR AS GAMES DRAW IT (armor/principles.js laws 13–15): a plate stays WITHIN the figure's own width (`within`, its
   // thickness past it at most: no shoulder carried out past the arm), no plate covers a whole part (each piece is
@@ -211,7 +219,8 @@ export const OUTFIT_KINDS = Object.freeze({
       plate(S, `${base}${S}`, { part: 'torso', over: [`upperArm${S}`], s: capWindow(B), t: [1.1, 2.9], ns: 7, mugen: r3(mugen + 3 * th * 0.6), crown: r3(0.016 * B.k), rad: r3(0.05 * B.k), support: 3.45, ramp: 0.5,
         ...(p.float ? { hover: true } : { liner: { group: G({ colour: 'shade' }), seat: r3(0.004 * B.k) } }), signature: armourMotif(p, B, G) })]) }; } },
   // a BRACER in two bands (the wrist and the forearm), the skin or sleeve between them
-  bracers: { layer: 4, cls: 'rigid', colour: 'leather', compile: (p, B, G, I) => ({ adorn: (I.symmetry === 'symmetric' ? ['R', 'L'] : [I.side ?? 'R']).flatMap((S) => [[0.62, 0.86], [0.94, 1.2]].map((s, i) => ({ id: `${p.id ?? 'bracer'}${S}${i ? '' : 'Wrist'}`, mode: 'shell', part: `foreArm${S}`, s, t: 'wrap', mugen: r3(0.012 * B.k), thick: r3(0.01 * B.k), edge: 'roll', crown: r3(0.004 * B.k), interior: G({ colour: 'shade' }), group: G(p), rigid: true,
+  // (a `pair` on both arms whatever the order, as arm rings are)
+  bracers: { layer: 4, cls: 'rigid', colour: 'leather', compile: (p, B, G, I) => ({ adorn: (I.symmetry === 'symmetric' || p.pair ? ['R', 'L'] : [I.side ?? 'R']).flatMap((S) => [[0.62, 0.86], [0.94, 1.2]].map((s, i) => ({ id: `${p.id ?? 'bracer'}${S}${i ? '' : 'Wrist'}`, mode: 'shell', part: `foreArm${S}`, s, t: 'wrap', mugen: r3(0.012 * B.k), thick: r3(0.01 * B.k), edge: 'roll', crown: r3(0.004 * B.k), interior: G({ colour: 'shade' }), group: G(p), rigid: true,
     signature: i ? { kind: 'motif', name: p.motif ?? 'key', mode: 'border', w: r3(0.0025 * B.k), lift: r3(0.0004 * B.k), group: G({ colour: 'shade' }) } : { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.003 * B.k), count: 3, m: 6, group: G({ colour: 'trim' }) } }))) }) },
   // L7: a BOW (`at`: back | collar | wrists; `tails` m, `loops` false for a scarf's knot): a knot, two loops standing out
   // of it, and two tails flowing from it as strands (hero-flow.js); `rigidity` the tails' (flowing by default)
@@ -320,7 +329,10 @@ export const OUTFIT_KINDS = Object.freeze({
   // `cover` (0.4 … 1, default 0.8, the base proportion): how much of the chest's front it takes, across (to 0.8) and
   // down. At 0.8 the cloth shows at the sides and under the fauld; the whole front (1) is for a heavily ornamented plate
   // alone, asked for by name, never a default: an over-covered chest is a slab again
-  chestPlate: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G, I) => { const base = p.id ?? 'chestPlate', cuirass = p.cut === 'cuirass', cv = Math.max(0.4, Math.min(1, p.cover ?? 0.8)), w = (x) => r3(x * Math.min(1, (0.5 + 0.7 * cv) / 1.06));   // past 0.8 it grows DOWN (the full fauld), never wider
+  chestPlate: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G, I) => { const base = p.id ?? 'chestPlate', cuirass = p.cut === 'cuirass', cv = Math.max(0.4, Math.min(1, p.cover ?? 0.8)), w0 = (x) => x * Math.min(1, (0.5 + 0.7 * cv) / 1.06);   // past 0.8 it grows DOWN (the full fauld), never wider
+    // (`width`: the share of the chest's width seen from the front that the plate spans, 0.4 … 1: its wrap round the ring
+    // the angle whose sine it is, every lame narrowed with it; absent, as it was drawn)
+    const wide = Number.isFinite(p.width) ? Math.asin(Math.max(0.4, Math.min(1, p.width))) / Math.PI / w0(cuirass ? 0.3 : 0.34) : 1, w = (x) => r3(w0(x) * wide);
     const plate = (S, id, s, t, extra) => ({ id, mode: 'shell', part: 'torso', side: S, share: true, s, t, nt: 12, ns: 5, mugen: r3(0.012 * B.k), thick: r3(0.012 * B.k), edge: 'roll', within: r3(0.018 * B.k), slab: r3(0.02 * B.k), interior: G({ colour: 'shade' }), rad: r3(0.06 * B.k), group: G(p), rigid: true, ...extra });
     // the fauld tapers toward the waist (each lame narrower than the one above): the plate follows the figure in, not out
     // the fauld: fewer lames the less it covers (the cloth of the belly showing under it), each narrower down to the waist

@@ -47,7 +47,7 @@ export const FOE_FAMILIES = Object.freeze({
     // its own foes beside the band: the MONSTERS of its wilds, never its small animals. The dead risen from its ruins
     // (skeletons that cut with a blade); a centaur of its woods (the forest folk on a horse's body, figures/taur.js) that
     // rides you down and cuts from above; a minotaur (the bull-kin, beast/cards.js, its bull's head creature-heads/derive.js)
-    // that comes at you head down with a great axe; a manticore (a lion grafted with wings, horns and a dragon's tail,
+    // that comes at you head down with a great axe and stamps the ground round it to stagger you; a manticore (a lion grafted with wings, horns and a dragon's tail,
     // mutagen/chimera.js) that bites and breathes fire; gloomwings over its roads (a bat grown dire and dark); a chimera
     // (a goat so grafted) that braces and charges; a crystal behemoth that charges (a rhino grown through with stone); a
     // venom drake lying in wait in the grass that spits venom from off; and a fire salamander that hunts and breathes
@@ -56,7 +56,7 @@ export const FOE_FAMILIES = Object.freeze({
     extras: Object.freeze([
       Object.freeze({ id: 'skeleton', class: 'pursuer', skin: Object.freeze({ people: 'skeleton' }), arm: 'rusted-sword', count: 2 }),
       Object.freeze({ id: 'centaur', class: 'pursuer', skin: Object.freeze({ people: 'sylvan', taur: 'horse' }), arm: 'old-longsword', count: 1 }),
-      Object.freeze({ id: 'minotaur', class: 'brute', skin: Object.freeze({ people: 'bovine' }), arm: 'great-axe', count: 1 }),
+      Object.freeze({ id: 'minotaur', class: 'brute', skin: Object.freeze({ people: 'bovine', wears: Object.freeze([Object.freeze({ kind: 'chestPlate', colour: 'metal', width: 0.8 }), Object.freeze({ kind: 'bracers', colour: 'metal', pair: true }), Object.freeze({ kind: 'gloves' }), Object.freeze({ kind: 'belt', at: 'waist', width: 2.4, buckleColour: 'trim', buckleScale: 1.8 })]) }), arm: 'great-axe', also: 'stomp', count: 1 }),
       Object.freeze({ id: 'manticore', class: 'brute', skin: Object.freeze({ species: 'lion', ooze: Object.freeze(['dire']), stylism: Object.freeze({ chimera: 'chimera', motif: 'flame' }) }), also: 'breath', count: 1 }),
       Object.freeze({ id: 'gloomwing', class: 'swooper', skin: Object.freeze({ species: 'fruitBat', ooze: Object.freeze(['dire', 'shadow']) }), count: 2 }),
       Object.freeze({ id: 'chimera', class: 'charger', skin: Object.freeze({ species: 'goat', ooze: Object.freeze(['dire']), stylism: Object.freeze({ chimera: 'chimera', motif: 'flame' }) }), count: 1 }),

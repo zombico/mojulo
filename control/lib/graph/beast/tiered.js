@@ -85,6 +85,8 @@ const colourWordsOf = (L, coat) => {
     push: L.push.tints ? { ...L.push, tints: L.push.tints.map((t) => ({ ...t, color: word(t.color), ...(t.lightColor ? { lightColor: word(t.lightColor) } : {}) })) } : L.push };
 };
 
+/** a hooved kin's hoof colour (cards.js `hoof`), its palette's `Hooves`; any other kin, none */
+const hoofTone = (card) => (card.feet === 'hooves' ? { Hooves: card.hoof ?? '#2a2420' } : {});
 export function beastCard(hero) {
   const B = hero?.beast;
   if (!isPlain(B) || (B.kin !== undefined && !BEAST_KINS[B.kin])) return null;
@@ -198,8 +200,8 @@ export function beastWords(hero) {
     // brows the landmark head builds; the claws their own)
     // (a kin whose coat is its own groups' only, the lamia's, keeps a person's skin and hair over them)
     // (bare above its coat: its top the skin it has, the cast's when it names none)
-    palette: card.coat ? { Top: hero.palette?.Skin ?? HERO_PALETTE.Skin, ...Object.fromEntries(card.coat.map((g) => [g, coat])), Claws: card.claw, ...(hero.palette ?? {}) }
-      : { Top: coat, Bottom: coat, Shoes: coat, Hair: coat, Brow: coat, Claws: card.claw, ...(hero.palette ?? {}), Skin: coat },
+    palette: card.coat ? { Top: hero.palette?.Skin ?? HERO_PALETTE.Skin, ...Object.fromEntries(card.coat.map((g) => [g, coat])), Claws: card.claw, ...hoofTone(card), ...(hero.palette ?? {}) }
+      : { Top: coat, Bottom: coat, Shoes: coat, Hair: coat, Brow: coat, Claws: card.claw, ...hoofTone(card), ...(hero.palette ?? {}), Skin: coat },
     // (the kin's frame as tune words under the operator's: a tune of its own words over them; a move or a list is the
     // operator's whole tune and stands as given)
     ...(hero.tune === undefined || isPlain(hero.tune) ? { tune: { ...(card.frame ?? {}), ...(hero.tune ?? {}) } } : {}),

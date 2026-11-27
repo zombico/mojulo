@@ -66,6 +66,7 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
+import { footStrikeKeys } from '@/lib/graph/polygonizer/hero-foot-strike';
 import { swingBody, aimSwingKeys, reachGuard, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
 // A SWING AIMED AT A HEIGHT (a foe's strike zone, foes/zones.js): its strike's arm pitch searched (a bisection, the
 // weapon's tip falling as the pitch falls) until `tipZ` of the keys stands at `aim.height`; at the nearest bound where
@@ -1102,6 +1103,16 @@ export const WORLD_KINDS = {
             if (arm) { carried = true; for (const g of CARRY_GAITS) if (clipsIn[g]) clipsIn = { ...clipsIn, [g]: carryClip(clipsIn[g], arm, layeredClip, R) }; }
           }
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
+        }
+        // A FOOT STRIKE fired as a second attack (ctx.swings.fire, a foe's stomp: foes/attacks.js, hero-foot-strike.js
+        // FOOT_STRIKES): its keys as the figure's `fire` clip, one-shot, ready → the leg up → the hoof down, ending down
+        // (the page eases into it as the round leaves and holds its end while it fires). None asked ⇒ as before.
+        if (ctx.swings?.fire && R) {
+          const grip = R.hands ? ['right', 'left'].filter((s) => m.hero.gear?.[s]).map((s) => `fingers${s === 'right' ? 'R' : 'L'}`) : [];
+          const base = (m.hero.core ?? 'structured') === 'structured' ? STRUCTURED_SWING_BASE : null;
+          const play = layeredClip(footStrikeKeys(ctx.swings.fire, { base, grip }), R), fn = (u) => play((2 / 3) * Math.max(0, Math.min(1, u)));
+          fn.keys = 12; fn.once = true; fn.move = { family: 'foot', word: ctx.swings.fire };
+          clipsIn = { ...clipsIn, fire: fn };
         }
         // THE PILOT'S RUN (ctx.pilot: a hero a player pilots, in any game): its run plays the engagement run's body, the
         // right arm carried low at its side as a drawn blade's is (carryArm: the hand's place alone, or with what it holds) and the other arm

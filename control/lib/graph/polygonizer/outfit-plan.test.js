@@ -102,3 +102,15 @@ describe('a medallion hangs over the bodice (outfit laws 2)', () => {
     expect(read(1).n).toBe(0);
   });
 });
+
+describe('gloves', () => {
+  it('paint the hands and the fingers the body has the glove\'s colour, a cuff at each wrist', () => {
+    const plan = heroPlanOf(heroRecord({ cast: 'male', head: 'anime', outfit: { type: 'outfit', style: 'adventurer', pieces: [{ kind: 'gloves' }] } }));
+    const C = compileOutfit(plan), P = C.paint.find((x) => [x.part].flat().includes('hand'));
+    const has = new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, '')));
+    expect([P.part].flat().every((n) => has.has(n))).toBe(true);
+    expect(C.adorn.filter((A) => /^glove[RL]$/.test(A.id)).map((A) => A.part).sort()).toEqual(['foreArmL', 'foreArmR']);
+    const bare = compileOutfit(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', outfit: { type: 'outfit', style: 'adventurer', pieces: [{ kind: 'gloves', cuff: false }] } })));
+    expect(bare.adorn.some((A) => /^glove/.test(A.id))).toBe(false);
+  });
+});

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { BEAST_KINS } from './cards.js';
 import { beastWords, DIGITIGRADE_GAIT } from './tiered.js';
-import { DIGITIGRADE, KEPT_TOES } from './legs.js';
+import { DIGITIGRADE, KEPT_TOES, HOOF } from './legs.js';
 import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { withDefaultForm, withDefaultWalk } from '../polygonizer/motion-stamp.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
@@ -14,6 +14,7 @@ import { stretchAudit } from '../polygonizer/hero-stretch.js';
 import { locomotionClips } from '../polygonizer/hero-motion.js';
 
 const kinBy = (pred) => Object.entries(BEAST_KINS).find(([, c]) => pred(c))[0];
+const HOOVED = kinBy((c) => c.feet === 'hooves');
 const FOUR = kinBy((c) => c.toes === 4 && c.claws !== 'none'), THREE = kinBy((c) => c.toes === 3 && c.claws !== 'none');
 const mint = (spec) => heroRecord(withDefaultWalk(beastWords(withDefaultForm(spec))));
 const digi = (kin, extra = {}) => mint({ cast: 'male', beast: { kin, legs: 'digitigrade' }, ...extra });
@@ -51,6 +52,24 @@ describe('the beast-kin\'s legs on the tiered body', () => {
     const stance = p.dials.stance.parts;
     for (const n of ['paw$S', 'hockBridge$S', ...kept.map((t) => `${t}$S`)]) expect(stance).toContain(n);
     expect(stance).not.toContain('hallux$S');
+  });
+
+  it('a hooved kin stands on a cloven hoof: two halves flat on the floor where the pad and the toes were, in its own colour', () => {
+    const p = heroPlanOf(digi(HOOVED)), halves = HOOF.halves.map((t) => seg(p, `${t}R`));
+    expect(seg(p, 'pawR')).toBeUndefined();
+    for (const t of ['hallux', 'toe2', 'toe5']) expect(seg(p, `${t}R`), t).toBeUndefined();
+    for (const h of halves) { expect(h.group).toBe('Hooves'); expect(h.bind.bone).toBe('toesR'); }
+    // (each on the floor, the two either side of the cleft)
+    const low = (h) => Math.min(...h.stations.flatMap((st) => Object.values(st.points).map((q) => q[2])));
+    for (const h of halves) expect(Math.abs(low(h))).toBeLessThan(1e-3);
+    const x = (h) => h.stations[1].points[Object.keys(h.stations[1].points)[0]][0];
+    expect(Math.sign(x(halves[0]) - x(halves[1]))).not.toBe(0);
+    expect(p.palette.Hooves).toBe(BEAST_KINS[HOOVED].hoof);
+    expect(p.dials.stance.parts).not.toContain('paw$S');
+    // (and it rigs: every vertex bound, its own walk holding)
+    const { recipe, R, mesh, skin } = built(digi(HOOVED));
+    expect(auditRig(mesh, skin, R).ok ?? true).toBe(true);
+    expect(recipe.parts.toe3R ?? recipe.parts.toe3).toBeTruthy();
   });
 
   it('a plantigrade kin keeps a person\'s foot with the card\'s toes, the big toe among them', () => {

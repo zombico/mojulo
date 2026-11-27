@@ -34,6 +34,7 @@ import { checkFit, checkFitPeople, checkFitModel, bodyOf } from './fit.js';
 import { cardFor, cardAttack, isThrow, alsoFor } from './attacks.js';
 import { OOZES } from '../mutagen/oozes/index.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
+import { FOOT_WORDS } from '../polygonizer/hero-foot-strike.js';
 import { readPeopleSkin } from './people.js';
 import { readModelSkin, isModelSkin } from './model.js';
 import { RANKS, SKILLS, sightKnobs } from '../mind/vocab.js';
@@ -47,7 +48,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const SKIN_KEYS = ['species', 'ooze', 'stylism'];
 const SPEC_KEYS = ['class', 'rank', 'skill', 'skin', 'group', 'attack', 'also'];
 // a second attack's round in its body's element (the ooze it is grown by, mutagen/oozes: its `element`); none, fire's
-export const ELEMENT_ROUNDS = Object.freeze({ fire: 0xff7a1a, poison: 0x9cff3a, dark: 0xa86bff, ice: 0x9fe8ff, thunder: 0xfff27a });
+export const ELEMENT_ROUNDS = Object.freeze({ fire: 0xff7a1a, poison: 0x9cff3a, dark: 0xa86bff, ice: 0x9fe8ff, thunder: 0xfff27a, earth: 0xb08a5a });
 /** how long a second attack takes to bring up after its blow (s) */
 const SECOND_READY = 0.2;
 const elementOf = (ooze) => [ooze].flat().filter(Boolean).map((o) => OOZES[typeof o === 'string' ? o : o?.id]?.element).find((e) => ELEMENT_ROUNDS[e]) ?? 'fire';
@@ -129,15 +130,18 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   const K2 = spec.also !== undefined ? alsoFor(spec.also, c, measured.topology) : null;
   if (K2) {
     const Rd = K2.card.round, len = people ? 0.35 : (measured.extent ?? 1) * 0.5, tall = people ? measured.height * 0.85 : (measured.height ?? 0.5) * 0.8;
-    const sc = people ? R.presence : (c.presence * R.presence * hero.height) / Math.max(0.01, measured.extent), element = people ? 'fire' : elementOf(grown.ooze);
+    const sc = people ? R.presence : (c.presence * R.presence * hero.height) / Math.max(0.01, measured.extent), element = Rd.element ?? (people ? 'fire' : elementOf(grown.ooze));
+    // (a burst at its feet, `from: 'feet'`: loosed where its foot lands, a stride ahead of it, at the ground)
+    const feet = Rd.from === 'feet';
     const W2 = { fireClass: 'lob', damage: r3(damage * Rd.share), projectileSpeed: Rd.speed, projectileGravity: 0, lobAngle: 0, splashRadius: Rd.splash, fuse: Rd.life, armTime: 0.12, projRadius: 0.25,
       auto: true, rof: Rd.rof, ...(Rd.gap ? { hitGap: Rd.gap } : {}), smokeTrail: false, foeRound: true, fxColor: ELEMENT_ROUNDS[element], fxScale: 0.22,
-      muzzleOffset: { f: r3(len * sc), u: r3(tall * sc) }, eye: r3(tall * sc) };
+      muzzleOffset: feet ? { f: r3(0.45 * sc), u: 0.05 } : { f: r3(len * sc), u: r3(tall * sc) }, eye: r3(tall * sc) };
     // (it keeps coming while it throws, pressing in to its blow's reach: a slot's `approach`, mind.js spacing; fires no
     // further than its band; and brings it up at once, SECOND_READY, where a gun's draw is a second: a fast beast is
     // through its band before a second is out)
     W2.range = K2.card.band[1];
-    rule.loadout = [...(rule.loadout ?? []), { name: K2.card.id, weapon: W2, band: [...K2.card.band], approach: { standoff: r3(Math.max(0.6, (A.reach ?? 1.2) * 0.8)) }, switchReady: SECOND_READY }];
+    // (a people's foot strike, `fireFoot`: the clip its body fires it in, baked on its own rig, world-kinds.js)
+    rule.loadout = [...(rule.loadout ?? []), { name: K2.card.id, weapon: W2, band: [...K2.card.band], approach: { standoff: r3(Math.max(0.6, (A.reach ?? 1.2) * 0.8)) }, switchReady: SECOND_READY, ...(people && FOOT_WORDS.includes(K2.way) ? { fireFoot: K2.way } : {}) }];
     entity.weapon = W2;
   }
   // a touch closes to the body, not to a gun's standoff
