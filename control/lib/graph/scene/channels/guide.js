@@ -70,16 +70,24 @@ export function guideScript(guide, { host = false } = {}) {
   // (a lesson: read for LESSON.read seconds at least, done by its fact, let go after LESSON.patience)
   const LESSON = { read: 1.4, patience: 14, plain: 5, move: 3, look: 0.9, sprint: 0.6 };
   let li = 0, ls = null;
-  let k = 0, pillar = null, ringOn = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
+  let k = 0, pillar = null, ringOn = null, ringDue = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
   const T3 = typeof THREE !== 'undefined' ? THREE : null, S3 = typeof scene !== 'undefined' ? scene : null;
   function plant() {
     if (!T3 || !S3) return;
     if (pillar) { S3.remove(pillar); pillar = null; }${rings ? `
-    if (ringOn) { S3.remove(ringOn.g); ringOn = null; }` : ''}
+    if (ringOn) { S3.remove(ringOn.g); ringOn = null; } ringDue = null;` : ''}
     const s = GD.steps[k]; if (!s || s.fight) return;${rings ? `
     // (a place held to be read, a scan's, \`ring\`: a disc laid on the ground, following it, under the frames' feet; its rim
     // and a faint light at rest, the whole surface glowing while it is stood in: GUIDE_RING)
-    if (s.ring) {
+    if (s.ring) ringDue = s;` : ''}
+    pillar = new T3.Mesh(new T3.CylinderGeometry(0.5, 0.5, 60, 12, 1, true), new T3.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.28, depthWrite: false, side: T3.DoubleSide }));
+    pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
+    S3.add(pillar);
+  }
+${rings ? `
+  // (laid once the land is: its heights read off the ground the frames walk on, there only once the land is laid)
+  function layRing(s) {
+    {
       const R = s.radius, NR = GR.rings, NS = GR.segs, pos = [], rr = [], idx = [];
       const C = window.__mojCtrl || {}, G = C.groundAt || C.ground || null, gz = (x, y) => { try { const g = G ? G(x, y, s.at[2] + 80) : null; return Number.isFinite(g) ? g : s.at[2]; } catch (e) { return s.at[2]; } };
       pos.push(s.at[0], s.at[1], gz(s.at[0], s.at[1]) + GR.lift); rr.push(0);
@@ -97,11 +105,8 @@ export function guideScript(guide, { host = false } = {}) {
         fragmentShader: 'uniform vec3 uColor; uniform float uLit; uniform float uRim; uniform float uEdge; varying float vR; void main() { float rim = smoothstep(1.0 - uEdge, 1.0 - uEdge * 0.35, vR) * (1.0 - smoothstep(0.985, 1.0, vR)); float fill = uLit * (1.0 - 0.55 * vR * vR); gl_FragColor = vec4(uColor, clamp(fill + rim * uRim, 0.0, 1.0)); }' });
       const m = new T3.Mesh(geo, mat); m.raycast = function () {}; m.renderOrder = 2; S3.add(m);
       ringOn = { g: m, mat };
-    }` : ''}
-    pillar = new T3.Mesh(new T3.CylinderGeometry(0.5, 0.5, 60, 12, 1, true), new T3.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.28, depthWrite: false, side: T3.DoubleSide }));
-    pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
-    S3.add(pillar);
-  }
+    }
+  }` : ''}
   // (the opening's seconds counted from when the world is up, not from the page's parse)
   function begin() { up = true; plant(); if (phase === 'intro') setTimeout(() => { phase = after; if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }, 6500); else if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }
   // (a lesson watched: what the pilot has done since it came up, read off its own state and the camera's)
@@ -150,6 +155,7 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
       // (a step held back until its task begins, \`from\`: neither its way nor its pillar shown before)
       const gated = !!(cur && cur.from && !(window.__mojBus && window.__mojBus.state.vars[cur.from.var] >= cur.from.gte));
       if (pillar) pillar.visible = !gated;` : ''}${rings ? `
+      if (ringDue && (typeof window.__formReady === 'undefined' || window.__formReady === true)) { const d = ringDue; ringDue = null; layRing(d); }
       if (ringOn && cur) {
         const shown = ${guide.steps.some((x) => x && x.from) ? '!gated' : 'true'}, inside = shown && p && Math.hypot(cur.at[0] - p.transform.pos[0], cur.at[1] - p.transform.pos[1]) < cur.radius;
         ringOn.g.visible = shown;

@@ -8,16 +8,16 @@ import { pathToFileURL } from 'node:url';
 import { guideScript, GUIDE_RING } from './guide.js';
 
 const groundAt = ([x]) => 2 + x * 0.05;
-async function page(guide) {
+async function page(guide, win = {}) {
   const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
   const scene = new THREE.Scene(), el = () => ({ className: '', innerHTML: '', textContent: '', style: {}, appendChild() {} });
   let now = 0, frame = null;
   const P = { id: 'p', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'frame' }, v: [0, 0, 0] };
   const vars = { __obj: 0 }, W = { pilotId: 'p', byId: { p: P }, entities: [P] };
-  new Function('window', 'document', 'performance', 'requestAnimationFrame', 'THREE', 'scene', guideScript(guide))({ __mojCtrl: { world: W, groundAt: (x, y, z) => groundAt([x, y, z]) }, __mojBus: { state: { vars } } }, { createElement: el, head: { appendChild() {} }, body: el() }, { now: () => now }, (f) => { frame = f; }, THREE, scene);
+  new Function('window', 'document', 'performance', 'requestAnimationFrame', 'THREE', 'scene', guideScript(guide))(Object.assign(win, { __mojCtrl: { world: W, groundAt: (x, y, z) => groundAt([x, y, z]) }, __mojBus: { state: { vars } } }), { createElement: el, head: { appendChild() {} }, body: el() }, { now: () => now }, (f) => { frame = f; }, THREE, scene);
   const step = (dt, n) => { for (let i = 0; i < n; i++) { now += dt * 1000; const f = frame; frame = null; f(); } };
   const disc = () => scene.children.find((c) => c.isMesh && c.material.isShaderMaterial);
-  return { P, vars, step, disc };
+  return { P, vars, step, disc, win };
 }
 const STEP = { id: 't1', say: '', kind: 'reach', at: [100, 0, 7], radius: 40, ring: true, when: { var: '__obj', gte: 1 }, from: { var: '__obj', gte: 0 } };
 
@@ -29,6 +29,14 @@ describe('a scan\'s place on the ground', () => {
     for (let i = 0; i < p.count; i += 37) expect(p.getZ(i)).toBeCloseTo(groundAt([p.getX(i)]) + GUIDE_RING.lift, 5);
     expect(Math.max(...Array.from({ length: p.count }, (_, i) => Math.hypot(p.getX(i) - 100, p.getY(i))))).toBeCloseTo(40, 3);
     expect(D.material.depthTest).toBe(true);
+  });
+
+  it('is laid once the land is, its heights the land\'s, never before', async () => {
+    const G = await page({ steps: [STEP], done: '' }, { __formReady: false });
+    G.step(0.05, 4);
+    expect(G.disc()).toBeUndefined();
+    G.win.__formReady = true; G.step(0.05, 2);
+    expect(G.disc()).toBeTruthy();
   });
 
   it('glows over its whole surface while it is stood in, breathing; at rest a faint light; the step passed, it goes', async () => {
