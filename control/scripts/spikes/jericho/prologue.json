@@ -249,13 +249,13 @@
       "step": "hold-up",
       "kind": "cinematic",
       "stage": "fortress",
-      "reads": "the third insert at the design boards; a downed soldier is up behind Coral: Krait; the card slid between them, the dive, the scuffle, the roll past each other, Krait out of the door with the card, Coral with his pistol firing after him"
+      "reads": "the third insert at the design boards; a downed soldier is up behind Coral: Krait; the card slid between them, the dive, the scuffle, the roll past each other; Krait with the card at the service elevator, Coral with his pistol; the brief exchange; Krait gone into the elevator"
     },
     {
       "step": "aftermath",
       "kind": "cinematic",
       "stage": "fortress",
-      "reads": "the klaxon, the hangar pulsing red; the floor opens and the platform raises the siege walker; it crosses to the dock; the ship sheds its facade: a cargo submarine; the walker goes in and they are gone"
+      "reads": "the klaxon, the hangar pulsing red; the floor opens and the platform raises the siege walker; the dock door opens; the walker blows the ship's facade off with its howitzer; the cargo submarine's bay doors open, the walker folds to its tank form and rolls in, the doors close and it dives"
     },
     {
       "step": "end",
@@ -277,7 +277,10 @@
           "age": 34
         }
       },
-      "look": "PENDING: see the note on likeness",
+      "look": {
+        "head": "a knit watch cap over slicked-back hair",
+        "reads": "his signature the cap; the rest of his kit TO COME"
+      },
       "shares": "one body with Krait"
     },
     "chandler": {
@@ -299,12 +302,14 @@
       "name": "Commander Krait",
       "role": "the base's commander; along on the mission in a soldier's kit, lying among the downed guards; takes the card and the siege walker",
       "voice": "an English accent",
-      "reads": "the same body as Coral (one model, one rig, the same motion), the difference in his hair, his kit and his manner; his defining trait aviator sunglasses (worn under a soldier's helmet in the hold-up)",
+      "reads": "the same body as Coral (one model, one rig, the same motion), the difference in his hair and his manner: bare-headed, the same slicked-back hair, a cocky grin; his defining trait aviator sunglasses",
       "spec": {
         "same": "coral",
+        "headgear": "none (a soldier's helmet in the hold-up)",
         "eyegear": "aviator sunglasses",
-        "outfit": "the base's soldier's kit, a helmet"
-      }
+        "outfit": "the base's soldier's kit"
+      },
+      "this-phase": "dressed as one of the base's soldiers only: his own outfit not seen; his face hidden under the helmet and the aviators until his helmet comes off in the struggle"
     }
   },
   "scenes": {
@@ -410,13 +415,28 @@
       },
       {
         "id": "hu-11",
-        "beat": "they roll past each other: Krait comes up with the card, running for the door; Coral comes up with the pistol",
+        "beat": "they roll past each other: Krait comes up with the card, Coral with the pistol; in the struggle Krait's helmet came off",
         "shot": "wide, both rising on opposite sides of the frame"
       },
       {
         "id": "hu-12",
-        "beat": "Coral fires; the rounds glance off the walls round the door; Krait is through it and gone",
-        "shot": "over Coral's shoulder down the pistol, sparks at the door's frame"
+        "beat": "the tables turned: Coral has him covered, Krait backed against the service elevator's door, bare-headed, the aviators still on, a cocky grin",
+        "shot": "over Coral's shoulder down the pistol; reverse onto Krait, his face seen for the first time"
+      },
+      {
+        "id": "hu-13",
+        "who": "coral",
+        "text": "Why did you even bring me here?"
+      },
+      {
+        "id": "hu-14",
+        "who": "krait",
+        "text": "The encryption wipes the keycard data if it isn't assembled in time."
+      },
+      {
+        "id": "hu-15",
+        "beat": "the elevator opens behind Krait and he is through it; Coral fires, the rounds glance off the doors as they close",
+        "shot": "over Coral's shoulder, sparks off the closing doors"
       }
     ],
     "aftermath": [
@@ -430,17 +450,25 @@
       },
       {
         "id": "af-3",
-        "beat": "the floor fully raised, the walker crosses the hangar; the great door opens onto the dock"
+        "beat": "the floor fully raised, the great door to the dock opens"
       },
       {
         "id": "af-4",
-        "beat": "at the berth the supply ship sheds its facade: a cargo submarine under it. The walker goes in and they are gone"
+        "beat": "the walker takes a few steps out onto the dock, turns to face the ship, and blows its facade off with the howitzer"
       },
       {
         "id": "af-5",
+        "beat": "under the wreck of the facade, a cargo submarine: its bay doors open"
+      },
+      {
+        "id": "af-6",
+        "beat": "the walker folds into its tank form and rolls in; the bay doors close and the submarine dives"
+      },
+      {
+        "id": "af-7",
         "who": "chandler",
         "text": "TO COME",
-        "beat": "Coral and Chandler on the radio: not pursued, what is past it unknown, could be a trap (where it sits now: after the escape, or before the klaxon)"
+        "beat": "Coral and Chandler on the radio: not pursued, what is past it unknown, could be a trap (before the klaxon, or after the dive)"
       }
     ]
   },
@@ -484,12 +512,17 @@
     "reads": "Krait is one of the engineering lab's soldiers, lying as if put down: a body in a soldier's kit, helmet and aviators on, lying where a knocked-out guard lies from the level's start (or where the player left one). It is inert to the drag and the takedown, never on the radar as a threat. After the third insert, he is up",
     "needs": "NEW: a body that plays a sleeper and is none (a cast word: `feign`)"
   },
-  "likeness": {
-    "reads": "Two operatives who are one model apart (one body, the same moves, different hair and attitude) is a technique and stays. What makes the pair read as someone else's is the exact combination: a mullet tied behind a bandana on the hero, his double with an English accent who comes for the walker. Change at least the hero's signature so the pair is theirs: the hair, the bandana, or both",
-    "options": [
-      "the hair slicked back and tied in a short low tail, no bandana; his signature a dark neck gaiter he pulls up to sneak",
-      "the bandana kept, the hair close-cropped under it (a buzz cut, a fade)",
-      "a knit watch cap over slicked-back hair; Krait bare-headed with the same hair and the aviators"
-    ]
-  }
+  "pistol": {
+    "reads": "Krait's pistol, taken in the hold-up: lethal, and from here the game's default command pistol (the kit's sidearm in the chapters after). The prologue is played non-lethal to its end: the pistol is only fired in the cutscene"
+  },
+  "new": [
+    "the call screen: a radio call that pauses the game and is skippable (mana-ui)",
+    "Steel Serpents' levels on the designed path, not spikes (the screens, saves, objectives and results reach them)",
+    "a body that plays a downed guard and is none (Krait among the soldiers)",
+    "the hangar's light pulsing red on the alarm",
+    "a lift platform raised in a scene (the walker bay's floor opening, its platform coming up)",
+    "the siege walker driven in a scene: steps on a path, a turn, a howitzer shot, the fold to its tank form (its states exist on the boss; a scene playing them does not yet)",
+    "the cargo submarine (no submarine on the craft shelf), its facade blown off it as breakable panels, its bay doors, its dive",
+    "a weapon given in a scene (the command pistol into the kit)"
+  ]
 }
