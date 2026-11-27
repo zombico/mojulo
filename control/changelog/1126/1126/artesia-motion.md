@@ -25,4 +25,8 @@
   - **A mass on a spring:** the arm trails a little, overshoots on the pull and settles, then eases back into the
     stance, so a string still chains.
   - **Backhand:** in a backhand it is the mirror, drawn back through the coil and flung forward as the body turns.
+  - **Its range** (`COUNTER_ARM.range`, `softRange`): the arm is never raised past the shoulder line or folded over the
+    face, and is drawn back only as far as keeps the hand by the ribs. Past about 48 degrees back, the upper arm lifts
+    the hand over the shoulder behind her. The elbow stays between the art's floor and a fold no counterweight needs,
+    and each bound is eased into rather than hit.
   - **Scope:** a two-handed grip keeps its own off hand; the realistic and action swings are as they were.

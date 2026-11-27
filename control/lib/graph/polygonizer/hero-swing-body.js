@@ -358,11 +358,25 @@ export function moveClip(move, ctx) {
  * the rotation, never follows it), and the arm is a MASS on it: a damped spring (`omega` rad/s, `zeta`) carries it toward
  * the target over the move's own seconds, so it trails, overshoots a little on the pull and settles, never snapping from
  * key to key. Over its last stretch (`settle`) it is eased onto the stance again, so every move ends where it began and a
- * string chains. The elbow never under the art's `floor` (offElbow).
+ * string chains. It is kept in its RANGE (`range`: never raised past the shoulder line, never drawn back or across past
+ * where a shoulder goes, the elbow between the art's `floor` (offElbow) and a fold no counterweight needs), each bound
+ * reached softly (softRange), so an overshoot eases against it, never stops dead or folds the arm over the face.
  *
  *   counterArm(fn, { seconds, floor }) → the clip with its free arm carried; COUNTER_ARM its numbers
  */
-export const COUNTER_ARM = Object.freeze({ forward: 1.9, across: 0.3, back: 0.95, open: 0.45, bend: 0.68, lead: 0.08, omega: 24, zeta: 0.5, settle: Object.freeze([0.8, 1]), samples: 120, seconds: 0.6 });
+export const COUNTER_ARM = Object.freeze({ forward: 1.9, across: 0.3, back: 0.95, open: 0.45, bend: 0.68, lead: 0.08, omega: 24, zeta: 0.5, settle: Object.freeze([0.8, 1]), samples: 120, seconds: 0.6,
+  // (its RANGE, degrees: the arm flung forward never past the shoulder line (a counterweight held out, not raised across
+  // the face), drawn back no further than the hand stays by the ribs (past about 48 degrees back the upper arm lifts the
+  // hand over the shoulder behind), across the chest a little, the elbow between the art's floor and a fold no
+  // counterweight needs; reached softly, each bound eased into over its last `knee` degrees)
+  range: Object.freeze({ pitch: Object.freeze([-45, 70]), yaw: Object.freeze([-20, 35]), elbow: Object.freeze([0, 110]), knee: 12 }) });
+/** a value eased into its range: unchanged inside it by `knee`, then bent over toward the bound, never past it */
+export function softRange(v, lo, hi, knee) {
+  const top = hi - knee, bot = lo + knee;
+  if (v > top) return top + knee * (1 - Math.exp(-(v - top) / knee));
+  if (v < bot) return bot - knee * (1 - Math.exp(-(bot - v) / knee));
+  return v;
+}
 export function counterArm(fn, { seconds = COUNTER_ARM.seconds, floor = 0 } = {}) {
   const C = COUNTER_ARM, k0 = fn(0), f0 = k0.facing ?? 0, base = [k0.shL?.pitch ?? 0, k0.shL?.yaw ?? 0, k0.elbowL ?? 0];
   // (the arm's target off the trunk's turn: d < 0 coiled away, d > 0 turned through)
@@ -382,7 +396,10 @@ export function counterArm(fn, { seconds = COUNTER_ARM.seconds, floor = 0 } = {}
   const out = (u) => {
     const p = fn(u), q = Math.max(0, Math.min(1, u)) * N, i = Math.min(N - 1, Math.floor(q)), t = q - i, A = track[i], B = track[i + 1];
     const w = sm(C.settle[0], C.settle[1], u), arm = A.map((a, j) => (a + (B[j] - a) * t) * (1 - w) + base[j] * w);
-    return { ...p, shL: { ...(p.shL ?? {}), pitch: r2(arm[0]), yaw: r2(arm[1]) }, elbowL: r2(Math.max(floor, arm[2])) };
+    // (kept in its range: the stance's own pose is inside it, so the move still begins and ends there; the elbow's floor
+    // the art's own, held hard, its fold eased)
+    const G = C.range, lo = Math.max(floor, G.elbow[0]);
+    return { ...p, shL: { ...(p.shL ?? {}), pitch: r2(softRange(arm[0], G.pitch[0], G.pitch[1], G.knee)), yaw: r2(softRange(arm[1], G.yaw[0], G.yaw[1], G.knee)) }, elbowL: r2(Math.max(lo, softRange(arm[2], -Infinity, G.elbow[1], G.knee))) };
   };
   return Object.assign(out, fn);
 }

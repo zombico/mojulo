@@ -407,7 +407,7 @@ describe('the fighting stance breathes', () => {
 // THE FREE ARM CARRIED BY THE TURN (counterArm, COUNTER_ARM): an art's one-handed move swings its off arm by the body's
 // rotation, a mass on a spring: forward when the trunk coils away, pulled back to the hip (the elbow driven back) as it
 // turns through, never jumping between samples, ending in the stance; a two-handed grip keeps its own off hand
-import { counterArm, COUNTER_ARM, SWING_STYLES } from './hero-swing-body.js';
+import { counterArm, COUNTER_ARM, SWING_STYLES, softRange } from './hero-swing-body.js';
 describe('the free arm is carried by the turn', () => {
   const R = rig('female', 'sword');
   const ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style: 'inspired', timing: swingTiming('normal', 'action'), contact: [0.44, 0.52], layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
@@ -426,6 +426,24 @@ describe('the free arm is carried by the turn', () => {
   it('a mass, not a switch: it never jumps between samples, and is the same each time', () => {
     for (let i = 1; i < S.length; i++) expect(Math.abs(S[i].shL.pitch - S[i - 1].shL.pitch), `sample ${i}`).toBeLessThan(12);
     expect(JSON.stringify(moveClip({ swing: 'neutral', dur: 0.45 }, ctx)(0.6))).toBe(JSON.stringify(cut(0.6)));
+  });
+  it('in its range through every one-handed swing: never raised past the shoulder line or folded over the face', () => {
+    const G = COUNTER_ARM.range, floor = SWING_STYLES.inspired.offElbow;
+    for (const swing of ['neutral', 'left', 'forward', 'up', 'right', 'around']) {
+      const f = moveClip({ swing, dur: 0.5 }, ctx);
+      for (let i = 0; i <= 48; i++) {
+        const p = f(i / 48), at = `${swing} @${i}`, n = rigNodesAt(R, p).nodes;
+        expect(p.shL.pitch, at).toBeGreaterThanOrEqual(G.pitch[0]); expect(p.shL.pitch, at).toBeLessThanOrEqual(G.pitch[1]);
+        expect(p.shL.yaw, at).toBeGreaterThanOrEqual(G.yaw[0]); expect(p.shL.yaw, at).toBeLessThanOrEqual(G.yaw[1]);
+        expect(p.elbowL, at).toBeGreaterThanOrEqual(floor); expect(p.elbowL, at).toBeLessThanOrEqual(G.elbow[1]);
+        // (the hand never over the shoulder line)
+        expect(n.wristL[2], at).toBeLessThan(n.shoulderL[2] + 0.12);
+      }
+    }
+    // (a bound reached softly: inside its knee unchanged, past it eased, never beyond)
+    expect(softRange(10, -60, 70, 12)).toBe(10);
+    expect(softRange(65, -60, 70, 12)).toBeLessThan(65);
+    expect(softRange(500, -60, 70, 12)).toBeLessThanOrEqual(70);
   });
   it('a two-handed grip keeps its own off hand; a style that is no art is as it was', () => {
     const cleave = moveClip({ swing: 'back', dur: 0.77 }, ctx), plainCtx = { ...ctx, style: null, timing: null };
