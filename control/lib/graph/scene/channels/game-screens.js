@@ -7,11 +7,13 @@
  *
  *   OPENING   game.opening { title, kicker?, chapter?: { label?, name? }, press? }, played standalone (a hosting shell has
  *             its own front): over the page as it builds, the game's title, a bar that fills as the world comes up (the
- *             page parsed, the controllable world up, the land laid, then `warm` frames drawn so every shader is built),
+ *             page parsed, the controllable world up, the land laid, every object in the scene drawn once (hidden or
+ *             out of view: each material's program built and each mesh on the card, so a camera turned onto what the
+ *             opening's shots never saw builds nothing then), then `warm` frames drawn),
  *             then `press` (any key, a click, a tap); the level held until then (its start, so its scenes wait, and the
  *             pilot's keys); then the chapter's card on black for `card` s, fading off as the level starts under it.
  *   RESULTS   as the level ends: the result's word (game.noun, 'Level' unless a level says 'Mission': "Mission
- *             complete", "Mission failed"), the level's name, what it kept (its stats: each a label, a leader, a value),
+ *             complete", "Mission failed"), the level's name (the game's own is not said: the screen is the level's), what it kept (its stats: each a label, a leader, a value),
  *             its rank where it has one; standalone, Play again (Enter, R or a click: the page loaded afresh).
  *
  *   SCREENS                 the timings and sizes: { warm (frames), card (s), fade (s), grid (px) }
@@ -87,10 +89,22 @@ export function openingScript() {
     // (the pilot's keys held while it is up: the menus' freeze)
     window.__mojMenuOpen = true;
     const bar = el.querySelector('.bar b'), state = el.querySelector('.state');
-    let drawn = 0, pressed = false;
+    let drawn = 0, pressed = false, warmed = false;
+    // (WARMED: once the world is up, every object in the scene drawn once, hidden or out of view, so each material's
+    // program is built and each mesh's buffers are on the card behind this screen: a camera turned onto what the
+    // opening's shots never saw, the far ground, the stones, a foe not yet woken, would otherwise build it then)
+    function warm() {
+      if (typeof renderer === 'undefined' || typeof scene === 'undefined' || typeof camera === 'undefined') return;
+      const kept = [];
+      scene.traverse((o) => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite || !o.visible) { kept.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; } });
+      try { if (renderer.compile) renderer.compile(scene, camera); renderer.render(scene, camera); } catch (e) { /* (a part that will not draw now draws as it comes) */ }
+      for (const [o, v, f] of kept) { o.visible = v; o.frustumCulled = f; }
+      S.warmed = kept.length;
+    }
     // (the world's coming up, a step at a time: the world, the land, then frames drawn so every shader is built)
     (function watch() {
       const up = !!(window.__mojCtrl && window.__mojCtrl.world), land = typeof window.__formReady === 'undefined' || window.__formReady === true;
+      if (up && land && !warmed) { warmed = true; warm(); }
       if (up && land) drawn++;
       const p = Math.min(1, 0.15 + (up ? 0.25 : 0) + (up && land ? 0.2 : 0) + 0.4 * Math.min(1, drawn / W));
       S.progress = p; bar.style.width = Math.round(p * 100) + '%';
@@ -126,7 +140,6 @@ export function resultsScript() {
     __scCss();
     const el = document.createElement('div'); el.className = 'moj-sc'; el.style.background = 'rgba(0,0,0,.55)'; el.style.opacity = '0'; __scLook(el);
     el.innerHTML = '<div class="grid"></div><div class="frame"><i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i>'
-      + (__GAME.title ? '<div class="kick">' + __scEsc(__GAME.title) + '</div>' : '')
       + '<div class="word" style="color:' + (ok ? 'var(--sc-accent)' : 'var(--sc-harm)') + '">' + __scEsc(word) + '</div><div class="rule"></div>'
       + (__GAME.name ? '<div class="sub">' + __scEsc(__GAME.name) + '</div>' : '')
       + (rows.length ? '<div class="rows">' + rows.map((r) => '<div class="row"><span class="l">' + __scEsc(r.l) + '</span><span class="d"></span><span class="v">' + __scEsc(r.v) + '</span></div>').join('') + '</div>' : '')
