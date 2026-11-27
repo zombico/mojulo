@@ -132,3 +132,23 @@ describe('seats on a team deathmatch', () => {
     expect(() => synthesizeLevel(m)).not.toThrow();
   }, 60_000);
 });
+
+describe('roles on a ride', () => {
+  const ride = (soul) => ({ ...quickWorld({ id: 'crew', quick: { goal: 'reach', ride: 'car' }, style: { kit: 'trail-valley' } }), ...(soul ? { intent: { cube: { soul } } } : {}) });
+  const levelOf = (w) => runSteps(w, { ref: 'crew' }).find((x) => x.key.startsWith('level-')).order.manifest;
+  it('roles, two seats: the car a gun on a turret, seat 2 its gunner with no body of its own; the page reads it', () => {
+    const m = levelOf(ride({ seats: 'two', dependence: 'roles', pool: 'shared', join: 'lobby' }));
+    const car = m.entities.find((e) => e.pilotable);
+    expect(car.turret.mount.stabilized).toBe(true);
+    expect(car.weapon).toBeTruthy();
+    expect(m.seats).toEqual({ bodies: [], crew: { 2: { body: car.id, as: 'gunner' } }, max: 2, join: 'lobby', lives: 6, pool: 'shared' });
+    expect(m.entities.filter((e) => e.pilotable)).toHaveLength(1);
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+  }, 60_000);
+
+  it('a ride without roles is laid as it was: one seat, no gun', () => {
+    const m = levelOf(ride({ seats: 'two' })), car = m.entities.find((e) => e.pilotable);
+    expect(m.seats).toBeUndefined();
+    expect(car.turret).toBeUndefined();
+  }, 60_000);
+});

@@ -1220,3 +1220,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // set to the place of the highest of a list, 0 for a draw; two RESERVED keys). And `seat-lobby`, the one page with seats:
 // __withSeats says each seat's fresh jump to the bus as press:<n> when the events channel wants them (one line; a page
 // whose bus hears no press:<n> sets no __mojPresses, so it sends none).
+// Re-pinned 2026-11-27 (1126-couch-closeout: a gunner seat): `seat-lobby`, the one page with seats. A seat's read takes
+// its pad's right stick as its look (controllable/index.js __seatSnap: a gunner's aim, turret.js), and the seats count a
+// crew seat with no body of its own (seatsScript's max). The turret's gunner (turret.js) is opt-in: no fixture carries one.

@@ -255,7 +255,8 @@ export function pageFigures(figures) {
  * seated body, and a strip names who is in. Emitted only for a world with seats. */
 function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
-  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
+  const crewN = seats.crew && typeof seats.crew === 'object' ? Object.keys(seats.crew).length : 0;   // (a gunner seat: no body of its own, turret.js)
+  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1 + crewN, bodies.length + 1 + crewN));
   return `// ── SEATS ──
 const __SK = (${buildSeatsKernel.toString()})();
 let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
@@ -281,8 +282,10 @@ function __seatSnap(x) {
   let mx, my;
   if (kb) { mx = __CTL.axis(__BIND, 'turnRight', 'turnLeft', 'keyboard', rd); my = __CTL.axis(__BIND, 'moveForward', 'moveBack', 'keyboard', rd); }
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
+  // (a pad's right stick: the seat's look, as seat 1's pad looks, a gunner's aim: turret.js)
+  const rs = kb ? null : __padStick(g.axes[2] || 0, g.axes[3] || 0), ls = __padCfg.lookScale, ly = __padCfg.invertY ? -1 : 1;
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
-  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
+  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0, ...(rs && (rs[0] || rs[1]) ? { lookDX: (__MOUSELOOK ? -1 : 1) * rs[0] * ls, lookDY: (__MOUSELOOK ? -1 : 1) * rs[1] * ls * ly } : {}) };
   P.jump = jh; P.tackle = tk;${uses ? `
   const ih = h('interact'); if (ih && P.interact === false) __seatUseN[x.n] = (__seatUseN[x.n] || 0) + 1; P.interact = ih;   // (a seat's own use press; the press that sat it down is not one)` : ''}
   return out;
