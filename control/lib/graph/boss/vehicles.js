@@ -21,9 +21,16 @@
  * walk, a fold) is the fight's breath and lays no move. A CARRIER (`carrier`) fights through what it carries: gunners on
  * it, drones from its bays, a package a hacked drone carries home (worlds/controllable/boss.js).
  *
+ * A part may fall in an ORDER (`order`: its place, 1 the first): struck while a part ahead of it stands, it counts nothing
+ * and the vehicle RETORTS (`retort`: a move of its own, laid at once). A part `open` is struck only in its state's move's
+ * opening. A state may be a part's TURN (`head`): once that part is broken, the turn is skipped. A `blow` is a blade's
+ * hit (the melee's). A BEAST (`beast`: the hydra) is such a body of heads, each a part and each its turn.
+ *
  *   VEHICLES                   the shelf (a new vehicle boss is a row)
  *   readVehicle(v)             → the vehicle checked (throws naming the fault)
- *   partHit(v, part, kind)     → what a hit of that kind on that part does: { part, counts, weak, mult } or null
+ *   partHit(v, part, kind, state, broken, { open }) → what a hit of that kind on that part does: { part, counts, weak,
+ *                                mult, wrong? } or null
+ *   outOfOrder(v, part, broken), nextInOrder(v, broken), turnPast(v, to, broken)   the order and the turns
  *   vehicleLaws(v, { arms, mines }?) → [{ law, holds, says }]   winnable (a weak spot reached by the arms in hand) ·
  *                                moves-hold · every-state-moves (a state that attacks has moves, each holding; a window
  *                                and a carrier's states are not asked) · mines-enough (a vehicle won by mines is given them)
@@ -34,7 +41,7 @@ import { PATTERNS } from './patterns.js';
 import { patternLaws, BODY } from './laws.js';
 
 const no = (msg) => { throw new Error(`vehicle boss: ${msg}`); };
-const HIT_KINDS = ['round', 'explosive', 'mine'];
+const HIT_KINDS = ['round', 'explosive', 'mine', 'blow'];
 
 // A TANK: it drives its route and its gun follows you. Its tracks break on mines laid in its path; stranded, its
 // engine grille faces where it cannot turn to cover, and launcher rounds through it end it. (Kept by name: a body that
@@ -172,6 +179,42 @@ export const VEHICLES = Object.freeze({
       delivery: { harm: 110, r: 4 }, restock: 8,
     },
     wins: [{ by: 'crew', says: 'its gunners first, from outside their arcs: a dart or rounds' }, { by: 'hack', says: 'a courier (its green light) held in the RF gun is yours: it fetches a package and takes it home into a door whose gunner is down' }, { by: 'escort', says: 'from the second, its drones chase the hacked one: shoot them off it' }] },
+  // THE HYDRA (the first of the BIG BOSSES): a many-headed beast rooted in its lair, never walking, turning to face you.
+  // Its five heads take TURNS round the ring (a state each, `head` its part: skipped once that head is severed): the
+  // awake head's eyes light, it attacks in its element, then hangs low and gasping, its OPENING (`open`: struck only
+  // then). The heads must fall in an ORDER (`order`) that is not the turn order, shown in its lair (seal stones in the
+  // heads' colours) and on its bar: a head struck out of its order shrugs the cut off and the hydra RETORTS (`retort`,
+  // every head rearing: a ring round its body). All five severed, it rears and its HEART shows: the last stand
+  hydra: { name: 'The Hydra', title: 'its heads, in the order of the seals', reads: 'a many-headed serpent rooted in a flooded lair, five necks fanned round its breast, each head its own element',
+    size: [5, 7, 4.6], speed: 0, turn: 0.9, beast: true, look: { tell: '#ffe08a', hazard: '#ff8a5a' },
+    dress: [{ box: [[-2.2, -2, 0], [2.2, 2, 2.4]], fill: '#3c4a3a' }],
+    parts: {
+      'head-ember': { box: [[0.85, -3.38, 0.4], [2.25, -1.98, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 2, shown: 'ember', open: true, element: 'fire', colour: '#ff6a1a', reads: 'the ember head, hung low and gasping after it attacks' },
+      'head-venom': { box: [[1.98, -2.25, 0.4], [3.38, -0.85, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 4, shown: 'venom', open: true, element: 'poison', colour: '#8fe03a', reads: 'the venom head, hung low and gasping after it attacks' },
+      'head-rime': { box: [[2.4, -0.7, 0.4], [3.8, 0.7, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 1, shown: 'rime', open: true, element: 'ice', colour: '#9fe8ff', reads: 'the rime head, hung low and gasping after it attacks' },
+      'head-storm': { box: [[1.98, 0.85, 0.4], [3.38, 2.25, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 5, shown: 'storm', open: true, element: 'thunder', colour: '#fff27a', reads: 'the storm head, hung low and gasping after it attacks' },
+      'head-gloom': { box: [[0.85, 1.98, 0.4], [2.25, 3.38, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 3, shown: 'gloom', open: true, element: 'dark', colour: '#a86bff', reads: 'the gloom head, hung low and gasping after it attacks' },
+      heart: { box: [[1.4, -0.9, 0.8], [2.6, 0.9, 2.4]], takes: ['blow', 'round', 'explosive'], hits: 0, weak: true, mult: 1, shown: 'heart', reads: 'its heart, bare in its breast once its last neck falls' },
+    },
+    retort: 'retort',
+    states: {
+      ember: { head: 'head-ember', moves: { 'ember': 1 }, tempo: 2.2, route: false, to: { venom: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the ember head wakes, attacks, and hangs open' },
+      venom: { head: 'head-venom', moves: { 'venom': 1 }, tempo: 2.2, route: false, to: { rime: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the venom head wakes, attacks, and hangs open' },
+      rime: { head: 'head-rime', moves: { 'rime': 1 }, tempo: 2.2, route: false, to: { storm: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the rime head wakes, attacks, and hangs open' },
+      storm: { head: 'head-storm', moves: { 'storm': 1 }, tempo: 2.2, route: false, to: { gloom: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the storm head wakes, attacks, and hangs open' },
+      gloom: { head: 'head-gloom', moves: { 'gloom': 1 }, tempo: 2.2, route: false, to: { ember: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the gloom head wakes, attacks, and hangs open' },
+      heart: { moves: { 'thrash': 2, 'retort': 1 }, tempo: 1.6, route: false, reads: 'headless, it rears and thrashes: its heart is bare' },
+    },
+    moves: {
+      'ember': { pattern: 'sweep', says: 'rears back, its throat glowing; the arc it will breathe glows on the floor', tune: { reach: 8 } },
+      'venom': { pattern: 'venom', says: 'its throat swells green; where its spit lands is marked' },
+      'rime': { pattern: 'rain', says: 'rimes over and screams at the roof; where the hail falls is marked', tune: { harm: 0.12 } },
+      'storm': { pattern: 'lock', says: 'sparks crawl over its crest; the line follows you, holds, and strikes', tune: { harm: 0.25 } },
+      'gloom': { pattern: 'scythe', says: 'draws back low, its eyes gone dark; the arc glows at your chest' },
+      'retort': { pattern: 'ring', says: 'every head rears at once, hissing; the water round it boils', tune: { harm: 0.2 } },
+      'thrash': { pattern: 'quake', says: 'its stumps lash the floor; the ground round it heaves' },
+    },
+    wins: [{ by: 'order', says: 'strike each head in its opening, in the order its seals burn: a head out of order shrugs the cut off and the hydra lashes back' }, { by: 'weak', part: 'heart', says: 'with its last neck fallen, its heart is bare in its breast' }] },
 });
 export const VEHICLE_IDS = Object.keys(VEHICLES);
 
@@ -186,9 +229,16 @@ export function readVehicle(v, where = 'vehicle') {
     if (p.behind !== undefined && !v.parts[p.behind]) no(`${where}.parts.${id}: behind names another part`);
     if (p.shown !== undefined && ![].concat(p.shown).every((x) => S.includes(x))) no(`${where}.parts.${id}: shown is one of its states, or a list of them (${S.join(', ')})`);
     if (p.from !== undefined && !['behind', 'side'].includes(p.from)) no(`${where}.parts.${id}: from is 'behind' or 'side'`);
+    if (p.order !== undefined && !(Number.isInteger(p.order) && p.order >= 1)) no(`${where}.parts.${id}: order is its place in the sequence the parts fall in, 1 the first`);
+    if (p.open !== undefined && typeof p.open !== 'boolean') no(`${where}.parts.${id}: open is true (struck only in its state's move's opening) or false`);
   }
+  // (an ORDER is a sequence: 1 … n, each place once)
+  const ord = Object.values(v.parts).filter((p) => p.order !== undefined).map((p) => p.order).sort((a, b) => a - b);
+  if (ord.some((o, i) => o !== i + 1)) no(`${where}: the parts' orders are 1 … ${ord.length}, each once (have ${ord.join(', ')})`);
+  if (v.retort !== undefined && !v.moves[v.retort]) no(`${where}.retort: one of its moves (what it does when a part is struck out of its order)`);
   for (const [id, s] of Object.entries(v.states)) {
     for (const m of Object.keys(s.moves || {})) if (!v.moves[m]) no(`${where}.states.${id}: '${m}' is not one of its moves`);
+    if (s.head !== undefined && !v.parts[s.head]) no(`${where}.states.${id}.head: a part (the head whose turn it is: skipped once it is broken)`);
     for (const [t, c] of Object.entries(s.to || {})) {
       if (!S.includes(t)) no(`${where}.states.${id}.to: '${t}' is not a state`);
       if (!c || (c.broken === undefined && c.flown !== true && !(c.after > 0))) no(`${where}.states.${id}.to.${t}: { broken: [parts], any? } | { flown: true } | { after: seconds }`);
@@ -199,13 +249,32 @@ export function readVehicle(v, where = 'vehicle') {
   return v;
 }
 
-/** What a hit of `kind` on `part` does in the vehicle's state (see the header), or null where it does nothing. */
-export function partHit(v, part, kind, state, broken = {}) {
+/** What a hit of `kind` on `part` does in the vehicle's state (see the header), or null where it does nothing. `open`:
+ * whether the state's move is in its opening (a part `open` is struck only then). A part in an ORDER struck before every
+ * part ahead of it is broken is `wrong`: it counts nothing, and the vehicle retorts. */
+export function partHit(v, part, kind, state, broken = {}, { open = true } = {}) {
   const p = v.parts[part];
   if (!p || broken[part] || !p.takes.includes(kind)) return null;
   if (p.behind && !broken[p.behind]) return null;
   if (p.shown && ![].concat(p.shown).includes(state)) return null;
+  if (p.open && !open) return null;
+  if (outOfOrder(v, part, broken)) return { part, counts: false, weak: false, mult: 0, wrong: true };
   return { part, counts: p.hits > 0, weak: !!p.weak, mult: p.mult ?? 1 };
+}
+/** Whether a part in an ORDER has a part ahead of it not yet broken (struck now, it is struck out of its order). */
+export const outOfOrder = (v, part, broken = {}) => { const p = v.parts[part]; return p?.order !== undefined && Object.entries(v.parts).some(([q, x]) => x.order !== undefined && x.order < p.order && !broken[q]); };
+/** The next part of an ORDER to break (its id), or null when none is left (the HUD's `next`). */
+export const nextInOrder = (v, broken = {}) => Object.entries(v.parts).filter(([q, x]) => x.order !== undefined && !broken[q]).sort((a, b) => a[1].order - b[1].order)[0]?.[0] ?? null;
+/** The state a vehicle moves to from `to`, past every state whose `head` is broken (its turn skipped), by each one's
+ * own way on after seconds; `to` itself where its head stands (or it has none). */
+export function turnPast(v, to, broken = {}) {
+  let s = to;
+  for (let k = 0; k < Object.keys(v.states).length && v.states[s]?.head && broken[v.states[s].head]; k++) {
+    const after = Object.entries(v.states[s].to || {}).find(([, c]) => c.after);
+    if (!after) break;
+    s = after[0];
+  }
+  return s;
 }
 
 /** A vehicle boss's laws (see the header). `arms`: the hit kinds the level gives the body (round, explosive, mine). */
@@ -233,6 +302,13 @@ export function vehicleLaws(vehicle, { arms = ['round', 'explosive', 'mine'], mi
   for (const [id, m] of Object.entries(v.moves)) {
     const P = PATTERNS[m.pattern], T = m.tune || {}, tuned = { ...P, ...(T.reach ? { reach: T.reach } : {}), hazards: P.hazards.map((h) => ({ ...h, ...(T.harm ? { harm: T.harm } : {}) })) };
     for (const l of patternLaws(tuned, body)) if (!l.holds) bad.push(`${id}: ${l.law}`);
+  }
+  // THE ORDER (a vehicle whose parts fall in one): each in its place reached in a turn (a state it is shown in, reached),
+  // by what is in hand; with a retort for a part struck out of it
+  const ordered = Object.entries(v.parts).filter(([, p]) => p.order !== undefined);
+  if (ordered.length) {
+    const lost = ordered.filter(([id, p]) => !p.takes.some((k) => arms.includes(k)) || (p.shown && !stateReached(p.shown))).map(([id]) => id);
+    out.push({ law: 'order-reached', holds: !lost.length && !!v.retort, says: lost.length ? `out of reach in their turns: ${lost.join(', ')}` : !v.retort ? 'no retort for a part struck out of its order' : `${ordered.length} parts in an order, each in its turn, a retort for the wrong one` });
   }
   out.push({ law: 'moves-hold', holds: !bad.length, says: bad.length ? bad.join('; ') : 'every move told, escapable, survivable and opened after' });
   const idle = v.carrier ? [] : Object.entries(v.states).filter(([, s]) => !s.window && !Object.keys(s.moves || {}).length).map(([id]) => id);

@@ -44,6 +44,7 @@ export function vehicleRule(id, { route = null, runs = null, packages = null, se
     moves: Object.fromEntries(Object.entries(V.moves).map(([m, x]) => [m, tuned(x)])),
     ...(route ? { route: route.map((q) => [q[0], q[1]]) } : {}), ...(runs ? { runs: runs.map((q) => [q[0], q[1]]) } : {}),
     ...(V.frame ? { frame: V.frame, ...(V.stride ? { stride: { ...V.stride } } : {}) } : {}), ...(V.turn ? { turn: V.turn } : {}),
+    ...(V.retort ? { retort: V.retort } : {}),
     ...(V.carrier ? { carrier: { ...JSON.parse(JSON.stringify(V.carrier)), packages: (packages || []).map((k) => ({ id: k.id, at: [k.at[0], k.at[1], k.at[2] ?? 0] })) } } : {}) };
 }
 

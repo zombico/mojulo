@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PATTERNS, PATTERN_IDS, readPattern, layPattern, hazardHit } from './patterns.js';
 import { patternLaws, hazardReads, BODY } from './laws.js';
 import { BOSSES, BOSS_IDS, readBoss, moveOf, mindPhases, bossLaws } from './bosses.js';
-import { VEHICLES, VEHICLE_IDS, readVehicle, partHit, vehicleLaws } from './vehicles.js';
+import { VEHICLES, VEHICLE_IDS, readVehicle, partHit, vehicleLaws, outOfOrder, nextInOrder, turnPast } from './vehicles.js';
 import { ATTACK_LOOKS, ATTACK_POSES, POSE_REST, WING_BEATS, WING_FLAP, readAttackLook, lookOfMove, windClips, flapWind } from './looks.js';
 
 // BOSS FIGHTS (lib/graph/boss/): attack patterns as timelines held to the laws a body needs of them, human bosses as
@@ -213,3 +213,37 @@ describe('vehicle bosses', () => {
     expect(() => readVehicle({ ...VEHICLES.tank, states: { ...VEHICLES.tank.states, driving: { moves: {}, to: { flying: { after: 1 } } } } })).toThrow(/is not a state/);
   });
 });
+
+describe('a boss of parts in an ORDER and states that are their TURNS (the hydra)', () => {
+  // (the row picked in code: the vehicle whose parts fall in an order)
+  const id = VEHICLE_IDS.find((k) => Object.values(VEHICLES[k].parts).some((p) => p.order != null)), V = VEHICLES[id];
+  const ordered = Object.keys(V.parts).filter((q) => V.parts[q].order != null).sort((a, b) => V.parts[a].order - V.parts[b].order);
+  const turnOf = (q) => Object.keys(V.states).find((s) => V.states[s].head === q);
+  it('is won by blows: each part in its turn, a retort for the wrong one; every move told and escapable', () => {
+    for (const l of vehicleLaws(id, { arms: ['blow'] })) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
+    expect(vehicleLaws(id, { arms: ['mine'] }).find((l) => l.law === 'order-reached').holds).toBe(false);
+  });
+  it('a part is struck in its turn and its opening, in its order; ahead of it, wrong', () => {
+    const [first, second] = ordered;
+    expect(partHit(V, second, 'blow', turnOf(second), {})).toMatchObject({ wrong: true, counts: false });
+    expect(partHit(V, second, 'blow', turnOf(second), { [first]: true })).toMatchObject({ counts: true });
+    expect(partHit(V, first, 'blow', turnOf(first), {}, { open: false })).toBeNull();
+    expect(partHit(V, first, 'blow', turnOf(second), {})).toBeNull();
+    expect(outOfOrder(V, first, {})).toBe(false);
+    expect(nextInOrder(V, { [first]: true })).toBe(second);
+    expect(nextInOrder(V, Object.fromEntries(ordered.map((q) => [q, true])))).toBeNull();
+  });
+  it('a broken part\'s turn is passed over; the turn order is not the order it is won in', () => {
+    const turns = Object.keys(V.states).filter((s) => V.states[s].head), [a, b, c] = turns;
+    expect(turnPast(V, b, { [V.states[b].head]: true })).toBe(c);
+    expect(turnPast(V, a, {})).toBe(a);
+    expect(turns.map((s) => V.states[s].head)).not.toEqual(ordered);
+  });
+  it('refuses an order with a gap, a turn of no part, a retort that is not a move', () => {
+    const P = JSON.parse(JSON.stringify(V.parts)); P[ordered[0]].order = 9;
+    expect(() => readVehicle({ ...V, parts: P })).toThrow(/orders are 1/);
+    expect(() => readVehicle({ ...V, states: { ...V.states, x: { head: 'nope', moves: {} } } })).toThrow(/head: a part/);
+    expect(() => readVehicle({ ...V, retort: 'nope' })).toThrow(/retort/);
+  });
+});
+

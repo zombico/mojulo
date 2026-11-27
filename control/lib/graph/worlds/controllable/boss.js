@@ -27,6 +27,11 @@
  *                 a mine under it, mines.js): a plate counts its hits and breaks, a part behind it is then there to hit,
  *                 a weak spot takes the hit `mult` times, a part `shown` only in its state. Its state moves on when its
  *                 parts are broken (`broken`, all or `any`), its run is flown (`flown`), or after its seconds (`after`)
+ *                 A BEAST OF HEADS (the hydra, boss/vehicles.js): a state that is a part's TURN (`head`) is passed over
+ *                 once that part is broken; a part `open` is struck only in its move's opening; a part in an ORDER struck
+ *                 ahead of its place counts nothing and the boss RETORTS (its `retort` laid at once); a blade's BLOW (a
+ *                 striker whose swing landed on it this step) is judged by part where it reaches, as a round is;
+ *                 state.bosses[id].next the part to strike next
  *
  *   a mecha     a vehicle of the mecha shelf (`frame`: boss/vehicles.js) has its figure played by its state: its form
  *               (`form`: 'tank' its wheels), a state's own `clip` through the state (its reload `loops` times, its fold
@@ -208,7 +213,22 @@ export function buildBoss(E) {
     if (!p || S.broken[part] || !p.takes.includes(kind)) return null;
     if (p.behind && !S.broken[p.behind]) return null;
     if (p.shown && ![].concat(p.shown).includes(S.state)) return null;
+    // (a part struck only in its OPENING, `open`: the state's move laid and opened; a part in an ORDER struck before the
+    // parts ahead of it are broken is WRONG: it counts nothing, and the boss retorts)
+    if (p.open && !(S.cur && S.now >= S.cur.openAt && S.now <= S.cur.openEnd)) return null;
+    if (p.order != null && Object.keys(B.parts).some((q) => B.parts[q].order != null && B.parts[q].order < p.order && !S.broken[q])) return { ...p, wrong: true };
     return p;
+  }
+  // the next part of its ORDER to break, or null (the HUD's: a hydra's head to strike next)
+  const nextInOrder = (B, S) => { let best = null; for (const q of Object.keys(B.parts)) { const o = B.parts[q].order; if (o != null && !S.broken[q] && (best == null || o < B.parts[best].order)) best = q; } return best; };
+  // a TURN skipped once its part is broken (a state's `head`): on by its own way after seconds, past each such
+  function turnPast(B, S, to) {
+    let s = to;
+    for (let k = 0; k < Object.keys(B.states).length && B.states[s] && B.states[s].head && S.broken[B.states[s].head]; k++) {
+      const nx = Object.keys(B.states[s].to || {}).find((x) => B.states[s].to[x].after);
+      if (!nx) break; s = nx;
+    }
+    return s;
   }
   // (where a shot's line enters a part's box, as a share of its length, in the vehicle's frame; null where it misses)
   function rayBox(a, b, box) {
@@ -241,6 +261,12 @@ export function buildBoss(E) {
     count(state, e, S, c.id, c.p, q, dmg);
   }
   function count(state, e, S, id, p, q, dmg) {
+    // (struck out of its order: nothing counts, and it RETORTS, once an opening: its retort laid at once over its move)
+    if (p.wrong) {
+      const B = e.rule.boss, pl = state.pilotId ? state.byId[state.pilotId] : null;
+      if (B.retort && B.moves[B.retort] && pl && (S.retortT == null || state.time - S.retortT > 1.5)) { S.retortT = state.time; S.wrong = { id, t: state.time }; lay(state, e, S, B.retort, pl.transform.pos, state.time); }
+      return;
+    }
     if (p.hits > 0) { S.hits[id] = (S.hits[id] || 0) + 1; if (S.hits[id] >= p.hits) { S.broken[id] = true; if (state.bursts) state.bursts.push({ seq: state.burstSeq++, pos: q.slice(), t: state.time, radius: 2.2 }); } }
     if (p.weak) e.body.hp = Math.max(0, e.body.hp - dmg * (p.mult ?? 1));
     S.lastPart = { id, t: state.time };
@@ -585,20 +611,29 @@ export function buildBoss(E) {
         }
       } else {
         // VEHICLE: what hit it, judged by part (its health given back first); the mines under it
+        S.now = t;
         if (e.body.hp < H0) {
           const lost = H0 - e.body.hp; e.body.hp = H0;
           const causes = [];
           for (const s of state.entities) if (s.lastShot && s.lastShot.targetId === e.id && s.lastShot.t === t0 && s.lastShot.to) causes.push(['round', s.lastShot.to, s.lastShot.from || s.transform.pos]);
           for (const b of state.bursts || []) if (b.t === t0 && !b.effect && Math.hypot(b.pos[0] - e.transform.pos[0], b.pos[1] - e.transform.pos[1]) < Math.max(...B.size) + (b.radius || 0)) causes.push(['explosive', b.pos, b.pos]);
+          // (a BLOW, a blade's: a striker whose swing landed on it this step, judged where its blow reaches, toward the
+          // boss from where it stands, at its chest)
+          for (const s of state.entities) if (s.lastStrike && s.lastStrike.targetId === e.id && s.lastStrike.t === t0) {
+            const sp = s.transform.pos, dx = e.transform.pos[0] - sp[0], dy = e.transform.pos[1] - sp[1], d = Math.hypot(dx, dy) || 1, r = Math.min(d, ((s.strikeParams && s.strikeParams.reach) || 1.4));
+            causes.push(['blow', [sp[0] + (dx / d) * r, sp[1] + (dy / d) * r, sp[2] + ((s.rule && s.rule.eye) || 1.2) * 0.6], sp]);
+          }
           for (const [kind, q, src] of causes) judge(state, e, S, kind, q, lost / causes.length, src);
         }
         for (const m of state.mineBlasts || []) if (m.by === e.id && m.t === t0) judge(state, e, S, 'mine', m.at, 0);
         // its state moves on: parts broken, a run flown, seconds out
         const st = B.states[S.state] || {};
         S.stateT += dt;
-        for (const [to, c] of Object.entries(st.to || {})) {
-          const go = c.broken ? (c.any ? c.broken.some((q) => S.broken[q]) : c.broken.every((q) => S.broken[q])) : c.flown ? !!S.flown : c.after ? S.stateT >= afterOf(S, c) : false;
-          if (go) { S.state = to; S.stateT = 0; S.flown = false; S.cur = null; S.next = t + 1; break; }
+        // (a way on by parts broken before one by seconds: the last head severed ends the turns, never passes them on)
+        for (const [to, c] of Object.entries(st.to || {}).sort((a, b) => (b[1].broken ? 1 : 0) - (a[1].broken ? 1 : 0))) {
+          // (a turn whose part is broken is over at once: on by its way after seconds)
+          const go = c.broken ? (c.any ? c.broken.some((q) => S.broken[q]) : c.broken.every((q) => S.broken[q])) : c.flown ? !!S.flown : c.after ? S.stateT >= afterOf(S, c) || !!(st.head && S.broken[st.head]) : false;
+          if (go) { S.state = turnPast(B, S, to); S.stateT = 0; S.flown = false; S.cur = null; S.next = t + 1; break; }
         }
         const p0 = [e.transform.pos[0], e.transform.pos[1]];
         driveVehicle(state, e, S, dt);
@@ -625,7 +660,9 @@ export function buildBoss(E) {
         const P = B.moves[h.move], R = E.layPattern(P, ...S.cur.frame(pilot.transform.pos), S.cur.t0)[h.k];
         Object.assign(h, { a: R.a, b: R.b, ...(R.o ? { o: R.o } : {}) });
       }
-      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id], ...(c.kind === 'flash' ? { blind: S.blind != null && t < S.blind } : {}) }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax, ...(S.carrier ? { carrier: carrierFacts(S) } : {}), ...(B.states && B.states[S.state] && B.states[S.state].reads ? { reads: B.states[S.state].reads } : {}), ...(S.stateFor ? { left: Math.max(0, S.stateFor - S.stateT) } : {}) };
+      // (a boss of an ORDER says the part to strike next, and the last one struck out of it: the HUD's)
+      const ordered = B.kind === 'vehicle' && B.parts && Object.keys(B.parts).some((q) => B.parts[q].order != null);
+      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(ordered ? { next: nextInOrder(B, S), ...(S.wrong ? { wrong: S.wrong } : {}) } : {}), ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id], ...(c.kind === 'flash' ? { blind: S.blind != null && t < S.blind } : {}) }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax, ...(S.carrier ? { carrier: carrierFacts(S) } : {}), ...(B.states && B.states[S.state] && B.states[S.state].reads ? { reads: B.states[S.state].reads } : {}), ...(S.stateFor ? { left: Math.max(0, S.stateFor - S.stateT) } : {}) };
     }
     // THE HAZARDS LAND: on each body of another team inside one, once a hazard, unless it is through, under or behind cover
     for (const h of state.bossHazards) {

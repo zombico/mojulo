@@ -393,3 +393,37 @@ describe('the brood walker', () => {
     expect(s.bosses['brood-walker'].carrier.deliveries).toBe(3);
   });
 });
+
+describe('a boss of heads in an order (the hydra, boss/vehicles.js): its turns, its order, its heart', () => {
+  it('a head is struck only in its own turn\'s opening and in its order: out of it the boss retorts; severed, its turn is skipped; all severed, its heart', () => {
+    const s = world([pilot([8, 0]), vehicleEntity('hydra', { at: [0, 0, 0], hp: 300 })]), H = s.byId.hydra, B = H.rule.boss;
+    const heads = Object.keys(B.parts).filter((q) => B.parts[q].order != null), byOrder = [...heads].sort((a, b) => B.parts[a].order - B.parts[b].order);
+    const centre = (q) => { const b = B.parts[q].box, L = [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2, (b[0][2] + b[1][2]) / 2], h = H.transform.heading || 0;
+      return [H.transform.pos[0] + L[0] * Math.cos(h) - L[1] * Math.sin(h), H.transform.pos[1] + L[0] * Math.sin(h) + L[1] * Math.cos(h), H.transform.pos[2] + L[2]]; };
+    // (steps until the boss is in this head's turn and its move has opened)
+    const openOn = (head) => { for (let i = 0; i < 60 * 120; i++) { const S = H.bossS; if (S && B.states[S.state]?.head === head && S.cur && s.time >= S.cur.openAt && s.time < S.cur.openEnd - 0.2) return true; E.stepWorld(s, {}, 1 / 60); s.byId.p.body.hp = 1e6; } return false; };
+    E.stepWorld(s, {}, 1 / 60);
+    expect(s.bosses.hydra.next).toBe(byOrder[0]);
+    // (a head out of its order, in its own opening: nothing counts, the hydra retorts)
+    const early = byOrder.find((q) => B.parts[q].order > 1);
+    expect(openOn(early)).toBe(true);
+    const laid = s.bossHazards.length;
+    E.bossHit(s, H, 'blow', centre(early), 10);
+    expect(H.bossS.hits[early] ?? 0).toBe(0);
+    expect(H.bossS.cur.id).toBe(B.retort);
+    expect(s.bossHazards.length).toBeGreaterThan(laid);
+    // (in its order, each in its opening: severed, its turn passed over from then on)
+    for (const q of byOrder) {
+      expect(openOn(q)).toBe(true);
+      for (let k = 0; k < B.parts[q].hits; k++) E.bossHit(s, H, 'blow', centre(q), 10);
+      expect(H.bossS.broken[q]).toBe(true);
+      E.stepWorld(s, {}, 1 / 60);
+      expect(B.states[H.bossS.state]?.head).not.toBe(q);
+    }
+    // (a turn never comes round to a severed head: its state is the heart's now)
+    expect(H.bossS.state).toBe('heart');
+    expect(s.bosses.hydra.next).toBeNull();
+    const hp0 = H.body.hp; E.bossHit(s, H, 'blow', centre('heart'), 25);
+    expect(H.body.hp).toBeLessThan(hp0);
+  });
+});
