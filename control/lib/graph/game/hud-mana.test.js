@@ -44,6 +44,10 @@ describe('a level\'s rows on mana-ui', () => {
   });
   it('a banner is a moment, a toast a line of its slot', () => {
     expect(L.feed.rows.banners).toEqual([{ on: 'goal.*', text: 'GOAL {score}' }]);
+    // (a banner's second line, `sub`, carried where it is written: a round's pay under 'Round complete')
+    expect(hudToMana([{ on: 'shift:paid:*', as: 'banner', text: 'Round complete', sub: 'Paid 40 coin' }]).feed.rows.banners).toEqual([{ on: 'shift:paid:*', text: 'Round complete', sub: 'Paid 40 coin' }]);
+    expect(levelHud('console', { count: true }).count).toBe(true);
+    expect(levelHud('console').count).toBeUndefined();
     expect(L.feed.rows.toasts.map((t) => t.on ?? `var:${t.var}`)).toEqual(['hit', 'var:score']);
     expect(L.feed.rows.lines).toHaveLength(1);
   });

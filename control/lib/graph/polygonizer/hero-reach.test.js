@@ -96,7 +96,8 @@ describe('hero-reach', () => {
   }, 240000);
 
   it('a far, low target takes a step: the striking foot moves toward it and the hand lands, the body over its feet', () => {
-    const at = ahead(1.6, { up: -0.3 }), a = strikeTarget(R, G.body, 'R', { at, surface: 'knuckles' }, { n0: G.nodes });
+    // (1.7 of the reach: under realistic laws 18 the hand is sized to the body, and the hips alone reach 1.6)
+    const at = ahead(1.7, { up: -0.3 }), a = strikeTarget(R, G.body, 'R', { at, surface: 'knuckles' }, { n0: G.nodes });
     expect(RUNGS[a.rung]).toBe('step'); expect(a.step.side).toBe('R');
     const before = G.body.feet.R, after = a.pose.feet.R, toward = [at[0] - before[0], at[1] - before[1]];
     expect((after[0] - before[0]) * toward[0] + (after[1] - before[1]) * toward[1]).toBeGreaterThan(0);

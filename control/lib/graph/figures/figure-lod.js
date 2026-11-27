@@ -30,9 +30,9 @@ const enc = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('b
 const LAYOUT = { pos: [Float32Array, 3], col: [Uint8Array, 3], jnt: [Uint8Array, 4], wgt: [Float32Array, 4], uv: [Float32Array, 2] };
 
 /** a part's triangles; 0 for an indexed or empty part (not simplified here) */
-const partFaces = (p) => (p && Number.isFinite(p.faces) && typeof p.pos === 'string' && !p.idx ? p.faces : 0);
+export const partFaces = (p) => (p && Number.isFinite(p.faces) && typeof p.pos === 'string' && !p.idx ? p.faces : 0);
 
-function simplifyPart(p, keep, loose = false) {
+export function simplifyPart(p, keep, loose = false) {
   const F = p.faces, A = {};
   // every per-corner buffer the part carries, the known ones by their type and any other (a lit read's normals, its
   // tangents) as bytes, a corner's share; a buffer that is not a corner's each leaves the part whole
@@ -48,6 +48,8 @@ function simplifyPart(p, keep, loose = false) {
   // WELD: a corner is a vertex where every attribute it carries agrees, byte for byte
   // (LOOSE, a figure seen far off: welded by its position alone, so a seam in its colour, its uv or its weights no longer
   // holds the mesh; the surviving corner's own attributes are drawn on both sides of it)
+  // (`loose: 'edges'`: welded by position as loose is, its open edges still locked: a head whose skin under the collar the
+  // crowd took away keeps its new edge where it was, where loose drew it out into spikes across the shirt)
   const keyOf = loose ? (c) => A.pos.a[c * 3] + ',' + A.pos.a[c * 3 + 1] + ',' + A.pos.a[c * 3 + 2] : (c) => Object.keys(A).map((k) => { const { a, n } = A[k]; let s = ''; for (let q = 0; q < n; q++) s += a[c * n + q] + ','; return s; }).join('|');
   const vid = new Map(), first = [], V = [], tris = [];
   for (let c = 0; c < F * 3; c++) {
@@ -62,7 +64,7 @@ function simplifyPart(p, keep, loose = false) {
   for (const t of Ftris) for (let q = 0; q < 3; q++) { const e = ek(t[q], t[(q + 1) % 3]); uses.set(e, (uses.get(e) || 0) + 1); }
   const locked = new Uint8Array(V.length);
   // (loose: none locked; a hem or an opening is not seen from far off)
-  if (!loose) for (const [e, n] of uses) if (n === 1) { locked[Math.floor(e / 1e7)] = 1; locked[e % 1e7] = 1; }
+  if (loose !== true) for (const [e, n] of uses) if (n === 1) { locked[Math.floor(e / 1e7)] = 1; locked[e % 1e7] = 1; }
   const S = simplifyMesh(V, Ftris, { target: keep, locked, turn: 0.2 });
   if (!S.F.length || S.F.length >= F) return p;
   // back to a soup: a surviving corner keeps its own attributes and takes its collapsed position

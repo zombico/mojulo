@@ -17,8 +17,11 @@ const street = (L) => !onDeck(L) && !onShore(L);
 describe('the metro\'s traffic, planned', () => {
   it('drives each arterial\'s travel lanes but a streetcar\'s, the land\'s length, each its way', () => {
     const travel = D.lines.flatMap((l) => l.bands.filter((b) => b.kind === 'travel' && !b.streetcar).map((b) => ({ l, b })));
-    expect(F.lanes.filter(street).length).toBe(travel.length);
-    for (const L of F.lanes.filter(street)) {
+    // (and each streetcar track a lane of its own, its line's id marked: streetcar.test.js)
+    const tram = (L) => L.line.endsWith(':tram'), tracks = D.lines.filter((l) => l.kind.streetcar).reduce((n, l) => n + l.tracks.length, 0);
+    expect(F.lanes.filter((L) => street(L) && tram(L)).length).toBe(tracks);
+    expect(F.lanes.filter((L) => street(L) && !tram(L)).length).toBe(travel.length);
+    for (const L of F.lanes.filter((x) => street(x) && !tram(x))) {
       const l = D.lines.find((x) => x.id === L.line), b = l.bands.find((x) => x.kind === 'travel' && !x.streetcar && Math.abs(l.at + (x.from + x.to) / 2 - L.cross) < 1e-3);
       expect(b).toBeDefined();
       expect(L.dir).toBe(b.dir);

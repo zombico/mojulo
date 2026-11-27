@@ -20,7 +20,13 @@ import { TRAFFIC_MODEL_SOURCE } from './traffic-model.js';
 // more); the probe's `blocks` counts the lanes' blocks this frame. Absent `play`, not one byte of it.
 //
 //   flow { T, signals, near, kinds: [{ model, extra?, len }], tints: [[r, g, b] linear], lanes: [{ axis, cross, lo, hi,
-//          dir, total, speed, crossings, ground: [u, z, …] }], cars: [[lane, kind, tint, startFrac]] }
+//          dir, total, speed, crossings, ground: [u, z, …] }], cars: [[lane, kind, tint, startFrac]], lod? }
+//
+// ITS OUTLINES (`lod`: { full, bins, glass }, a geocity under the view cone, geocity/flow.js FLOW_LOD): a vehicle farther
+// than `full` from the eye is drawn as its kind's OUTLINE, cut on the page from its own pooled template: its heights in
+// `bins` along its length (a bonnet, a windscreen, a roof, a boot; a cab and its box), its glass (the top `glass` of a
+// bin) where its trim has windows, its tyres a dark band under its sill, each face toned as the model's are (up, side). Thirty-odd triangles where its model has a thousand or more, painted with its own tint: one draw a
+// kind. Absent `lod`, not one byte of it.
 
 /** A lane's BLOCKS (played): each body standing in it (`bodies`: [{ p, f, hw, hl }], a box turned to `f` on the ground),
  *  as where along the lane it lies (metres from the lane's start, the way it drives) and its half length along it. */
@@ -58,6 +64,71 @@ export function stepFlowYielding(m, t, blocks, T, tick) {
   return m;
 }
 
+/** A kind's OUTLINE (`lod`: { bins }) cut from its template's positions (`paint`, and `trim` where it has one: flat
+ *  [x, y, z, …], y its length, the nose +y, z up from the ground): its width and length, its sill (the paint's lowest),
+ *  each bin's height along its length (the highest corner of either part whose y falls in it), and which bins carry
+ *  glass: those standing over its lowest (its bonnet) where its trim (its windows, its tyres, its lamps) rises past the
+ *  middle of the bin's body, so a cabin's windows are where its model has them (with none, a van's, a bus's, or no trim,
+ *  the nose's bin alone); `base` its
+ *  paint's brightest corner colour (`colours`, flat rgb: its roof, toned up), white without. Pure. */
+export function outlineOf(paint, trim, { bins = 5 } = {}, colours = null) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, sill = Infinity;
+  for (let i = 0; i < paint.length; i += 3) { x0 = Math.min(x0, paint[i]); x1 = Math.max(x1, paint[i]); y0 = Math.min(y0, paint[i + 1]); y1 = Math.max(y1, paint[i + 1]); sill = Math.min(sill, paint[i + 2]); }
+  sill = Math.max(0, sill);
+  const heights = new Array(bins).fill(sill), high = new Array(bins).fill(-Infinity), dy = (y1 - y0) / bins || 1;
+  const binOf = (y) => Math.min(bins - 1, Math.max(0, Math.floor((y - y0) / dy)));
+  for (const P of [paint, trim]) if (P) for (let i = 0; i < P.length; i += 3) {
+    const j = binOf(P[i + 1]);
+    if (P[i] >= x0 - 0.05 && P[i] <= x1 + 0.05 && P[i + 2] > heights[j]) heights[j] = P[i + 2];
+  }
+  if (trim) for (let i = 0; i < trim.length; i += 3) { const j = binOf(trim[i + 1]); if (trim[i + 2] > high[j]) high[j] = trim[i + 2]; }
+  // (a cabin over its bonnet whose trim rises in it: its windows; a van's or a bus's, all as tall, the nose's)
+  const low = Math.min(...heights), glass = heights.map((h, j) => !!trim && h > low + 0.25 && high[j] > sill + 0.6 * (h - sill));
+  if (!glass.some(Boolean)) glass[bins - 1] = true;
+  let base = [1, 1, 1];
+  if (colours) for (let i = 0, top = -1; i < colours.length; i += 3) { const v = colours[i] + colours[i + 1] + colours[i + 2]; if (v > top) { top = v; base = [colours[i], colours[i + 1], colours[i + 2]]; } }
+  return { x0, x1, y0, y1, sill, heights, glass, base };
+}
+
+/** The outline's triangles: [positions, colours] flat, each face toned as the model's are (up 1, side 0.78; no floor,
+ *  never seen): the tyres a dark band under the sill, each bin's body to its height, a glass bin's top `glass` of its
+ *  rise dark under a roof of its paint. Pure (the page runs this source). */
+export function outlineFaces(O, { glass = 0.4 } = {}) {
+  const pos = [], col = [], dy = (O.y1 - O.y0) / O.heights.length;
+  const quad = (a, b, c, d, t, k) => { for (const p of [a, b, c, a, c, d]) { pos.push(p[0], p[1], p[2]); col.push(t[0] * k, t[1] * k, t[2] * k); } };
+  const box = (x0, x1, y0, y1, z0, z1, t, top = t) => {
+    if (z1 - z0 < 1e-3) return;
+    quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], top, 1);
+    quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], t, 0.78); quad([x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1], t, 0.78);
+    quad([x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], t, 0.78); quad([x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1], t, 0.78);
+  };
+  const W = O.base || [1, 1, 1], TYRE = [0.05, 0.05, 0.06], GLASS = [0.1, 0.12, 0.15], inset = (O.x1 - O.x0) * 0.04;
+  if (O.sill > 0.08) box(O.x0 + inset, O.x1 - inset, O.y0 + dy * 0.4, O.y1 - dy * 0.4, 0, O.sill, TYRE);
+  O.heights.forEach((h, j) => {
+    const y0 = O.y0 + dy * j, y1 = y0 + dy;
+    if (!O.glass[j]) { box(O.x0, O.x1, y0, y1, O.sill, h, W); return; }
+    const g0 = h - glass * (h - O.sill);
+    box(O.x0, O.x1, y0, y1, O.sill, g0, W);
+    box(O.x0 + inset, O.x1 - inset, y0, y1, g0, h, GLASS, W);
+  });
+  return [pos, col];
+}
+
+/** The page's source of the outline builder: `__flOutline(paintGeo, trimGeo, lod)` → a BufferGeometry. */
+function outlineSource() {
+  return `${outlineOf.toString()}
+${outlineFaces.toString()}
+function __flOutline(paint, trim, lod) {
+  const P = paint.attributes.position.array, T = trim ? trim.attributes.position.array : null;
+  const [pos, col] = outlineFaces(outlineOf(P, T, lod, paint.attributes.color ? paint.attributes.color.array : null), lod);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+  g.computeBoundingSphere();
+  return g;
+}`;
+}
+
 /** A flow fit to emit: its lanes, signals and vehicles, or null. */
 export function readFlow(flow) {
   if (!flow || typeof flow !== 'object') return null;
@@ -66,8 +137,8 @@ export function readFlow(flow) {
 }
 
 /** The page's script: `stepFlow(t)` (t in ms, the world clock), `window.__mojFlow` its probe. */
-export function flowChannelScript(flow, { play = false } = {}) {
-  const F = { T: flow.T, signals: flow.signals, near: flow.near ?? 320, kinds: flow.kinds.map((k) => ({ model: k.model, ...(k.extra ? { extra: k.extra } : {}), len: k.len, ...(play ? { wid: k.wid ?? 1.9 } : {}) })), tints: flow.tints, lanes: flow.lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, ground: L.ground })), cars: flow.cars };
+export function flowChannelScript(flow, { play = false, coat = false, cast = false, hubs = false } = {}) {
+  const F = { T: flow.T, signals: flow.signals, near: flow.near ?? 320, kinds: flow.kinds.map((k) => ({ model: k.model, ...(k.extra ? { extra: k.extra } : {}), len: k.len, ...(play ? { wid: k.wid ?? 1.9 } : {}) })), tints: flow.tints, lanes: flow.lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, ground: L.ground })), cars: flow.cars, ...(flow.lod ? { lod: flow.lod } : {}) };
   return `
 // ---- flow channel (a metro's traffic: lanes stepped and vehicles drawn near the camera only) ----
 let stepFlow = () => {};
@@ -77,17 +148,53 @@ ${TRAFFIC_MODEL_SOURCE}
 const __flCycle = FLOW.signals[0].cycle;
 // each kind's parts: instanced meshes on the pooled templates, sized to its vehicles, drawn as many as are near
 const __flMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-const __flN = FLOW.kinds.map(() => 0); for (const c of FLOW.cars) __flN[c[1]]++;
+// (traffic is never footing nor a wall the chase camera pulls in on: a ray passes through it, as through the cab pool's
+// cars. Footing, a driven car's ground probe landed on a passing car's roof and dropped off it: a hop)
+const __flNoRay = () => {};
+${coat ? `// (the near bodies under a clear coat, channels/car-paint.js: the paint's and the trim's, each its own; the far ones plain)
+const __flCoat = { paint: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'paint'), trim: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'trim') };
+` : ''}const __flN = FLOW.kinds.map(() => 0); for (const c of FLOW.cars) __flN[c[1]]++;
 const __flParts = FLOW.kinds.map((k, i) => ['paint', 'trim', k.extra || null].filter(Boolean).map((part) => {
   const geo = typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|' + part] : null;
   if (!geo || !__flN[i]) return null;
-  const im = new THREE.InstancedMesh(geo, __flMat, __flN[i]);
-  im.count = 0; im.frustumCulled = false; im.userData.g = 'flow:' + k.model;
+  const im = new THREE.InstancedMesh(geo, ${coat ? '__flCoat[part] || __flMat' : '__flMat'}, __flN[i]);
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow:' + k.model;${cast ? `
+  im.castShadow = true;   // (the near vehicles cast into the live light's actors' map, the one that follows the player: a draw a part)` : ''}
   if (part === 'paint') im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
   scene.add(im);
   return { im, paint: part === 'paint' };
 }).filter(Boolean));
-const __flTint = FLOW.tints.map((t) => new THREE.Color(t[0], t[1], t[2]));
+${flow.night ? `// (AT NIGHT each vehicle's lamps: its headlights at its front, its tail lights at its back, lit by themselves, on the
+// same matrices as its body; a template faces +y)
+const __flLampGeo = (bb, front) => {
+  const w = bb.max.x - bb.min.x, h = bb.max.z - bb.min.z, cx = (bb.min.x + bb.max.x) / 2, y = front ? bb.max.y + 0.012 : bb.min.y - 0.012, z = bb.min.z + h * (front ? 0.4 : 0.5), pos = [];
+  for (const sx of [-1, 1]) { const g = new THREE.BoxGeometry(front ? 0.34 : 0.3, 0.05, front ? 0.15 : 0.12).toNonIndexed(); g.translate(cx + sx * (w / 2 - 0.34), y, z); pos.push(...g.attributes.position.array); }
+  const G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); return G;
+};
+const __flHead = new THREE.MeshBasicMaterial({ color: 0xfff1c8, toneMapped: false }), __flTail = new THREE.MeshBasicMaterial({ color: 0xff2414, toneMapped: false });
+FLOW.kinds.forEach((k, i) => {
+  const geo = __flN[i] && typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|paint'] : null;
+  if (!geo) return;
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  for (const [front, mat] of [[true, __flHead], [false, __flTail]]) {
+    const im = new THREE.InstancedMesh(__flLampGeo(geo.boundingBox, front), mat, __flN[i]);
+    im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-lamps:' + k.model; scene.add(im);
+    __flParts[i].push({ im, paint: false });
+  }
+});
+` : ''}
+${flow.lod ? `${outlineSource()}
+const __flFar = FLOW.kinds.map((k, i) => {
+  const geo = __flN[i] && typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|paint'] : null;
+  if (!geo) return null;
+  const im = new THREE.InstancedMesh(__flOutline(geo, __POOLS[k.model + '|trim'], FLOW.lod), __flMat, __flN[i]);
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-far:' + k.model;
+  im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
+  scene.add(im);
+  return im;
+});
+const __flFarAt = FLOW.kinds.map(() => 0), __flFull2 = FLOW.lod.full * FLOW.lod.full;
+` : ''}const __flTint = FLOW.tints.map((t) => new THREE.Color(t[0], t[1], t[2]));
 const __flLanes = FLOW.lanes.map((L, li) => ({ L, cars: FLOW.cars.filter((c) => c[0] === li), m: null }));
 // the road's height at u along a lane (its samples ascending)
 function __flZ(g, u) {
@@ -121,12 +228,22 @@ ${flowYield.toString()}
 ${stepFlowYielding.toString()}
 const __flBlocks = (L) => laneBlocks(L, __flBodies, FLOW.T, __flZ);
 ` : ''}window.__mojFlow = { lanes: FLOW.lanes.length, cars: FLOW.cars.length, active: 0, drawn: 0, pose: [] };
+${hubs ? `// (each model's hubcaps, one instanced disc a wheel of every car of it drawn near: channels/hub-disc.js)
+const __flHM = new THREE.Matrix4();
+const __flDisc = FLOW.kinds.map((k, i) => {
+  const H = typeof __HUBS !== 'undefined' ? __HUBS[k.model] : null;
+  if (!H || !H.length || !__flN[i]) return null;
+  const im = new THREE.InstancedMesh(__hubDisc(H[0].r), __hubMat, __flN[i] * H.length);
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-hubs:' + k.model; scene.add(im);
+  return { im, hubs: H };
+});
+` : ''}const __flNow = (m, k, L, sec) => { const c = m.cars[k], a = Math.max(0, Math.min(FLOW.T.DT || 0, sec - m.t)); let s = c.s + (c.v || 0) * a; if (s >= L.total) s -= L.total; return s; };
 stepFlow = (t) => {
   const sec = t / 1000, p = camera.position, R = FLOW.near;
   camera.getWorldDirection(__flF);
   const fl = Math.hypot(__flF.x, __flF.y) || 1, fx = __flF.x / fl, fy = __flF.y / fl;
   for (let i = 0; i < __flAt.length; i++) __flAt[i] = 0;
-${play ? '  __flWorld(); __flNB = 0;\n' : ''}  let active = 0;
+${flow.lod ? '  for (let i = 0; i < __flFarAt.length; i++) __flFarAt[i] = 0;\n' : ''}${play ? '  __flWorld(); __flNB = 0;\n' : ''}  let active = 0;
   const pose = [];
   for (const lane of __flLanes) {
     const L = lane.L;
@@ -141,7 +258,9 @@ ${play ? '  __flWorld(); __flNB = 0;\n' : ''}  let active = 0;
 ${play ? '    const __flB = __flBlocks(L); __flNB += __flB.length;\n    if (__flB.length) stepFlowYielding(m, sec, __flB, FLOW.T, trafficTick); else\n' : ''}    stepTraffic(m, sec);
     const heading = L.axis === 'y' ? (L.dir >= 0 ? 0 : Math.PI) : (L.dir >= 0 ? -Math.PI / 2 : Math.PI / 2), sg = L.dir >= 0 ? 1 : -1;
     for (let k = 0; k < m.cars.length; k++) {
-      const c = lane.cars[k], kind = FLOW.kinds[c[1]], s = m.cars[k].s, u = sg > 0 ? L.lo + s : L.hi - s;
+      // (drawn where it is now, not where the model's last tick left it: carried on by its own speed for the time since
+      // that tick, never more than a tick, so it moves every frame and not every few; the model is unchanged)
+      const c = lane.cars[k], kind = FLOW.kinds[c[1]], s = __flNow(m, k, L, sec), u = sg > 0 ? L.lo + s : L.hi - s;
       const x = L.axis === 'y' ? L.cross : u, y = L.axis === 'y' ? u : L.cross, dx = x - p.x, dy = y - p.y;
 ${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world now, drawn and held there)\n      if (window.__mojTaken && window.__mojTaken[__flLanes.indexOf(lane) + \':\' + k]) continue;\n      // (near the pilot, seen or not: a hull the world holds its bodies out of)\n      if (__flHulls && (x - __flPil[0]) * (x - __flPil[0]) + (y - __flPil[1]) * (y - __flPil[1]) < 1600) __flHulls.push({ p: [x, y, __flZ(L.ground, u)], heading: heading + Math.PI / 2, hull: [kind.wid / 2, kind.len / 2], v: m.cars[k].v, id: __flLanes.indexOf(lane) + \':\' + k, model: kind.model, tint: FLOW.tints[c[2]] });\n' : ''}      // (within reach, and not behind the camera)
       if (dx * dx + dy * dy > R * R || dx * fx + dy * fy < -kind.len) continue;
@@ -149,14 +268,18 @@ ${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world n
       if (dx * dx + dy * dy + dz * dz > R * R) continue;
       __flE.set(Math.atan2(zf - zr, 2 * h), 0, heading); __flQ.setFromEuler(__flE); __flP.set(x, y, (zf + zr) / 2);
       __flM.compose(__flP, __flQ, __flS);
-      const n = __flAt[c[1]]++;
-      for (const part of __flParts[c[1]]) { part.im.setMatrixAt(n, __flM); if (part.paint) part.im.setColorAt(n, __flTint[c[2]]); }
+${flow.lod ? "      // (past its full reach: its outline)\n      if (dx * dx + dy * dy + dz * dz > __flFull2 && __flFar[c[1]]) { const f = __flFar[c[1]], j = __flFarAt[c[1]]++; f.setMatrixAt(j, __flM); f.setColorAt(j, __flTint[c[2]]); if (pose.length < 64) pose.push({ kind: c[1], at: [x, y, (zf + zr) / 2], v: m.cars[k].v, far: true }); continue; }\n" : ''}      const n = __flAt[c[1]]++;
+      for (const part of __flParts[c[1]]) { part.im.setMatrixAt(n, __flM); if (part.paint) part.im.setColorAt(n, __flTint[c[2]]); }${hubs ? `
+      // (its hubcaps turned by the ground it has covered along its lane: channels/hub-disc.js)
+      const D = __flDisc[c[1]];
+      if (D) for (let j = 0; j < D.hubs.length; j++) D.im.setMatrixAt(n * D.hubs.length + j, __hubSpin(__flM, D.hubs[j], s / D.hubs[j].r, __flHM));` : ''}
       if (pose.length < 64) pose.push({ kind: c[1], at: [x, y, (zf + zr) / 2], v: m.cars[k].v });
     }
   }
   let drawn = 0;
-  __flParts.forEach((parts, i) => { for (const part of parts) { part.im.count = __flAt[i]; part.im.instanceMatrix.needsUpdate = true; if (part.paint && part.im.instanceColor) part.im.instanceColor.needsUpdate = true; } drawn += __flAt[i]; });
-  const P = window.__mojFlow; P.active = active; P.drawn = drawn; P.pose = pose;
+  __flParts.forEach((parts, i) => { for (const part of parts) { part.im.count = __flAt[i]; part.im.instanceMatrix.needsUpdate = true; if (part.paint && part.im.instanceColor) part.im.instanceColor.needsUpdate = true; } drawn += __flAt[i]; });${hubs ? `
+  __flDisc.forEach((D, i) => { if (!D) return; D.im.count = __flAt[i] * D.hubs.length; D.im.instanceMatrix.needsUpdate = true; });` : ''}
+${flow.lod ? '  let far = 0;\n  __flFar.forEach((f, i) => { if (!f) return; f.count = __flFarAt[i]; f.instanceMatrix.needsUpdate = true; f.instanceColor.needsUpdate = true; far += __flFarAt[i]; });\n  window.__mojFlow.far = far;\n' : ''}  const P = window.__mojFlow; P.active = active; P.drawn = drawn; P.pose = pose;
 ${play ? '  P.blocks = __flNB;\n' : ''}};
 }`;
 }

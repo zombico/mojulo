@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readMinigames, minigameCues, lowerMinigames, MINIGAMES } from './minigames.js';
+import { readMinigames, minigameCues, lowerMinigames, MINIGAMES, STALLS } from './minigames.js';
 import { lowerPlay } from './direction.js';
 import { createBusState, processEvents, watchEvents } from '../../worlds/event-bus.js';
 import { eventsChannelScript } from '../../scene/channels/events.js';
@@ -58,6 +58,20 @@ describe('play.minigames: read and lowered', () => {
     expect(L.bus.log.some((e) => e.type === 'flag:angler')).toBe(true);
     L.fire('minigame-won:pond');
     expect(L.bus.vars['held:bag:golden-lure']).toBe(1);
+  });
+
+  it('a job\'s game: mowing takes a park\'s lawn and its time; its place starts it only while its if holds, else says why', () => {
+    const LAWN = { rows: ['..T.', '====', '.*..'], start: [3.5, 1.5, Math.PI] };
+    const play = { minigames: [{ id: 'grounds', game: 'mowing', at: { at: [6, 2], r: 3 }, lawn: LAWN, time: 60, gold: 0, if: { var: 'flag-took-grounds', gte: 1 }, locked: 'Take the job first' }] };
+    const [g] = readMinigames(play);
+    expect(g).toMatchObject({ game: 'mowing', title: 'Mowing', goal: MINIGAMES.mowing.goal, lawn: LAWN, time: 60 });
+    expect(minigameCues(play)[0]).toEqual({ id: 'minigame-grounds', when: { use: { at: [6, 2], r: 3 }, prompt: 'mow the lawn' }, then: { emit: 'minigame:grounds' }, if: { var: 'flag-took-grounds', gte: 1 }, else: { say: 'Take the job first', as: 'toast' } });
+    // (the page's cfg: the lawn, never the gate)
+    expect(lowerMinigames(play).minigames.games[0]).toMatchObject({ lawn: LAWN, time: 60 });
+    expect(lowerMinigames(play).minigames.games[0].if).toBeUndefined();
+    expect(STALLS).not.toContain('mowing');
+    expect(() => readMinigames({ minigames: [{ id: 'a', game: 'mowing', lawn: { rows: ['..', '...'] } }] })).toThrow(/lawn/);
+    expect(() => readMinigames({ minigames: [{ id: 'a', game: 'fishing', lawn: LAWN }] })).toThrow(/lawn/);
   });
 
   it('gold goes where the party\'s goes (play.rpg rules.gold)', () => {
@@ -122,6 +136,54 @@ describe('the page: a round in a window over the field', () => {
     expect(r.won).toBe(false);
     expect(P.bus.vars['minigame-last-cab']).toBe(r.score);
     expect(P.queue.map((e) => e.type).slice(-2)).toEqual(['minigame-done:cab', 'minigame-lost:cab']);
+  });
+
+  it('mowing: held keys drive the mower over its lawn; the lawn all cut wins, and says so', () => {
+    const P = page({ minigames: [{ id: 'grounds', game: 'mowing', gold: 0, lawn: { rows: ['......'], start: [0.5, 0.5, 0] } }] });
+    P.api.open('grounds');
+    expect(P.window.__mojFreeze).toBe(true);
+    P.key('KeyW');
+    P.frames(10, 50);
+    expect(P.api.game().mower.x).toBeGreaterThan(1);
+    P.key('KeyW', true);
+    const x = P.api.game().mower.x;
+    P.frames(20, 50);
+    expect(P.api.game().mower.x - x).toBeLessThan(1);   // (let go, it rolls to a stop)
+    P.key('KeyW');
+    P.frames(60, 50);
+    expect(P.api.state()).toMatchObject({ phase: 'result', won: true, pay: 0, score: 1000 });
+    expect(P.queue.map((e) => e.type)).toEqual(['minigame-done:grounds', 'minigame-won:grounds']);
+  });
+
+  it('deskwork: a page of its own at the rank its commendations make; answered right, its quota met pays, commends and promotes', () => {
+    const sched = [{ at: 1, kind: 'invoice', patience: 60 }, { at: 2, kind: 'decision', patience: 60 }];
+    const desk = { id: 'desk', game: 'deskwork', gold: 0.1, purse: 'held:bag:coin', level: 'held:bag:commendation', each: 'held:bag:commendation', schedules: [sched, sched] };
+    const P = page({ minigames: [desk] }, { 'held:bag:coin': 5, 'held:bag:commendation': 1 });
+    P.api.open('desk');
+    expect(P.api.game()).toMatchObject({ rank: 0, tab: 'inbox' });
+    expect(P.window.__mojFreeze).toBe(true);
+    // (a bracket turns the tabs; a number answers the open ticket's step)
+    P.key('BracketRight');
+    expect(P.api.game().tab).toBe('invoices');
+    P.frames(60, 50);
+    for (let guard = 0; guard < 20; guard++) {
+      const s = P.api.game(), x = s.tickets.find((y) => y.state === 'open');
+      if (!x) break;
+      P.api.act({ type: 'open', id: x.id });
+      P.key(`Digit${x.steps[x.on].answer + 1}`);
+    }
+    expect(P.api.game().served).toBe(2);
+    P.key('Escape');
+    const r = P.api.state();
+    expect(r).toMatchObject({ phase: 'result', won: true, score: 200, pay: 20 });
+    expect(P.bus.vars['held:bag:coin']).toBe(25);
+    expect(P.bus.vars['held:bag:commendation']).toBe(2);
+    expect(P.queue.map((e) => e.type)).toEqual(['in:bag:coin:20', 'in:bag:commendation:1', 'minigame-done:desk', 'minigame-won:desk']);
+    // (two commendations a promotion: the next shift is an Associate's of a sort, on the next rank's schedule)
+    P.key('Space');
+    P.api.open('desk');
+    expect(P.api.game().rank).toBe(1);
+    expect(() => readMinigames({ minigames: [{ id: 'a', game: 'fishing', schedules: [sched] }] })).toThrow(/schedules/);
   });
 
   it('match: the arrows move the cursor, a pick selects; Escape ends the round as it stands', () => {

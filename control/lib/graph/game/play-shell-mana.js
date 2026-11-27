@@ -76,7 +76,7 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver
       { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } },
     ] }] }] },
     // over a level's frame while it loads: no number to claim, ready on its first frame, gone by itself (a quick load never shows)
-    loading: { use: 'loading-screen', props: { place: B('load.place'), ready: B('load.ready'), auto: true, then: { emit: 'loaded' } } },
+    loading: { use: 'loading-screen', props: { place: B('load.place'), progress: B('load.progress'), step: B('load.step'), ready: B('load.ready'), auto: true, then: { emit: 'loaded' } } },
   };
   // UNTAP (turn.js): one pick of a level's turn, the pick-screen idiom over what the shell says of it (the store's
   // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
@@ -249,7 +249,9 @@ export function playShellManaRuntime(cfg, api) {
   return {
     draw,
     close() { hush(() => rt.close()); up = null; view.paint(); },
-    loading(place) { UI.ui.load = { place: place || '', ready: false }; open('loading'); },
+    loading(place) { UI.ui.load = { place: place || '', ready: false, progress: null, step: '' }; open('loading'); },
+    // (the level's news while it loads, MSG_LOADING: how far, 0 … 100 or null when not known, and the step it is on)
+    progress(pc, step) { if (up !== 'loading') return; UI.ui.load = Object.assign({}, UI.ui.load, { progress: pc, step: step || '' }); view.paint(); },
     loaded() { UI.ui.load = Object.assign({}, UI.ui.load, { ready: true }); view.paint(); },
     // untap: one pick of the turn, as the shell stands (what the pick-screen idiom reads)
     // (`fresh`: another pick than the one up, so the cursor starts at its first row)

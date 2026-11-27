@@ -202,9 +202,19 @@ export function buildRulesBasic(E) {
     if (tlMix && want[2] > tlCeil) want[2] = Math.max(tz + 1, tlCeil);
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
+    // (the LOOK EASED, opt-in `lookEase`, a car's chase, gameworld/cars.js: the point ahead it aims at led along a heading
+    // eased after the target's, so a steering key's tap swings the aim no faster than the chase swings the eye; a fresh
+    // ride's starts where the car points. Absent → the look along the target's own heading, as it was)
+    let fl = f;
+    if (r.lookEase) {
+      const wrapA = (a) => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      if (e.lookHd == null || !(world.time - (e.lookHdT ?? -1e9) < 0.5)) e.lookHd = h;
+      e.lookHd = wrapA(e.lookHd + wrapA(h - e.lookHd) * smooth(r.lookEase, dt)); e.lookHdT = world.time;
+      fl = fwdXY(e.lookHd);
+    }
     e.lookAt = [
-      tgt.transform.pos[0] + f[0] * lead * cp,
-      tgt.transform.pos[1] + f[1] * lead * cp,
+      tgt.transform.pos[0] + fl[0] * lead * cp,
+      tgt.transform.pos[1] + fl[1] * lead * cp,
       tz + lookH + lead * sp,
     ];
     if (vs) { const a = r.vista.at; e.lookAt = [e.lookAt[0] + (a[0] - e.lookAt[0]) * vs, e.lookAt[1] + (a[1] - e.lookAt[1]) * vs, e.lookAt[2] + (a[2] - e.lookAt[2]) * vs]; }

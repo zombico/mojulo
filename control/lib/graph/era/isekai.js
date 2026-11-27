@@ -44,7 +44,7 @@ import { makeSunShadow, makeSoftSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
 import { natureSite, trailFaces, trailRims, rockItems, treeItems, grassTufts, tube } from './nature.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
-import { realisticPlan, realisticParts, treeYaw } from '../form/flora-read.js';
+import { realisticPlan, realisticParts, treeYaw, readCrowns, crownsForm, CROWNS } from '../form/flora-read.js';
 import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
@@ -686,7 +686,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
   // (the form render's trail ALLOTTED, ALLOT: no tree standing in a stone's ground, its foot clear of it)
   // (and a gen-6 scene's realistic trees allotted alike: the same stand as the form render's, realisticBands)
-  if (ctx.form || manifest.crowns === 'realistic') { const stones = allotClaims(st, { rocks }); for (let i = trees.length - 1; i >= 0; i--) if (stones.some(([x, y, r]) => Math.hypot(trees[i].x - x, trees[i].y - y) < r + ALLOT.trunk)) trees.splice(i, 1); }
+  if (ctx.form || crownsForm(manifest.crowns) === 'realistic') { const stones = allotClaims(st, { rocks }); for (let i = trees.length - 1; i >= 0; i--) if (stones.some(([x, y, r]) => Math.hypot(trees[i].x - x, trees[i].y - y) < r + ALLOT.trunk)) trees.splice(i, 1); }
   // (a clump's roles its cast names a bush, thickets.js clumpBushes: those trees taken out, bushes stood where they stood)
   const CB = st.thickets && !bamboo && !sakura ? clumpBushes(trees, st.trees, st.thickets, site, { far: TREE_BANDS.far }) : null;
   if (CB && CB.items.length) trees.splice(0, trees.length, ...CB.trees);
@@ -697,7 +697,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (a cavern stands no band of trees round it: underground)
   // (a gen-6 scene's REALISTIC trees, `crowns: 'realistic'`: the trees the form render keeps, painted from its own
   // structure, realisticBands)
-  const realistic = !ctx.form && manifest.crowns === 'realistic' && !bamboo && !sak && !st.glow && !site.cavern && (st.trees.form || 'blob') === 'blob';
+  const realistic = !ctx.form && crownsForm(manifest.crowns) === 'realistic' && !bamboo && !sak && !st.glow && !site.cavern && (st.trees.form || 'blob') === 'blob';
   const TB = realistic ? realisticBands(st, site, trees) : !bamboo && !sak && !st.glow && !site.cavern ? treeBands(st, site, trees, broken) : null;
   // (the trees the form render leaves out are left out here too: one stand of trees in both eras)
   if (realistic) trees.splice(0, trees.length, ...trees.filter((t) => t.real));
@@ -1116,7 +1116,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
     // (`crowns`, CROWNS: how its broadleaves' crowns are read, form/flora-read.js treeTemplate)
-    ...(ctx.form ? { plants: { ...withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? []), ...(DF?.claims ?? [])]), ...(manifest.crowns !== undefined ? { crowns: crownsOf(manifest.crowns) } : {}) } } : {}),
+    ...(ctx.form ? { plants: { ...withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? []), ...(DF?.claims ?? [])]), ...(manifest.crowns !== undefined ? readCrowns(manifest.crowns) : {}) } } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
@@ -1360,8 +1360,8 @@ function grittyGrass(LG, grit, st) {
 // a stage's `crowns`, how its broadleaves' crowns are read in the form render (form/flora-read.js treeTemplate): 'hybrid'
 // (each leaf bundle round a blob), 'masses' (big blobs round the branches, the bundles on their surfaces) or 'blobs' (a
 // blob at each branch end, the leaves set aside: the crown's form studied alone)
-export const CROWNS = Object.freeze(['hybrid', 'masses', 'blobs', 'realistic']);
-const crownsOf = (c) => { if (!CROWNS.includes(c)) throw new Error(`isekai: crowns is ${CROWNS.join(' or ')} (how the form render reads its broadleaves' crowns)`); return c; };
+// (a stage's `crowns` word: form/flora-read.js readCrowns, the form render's reading, shared with geotown and geocity)
+export { CROWNS, readCrowns };
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway', 'form'];
 // (a grass that says only HOW it is drawn, `{ form: true }`, asks for no grass of its own: it draws whatever grass the
 // stage grows, over the defaults that grass would take)

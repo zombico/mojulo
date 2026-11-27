@@ -27,14 +27,18 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 
 | The word | What it makes | Where it lives |
 | --- | --- | --- |
-| `levels.<id>.geocity` | a district of a metro: streets, traffic, parked cars to take, passers-by who flee and fall | [geocity/](../control/lib/graph/geocity/) |
+| `levels.<id>.geocity` | a district of a metro: streets, traffic, parked cars to take, passers-by who flee and fall; its suburbs a West Coast tract (`outskirts`) | [geocity/](../control/lib/graph/geocity/) |
 | `errands[].mission` | a contact's jobs told as missions: `heat` (stars as the goods are had), `clean` (lose them first), `time`, `final` (the end) | [mission-mechanics.js](../control/lib/graph/game/mission-mechanics.js) |
 | `law` | the wanted level: mayhem raises stars, police on foot and in cars, armed from a star, busted and fined | [law.js](../control/lib/graph/gameworld/law.js), [law-mechanics.js](../control/lib/graph/game/law-mechanics.js) |
 | (laid with the law) | the street's health, wasted and the bill | [vitals-mechanics.js](../control/lib/graph/game/vitals-mechanics.js) |
-| `shops` | a respray garage (lose the police) and a gun shop (rounds for the sidearm) | [shop-mechanics.js](../control/lib/graph/game/shop-mechanics.js) |
+| `shops` | a respray garage (lose the police), a gun shop (rounds for the sidearm) and a forger (papers: a heavy machinery licence, a lifted office ID badge) | [shop-mechanics.js](../control/lib/graph/game/shop-mechanics.js) |
 | (the hero) | bare hands by default, a sidearm drawn with R or 1/2, fired on Q or the click | [arsenal.js](../control/lib/graph/gameworld/arsenal.js) |
 | `factions` | crews with turf and rivals, a board of acts (torch, tag, take) | [factions.js](../control/lib/graph/gameworld/factions.js) |
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
+| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping, ambulance and fire calls, a courier run, a mail round; an office temp's job on the Placeholder Staffing app | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
+| `municipal` | constituents' infra requests on the CityLine 311 app: a work order at City Hall, the material from the works yard, the fix in place | [municipal.js](../control/lib/graph/gameworld/municipal.js), [request-mechanics.js](../control/lib/graph/game/request-mechanics.js) | [jobsified.js](../control/lib/graph/gameworld/jobsified.js), [temp-agency.js](../control/lib/graph/gameworld/temp-agency.js) |
+| `hidden` | stars tucked round the district (parks' corners, lots, under the ramps, the dock), far apart, picked up into the bag | [hidden-stars.js](../control/lib/graph/gameworld/hidden-stars.js) |
+| `minigames` | games inside the game: a blocks and a match cabinet on the arcade's floor, a line cast off the dock's quay (`where: 'quay'`) | [minigames.js](../control/lib/graph/gameworld/minigames.js) |
 | `ui`, `sound`, `music` | the look of the menus and HUD (mana-ui), the car's sounds, the score (walking, the chase, tension) | [docs/mana-ui.md](mana-ui.md), [docs/game-audio.md](game-audio.md) |
 
 The game ships with a title screen, a pause, a save and continue (the level's own save: what was done, kept at the
@@ -47,13 +51,31 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 
 - **name**: the game's own title (the rail's name is ours; the game's is theirs).
 - **characters**: the hero (create_character words: body, clothes, how it moves).
-- **levels**: another metro (`geocity.metro.from`), its size, its water, a second district beside the first.
+- **levels**: the district by a word, `HIJACK_DISTRICTS` (`hijackCityWorld({ district })`): `downtown` (the starter's
+  own: the metro's core, its towers, podiums and square, the frame round it), `inner-city` (a Northeast metro's frame: brick walk-ups, four-storey low-rises and main streets among its
+  midrises) or `suburbs` (its outskirts: colonials, garden apartments, walk-ups); its suburbs' register
+  (`hijackCityWorld({ register })`, `geocity.outskirts`: `west-coast` downtown's, `northeast` the inner city's and the
+  suburbs', `tropical`, `san-francisco`, `sunset`, `bay-and-gable`, `old-town`; the two San Francisco ones laying the
+  district on the hill city, `bayside`, at its word's ring, in its fog); or another metro (`geocity.metro.from`), where
+  in it (`geocity.at`: a neighbourhood's id, or a ring, core, frame or outskirts, its most lived-in neighbourhood), its
+  size, its water, a second district beside the first.
 - **errands**: the story (the contact, the missions and their heat, clocks and the end), the side work.
 - **factions**: the crews, their turf and colours, their boards of work.
 - **law**: how many stars, police per star, cars, the star they come armed from, the fine.
 - **shops**: the respray and the gun shop, their prices.
 - **ui**: a theme card (`playscape/ui/theme-cards/`).
-- **music**: the score's moods.
+- **music**: the score's moods. The streets are walked to `shady` (`music.cues['level:district']`: lo-fi with an edge,
+  a dark swung boom-bap on a minor chart that leans on the flat second, worn tape, a lead that rubs a semitone into its
+  notes, a streetlight's hum a tritone over the tonic), the chase (`drive`) coming in over it with the stars; the title
+  and the menus to its mirror, `vibrant` (the same tempo, key centre and melody's rhythm in the major, a walking bass,
+  brighter keys and busier hats: `beats/club-score.js`). Name `vibrant` for the level to walk a sunnier city.
+- **museum**: the museum across a street from the start (`hijackCityWorld({ museum })` or the district's
+  `geocity.museum`): its name and its three wings' collections, things minted in mojulo, each a ref on a plinth, one a
+  wing life-size in its hall (`exhibits`); `false` for none. Its inside is a page of its own, entered and left by its
+  door: [docs/museum.md](museum.md).
+- **sound**: the street's bed under the score (`sound.bed`): `block` by default (horns, a car alarm and a siren a few
+  blocks off, a gate, a bottle breaking somewhere: no birds, no wind), `boulevard` (horns, a bus's doors, a bicycle
+  bell, a tram's) or `city` (the played city's own, with its pigeons and sparrows); `sfx-shelf/beds.js`.
 
 ## Era
 
@@ -61,6 +83,383 @@ Hijack City is built in the seventh generation by default (`style.geocube.era: '
 land, the actors' live shadows, the buildings' baked light and relief near the eye, tone mapping and contact occlusion.
 Its frame is held to what it shows: passers-by drawn where they are seen and one draw each, the occlusion's prepass to
 its reach, a town's lawn blades near the eye only, one reading of each dressed tile. `gen-6` is the lighter page.
+
+Its shadows are the live light's two maps (`scene/channels/cast-shadows.js`): what moves (the hero, the walkers, the
+traffic) in a map that follows the player, and the static city (its buildings, trees, posts, parked cars) in the hour's
+map, drawn once. The hour's map is fitted to the district itself (`geocity/scene.js` `SHADOW_FIT`: its frame and a
+margin), never to everything static on the page: the metro's evocations and its water reach twice the frame out on every
+side, and a map fitted to all of them was 3 km across, its texels a metre and a half and its depth bias taller than a
+tree, so nothing in the street cast and the buildings' shadows were smeared away. A shadow takes away the sun's share of
+a surface's light (its `sunShare`), so at a low sun (Los Angeles's golden hour, the sun about 8° up and a quarter of the
+street's light) the long shadows are faint; at noon they are strong. Its depth bias is 0.6 m (`SHADOW_FIT.bias`), under a parked car's
+height, so cars, benches and hydrants cast; and the map holds the city WHOLE (`whole`): the street's kit is drawn by tiles
+near the eye, so on the frame the map is drawn every static solid is shown and hidden again after, and things cast
+everywhere, not only round the spot the page opened on. The map is drawn once, behind the loading screen, so none of
+this costs a frame. The moving traffic casts into the actors' map (`flow.js` `cast`), the vehicles near the player
+only: on a downtown street about 1 % more draws a frame and 7 % more triangles.
+
+Its style asks the district for its sky as it asks for its hour (`world.js` `skyOfStyle`, carried onto the geocube):
+`clouds: 'fair'`, an `air` of haze that pales the far blocks a kilometre off, the `finish` (one tone curve, the sky in
+the glass, the lamps' bloom) and the view `cone`. Under the cone the street's kit is drawn as far as it reads, and
+traffic past 110 m is drawn as each vehicle's outline, cut on the page from its own model
+(`scene/channels/flow.js`, `FLOW_LOD`).
+
+What its surfaces give back, where the finish asks to reflect: the glass (a window's pane, a shop's glazing, a glass
+tower's curtain wall) is baked as its walls are and drawn as a surface that mirrors the sky by Fresnel with the sun's
+highlight (`form/town-gloss.js`, the form render's `reflect`); a parked car's paint and trim under a clear coat the same
+way; the traffic and the car the player takes under the same coat on their own pooled bodies
+(`scene/channels/car-paint.js`). A road, a walk and a deck's underside are solved on a face turned as they lie
+(`form/sun-light.js` `level`), so a low sun leaves them their own paint, and a deck's underside wears its concrete. No
+building stands on air: a wall over ground that falls away from it is carried down to it on a plinth.
+
+Its highways are laid in corridors: an arterial that carries one is laid to the deck's width and 3 m of clearance each
+side before its blocks are cut (`geocity/highways.js` `highwayPlan`, `corridorHalf`; each highway's `corridor`), so no
+building stands under or against a deck, and nothing taller than the deck's underside stands in the corridor (the
+`highway-corridor` law). The city keeps its places (the metro's `civic`, `geocity/blocks.js`): in the core and the frame a church, a mosque or a
+temple is built into the city, a lot at a built block's street end among its neighbours (`civic.lot`, its width) or a
+small downtown block taken whole, on paving at its walk with bollards and no railing; in the outskirts some
+neighbourhoods give a calm block to one (the city library's own buildings, their faith by the metro's weights:
+`civic: { faiths: { church, mosque, temple } }`) on a forecourt and a lawn behind a railing, and their largest to a
+cemetery (rows of headstones, crosses and ledgers, gravel walks, a chapel by its gate); a whole neighbourhood's park is
+laid with promenades crossing at an obelisk, a playground and a pavilion in each quarter, and railed at its streets; a
+park block is railed and a car park's streets are lined with bollards. A downtown street (the core's and the frame's own
+streets) is dressed as one: its centre line dashed, a zebra at each crossing and where it meets an arterial, cars parked
+along both kerbs with a meter every second bay, its trees in their pits between its lamps, a hydrant and newspaper boxes
+by its corners (`geocity/scene.js` `DOWNTOWN`). Where a neighbourhood's own street meets an arterial the arterial's walk is opened
+across its mouth and the road carried through to the arterial's (`mouthsOf`), nothing of the kerb's stood in it. A
+downtown's shops hang blade signs over the walk (`geocity/frontage.js` `blades`), and its roofs are dressed: a tower's
+mechanical penthouse and cooling towers, a flat roof's stair bulkhead, its row of air handlers and a cooling tower on the
+big ones (`geocity/rooftop.js` `lotRoofPlan`). Its ground level is lived in (`geocity/frontage.js` `lived`, `FRONTAGE.lived`, each
+thing by its place's own hash so nothing else moves): blinds drawn and curtains in some windows, a window's air
+conditioner on some homes, a shop shut behind its roller shutter (a tag sprayed on some), and before the open ones a
+sandwich board, planters at the door, a cafe's table under its umbrella, crates, bags out at the kerb; its streets'
+manhole covers, oil stains where cars stand, a utility cabinet, a mailbox and a vendor's cart (`DOWNTOWN.life`). Some
+shops' interiors are lit by their own lamps (a warm or cool room, a shelf, a counter and someone at it, its glow the
+same at noon and at night: frontage.js `interior`). Each building's walls are its own (`geocity/scene.js` `WALL_VARY`:
+its paint's lightness and a nudge warmer or cooler by its place's hash, a facade's stone or brick worn as the other on
+some). Work zones stand on some streets and arterial runs (`DOWNTOWN.works`): a crew's works pickup or van, or a
+delivery truck, in the kerb lane, a barrier behind it, cones tapered round it; never under a highway's deck nor by a
+streetcar's track. Its inner city is cut by ALLEYS (the metro's `alleys`, `geocity/blocks.js`): a share of the
+core's and the frame's built blocks split down the middle by a 6 m service lane street to street, each half the block it
+was, its walls on the lane windows and never a shop; the lane's ground the neighbourhood's road, opened through the walks
+at its mouths and kept clear of parked cars and kerb things there; dumpsters along its walls, bags, stains, a manhole,
+wires slung across it overhead, a car or a van in some (`ALLEY`). A downtown walked into below (`under`) keeps its
+podiums whole. `alleys: false` cuts none.
+
+## Night
+
+`hijackCityWorld({ hour })` plays the city at any hour; past dusk (`dusk`, `night`, 19:30 to 05:30) it takes its
+locale's night (gameworld/locales.js `night`: its street lamps' light, its air and its grade; `HIJACK_NIGHT` where a
+locale says none). At night the city's moonlight and sky are dimmed (`geocity/scene.js` `NIGHT_CITY`, its land's with
+them), so what is lit stands out of the dark: its windows, its shops' interiors (their own lamps), a pool of light on the
+ground under every street lamp, pole lamp and alley wall lamp in the metro's `lamps` colour with a glow at its head, and
+its traffic's headlights and tail lights (scene/channels/flow.js, a night page's only). Los Angeles' lamps are sodium
+amber in a lit smog, Miami's white over a clear sea air, San Francisco's halos in its fog, Boston's cold white, Toronto's
+warm. `civic: false` keeps none of the places.
+
+## Streetcars
+
+A Hijack City district carries one line of streetcar track (`roads.streetcar.most: 1`, `geocity/roads.js`: the spines
+first, then the longest; a metro lays track on every spine and a share of its other main streets, and a district may say
+how many it keeps), and the streetcars run on it. Each track is a lane of the traffic (`geocity/flow.js`, `FLOW.streetcar`:
+8 m/s, a car every 450 m or so) run by the metro's own streetcar, pooled for the traffic (`geocity/streetcar.js`
+`streetcarPool`), through the same crossings and signals as the cars beside it, so it stops on red. The streetcar is 25.6
+m long, so the signals' all-red clearance is sized to clear it.
+
+## The jobs' stops downtown
+
+A contact's jobs stand their pick-ups and hand-ins at the district's shops, at the kerb before each door
+(`gameworld/levels.js` `geocityEnds` `places`). A district of shops walked into (a neighbourhood's row of shops, its
+`shops` word) uses those. Downtown's towers and podiums have shopfronts but no shop walked into, so there each shop bay's
+frame is the place: the kerb before it, its tenant's store named, never a till (`geocity/scene.js`, the level's
+`ctx.shopfronts`; nothing drawn by it).
+
+## Jobsified: the city's driving jobs
+
+Jobsified is a phone app (P, its own tab beside TaskFu) that lists jobs done in one of the city's own vehicles. A job on
+it is a SHIFT: taken on the phone, done in its vehicle (nothing counts on foot), paid into the money in hand, and a
+standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
+
+- **Bin round** (`garbage`, mode `collect`): get into a garbage truck at the works yard. Piles of bags stand at kerbs
+  across the district; pull up to one and hold **F** to collect it. Four fill the truck; full, take it to the DUMP and
+  drive in to empty it and be paid (its tailgate swings up). Every pile taken, the city lays them all again.
+- **Heavy vehicle call** (`heavy`, mode `haul`): a general call for heavy operators, and it asks for a licence: the
+  forger at a shop front (`shops.forger`, 150 coin) sells a fake ID, a heavy machinery licence (`fake-id` in the bag,
+  kept), and the call is taken on the phone only while it is held (its row's `licence`, the task's `needs`; without it
+  the app says what it needs, and its row on the phone says who sells it). Three heavy vehicles stand at kerbs
+  by the works yard, trucks and a site's machines turn about (`HEAVY_VEHICLES`: a concrete mixer, a flatbed, a wheel
+  loader, a tipper, a skip lorry, a backhoe, a box truck, a wheeled excavator), and the call names them in turn. Take
+  the one called and drive it across the district to its building site; arriving pays. Get out there and it goes back
+  to the yard, and the next is called; after the last, the first again. Each drives as its own class (its mass, its
+  power: roads/vehicles.js); a machine is drawn from the construction shelf as a city's site draws it
+  (`geotown/cars.js` `carModel` `site:<archetype>`).
+- **Dig and load** (`excavator`, mode `dig`): a side game at a building site, and it asks for the licence too. The
+  site's excavator (the one it stages on the band beside its building) is the player's to operate: get in, and the keys
+  are an operator's levers, **A/D** swing, **W/S** arm out and in, **↑/↓** boom, **←/→** bucket curled and opened.
+  Dig the bucket into the pile of spoil and curl it shut to scoop; swing over the tipper waiting along the band and
+  open it to tip. Three loads fill the truck, which pays and goes off empty. The machine is drawn from the
+  construction shelf as an operator rig (`construction-shelf/con-operate.js`: each part's placement under its parent
+  sampled across its own joint, so the page moves the boom, the arm, the bucket and their rams exactly without running
+  the chain), on the page by `scene/channels/operate.js`, which says each scoop and tip to the bus.
+- **Delivery orders** (`freight`, mode `haul`, given at the Dockers' HQ): the story's turn after the dig. Once the
+  first truck is loaded the foreman calls: the pit is dug but the building materials never arrived; does the player
+  know a logistics outfit? The Dockers' contact (the faction's, on its turf) is their HQ: checking in there, once the
+  call has come, takes their delivery orders. Three trucks stand at the dock's bays (`FREIGHT_VEHICLES`: a container
+  truck, a flatbed of steel, a box truck of fittings, a stake truck of timber), called in turn; each driven to a
+  building site pays, and goes back to the dock once left there. The errand says it waits on the dig (`after`), the row
+  that it is given at a faction's HQ (`given`) and told by a call (`story`).
+- **Bus route** (`bus`, mode `route`): a bus stands at the kerb by the bus depot (by the start where the district keeps
+  none). Its stops come in order, each a bus-stop sign with people waiting. Pull up and hold **F** to open the doors:
+  those waiting walk to the bus and board, and those who boarded at the stop before get off and walk away. The last stop
+  pays, and the route begins again.
+- **Street sweeping** (`sweeper`, mode `sweep`): a street sweeper (`SWEEPERS`, the road shelf's `streetSweeper`) stands
+  at the kerb by the works yard. Litter lies in heaps along the kerb side of the streets nearest the yard
+  (`sweepRoute`: `SWEEP.stretches` stretches of `SWEEP.length` m, a heap every `SWEEP.every`, `SWEEP.kerb` off the
+  street's middle); nothing is held, driving over a heap sweeps it. A line on screen counts them, a word comes at each
+  quarter, and the last one pays; the streets get dirty again for the next round.
+- **Groundskeeping** (`groundskeeper`, mode `mow`): the parks' grounds crew is off sick, so the parks office takes
+  anyone with a licence (the fake ID again; its `pitch` is what the office says as it is taken). No mower stands about
+  the city: the park nearest the start gets a groundskeeper's shed beside its path (`lawnOf`: `MOW.spot` up a path from
+  the park's edge, at the end nearest the start that is level with the walk outside it, `MOW.step`, since a park on a
+  terrace is walled over its walk), open to the path, its ride-on mower (`MOWERS`, the car shelf's `rideOnMower`) kept
+  inside. Taking the mower out starts a ROUND in the engine, on the park's own lawn: its long grass laid in cells
+  (`MOW.cell` squares round its paths, its things, the shed and its trees' trunks, the `MOW.most` nearest the shed), its
+  clock at `MOW_ROUND.time`. Each cell driven over is cut, its tufts down to stubble over a stripe light or dark by the
+  way the mower went; a line on screen says how much is cut toward the goal and the time left. `MOW_ROUND.goal` of it
+  cut pays; the clock run out ends the round and the grass grows back; getting off puts the mower back in the shed and
+  ends a round still running. The scene tells a level its parks (`ctx.parks`, geocity/scene.js; `ends.parks`).
+- **Ambulance calls** (`ambulance`, mode `route`): one of the emergency station's own ambulances (the station keeps
+  them, `geocity/fleets.js` YARDS). A round of two stops: the patient waiting at the first (a red cross on a post, the
+  job's `marker: 'call'`), held at to load them, and the last a drop-off (`dropoff`: nobody waits there; the patient gets
+  off). The screen says `patient` for riders and `to load the patient` for the hold (`says`). Laid where the district
+  keeps an emergency station.
+- **Fire calls** (`fire`, mode `route`): the station's own fire engines; three fires burning at kerbs (`marker: 'fire'`:
+  flames over a charred heap, smoke above), each held at to hose it down; nobody rides.
+- **Courier run** (`courier`, mode `route`): a courier van (`PARCEL_VANS`, the road shelf's `courierVan`) issued in a bay
+  of the dock's own, never one another job's truck stands in; four doors, a parcel at each (`marker: 'parcel'`), held at
+  to hand it over.
+- **Mail round** (`mail`, mode `collect`): a mail truck (`MAIL_TRUCKS`, the road shelf's `mailTruck`); four post boxes
+  (`marker: 'mailbox'`: the box stands, its sack of mail goes as it is emptied), the mail taken back to the yard and never
+  to the dump (`unload: 'yard'`).
+
+A vehicle a row issues stands at a kerb by its yard. Where no kerb by the yard will take one (a yard among blocks with
+no shop front near it), it stands at a kerb by the start, said to be there and not at the yard. A streetcar's tracks
+never keep a kerb from parking (`kerbLanes`): its cars run past what is parked.
+
+```js
+errands: [{ id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true, reward: [{ item: 'coin', n: 40 }] }]
+```
+
+`vehicle` is a row of `SHIFTS` (`gameworld/jobsified.js`): its mode, the yard it starts from, the vehicle as it is
+called, its stops or piles, a collect's `load`, the seconds a place is held at (`hold`), and where its vehicle comes from:
+the depot's own (the works yard's garbage trucks) or ISSUED (`issuedOf`): a row with a `fleet` one of the fleet's (the
+bus), a row with `vehicles` its `calls` of a list's in turn (the heavy call), each stood in its yard where the yard has
+room (`ends.yardAt`: on its lot, clear of its walls and its parked vehicles, side by side), else at the kerb before one of
+the places nearest its yard, else by the start (a yard whose street a streetcar's tracks hold has no kerb free). A new
+kind of driving job is a row. The errand's list may be left
+out (the row's item, its stops as its count). A shift is given by Jobsified unless it names its own `app`; it has no
+contact and is never a mission.
+
+Where it is laid (`gameworld/levels.js`): the scene tells a level its yards and their vehicles (`ctx.yards`), its empty
+lots and building sites near the eye (`ctx.lots`), and its dump (`ctx.dumpAt`), drawing nothing for the telling; a kerb
+beside a place is `ends.kerbAt`. A depot's vehicles and the issued ones are made cabs after the level's nearest cars
+(`gameworld/cars.js` `levelCars` `roles`, `issue`), so no other car's id moves. Stops and piles are the district's
+places, each about `SHIFT.hop` from the one before and `SHIFT.apart` from the rest (and the dump); a haul's site is the
+building site past `SHIFT.haul`, farthest first, a call each in turn. A district with no such depot, no place to send it or no room for its piles
+lays none of it: the errand proof says so.
+
+THE DOCK is a district's word too (`geocity.dock: true`, Hijack City's on): the main shore's waterfront segment
+before the evocation is built as a working PORT (`waterfront.js` `port`, never picked by the dice): its yard of
+asphalt, a warehouse with a row of truck bays before it (where the Dockers' trucks stand), container stacks with lanes
+between them and a ship-to-shore crane at its quay, its arterials reaching it along the boulevard. With it the
+district's highways are DRIVEN: every land highway is given RAMPS (`highways.js` `rampsOf`, `RAMP`): at each arterial
+it crosses one each side, beside its deck in the room its corridor now keeps, from the deck's top down to the street
+short of the crossing the way its traffic runs on that side, the deck's barrier left open where it meets; and one from
+the shore's highway down into the port. A ramp is a surface the runtime's ray down finds, so a car drives up it onto
+the deck and down again (`scene.js` `geocity:ramp`); the level knows the dock (`ends.dock`, its bays) and the ramps
+(`ends.ramps`, each top and foot). Where a dock re-cuts the district so that no car park is left for the DUMP, the dump
+is built in the port instead, a waste transfer hall at its far end.
+
+THE DUMP is a district's word (`geocity.dump: true`, Hijack City's on): of its car parks drawn near the eye, the one
+farthest from its works yard is built as a tipping hall (`geocity/scene.js` `DUMP`, `dumpOf`): a concrete apron and,
+at the back, corrugated walls under a flat roof, open across its front to the street, held as any building is. A
+district with no car park large enough has no dump; its bin round empties at the works yard.
+
+How it plays (`game/errand-mechanics.js` `lowerShift`, the mechanic card `shift`): getting into one of its vehicles
+(`mounted`) once the job is taken clocks in. Holding at a pile or a stop is the key's going down and up said to the bus
+(`scene/channels/job-stops.js`, F) and counted on its timer. The guide goes to a job's steps the moment it is taken
+(`scene/channels/guide.js` `rounds`), its collect step pointing at the nearest pile not yet taken (`near`), and a
+standing job's round loops on itself; the journal ticks its steps, the map marks them and the phone's Jobsified tab shows
+what it pays. On the screen a line says the load or the next stop and who is aboard, and how far the hold has gone. On
+the HUD, a job paid is a card ("Round complete", "Route complete", "Delivered" over its pay), and the money counts up as
+it lands. The errand proof works each on the bus (the getting in given: the proof cannot drive); the driving is the
+person's to play.
+
+What is seen (`scene/channels/job-stops.js`): the piles, heaps of bags that pop away as they are taken; the bus stops,
+a sign and their people (simple figures, not the street's realistic people); the garbage truck's tailgate swung up as it
+is emptied, the truck drawn from its body baked apart from its tailgate (`geotown/cars.js` `carModel` `gate`,
+`car-designer/road-civic-works.js` `refuseGate`), pooled only for a page that asks and swung by
+`scene/channels/cab-pool.js` `gate`; every other vehicle is drawn as it was.
+
+Not yet: the works pickups and vans (their roof beacon is not carried by a cab), a stop that asks the vehicle to stand
+still, a shift against the clock, the street's own people riding the bus.
+
+## The temp agency: an office job
+
+A second funnel into work, beside Jobsified: the **Placeholder Staffing** app on the phone posts an office temp's place
+at the district's office tower (`errands[].vehicle: 'temp'`, the `temp` row of `SHIFTS`, mode `desk`). Like the heavy
+jobs it asks for papers, here an office ID badge the forger has lifted off a commuter's lanyard (`shops.js` `PAPERS`
+`badge`; the forger sells whichever paper the job that turned the player away asked for, `lowerForgerPapers`). The
+offhand way the job is told is the story: nobody checks the photo.
+
+The tower is a geocity word, `office: true | { name }` (Hijack City has one, Synergetics Tower): of the office fronts near
+the start whose street wall has room for a lobby, the nearest has its glass lobby made a door (`geocity/scene.js`,
+`levels.js` `officeDoor`), into a building of its own on a page of its own (the `office` program: a lobby, a stair core,
+office wings with their desks in pods, `room-layouts.js` `islands`, meeting rooms, the boardroom at the top). Walking in
+clocks the temp in. Reception says which desk; at the desk in the ground floor's office nearest the lobby, interact
+starts a shift (`temp-agency.js` `deskCast`). Without the badge, security turns the temp away.
+
+The shift is **Deskwork** (`deskwork/`, a minigame of the registry, `game: 'deskwork'`): the screen a browser of tabs
+(Inbox, Invoices, Decisions, TPS Reports, Policies), tickets arriving in the inbox, each a few steps before it is due.
+Shovel steps are questions worked out from the ticket (*Extract invoice data*: the total, tax included, or the PO it bills;
+*Choose recommendation*: the vendor that meets every constraint of the request; *Prepare TPS report*: the week's count);
+bucket steps are sorts the Policies tab decides (the folder an invoice is filed in, the cover sheet the latest memo names,
+who a TPS report goes to). Every answer is among four choices made from the ticket's own numbers. A wrong one costs and
+Quality Assurance writes; a ticket past its due is escalated to a committee; past the first rank, Mandatory Training
+holds the screen while the clock runs on. Meeting quota pays into the bag and puts a commendation in it; two are a
+promotion (Temp, Probationary Associate, Associate, Senior Associate, Associate Senior Associate, Vice President of
+Associates), and a promotion is more work: the shift's tickets are a shovels & buckets card (`deskwork/card.js`) solved by
+the work sim's solver to the rank's challenge, more of them on less patience.
+
+## The municipal office: constituents' requests
+
+The temp agency's parallel track, at City Hall. Constituents' **infra requests** come in on the **CityLine 311** app on
+the phone, and the journal is their log (`municipal: { requests: [{ id, kind, from?, says?, reward? }] }`,
+`gameworld/municipal.js`; Hijack City has three: a pothole, a fence, the park). They are not deliveries for someone else:
+the player, in a city worker's ID the forger sells (`PAPERS.municipal`, a laminated ID and a hi-vis vest that does most
+of the work), does each one themselves, by a combination of what the city already does:
+
+- **Approve.** A work order made at City Hall. City Hall is a geocity word, `cityhall: true | { name }`: the museum's
+  civic front (steps, a portico, a pediment) on the next block that can take one, its banners the city's colours, its
+  door into a building of its own (`levels.js` `cityhallDoor`). At the clerk's desk inside, a Deskwork shift of **work
+  orders** (`deskwork/card.js` `CLERK`): each a constituent's request routed to its department (potholes to Roads, fences
+  to Public Works unless the fence is in a park, public spaces to Parks & Recreation), costed at the policies' rates with
+  a call-out, and stamped by the clerk's signing limit (over it, pending Council). A shift won puts a work order in the
+  bag, carried back out to the city.
+- **Deliver.** The request's material collected at the works yard, signed out on the work order: a bag of cold-patch
+  asphalt, a stack of fence panels, a litter picker and bin bags. Without a work order the yard says where one is made.
+- **Fix**, in the engine at the real place (`scene/channels/fix-sites.js`): a pothole in the road by a shop near the
+  start (cones by it), a building site's hoarding blown down along its street, heaps of litter on the park's lawn. At
+  each spot, hold F (shovel in the asphalt, lift the panel, pick up the litter) and then tap F (tamp it, nail it, tie
+  off the bag); the pothole fills, the panel rises, a planter stands where the litter was. Every spot fixed, the request
+  is done: the work order and the material used, the pay into the bag, and the constituent's thanks.
+
+A request is the `request` mechanic (`game/request-mechanics.js`); its kind is a row of `REQUEST_KINDS` (its material,
+its spots, its hold and its taps, its words), placed by `requestSites`. A new kind of request is a row.
+
+## Pedestrians, in sixes
+
+The played district's pavements are walked by SIXES (`geocity/crowd.js`): six different people (each rolled a person of
+their own, gameworld/people.js `streetPeople`) walking one block's walk together and apart, two pairs side by side and
+two on their own, each group its own pace and its own way round. Each walked block asks for sixes by its walk's length
+and what it is (`KIND_WEIGHT`: a square, towers and a main street ask more than houses), and the district stacks sixes
+where they are asked, nearest its middle first, up to its crowd's most. The metro's `crowd` word sets how heavy:
+`quiet` (one six of people rolled, at most four sixes walking), `busy` (two rolled, eight walking) or `packed` (three
+rolled, twelve walking); a district in the core or the frame is busy and one in the outskirts quiet unless it says. The
+people a level rolls follow its crowd (gameworld/runner.js `crowdSets`), and every six on the pavement is six of one
+roll, so no two in a six are alike. The scene's readout says what it laid (`counts.crowd`: the word, the sixes, the
+rolls).
+
+### Realistic people
+
+A district's `people: 'realistic'` (`hijackCityWorld({ people: 'realistic' })`; `geocity/crowd.js` `PEOPLE_WORDS`,
+`quick` the default) walks its pavements with the street's cast instead of the quick figures: each six is
+`gameworld/street-cast.js` `streetSix`, six realistic heroes (three men and three women, six ages, slight to heavy
+builds, everyday outfit cards in colours of their own), their ancestries drawn from the locale's mix (`mix`, set from
+the level's locale) with no more than two of one in a six. Each is drawn at the realistic CROWD GRADE
+(`figures/crowd-figure.js` `realCrowdFigure`, `REAL_CROWD`), two figures from one bake:
+
+- a NEAR figure (about 16k triangles): the face texture baked into the vertex colours, skin under the clothes taken out
+  before the mesh is simplified (so it never pokes through), the head kept at a third of the budget so the face holds,
+  the hair cards and the face's morph-pinned parts kept whole;
+- a FAR figure (about 3k triangles): the near figure sampled again on the crowd's grid.
+
+A walker is drawn as its near figure within `WALKER_DETAIL.near` of its own heights of the camera and as its far figure
+past it (`scene/channels/walkers.js`, the near rig built the first time it is wanted); a page with no near figure is the
+channel as it was. A realistic person is LIT (`lit`): its colours are its painted skin and cloth, so it is drawn in the
+scene's light (the sun by day, the lamps by night), never darker than `WALKER_LIT.floor` of its own colours, since a
+street's lamp pools are painted on the ground and light no one. A quick figure's colours carry their light and stay unlit.
+A six's people keep their places on their walk (`startFrac`: its groups a quarter of the loop apart, its pairs a step
+apart), so no two are drawn on one spot.
+
+Each realistic person walks the hero's own walk, as the mint stamps it (`hero-motion.js` `stampHeroMotion`), moved by a
+gait (`street-cast.js` `STREET_GAITS`: easy, the hero's own; brisk, stroll, heavy, weary, graceful, swagger and shy, each
+a set of the vibe's axes lowered through `gameworld/hero-vibe.js`). The gait is rolled on dice of its own by the
+person's age, build and sex (`gaitOdds`: the young brisker, the old slower, a heavy build heavier), so their face, body
+and clothes are as they were. A walk carries the ground it covers: its crowd figure carries its STRIDE, measured off its
+planted feet (`figures/walker-pace.js` `walkStride`), and the walkers channel steps it by that stride, so its feet stay
+where they land and no one skates. Each group of a six walks at its people's mean natural pace (each walk's stride over
+its cycle, at its height) times the group's own pace at half its spread (`paceWalkers`, applied once the people are
+baked): a pair stays side by side, each stepping at its own rhythm. On the realistic body the gaits run from about
+0.7 m/s (weary) to 1.55 m/s (brisk). A realistic person takes a minute or so to bake, so a level's people are baked once and kept
+(`figures/crowd-kept.js`, under `MOJULO_CROWD_DIR`, else `~/.mojulo/cache/crowd`), keyed by the person, the grade and
+the realistic laws: a level's second read takes them from disk.
+
+## Locales
+
+`hijackCityWorld({ locale })` stands the game in a place (`gameworld/locales.js` `LOCALES`, one row each): its suburbs'
+register, the part of town it stands in unless one is named, the geocube it is lit by and its hour, its clouds, its air
+(a haze or a mist, its colour, how far it sees) and the world's colour `grade`. Every word a person names over a locale
+wins (`register`, `district`, or the style's own words). With no locale the starter is as it always was.
+
+| Locale | Suburbs | Light | Sky and air | Grade |
+| --- | --- | --- | --- | --- |
+| `los-angeles` | `west-coast` | the valley cube at the golden hour | clear; a warm smog, 2.6 km | `warm` |
+| `miami` | `tropical` | the island cube at noon | fair cumulus; a bright sea haze, 4.2 km | `vivid` |
+| `san-francisco` | `san-francisco`, on `bayside` | the valley cube in the morning | overcast; the mist lying low | `cold` |
+| `boston` | `northeast`, its inner city | the upland cube in the afternoon | overcast; a soft haze, 3 km | `film` |
+| `toronto` | `bay-and-gable` | the valley cube, its own hour | fair; a light haze, 3.5 km | none |
+
+Each row may also carry its CITY (`city`): the district's own geocity settings over its metro's, the old fractal
+city's theming brought in. Its `grammar` is a document over one of the legacy metro's Earth flavours
+(`city/city-flavors.js`): the masses' cladding mix and palettes, the towers' share and shapes, the facades'
+affectations (awnings, balconies, fire escapes, rooftop tanks) and the green. Its `hills` and `fall` are the land, and
+its `heights` the storeys by ring, its `segments` its core's towers against its podiums, its `lively` its parking.
+
+| Locale | Its grammar | Its land and heights |
+| --- | --- | --- |
+| `los-angeles` | North American: stucco in cream, sand and salmon, awnings, fan palms | a basin, nearly flat to its shore; a downtown of a few towers among podiums and parking, a low frame and outskirts |
+| `miami` | the Gulf's: white render and blue-green glass, slender towers, stacked balconies, coconut palms | flat to the water; a tall core |
+| `san-francisco` | North American: white and grey stone and glass, French balconies | the hill city's own, steep |
+| `boston` | New York's brick and brownstone, without its fire escapes and water tanks | low hills, drumlins; a cluster of moderate towers |
+| `toronto` | the metro's own | the metro's own |
+
+A new locale is a row. Night locales wait on the night pass (lamps that light, headlights, bloom at night).
+
+## The driving view
+
+A driven car is placed each frame right after the world steps it (`scene/channels/cab-pool.js`, its placing wrapped onto
+`stepControllable`), so it is drawn where the camera that follows it sees it; a loop of its own ran before the step and
+drew the car a step behind its camera, a gap that changed with each frame's length, a judder. Its tilt eases to the
+road's under it (`TILT_EASE`) rather than taking each of the road's faces at once. The traffic is stepped in its model's
+ticks (20 a second) and drawn where it is now, each car carried on by its own speed for the time since the last tick
+(`scene/channels/flow.js` `__flNow`), so it moves every frame. Each moving car's wheels are seen to turn: its wheels are
+baked into its body, so a disc of spokes stands just off each wheel's face and turns about the axle by the ground it
+covers over the wheel's radius (`scene/channels/hub-disc.js`, the car model's `hubs`, `geotown/cars.js`): the driven car's
+and the traffic's near the camera.
+
+The camera behind a car the hero drives is framed by the vehicle's size (`scene/channels/cab-pool.js` `cabView`): a car
+keeps the chase it always had (`gameworld/cars.js` `CAB.camera`); a bigger vehicle is seen from further back, its rear
+`back` metres off the lens, and from higher, so the eye's line over its roof's back edge lands on the road `see` metres
+past its bumper, looking at a point over it in proportion to its height (`CAB_VIEW`). A parked cab is framed by its
+model when the level makes it, a vehicle taken from the traffic by its own template when it is taken. The chase keeps
+`CAB.pullIn` metres off a wall between it and the car (`worlds/controllable/mount.js` `pullIn`, only while it is ridden), so a rig's long chase does not stand
+inside the building behind it. While it follows a car it is pulled in on no instanced kit (a lamp post, a tree, a
+bollard: `__camDrv` in `scene/channels/controllable/index.js`), which flicked it in and out a metre at a time down a
+street. The point it looks at swings to a new heading at an eased rate (the follow rule's `lookEase`,
+`worlds/controllable/rules-basic.js`; `CAB.camera.lookEase`), so a tap of the steering no longer whips the view; its
+place still follows the car as it did. The traffic is never footing nor a wall for that camera (`scene/channels/flow.js`
+`__flNoRay`, as the cab pool's cars): a driven car's ground probe could land on a passing car's roof and drop off it.
 
 ## What it does not do yet
 

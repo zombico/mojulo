@@ -28,7 +28,9 @@
  * course), each course's lower edge lapping proud over the one below it and casting its shadow down onto it, each tile
  * rolled across like a pantile, its edge ragged, its tone its own, lichen at grit; `cut: 'slate'` thin flat slates the
  * same way, half-bonded course to course, each laid a little askew; `cut: 'boards'` vertical boards (`cols` a repeat)
- * with gaps between them, a grain running up each, knots, and the weather streaked down. Tile space is the roof's: v up
+ * with gaps between them, a grain running up each, knots, and the weather streaked down; `cut: 'clapboard'` painted lap
+ * siding (`rows` boards a repeat), each board lying across the wall, its lower edge lapping proud over the one below and
+ * casting a fine shadow line down onto it, the paint a little worn at the laps. Tile space is the roof's: v up
  * the slope, so the light from above (up the slope) finds each lap's edge.
  *
  * MODERN materials, the industrial class (machine-made, cement-bound, regular; weathered by rain streaks, stains and
@@ -141,6 +143,7 @@ function dressedOf(c, size, seed) {
   if (cut === 'fluted' || cut === 'shaft') return shaftTile(c, size, seed);
   if (cut === 'tile' || cut === 'slate') return roofTile(c, size, seed);
   if (cut === 'boards') return boardsTile(c, size, seed);
+  if (cut === 'clapboard') return clapboardTile(c, size, seed);
   if (MODERN[cut]) return MODERN[cut](c, size, seed);
   if (MADE[cut]) return MADE[cut](c, size, seed);
   if (NATURAL[cut]) return NATURAL[cut](c, size, seed);
@@ -366,6 +369,29 @@ function boardsTile(c, size, seed) {
     const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
     const grain = 0.05 * sfbm(x, y, M, 0.01, 0.6, 2, seed + 31), streak = Math.max(0, sfbm(x, y, M, 0.15, 1.2, 2, seed + 33) - 0.1) * (0.1 + 0.15 * g);
     const col = rampAt(wood, 0.55 + (lit.value[k] - 1) * 1.2 + tone[k] + grain - streak - 0.25 * knot[k] - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
+    rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
+  }
+  return painted(c, rgb, W, H);
+}
+
+// CLAPBOARD: horizontal painted boards, each tapering thicker toward its lower edge, which laps proud over the board
+// below and shades it; the paint's own colour (`stone`), a faint grain along each board, worn a little at its lap
+function clapboardTile(c, size, seed) {
+  const W = size, H = size, M = c.metres, px = M / size, g = c.grit, bh = M / c.rows, lip = 0.004;
+  const height = new Float32Array(W * H), tone = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i, b = Math.floor(y / bh) % c.rows, fy = y / bh - Math.floor(y / bh);
+    // (the board's face slopes out toward its lower edge, fy = 0, where it stands proud of the board below)
+    let z = lip * (1 - fy) + 0.0003 * (0.4 + g) * sfbm(x, y, M, 0.02, 0.3, 2, seed + 41 + b);
+    if (fy > 0.985) z -= lip * 0.6;
+    height[k] = z; tone[k] = (hash01(b, 5, seed + 43) - 0.5) * 2 * c.vary / 255 * 0.4;
+  }
+  const lit = relit(c, { W, H, px, height }, LIGHT);
+  const paint = rampOf(c.stone), rgb = Buffer.alloc(W * H * 3);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i, fy = y / bh - Math.floor(y / bh);
+    const wear = fy < 0.06 ? 0.04 * g * Math.max(0, sfbm(x, y, M, 0.05, 0.8, 2, seed + 45)) : 0;
+    const col = rampAt(paint, 0.72 + (lit.value[k] - 1) * 1.1 + tone[k] - wear - 0.35 * lit.cavity[k]);
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
   return painted(c, rgb, W, H);

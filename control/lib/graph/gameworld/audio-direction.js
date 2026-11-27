@@ -84,7 +84,7 @@ export function readCues(cues) {
 const wordsOf = (W) => [W?.name, W?.brief?.prompt, W?.prompt, W?.style?.kit, W?.style?.weather, typeof W?.style?.geocube === 'string' ? W.style.geocube : W?.style?.geocube?.from]
   .filter((x) => typeof x === 'string').join(' ');
 // the interface's set that sits with a score: by its style, and an electronic scene's kind
-const UI_FOR = Object.freeze({ field: 'paper', tech: 'console', cozy: 'glass', drift: 'glass' });
+const UI_FOR = Object.freeze({ field: 'paper', tech: 'console', cozy: 'glass', drift: 'glass', street: 'console', bustle: 'glass' });
 
 /** The game's audio direction (see the header). */
 export function audioDirection(world, { game = null } = {}) {

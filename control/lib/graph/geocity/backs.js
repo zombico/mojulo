@@ -158,7 +158,7 @@ export function blockPark(L, D, { zAt, P, R }) {
     if (!clear(u, v) || trees.some((t) => Math.hypot(t.u - u, t.v - v) < 5)) continue;
     trees.push({ u: r4(u), v: r4(v), z: r4(zAt(u, v)), h: r4(roll(R, ...BACKS.park.h)) }); k++;
   }
-  return { faces, trees, paths: w.paths };
+  return { faces, trees, paths: w.paths, things };
 }
 
 /** A school field's pitch over `rect` (its lines and its goals), on the field's level. */

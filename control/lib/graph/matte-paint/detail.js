@@ -125,6 +125,7 @@ export function resamplePlan(key) {
   if (cut === 'ashlar' || cut === 'setts' || cut === 'tile') return { kind: 'courses', stepU: 0, stepV: r4(1 / rows), bandV: r4(3 / rows), bandU: 0, seed, macro };
   if (cut === 'brick' || cut === 'slate') return { kind: 'courses', stepU: r4(1 / cols), stepV: r4(2 / rows), bandV: r4(4 / rows), bandU: 0, seed, macro };
   if (cut === 'boards') return { kind: 'strips', stepU: r4(1 / cols), stepV: 0, bandV: 0, bandU: r4(3 / cols), seed, macro };
+  if (cut === 'clapboard') return { kind: 'courses', stepU: 0, stepV: r4(1 / rows), bandV: r4(3 / rows), bandU: 0, seed, macro };
   if (cut === 'pavement') return { kind: 'grid', stepU: r4(1 / cols), stepV: r4(1 / cols), bandV: r4(1 / cols), bandU: r4(1 / cols), seed, macro };
   if (cut === 'precast' || cut === 'concrete') return { kind: 'grid', stepU: r4(1 / cols), stepV: r4(1 / rows), bandV: r4(1 / rows), bandU: r4(1 / cols), seed, macro };
   // (a render's coat lies over coursed stone: its readings shift down by whole courses, so the stone's beds run on across

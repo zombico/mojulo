@@ -32,6 +32,9 @@ import { bakeForm } from '../car-designer/road-form.js';
 import { compileRealistic } from '../car-designer/realistic.js';
 import { rollVehicleSheet } from '../car-designer/sheet.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { refuseGate } from '../car-designer/road-civic-works.js';
+import { assembleMachine } from '../construction-shelf/index.js';
+import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 // the family cars a town keeps, as people say them, and how often each is parked
@@ -60,6 +63,16 @@ const MODELS = new Map();
 export function carModel(card) {
   let m = MODELS.get(card);
   if (m) return m;
+  // (a SITE'S MACHINE, `site:<archetype>` (a mixer, a tipper, a loader, an excavator): the construction shelf's assembly
+  // at rest, as a city's site draws it, its colours its own: all trim, nothing tinted; its nose along +y as a car's)
+  if (card.startsWith('site:')) {
+    const trim = lowerAssemblerFaces(assembleMachine(card.slice(5), { laws: false }).manifest), cs = trim.flatMap((f) => f.corners);
+    const xs = cs.map((q) => q[0]), ys = cs.map((q) => q[1]), zs = cs.map((q) => q[2]), top = cs.reduce((a, q) => (q[2] > a[2] ? q : a), cs[0]);
+    m = Object.freeze({ card, L: r4(Math.max(...ys) - Math.min(...ys)), W: r4(Math.max(...xs) - Math.min(...xs)), H: r4(Math.max(...zs)), roof: { y: r4(top[1]), z: r4(top[2]) }, paint: [], trim });
+    MODELS.set(card, m);
+    if (MODELS.size > 32) MODELS.delete(MODELS.keys().next().value);
+    return m;
+  }
   const loft = card.startsWith('loft:'), [cls, brief = ''] = loft ? card.slice(5).split('|') : [];
   // (a hull-kit body in a pale mono livery: its paint is the faces that wear it)
   const hull = loft && !!MILITARY_CLASSES[cls];
@@ -73,7 +86,26 @@ export function carModel(card) {
   const ys = cs.map((q) => q[1]), L = Math.max(...ys) - Math.min(...ys), W = Math.max(...ws) - Math.min(...ws), H = Math.max(...cs.map((q) => q[2]));
   // (its front third's: the nose found once, not once a corner, a rig's tens of thousands of them)
   const nose = Math.max(...ys), front = loft ? cs.filter((q) => q[1] > nose - L / 3) : cs, top = front.reduce((a, q) => (q[2] > a[2] ? q : a), front[0]);
-  m = Object.freeze({ card, L: r4(L), W: r4(W), H: r4(H), roof: { y: r4(top[1]), z: r4(top[2]) }, paint, trim });
+  // (its WHEELS' hubs, each wheel's own centre, its radius and the side it faces out to, read off its wheel parts: where a
+  // spinning hubcap is set on a car the page moves, channels/hub-disc.js)
+  const hubs = Object.values(Object.fromEntries(Object.entries(c.form).filter(([b]) => b !== 'root'))).map((fs) => {
+    const P = fs.flatMap((f) => f.corners), lo = [0, 1, 2].map((k) => Math.min(...P.map((q) => q[k]))), hi = [0, 1, 2].map((k) => Math.max(...P.map((q) => q[k])));
+    const at = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2), side = at[0] >= 0 ? 1 : -1;
+    return { at: [r4(side > 0 ? hi[0] : lo[0]), r4(at[1]), r4(at[2])], r: r4((hi[2] - lo[2]) / 2), side };
+  }).filter((h) => h.r > 0.05);
+  // (a body with a MOVING PART, a refuse truck's tailgate, car-designer/road-civic-works.js refuseGate: its body baked
+  // without it, the tailgate about its hinge at its origin, for a page that swings it: scene/channels/cab-pool.js `gate`.
+  // Its whole `paint` and `trim` as they were)
+  const G = loft ? refuseGate(cls) : null;
+  let gate = null;
+  if (G) {
+    const inG = (f) => G.parts.includes(f.part), pale = (f) => ({ ...f, albedo: PALE, cornerAlbedo: undefined });
+    const at = ([py, pz]) => (f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x, y - py, z - pz]) }), rest = body.filter((f) => !inG(f)), swung = body.filter(inG);
+    gate = Object.freeze({ bodyPaint: bakeForm(rest.filter(painted).map(pale)), bodyTrim: bakeForm([...rest.filter((f) => !painted(f)), ...wheels]),
+      gatePaint: bakeForm(swung.filter(painted).map(pale).map(at(G.pivot))), gateTrim: bakeForm(swung.filter((f) => !painted(f)).map(at(G.pivot))),
+      pivot: G.pivot.map(r4), tip: r4(G.tip - G.closed) });
+  }
+  m = Object.freeze({ card, L: r4(L), W: r4(W), H: r4(H), roof: { y: r4(top[1]), z: r4(top[2]) }, paint, trim, hubs, ...(gate ? { gate } : {}) });
   MODELS.set(card, m);
   // (a metro's whole fleet, its trucks and rigs among them, kept: a model evicted is compiled again)
   if (MODELS.size > 32) MODELS.delete(MODELS.keys().next().value);
@@ -111,19 +143,25 @@ export const ROOF_EXTRAS = Object.freeze({
 
 /** The parked cars as repeats: each model's paint (tinted by each car's paint) and its trim, one transform a car.
  *  `pool` (a metro's traffic, geocity/flow.js: [{ model, extra? }]): each of those models' paint, trim and extra keyed
- *  `<model>|paint`, `|trim`, `|<extra>` for the page's flow channel to instance, there with none parked if none is. */
+ *  `<model>|paint`, `|trim`, `|<extra>` for the page's flow channel to instance, there with none parked if none is.
+ *  A pool that asks for its MOVING PARTS (`gate: true`, a model with them: carModel `gate`) is given them too, keyed
+ *  `|body-paint`, `|body-trim`, `|gate-paint`, `|gate-trim`; none asked, not a row more. */
 export function carRepeats(list, { group = 'car', pool = null } = {}) {
   const by = new Map();
   for (const c of list) (by.get(c.model) ?? by.set(c.model, []).get(c.model)).push(c);
   const pooled = new Map();
-  for (const k of pool ?? []) { if (!by.has(k.model)) by.set(k.model, []); (pooled.get(k.model) ?? pooled.set(k.model, new Set()).get(k.model)); if (k.extra) pooled.get(k.model).add(k.extra); }
+  const gated = new Set();
+  for (const k of pool ?? []) { if (!by.has(k.model)) by.set(k.model, []); (pooled.get(k.model) ?? pooled.set(k.model, new Set()).get(k.model)); if (k.extra) pooled.get(k.model).add(k.extra); if (k.gate) gated.add(k.model); }
   const out = [];
   for (const [card, cars] of [...by].sort(([a], [b]) => a.localeCompare(b))) {
     const M = carModel(card), at = (c) => ({ pos: c.pos, ...(c.rotZ ? { rotZ: c.rotZ } : {}) }), P = pooled.get(card), key = (part) => (P ? { pool: `${card}|${part}` } : {});
-    out.push({ group: `${group}-paint`, template: M.paint, transforms: cars.map((c) => ({ ...at(c), tint: TINTS.get(c.paint) ?? lin(c.paint) })), ...key('paint') });
-    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim') });
+    // (a body with no paint to tint, a site's machine, has none of it)
+    if (M.paint.length) out.push({ group: `${group}-paint`, template: M.paint, transforms: cars.map((c) => ({ ...at(c), tint: TINTS.get(c.paint) ?? lin(c.paint) })), ...key('paint') });
+    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim'), ...(P && M.hubs?.length ? { hubs: M.hubs } : {}) });
     // (its roof's extras, each on the same transforms: set back from the roof's top along its nose a little)
     for (const ex of [...new Set([...cars.filter((c) => c.extra).map((c) => c.extra), ...(P ?? [])])].sort()) out.push({ group: `${group}-${ex}`, template: ROOF_EXTRAS[ex](r4(M.roof.y - 0.3), M.roof.z), transforms: cars.filter((c) => c.extra === ex).map(at), ...(P?.has(ex) ? { pool: `${card}|${ex}` } : {}) });
+    // (its moving parts, for a body that moves them: pooled, none of them parked)
+    if (gated.has(card) && M.gate) for (const [part, t] of [['body-paint', M.gate.bodyPaint], ['body-trim', M.gate.bodyTrim], ['gate-paint', M.gate.gatePaint], ['gate-trim', M.gate.gateTrim]]) out.push({ group: `${group}-${part}`, template: t, transforms: [], pool: `${card}|${part}` });
   }
   return out;
 }

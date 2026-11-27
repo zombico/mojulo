@@ -71,6 +71,8 @@ describe('the rail\'s cards', () => {
     // (2026-11-09: gameworld-world 5248 → 5376: a glyph map's water and its ways' ranks, and its style's geocube, two lines)
     // (2026-11-15, 1115-geocity-refinements: gameworld-world 5376 → 5760: a level that is a district of a metro, the
     // geocity level, two lines; the card stood a few bytes under its ceiling before)
+    // (2026-11-24, 1124-geocity-refinement: gameworld-world 5760 → 6016: a town's or a district's sky words in the style,
+    // clouds, air, finish and cone, carried as its hour is, four short entries; 5888 bytes with them)
     // the feel card too (2026-11-09, 1109-gen-bodywork merging 1108-practice-room: the two lines' feel words met, 4157
     // bytes)
     // and again (2026-11-10, 1110-practice-room-slice: the arsenal, its kits and its edits, three lines; 4082
@@ -110,7 +112,11 @@ describe('the rail\'s cards', () => {
     // screen and the branch's lines read together, 4880 bytes)
     // (2026-11-25, 1124-side-scroll-backgrounds: gameworld-world 5760 → 5888: a side strip's `scenery`, the land behind
     // its lane segment by segment, one style word; 5690 bytes before, 5810 with it)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5888, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // (2026-11-27, 1124-geocity-refinement merged with 1116-rc: gameworld-world 6016 → 6144: the branch's city lines and the
+    // candidate's side strip `scenery` read together, 6094 bytes)
+    // (the same merge: gameworld-battles 6144 → 6272: the candidate's `wins` and the branch's minigames, mowing and deskwork,
+    // read together, 6155 bytes)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 6144, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6272, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

@@ -356,7 +356,9 @@ export function normalizeHud(rows, ctx = {}) {
         widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ...d, ...gate });
         return;
       }
-      widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined, ...gate });
+      // (a banner's second line, `sub`: what it means, under its words, a round's pay under 'Round complete')
+      if (r.sub !== undefined && !(k === 'banner' && isStr(r.sub))) errors.push(`${where}.sub is a banner's second line, in words`);
+      widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', ...(k === 'banner' && isStr(r.sub) ? { sub: r.sub } : {}), slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
     if (isStr(r.text)) {

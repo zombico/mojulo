@@ -91,6 +91,15 @@ orders are the ones the solver measured.
 
 Board: `node control/scripts/spikes/worksim/solve.mjs [card…] [--challenge 0.7] [--card file.json] [--json]`.
 
+### Knowledge work: an office shift
+
+The paradigm holds where the work is clerical. `deskwork/card.js` `OFFICE` is an office shift as a card: a ticket is an
+order, working out an invoice's total, a recommendation or a week's tally is shovel work, filing, covering and routing
+bucket work, and switching browser tabs is the travel. A rank is a challenge (`challengeOf`), solved per rank
+(`deskSchedule`): the solver's beat and rushes are kept, every kind of ticket is dealt at every rank, and patience eases
+from 90 s to 40 s as the rank climbs. The page plays the arrivals as Deskwork, a minigame whose stations are quiz steps
+(`deskwork/core.js`; Hijack City's temp agency, [hijack-city.md](hijack-city.md)).
+
 ## The runtime: the `work` mechanic
 
 Everything below lowers onto the event bus's existing verbs. There is no runtime code of its own.

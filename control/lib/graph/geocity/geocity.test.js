@@ -211,7 +211,7 @@ describe('its blocks', () => {
   });
 
   it('gives every block a segment of its ring, an edge and a main street their street along their long side', () => {
-    const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY], industry: ['works', 'warehouse', 'storage', 'tanks', 'substation', ...ANY] };
+    const ANY = ['construction', 'parking', 'vacant', 'geotown', 'worship', 'cemetery'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY], industry: ['works', 'warehouse', 'storage', 'tanks', 'substation', ...ANY] };
     const ind = new Set(d.regions.filter((r) => r.industrial).map((r) => r.id));
     for (const b of lots) expect(OF[ind.has(b.id.split('.')[0]) ? 'industry' : b.ring]).toContain(b.kind);
     const longSides = (b) => (b.rect[3] - b.rect[1] >= b.rect[2] - b.rect[0] ? ['w', 'e'] : ['s', 'n']);

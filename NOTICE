@@ -54,3 +54,10 @@ im-fell-english.OFL.txt):
   Copyright 2010 The Crimson Text Project Authors (https://github.com/googlefonts/Crimson)
   Copyright 2015 The Courier Prime Project Authors (https://github.com/quoteunquoteapps/CourierPrime)
   Copyright (c) 2010, Igino Marini (mail@iginomarini.com), Reserved Font Names "IM FELL English" and "IM FELL"
+
+control/app/fonts/ carries the dashboard's faces, Geist and Geist Mono (geist-variable.woff2, geist-mono-variable.woff2,
+from the geist package) and Outfit (outfit-variable.woff2, its Latin subset from @fontsource-variable/outfit), unmodified,
+under the SIL Open Font License, Version 1.1, each beside its full text (geist.OFL.txt, outfit.OFL.txt):
+
+  Copyright (c) 2023 Vercel, in collaboration with basement.studio
+  Copyright 2021 The Outfit Project Authors (https://github.com/Outfitio/Outfit-Fonts)

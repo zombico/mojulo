@@ -16,8 +16,14 @@
  *   flowOf(d, { seed, near }) → { T, signals, lanes, kinds, tints, cars, near } | null: `lanes` each { axis, cross, lo,
  *                 hi, dir, total, speed, crossings, ground: [u, z, …] } (the road's height along it, u the axis
  *                 coordinate ascending), `kinds` each { model, extra?, len, wid }, `cars` each [lane, kind, tint,
- *                 startFrac]; the streetcars' lanes kept to them
+ *                 startFrac]; a streetcar line's travel bands kept to its tracks, and each track a lane of its own
+ *                 the metro's streetcar runs (streetcar.js, `FLOW.streetcar`: its pace, a car so far apart), through the
+ *                 signals the traffic stops at
  *   flowLaws(F)   → [{ law, ok, value }]: every lane holds its vehicles, the clearance covers the widest box
+ *   FLOW_LOD      (a geocity under the view cone, scene.js) how far a vehicle is drawn as its model (`full`, m); past it
+ *                 to the flow's reach, as its OUTLINE: its model's own heights in `bins` along its length (a bonnet, a
+ *                 cabin, a boot; a cab and its box), its glass the top `glass` of each bin its trim has windows in, its
+ *                 tyres a band under its body (scene/channels/flow.js, built on the page from the pooled template itself)
  *
  * Metres, the design's frame. Pure; seeded dice only.
  */
@@ -26,7 +32,9 @@ import { streamOf } from '../city/plan/dice.js';
 import { carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf } from './fleets.js';
 import { HIGHWAY } from './highways.js';
+import { STREETCAR, STREETCAR_MODEL, STREETCAR_WIDTH } from './streetcar.js';
 
+export const FLOW_LOD = Object.freeze({ full: 110, bins: 5, glass: 0.4 });
 const r2 = (v) => Math.round(v * 100) / 100 + 0, r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 export const FLOW = Object.freeze({
   // the model's numbers in metres (traffic-model.js TRAFFIC is in the old city's units): a green long enough for a
@@ -37,6 +45,9 @@ export const FLOW = Object.freeze({
   speed: 12, spacing: 42, spread: [0.75, 1.35],
   // a highway's (highways.js): faster, its vehicles farther apart, no signal on it
   highway: { speed: 24, spacing: 55 },
+  // a streetcar's (streetcar.js): its own track a lane, slower than the traffic, a car every so far along it, stopping at
+  // the signals the traffic stops at
+  streetcar: { speed: 8, spacing: 450 },
   // what drives: each role's share (fleets.js), the core's taxis over it; a street's (its vans and small trucks among
   // its cars), an arterial's along an industrial neighbourhood (its working trucks), a highway's (its rigs)
   mix: [['civilian', 0.82], ['delivery', 0.09], ['taxi', 0.04], ['bus', 0.02], ['utility', 0.02], ['garbage', 0.01]],
@@ -83,6 +94,10 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     const off = (b.from + b.to) / 2;
     raw.push({ axis: l.axis === 'ns' ? 'y' : 'x', cross: r4(l.at + off), lo: l.axis === 'ns' ? ly0 : lx0, hi: l.axis === 'ns' ? ly1 : lx1, dir: b.dir, line: l.id, ground: groundOf(l, off) });
   }
+  // (each track of a streetcar line a lane of its own, run by the metro's streetcar, streetcar.js)
+  for (const l of d.lines) if (l.kind?.streetcar) for (const t of l.tracks ?? []) {
+    raw.push({ axis: l.axis === 'ns' ? 'y' : 'x', cross: r4(l.at + t.at), lo: l.axis === 'ns' ? ly0 : lx0, hi: l.axis === 'ns' ? ly1 : lx1, dir: t.dir, line: `${l.id}:tram`, ground: groundOf(l, t.at), tram: true });
+  }
   if (!raw.length && !(d.highways ?? []).length && !(d.waterfront ?? []).some((W) => W.boulevard)) return null;
   // what drives: each vehicle a role's (its model, paint and roof), measured
   const kinds = [], kindOf = new Map(), tints = [], tintOf = new Map();
@@ -105,7 +120,13 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
   const industrial = new Set(d.lines.filter(along).map((l) => l.id));
   // each lane's vehicles chosen first (the longest of a signalled street's sizes the model's boxes), then counted to what
   // it holds
+  const tram = () => {
+    if (!kindOf.has(STREETCAR_MODEL)) { kindOf.set(STREETCAR_MODEL, kinds.length); kinds.push({ model: STREETCAR_MODEL, len: STREETCAR.length, wid: STREETCAR_WIDTH }); }
+    if (!tintOf.has('tram')) { tintOf.set('tram', tints.length); tints.push([1, 1, 1]); }
+    return { kind: kindOf.get(STREETCAR_MODEL), tint: tintOf.get('tram') };
+  };
   const picks = raw.map((L, i) => {
+    if (L.tram) { const R = streamOf(seed, 'flow', `${L.line}:${L.cross}`); return { list: Array.from({ length: Math.max(1, Math.round(Math.abs(L.hi - L.lo) / FLOW.streetcar.spacing)) }, tram), start: R(), i }; }
     const R = streamOf(seed, 'flow', `${L.line}:${L.cross}`), span = FLOW.spacing * (FLOW.spread[0] + (FLOW.spread[1] - FLOW.spread[0]) * R());
     const want = Math.max(1, Math.round(Math.abs(L.hi - L.lo) / span)), list = [], mix = industrial.has(L.line) ? FLOW.industrialMix : FLOW.mix;
     for (let k = 0; k < want * 2 && list.length < want; k++) { const p = pick(R, mix); if (p) list.push(p); }
@@ -147,6 +168,8 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
   T.CLEARANCE = deriveClearance(widest, T.CAR_LEN, FLOW.speed, T.ACCEL);
   const signals = buildSignals(junctions, seed >>> 0, { w: d.frame.W, d: d.frame.D }, T);
   const lanes = [...pairLanes(raw, signals, FLOW.speed, T), ...hw];
+  // (a streetcar's lane at its own pace)
+  for (const L of lanes) if (raw.some((x) => x.tram && x.line === L.line && x.cross === L.cross)) L.speed = FLOW.streetcar.speed;
   const cars = [];
   lanes.forEach((L, li) => {
     const P = own.get(L) ?? picks[raw.findIndex((x) => x.line === L.line && x.cross === L.cross)], lenFor = (k) => kinds[P.list[k].kind].len;

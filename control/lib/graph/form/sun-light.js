@@ -25,6 +25,10 @@
  *     ground    the ground's base (linear) under the building; absent, SUN_LIGHT.ground of the light it stands in
  *     lift      how far off its face a corner's shadow test starts (SUN_LIGHT.lift; a building dressed in thin
  *               layers over its walls, its courses, surrounds and panels, asks for more, so its own dress does not shade it)
+ *     level     true: a face lying level (a road, a walk, a plaza, a deck's underside: its normal within LEVEL_Z of
+ *               straight up or down) has its base solved on a face turned as it is, so under a low sun a road still
+ *               shows its own paint and not the blue a sky-lit ground would take, and a soffit its own and not the dark
+ *               the ground's bounce alone would leave it; a wall keeps `reference`. Absent, every face is as it was
  *     a face may carry `cornerNormals` (one a corner: drawn smooth), each corner lit by its own
  *     → each face its `fill` and `cornerFills` the base, `cornerLight` one linear [r,g,b] a corner, and `sunShare` one
  *       a corner: the share of that light the sun gives (0 in a baked shadow), by which a live shadow darkens it
@@ -59,12 +63,14 @@ export function baseOf(hex, light, reference = null, ground = null) {
   return { base: want.map((v) => Math.min(1, v)), unreached: Math.max(...want) > 1.005 };
 }
 
-export function sunLitFaces(faces, light, { shadow = null, ground = null, keep = null, lift = SUN_LIGHT.lift, reference = null } = {}) {
+const UP = Object.freeze([0, 0, 1]), DOWN = Object.freeze([0, 0, -1]), LEVEL_Z = 0.9;
+export function sunLitFaces(faces, light, { shadow = null, ground = null, keep = null, lift = SUN_LIGHT.lift, reference = null, level = false } = {}) {
   const bases = new Map(), unreached = new Set();
   const based = (f) => {
-    if (bases.has(f.fill)) return bases.get(f.fill);
-    const B = baseOf(f.fill, light, reference, ground), out = { hex: hexOf(B.base), unreached: B.unreached };
-    bases.set(f.fill, out);
+    const flat = level && Math.abs(f.normal[2]) > LEVEL_Z ? (f.normal[2] > 0 ? UP : DOWN) : null, key = flat ? `${f.fill}|${flat[2]}` : f.fill;
+    if (bases.has(key)) return bases.get(key);
+    const B = baseOf(f.fill, light, flat ?? reference, ground), out = { hex: hexOf(B.base), unreached: B.unreached };
+    bases.set(key, out);
     return out;
   };
   const out = faces.map((f) => {

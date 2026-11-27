@@ -163,6 +163,36 @@ export const CONSTRUCTIONS = Object.freeze({
     door: { width: 1.8, height: 2.7, frame: 0.1, out: 0.03 },
     shell: { base: { h: 0.12, out: 0.015 }, crown: { h: 0.5, out: 0.06 }, pilaster: { w: 0.4, out: 0.1, foot: 0.12 }, door: { frame: 0.1, out: 0.03, sill: 0.12 } },
   },
+  // GALLERY: a museum's rooms. Smooth plaster to a slim shadow-gap skirting and a fine cornice, oak boards or a pale
+  // stone underfoot, a coffered ceiling its daylight comes down through; no dado, no services, wide doorways in slim
+  // frames. Its walls are a room's own by its dice: gallery white most, an oxblood salon, a grey-blue room
+  gallery: {
+    surfaces: {
+      floor: [l('floor:laminate-193', 6, 'laminate', { ...F, grit: 0.15 }), d('terrazzo', 3, { ...F, cols: 2, rows: 2, grit: 0.15 })],
+      band: [l('floor:laminate-193', 6, 'laminate', { ...F, grit: 0.15 })],
+      hazard: [d('tread', 0.6, { ...F, cols: 1, grit: 0.2 })],
+      base: [d('matte', 1, { cols: 1, rows: 1, grit: 0.2 })],
+      wall: [l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 }), l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 }), l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 }), l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 })],
+      crown: [l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 })],
+      column: [l('board:gypsum-12.7', 1, 'drywall', { grit: 0.1 })],
+      paint: [d('matte', 2, { cols: 1, rows: 2, grit: 0.2 })],
+      services: [d('matte', 2, { cols: 1, rows: 1, grit: 0.2 })],
+      cabinet: [d('matte', 1, { cols: 1, rows: 2, grit: 0.2 })],
+      cable: [k(null, 1)],
+      trim: [d('matte', 1, { cols: 1, rows: 1, grit: 0.2 })],
+      ceiling: [l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 })],
+      soffit: [l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 })],
+      concrete: [d('matte', 2, { cols: 1, rows: 1, grit: 0.15 })],
+      beam: [l('board:gypsum-12.7', 2, 'drywall', { grit: 0.1 })],
+      duct: [k('hull-plate', 1.5)],
+      grate: [d('grating', 1, { ...F, grit: 0.3 })],
+      infill: [d('perforated', 1, { cols: 2, rows: 1, grit: 0.3 })],
+    },
+    // (no glass booth in a tall room: a gallery's height is its own)
+    roofs: ['coffer'], braced: false, duct: 'duct:spiral-450', glass: { clear: 'glass:low-iron-10', other: 'glass:acid-etched-6', low: 'punched' }, booth: { none: true },
+    door: { width: 2.4, height: 3.2, frame: 0.08, out: 0.02 },
+    shell: { base: { h: 0.08, out: 0.01 }, crown: { h: 0.22, out: 0.03 }, pilaster: { w: 0.3, out: 0.04, foot: 0.08 }, door: { frame: 0.08, out: 0.02, sill: 0.04 } },
+  },
   // VERNACULAR: a town's building before machines, lime-rendered or stone-walled over a stone socle, under boarded
   // ceilings on timber beams, its posts and wall-plates timber, its floors flagged or boarded; no services, no ducts,
   // no cables, no grating (a town's house, shop, hall or tavern: gameworld/town interiors)
@@ -279,6 +309,28 @@ export const PALETTES = Object.freeze({
     infill: [s([210, 212, 212], [40, 42, 44])],
     trim: [s([150, 148, 144])],
   },
+  // GALLERY: warm white walls (an oxblood salon, a grey-blue room by a room's dice), oak and a pale stone underfoot, charcoal
+  // frames and skirting, the plinths' warm white; the air soft and neutral
+  gallery: {
+    ambient: '#4c4a46',
+    floor: [m([70, 50, 34], 'floor:laminate-193'), s([222, 216, 204], [196, 190, 180])],
+    band: [m([70, 50, 34], 'floor:laminate-193')],
+    hazard: [s([150, 146, 140], [96, 94, 90])],
+    base: [s([58, 56, 54])],
+    wall: [s([240, 236, 228], [232, 228, 220]), s([118, 40, 42], [104, 34, 36]), s([238, 234, 226], [230, 226, 218]), s([118, 132, 140], [106, 120, 128])],
+    crown: [s([244, 240, 232])],
+    column: [s([240, 236, 228])],
+    paint: [s([58, 56, 54])],
+    services: [s([206, 204, 200])],
+    cabinet: [s([232, 228, 220])],
+    ceiling: [s([246, 244, 238], [234, 232, 226])],
+    soffit: [s([246, 244, 238], [234, 232, 226])],
+    concrete: [s([236, 232, 224], [222, 218, 210])],
+    beam: [s([244, 242, 236])],
+    grate: [s([170, 172, 172], [30, 30, 32])],
+    infill: [s([210, 212, 212], [40, 42, 44])],
+    trim: [s([66, 64, 60])],
+  },
   // VERNACULAR: warm lime plaster, oak and pine, grey flags, a stone socle: a town's own colours derive over these
   // (gameworld/town interiors' palette, from the town's language and its cube)
   vernacular: {
@@ -348,6 +400,16 @@ export const PLOTS = Object.freeze({
     booth: { screen: '#d0e8ff' },
     shell: { pilaster: { strip: { w: 0.09, z0: 0.9, len: 0, every: 1 } } },
   },
+  // GALLERY: daylight down through the coffers, warm track light on the walls and the plinths, a soft warm cove; the
+  // door's lamp a warm glow, no exit-sign green; no strip on the pilasters
+  gallery: {
+    light: { strip: { color: '#fff2e0', fill: '#fff8ee', intensity: 0.5, radius: 5 }, highbay: { color: '#fff6ea', fill: '#fffbf4', intensity: 0.8, radius: 12, twoRows: 9, drop: 1.4, r: 0.3, h: 0.4 },
+      ceilingStrip: { color: '#fff4e6', fill: '#fffaf2', intensity: 0.8, radius: 6 }, inset: { color: '#ffe2bc', fill: '#fff2de', intensity: 0.35, radius: 2.6 },
+      door: { color: '#ffd8a8', fill: '#ffecd2', intensity: 0.3, radius: 3 }, cove: { color: '#ffd4a0', fill: '#ffead0', intensity: 0.5, radius: 7 },
+      down: { color: '#ffd8a8', fill: '#fff0dc', intensity: 0.7, radius: 4.6 }, daylight: { color: '#f2f6ff', fill: '#fbfcff', intensity: 1.2, radius: 14 }, coffer: { color: '#fff6ea', fill: '#fffcf6', intensity: 1.15, radius: 9 } },
+    booth: { screen: '#f0e8d8' },
+    shell: { pilaster: { strip: { w: 0.05, z0: 0.9, len: 0, every: 1e9 } } },
+  },
   // VERNACULAR: daylight through small windows, warm lamplight low (no strips, no high bays: the fixtures read as lamps)
   vernacular: {
     light: { strip: { color: '#ffcf8a', fill: '#ffe2b8', intensity: 0.35, radius: 4.5 }, highbay: { color: '#ffd8a0', fill: '#ffe8c8', intensity: 0.4, radius: 8, twoRows: 9, drop: 1.4, r: 0.2, h: 0.3 },
@@ -368,6 +430,8 @@ export const DRESSINGS = Object.freeze({
   garage: { craned: false },
   // turned down: no grating band, no pad, services on the fewer of a wall's bays, no crane
   everyday: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3, rhythm: 'sparse' } }, craned: false },
+  // GALLERY: bare: no grating band, no pad, no services, no high bays, no catwalk, no crane; what stands in it is its own
+  gallery: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 1e9, long: 1e9, open: 0 }, highbay: { min: 1e9 }, catwalk: { min: 1e9 } }, craned: false },
   // VERNACULAR: nothing a machine age lays: no grating band, no pad, no services, no high bays, no catwalk, no crane
   vernacular: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 1e9, long: 1e9, open: 0 }, highbay: { min: 1e9 }, catwalk: { min: 1e9 }, cove: { every: 1e9 } }, craned: false },
 });

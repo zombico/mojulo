@@ -25,7 +25,8 @@
  *   onScore(G)                  → the game has a `music`: its levels are scored from the sheet
  *   levelScore(world, level, { game?, sheet? })  → { soundtrack?, combat? } for a level's audio, or null
  *   readCues(cues)              → cues, or throws naming the mood that is none (the world's read)
- *   cityScore(G, sheet?)        → a played city's: ambient beats under its streets, a chase when the law or a fight comes
+ *   cityScore(G, sheet?, level?) → a played city's: ambient beats under its streets (the level's own cue where the game
+ *                                 names one), a chase when the law or a fight comes
  *
  * STAND-INS: the generators have no title theme and no cue that ends yet. Until they do, the title, the menus, the
  * credits and the cinematics are answered by the nearest mood that exists, said as a stand-in and listed as owed.
@@ -54,10 +55,13 @@ const isField = (m) => Object.prototype.hasOwnProperty.call(SCORE_MOODS, m), isC
  * combat?, tension? } */
 export const CITY_SCORE = Object.freeze({ walk: 'chill', chase: 'drive',
   tension: Object.freeze({ on: Object.freeze({ 'wanted:*': 1, 'encounter:*': 1, 'raising:wanted': 0.5, 'calming:wanted': 0.12, 'hit:hero': 0.25, 'held:hero': 0.25 }), enter: 0.55, exit: 0.2, hold: 4, decay: 14 }) });
-export function cityScore(G, sheet = null) {
+export function cityScore(G, sheet = null, level = null) {
   const id = sheet?.identity ?? null, cue = (mood) => ({ score: { mood, style: 'club', ...(id !== null ? { game: id } : {}) } });
   const chase = !!(G?.law || G?.factions?.length);
-  return { soundtrack: cue(CITY_SCORE.walk), ...(chase ? { combat: cue(CITY_SCORE.chase), tension: { ...CITY_SCORE.tension, on: { ...CITY_SCORE.tension.on } } } : {}) };
+  // (a game that names its street's cue walks to its own: `music.cues['level:<id>']`, shady's lo-fi for a crime game's
+  // block; the chase still comes in over it)
+  const mine = level !== null ? sheet?.requests?.find((r) => r.id === `level:${level}` && r.source === 'own')?.cue ?? null : null;
+  return { soundtrack: mine ?? cue(CITY_SCORE.walk), ...(chase ? { combat: cue(CITY_SCORE.chase), tension: { ...CITY_SCORE.tension, on: { ...CITY_SCORE.tension.on } } } : {}) };
 }
 
 /** Whether a game's levels are scored from the sheet: it has a `music`. */

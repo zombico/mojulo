@@ -164,3 +164,19 @@ describe('the errand proved on the bus (machine gate)', () => {
     expect(proveErrands(plain, manifests)).toBeNull();
   });
 });
+
+describe('an errand that waits on another, an offer that opens on a flag', () => {
+  it('after names an errand of the world; an offer with after is taken only once its flag is set', async () => {
+    const { readErrands } = await import('./errand.js');
+    const G = { levels: { district: {} }, ids: ['district'], topology: 'interconnected', links: [], start: 'district', foes: {} };
+    const A = { id: 'dig', giver: 'district', vehicle: 'excavator' }, Bx = { id: 'materials', giver: 'district', vehicle: 'freight', after: 'dig' };
+    expect(readErrands([A, Bx], G)[1].after).toBe('dig');
+    expect(() => readErrands([A, { ...Bx, after: 'nothing' }], G)).toThrow(/waits on 'nothing'/);
+    const OFFER = { kind: 'offer', id: 'materials', at: [10, 0, 0], flag: 'took-materials', after: 'told-materials' };
+    const c = composeMechanics([OFFER, { kind: 'reach-exit', at: [99, 99, 0] }], { storeSchema: { slices: [] }, player: 'hero', spawn: [0, 0, 0] }), ev = c.events;
+    const { buildBus } = await import('../worlds/event-bus.js'), B = buildBus();
+    const run = (pre) => { const s = B.createBusState(ev, ev.entities); Object.assign(s.vars, pre); let prev; for (const at of [[10, 0, 0]]) for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: 'hero', position: at }], prev, ev.sources); prev = z.prev; B.processEvents(s, z.events); } return s.vars['flag-took-materials']; };
+    expect(run({})).toBe(0);
+    expect(run({ 'flag-told-materials': 1 })).toBe(1);
+  });
+});
