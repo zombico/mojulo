@@ -71,3 +71,33 @@ describe('a match with seats, played on the bus', () => {
     expect(L.world.byId['hero-2'].downed).toBe(false);
   });
 });
+
+// A MATCH OF TWO SIDES (a team deathmatch's red and blue): its sides name the player 'player' where its pilot is a hero
+// (the word is the level's player); seats against each other split across them, the odd on the player's side
+describe('a match of two sides with seats', () => {
+  const SIDED = { kind: 'frags', rivals: ['bot-1', 'bot-2'], frags: 2, teams: { red: ['player', 'bot-2'], blue: ['bot-1'] }, spawns: { red: [[0, 0, 0]], blue: [[20, 0, 0]] }, respawn: 1, hits: 50 };
+  it('the sides\' "player" is the level\'s pilot, a hero', () => {
+    expect(() => composeMechanics([SIDED], { player: 'hero' })).not.toThrow();
+    expect(() => composeMechanics([{ ...SIDED, teams: { red: ['ghost', 'bot-2'], blue: ['bot-1'] } }], { player: 'hero' })).toThrow(/teams are two sides/);
+  });
+
+  it('teams: seat 2 on the other side; its frags count for that side, and that side\'s win is said as the couch\'s, side 2', () => {
+    const mech = composeMechanics([SIDED], { player: 'hero', seats: ['hero-2'], seatContest: 'teams' });
+    const L = simLevel({ entities: [pilot('hero', 0), pilot('hero-2', 4), bot('bot-1', 10), bot('bot-2', 12)], events: mech.events, world: { seats: { bodies: ['hero-2'], downs: 'level' } } });
+    L.input.seats = { 2: {} };
+    for (let r = 0; r < 2; r++) { hit(L, 'hero', 'hero-2', 2); L.run(1.5); }
+    expect(L.bus.vars['__frag_0_hero-2']).toBe(2);
+    expect(L.bus.vars.__team_0_blue).toBe(2);
+    expect(said(L, 'frags:won')).toHaveLength(1);
+    expect(L.bus.vars.__winner_0).toBe(2);
+  });
+
+  it('co-op: every seat on the player\'s side', () => {
+    const mech = composeMechanics([SIDED], { player: 'hero', seats: ['hero-2'] });
+    const L = simLevel({ entities: [pilot('hero', 0), pilot('hero-2', 4), bot('bot-1', 10), bot('bot-2', 12)], events: mech.events, world: { seats: { bodies: ['hero-2'], downs: 'level' } } });
+    hit(L, 'hero', 'hero-2', 2);
+    L.frame(1 / 30);
+    expect(L.bus.vars.__team_0_blue).toBe(0);
+    expect(L.bus.vars.__team_0_red).toBe(0);
+  });
+});

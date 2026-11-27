@@ -6,6 +6,7 @@ import { gameStages, stageLevelOrder } from './levels.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { readSeats } from '../worlds/world-scene.js';
 import { synthesizeLevel } from '../game/level-synth.js';
+import { runSteps } from './runner.js';
 
 // SEATS, LOWERED: a gameworld whose cube says soul.seats two or four lays a body per extra seat
 // beside the hero (the hero itself, on its rule; while its seat is empty, after the hero on the escort motive) and names
@@ -117,5 +118,17 @@ describe('seats against each other, lowered from the cube', () => {
     const [hero, two] = m.entities.filter((e) => e.pilotable);
     expect(two.team).toBe(hero.team);
     expect(m.seats.contest).toBeUndefined();
+  }, 60_000);
+});
+
+describe('seats on a team deathmatch', () => {
+  it('teams: the odd seats on the hero\'s side and the even on the other, as the match\'s own sides; it composes', () => {
+    // (through the run's steps, as design_game lays it: the match's cast, its bots on their sides, comes with the goal)
+    const w = { ...quickWorld({ id: 'tdm', quick: { goal: 'deathmatch', camera: 'third-person', mode: 'team', hero: {} }, style: { kit: 'trail-valley' } }), intent: { cube: { soul: { seats: 'four', contest: 'teams' } } } };
+    const m = runSteps(w, { ref: 'tdm' }).find((x) => x.key.startsWith('level-')).order.manifest, team = (id) => m.entities.find((e) => e.id === id).team;
+    expect(['hero', 'hero-2', 'hero-3', 'hero-4'].map(team)).toEqual(['red', 'blue', 'red', 'blue']);
+    expect(m.entities.find((e) => e.id === 'hero-2').ambient.mind).toEqual({ motivation: 'hunt' });
+    expect(m.entities.find((e) => e.id === 'hero-3').ambient.mind).toEqual({ motivation: 'escort' });
+    expect(() => synthesizeLevel(m)).not.toThrow();
   }, 60_000);
 });

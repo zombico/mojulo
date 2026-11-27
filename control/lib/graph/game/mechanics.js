@@ -67,6 +67,12 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // a mechanic a seat works lowers a hand a seat, the work shift's), seatLives? (true: the seats count lives, so a seat's
 // hp spent is a seat down, rules-basic.js seat-falls, never the level lost), seatContest? ('versus' | 'free-for-all' |
 // 'teams': the seats against each other, soul.contest; absent, co-op) }.
+// A MATCH'S SIDES name the player as 'player' (the quick door's word, gameworld/quick.js deathmatchSides) where its pilot
+// is a designed hero ('hero'): the word is the level's player, unless a rival is so named
+const sidesOf = (T, P, rivals = []) => (P !== 'player' && !rivals.includes('player') && T && typeof T === 'object' && !Array.isArray(T)
+  ? Object.fromEntries(Object.entries(T).map(([k, L]) => [k, Array.isArray(L) ? L.map((c) => (c === 'player' ? P : c)) : L]))
+  : T);
+
 // THE BODIES A SHARED ZONE ANSWERS TO (a level with seats): seat 1's and every seat's (a list, the bus's zone `watch`),
 // so any of them takes a pickup or the way out; without seats seat 1's alone, as it was
 const takers = (ctx) => (Array.isArray(ctx.seats) && ctx.seats.length ? [ctx.player, ...ctx.seats.slice(0, 3)] : ctx.player);
@@ -1374,7 +1380,7 @@ const MECHANICS = {
       // the sides (two), each contender in one
       let side = null, sides = null;
       if (p.teams !== undefined) {
-        const T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+        const T = sidesOf(p.teams, P, who), names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
         const all = [P, ...who], listed = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
         if (names.length !== 2 || listed.length !== all.length || new Set(listed).size !== listed.length || !all.every((c) => listed.includes(c))) throw new Error(`frags[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player and every rival in one, once`);
         sides = names; side = Object.fromEntries(names.flatMap((k) => T[k].map((c) => [c, k])));
@@ -1382,10 +1388,11 @@ const MECHANICS = {
       // SEATS (a level with seats, docs/local-multiplayer-principles.md): every seat a contender as the player is, its own
       // hp (`hp:<n>`), its fall, its frags in its corner. Co-op, the seats are the player's own side (none frags another);
       // against each other (ctx.seatContest versus, free-for-all, teams), each is a foe to the rest (teams: two sides, the
-      // odd seats the player's and the even the other's). With sides the seats join them the same way.
+      // odd seats the player's and the even the other's). With sides (a team deathmatch's) seats against each other join
+      // them so, the odd the player's (gameworld/levels.js seatPart lays their teams the same way).
       const S = seated(ctx) ? ctx.seats.slice(0, 3) : [], seatN = (c) => S.indexOf(c) + 2, against = !!ctx.seatContest;
       const twoSides = ctx.seatContest === 'teams';
-      if (side && S.length) S.forEach((c) => { side[c] = !against || (twoSides && seatN(c) % 2) ? side[P] : sides.find((k) => k !== side[P]); });
+      if (side && S.length) S.forEach((c) => { side[c] = !against || seatN(c) % 2 ? side[P] : sides.find((k) => k !== side[P]); });
       const spawnList = (L) => Array.isArray(L) && L.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite));
       const spawns = Array.isArray(p.spawns) ? p.spawns : [], spawnsOf = sides && p.spawns && !Array.isArray(p.spawns) ? p.spawns : null;
       if (spawnsOf ? !sides.every((k) => spawnList(spawnsOf[k])) : !spawnList(spawns)) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back${sides ? ' (or { <side>: [[x, y, z?], …] } per side)' : ''}`);
@@ -1531,7 +1538,7 @@ const MECHANICS = {
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
-      const i = ctx.i, P = ctx.player, T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+      const i = ctx.i, P = ctx.player, T = sidesOf(p.teams, P), names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
       const all = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
       if (names.length !== 2 || !all.every((c) => typeof c === 'string' && c) || new Set(all).size !== all.length || !all.includes(P)) throw new Error(`control[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player in one, each id once`);
       if (!(Array.isArray(p.at) && p.at.length >= 2 && p.at.every(Number.isFinite))) throw new Error(`control[${i}]: at is the point, [x, y, z?]`);

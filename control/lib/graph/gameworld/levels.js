@@ -1428,9 +1428,11 @@ function seatPart(G, pilotPart, ends, lane) {
   if (!n) return { pilotPart, seats: null };
   const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
   // (soul.contest: co-op, every seat on the hero's side; versus and free-for-all, each seat a side of its own, `seat-<n>`,
-  // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`)
+  // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`. On a level
+  // of two sides already (a team deathmatch's red and blue), seats against each other take them: the odd the hero's)
   const rival = soul.contest === 'versus' || soul.contest === 'free-for-all', teams = soul.contest === 'teams';
-  const sideOf = (k) => (rival ? `seat-${k}` : teams ? (k % 2 ? 'seats-a' : 'seats-b') : side);
+  const others = [...new Set(entities.map((e) => e.team).filter((t) => t && t !== p0.team))], sided = !!p0.team && others.length === 1;
+  const sideOf = (k) => (!rival && !teams ? side : sided ? (k % 2 ? p0.team : others[0]) : teams ? (k % 2 ? 'seats-a' : 'seats-b') : `seat-${k}`);
   entities[0] = { ...p0, team: sideOf(1) };
   const ambient = { type: 'ai', mind: { motivation: 'escort' }, escort: p0.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(p0.rule?.speed) ? { speed: p0.rule.speed } : {}) };
   // (an empty seat against the hero hunts it, the minds' own motive, never escorting it)
@@ -1441,7 +1443,7 @@ function seatPart(G, pilotPart, ends, lane) {
     const back = lane ? -(k - 1) : (k - 1) * 1.2, aside = lane ? 0 : (k % 2 ? -1 : 1) * 0.9;
     const at0 = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
     const id = `${p0.id}-${k}`;
-    entities.push({ ...p0, id, team: sideOf(k), ambient: rival || (teams && k % 2 === 0) ? hunting : ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
+    entities.push({ ...p0, id, team: sideOf(k), ambient: sideOf(k) !== sideOf(1) ? hunting : ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
     bodies.push(id);
   }
   // lives (soul.pool): each seat three of its own, or three a seat in one count the seats share; a fall costs one
