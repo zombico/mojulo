@@ -43,6 +43,20 @@ describe('a scan\'s place on the ground', () => {
     expect(p.getZ(5)).toBeCloseTo(groundAt([p.getX(5)]) + GUIDE_RING.lift, 5);
   });
 
+  it('lies under a lone boulder, not over it, and is depth-tested as the page\'s logarithmic depth is', async () => {
+    // (a boulder 10 m tall under one of its points: that point drops back to the ground round it)
+    const G = await page({ steps: [STEP], done: '' }, {});
+    const ask = G.win.__mojCtrl.groundAt;
+    G.win.__mojCtrl.groundAt = (x, y, z) => ask(x, y, z) + (Math.hypot(x - 120, y) < 1 ? 10 : 0);
+    G.step(0.05, 2);
+    const D = G.disc(), p = D.geometry.getAttribute('position');
+    let k = -1; for (let i = 0; i < p.count; i++) if (Math.hypot(p.getX(i) - 120, p.getY(i)) < 1) k = i;
+    expect(k).toBeGreaterThan(0);
+    expect(p.getZ(k)).toBeLessThan(groundAt([120]) + GUIDE_RING.lift + 1);
+    expect(D.material.vertexShader).toContain('logdepthbuf_vertex');
+    expect(D.material.fragmentShader).toContain('logdepthbuf_fragment');
+  });
+
   it('glows over its whole surface while it is stood in, breathing; at rest a faint light; the step passed, it goes', async () => {
     const G = await page({ steps: [STEP], done: '' });
     G.step(0.05, 2);

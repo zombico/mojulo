@@ -26,7 +26,7 @@ const FRAME_FACTS = new Set(['boost', 'quick-boost', 'climb', 'assault-boost', '
  *  set `lift` m over the ground under it: under a frame's feet, never through its legs, and drawn behind what stands on
  *  it), its rim (`edge` of its radius wide, at `rim`) marking the place and its surface faintly lit (`rest`); stood in,
  *  the whole surface glows, breathing over `period` s up to `glow`, brightest at its middle. */
-export const GUIDE_RING = Object.freeze({ color: '#ffd36b', lift: 0.15, rings: 12, segs: 56, edge: 0.06, rim: 0.55, rest: 0.08, glow: 0.42, period: 1.6 });
+export const GUIDE_RING = Object.freeze({ color: '#ffd36b', lift: 0.25, rings: 12, segs: 56, edge: 0.06, rim: 0.55, rest: 0.08, glow: 0.42, period: 1.6 });
 
 export function guideScript(guide, { host = false } = {}) {
   // (a scan's ring: emitted only where a step asks for one)
@@ -98,19 +98,25 @@ ${rings ? `
     {
       const R = s.radius, NR = GR.rings, NS = GR.segs, pos = [], rr = [], idx = [];
       const C = window.__mojCtrl || {}, G = C.groundAt || C.ground || null, gz = (x, y) => { try { const g = G ? G(x, y, s.at[2] + 80) : null; return Number.isFinite(g) ? g : s.at[2]; } catch (e) { return s.at[2]; } };
-      pos.push(s.at[0], s.at[1], gz(s.at[0], s.at[1]) + GR.lift); rr.push(0);
-      for (let i = 1; i <= NR; i++) for (let j = 0; j < NS; j++) {
-        const u = i / NR, a = (2 * Math.PI * j) / NS, x = s.at[0] + Math.cos(a) * R * u, y = s.at[1] + Math.sin(a) * R * u;
-        pos.push(x, y, gz(x, y) + GR.lift); rr.push(u);
-      }
+      // (the heights read, then each the middle of it and its four neighbours: a lone boulder's top, read as the ground,
+      // drops back to the ground round it, so the disc lies on the ground and the rocks stand through it)
+      const xy = [[s.at[0], s.at[1]]], h = [];
+      for (let i = 1; i <= NR; i++) for (let j = 0; j < NS; j++) { const u = i / NR, a = (2 * Math.PI * j) / NS; xy.push([s.at[0] + Math.cos(a) * R * u, s.at[1] + Math.sin(a) * R * u]); }
+      for (const q of xy) h.push(gz(q[0], q[1]));
+      const at = (i, j) => (i <= 0 ? 0 : 1 + (Math.min(i, NR) - 1) * NS + (((j % NS) + NS) % NS));
+      const mid = (v) => v.sort((a, b) => a - b)[2];
+      const sm = h.map((z, n) => { if (!n) return z; const i = 1 + Math.floor((n - 1) / NS), j = (n - 1) % NS; return mid([z, h[at(i, j - 1)], h[at(i, j + 1)], h[at(i - 1, j)], h[at(i + 1, j)]]); });
+      xy.forEach((q, n) => { pos.push(q[0], q[1], sm[n] + GR.lift); rr.push(n ? 1 + 0 * n : 0); });
+      for (let n = 1; n < xy.length; n++) rr[n] = (1 + Math.floor((n - 1) / NS)) / NR;
       for (let j = 0; j < NS; j++) idx.push(0, 1 + j, 1 + ((j + 1) % NS));
       for (let i = 1; i < NR; i++) for (let j = 0; j < NS; j++) { const a = 1 + (i - 1) * NS + j, b = 1 + (i - 1) * NS + ((j + 1) % NS), c = a + NS, d = b + NS; idx.push(a, c, b, b, c, d); }
       const geo = new T3.BufferGeometry();
       geo.setAttribute('position', new T3.Float32BufferAttribute(pos, 3)); geo.setAttribute('r', new T3.Float32BufferAttribute(rr, 1)); geo.setIndex(idx);
       const mat = new T3.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, side: T3.DoubleSide, blending: T3.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
         uniforms: { uColor: { value: new T3.Color(GR.color) }, uLit: { value: GR.rest }, uRim: { value: GR.rim }, uEdge: { value: GR.edge } },
-        vertexShader: 'attribute float r; varying float vR; void main() { vR = r; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: 'uniform vec3 uColor; uniform float uLit; uniform float uRim; uniform float uEdge; varying float vR; void main() { float rim = smoothstep(1.0 - uEdge, 1.0 - uEdge * 0.35, vR) * (1.0 - smoothstep(0.985, 1.0, vR)); float fill = uLit * (1.0 - 0.55 * vR * vR); gl_FragColor = vec4(uColor, clamp(fill + rim * uRim, 0.0, 1.0)); }' });
+        // (the page's depth is logarithmic: the disc writes and tests it as the ground does, three's own chunks)
+        vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nattribute float r; varying float vR; void main() { vR = r; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\\n#include <logdepthbuf_vertex>\\n}',
+        fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uColor; uniform float uLit; uniform float uRim; uniform float uEdge; varying float vR; void main() {\\n#include <logdepthbuf_fragment>\\nfloat rim = smoothstep(1.0 - uEdge, 1.0 - uEdge * 0.35, vR) * (1.0 - smoothstep(0.985, 1.0, vR)); float fill = uLit * (1.0 - 0.55 * vR * vR); gl_FragColor = vec4(uColor, clamp(fill + rim * uRim, 0.0, 1.0)); }' });
       const m = new T3.Mesh(geo, mat); m.raycast = function () {}; m.renderOrder = 2; S3.add(m);
       ringOn = { g: m, mat };
     }
