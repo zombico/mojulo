@@ -15,8 +15,9 @@ describe('a battle\'s acts on the figures', () => {
     expect(acted).toContain('__actClip');
     expect(acted).toMatch(/swing_neutral/);
     // (the act's phase drives the clip mix, in place of the gait's)
-    expect(acted).toMatch(/advanceGaitMix\(rig\.mix, mode, phase,/);
-    expect(plain).toMatch(/advanceGaitMix\(rig\.mix, mode, e\.gaitPhase,/);
+    // (a standing body breathes on its own clock first, `standing ? rig.standU :`; else the act's phase or the gait's)
+    expect(acted).toMatch(/advanceGaitMix\(rig\.mix, mode, standing \? rig\.standU : phase,/);
+    expect(plain).toMatch(/advanceGaitMix\(rig\.mix, mode, standing \? rig\.standU : e\.gaitPhase,/);
   });
 });
 
