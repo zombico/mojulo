@@ -866,7 +866,7 @@ const QUICK_LEVERS = {
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
     `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
-    '  players: 2 (with a ride)   a driver and a gunner: one drives, the other turns the roof gun with the right stick and fires',
+    '  players: 2   a driver and a gunner: the second turns the roof gun (right stick) and fires',
     // (a few of the road's classes by name, the rest by a registry word: every shelf grows a class at a time, so the card
     // names none it would have to keep up with and stays under its ceiling)
     `    vehicle: a physics class (${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').slice(0, 8).join(' | ')}, …) or any registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,

@@ -7,3 +7,7 @@
 - A sentence asking for a party game, a driver-and-gunner game or a split-screen deathmatch is answered with the one level
   the quick door plays of it today, as a co-op kitchen's is; laying a whole game of each waits on its level form in the
   book.
+- The producer's rail roster has a Party Round row for the new quick game, and the hill-climb page's genre probes now
+  each have a sentence probe: party mash, driver and gunner, and split-screen deathmatch answer with their one level, as a
+  co-op kitchen does. "Split screen deathmatch" and "couch deathmatch" now read as split-screen deathmatch, not the arena
+  shooter.

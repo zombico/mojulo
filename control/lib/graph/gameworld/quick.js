@@ -435,7 +435,7 @@ export function readQuick(Q) {
   }
   // THE PLAYERS (a couch game on one level: the seats, docs/local-multiplayer-principles.md; intent.js cubeOfWorld seats
   // them): a party round's, a deathmatch's (each against each; split in first person), a ride's (a driver and a gunner)
-  if (Q.players !== undefined && Q.goal !== 'meet' && Q.goal !== 'contest') {
+  if (Q.players !== undefined && Q.goal !== 'meet' && Q.goal !== 'contest' && Q.goal !== 'tabletop') {
     if (!(Number.isInteger(Q.players) && Q.players >= 2 && Q.players <= 4)) throw fail('.players is 2 to 4: the couch\'s seats, a controller each');
     if (Q.goal !== 'mash' && Q.goal !== 'deathmatch' && Q.ride === undefined) throw fail('.players seats a party round (mash), a deathmatch or a ride (a driver and a gunner)');
     if (Q.ride !== undefined && Q.players !== 2) throw fail('.players on a ride is 2: one drives, one is its gunner');
