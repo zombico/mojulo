@@ -115,12 +115,16 @@ export const BOSSES = Object.freeze({
 export const BOSS_IDS = Object.keys(BOSSES);
 
 const TUNES = ['reach', 'harm', 'at'];
+/** THE TELL LANGUAGE (a family's, ./dragons.js): a move's `answer`, what the body does about it, and the colour its
+ * hazard's tell is drawn in, the same in every boss that says it: roll out of what cannot be blocked, jump what comes
+ * low, back off from what reaches round it. A move with none is told in its boss's own colour. */
+export const ANSWERS = Object.freeze({ roll: '#ffc23a', jump: '#4ab3ff', back: '#ff4a3a' });
 /** The move's pattern, tuned: `reach` the distance it is thrown at, `harm` each hazard's, `at` its landing put back or on. */
 export function moveOf(boss, id) {
   const m = boss.moves[id];
   if (!m) no(`${boss.name}: no move '${id}' (${Object.keys(boss.moves).join(', ')})`);
   const P = readPattern(m.pattern), T = m.tune || {};
-  return { ...P, id, says: m.says, ...(m.vent ? { vent: m.vent } : {}), ...(m.scope ? { scope: m.scope } : {}), ...(T.reach ? { reach: T.reach } : {}), tell: { ...P.tell, says: m.says },
+  return { ...P, id, says: m.says, ...(m.answer ? { answer: m.answer, tellColour: ANSWERS[m.answer] } : {}), ...(m.vent ? { vent: m.vent } : {}), ...(m.scope ? { scope: m.scope } : {}), ...(T.reach ? { reach: T.reach } : {}), tell: { ...P.tell, says: m.says },
     hazards: P.hazards.map((h) => ({ ...h, ...(T.harm ? { harm: T.harm } : {}), ...(T.at ? { at: h.at + T.at } : {}) })),
     open: { ...P.open, ...(T.at ? { at: P.open.at + T.at } : {}) },
     // (a flight's path waits with its hazards: its take-off kept, every later key `at` later)
@@ -137,6 +141,7 @@ export function readBoss(b, where = 'boss') {
     for (const k of Object.keys(m.tune || {})) if (!TUNES.includes(k)) no(`${where}.moves.${id}.tune: ${k} is not one of ${TUNES.join(', ')}`);
     if (m.vent !== undefined && typeof m.vent !== 'string') no(`${where}.moves.${id}.vent: what it does as it turns away to vent, in words`);
     if (m.scope !== undefined && typeof m.scope !== 'string') no(`${where}.moves.${id}.scope: its eye at a sight through the move, in words`);
+    if (m.answer !== undefined && !ANSWERS[m.answer]) no(`${where}.moves.${id}.answer is what the body does about it, one of ${Object.keys(ANSWERS).join(', ')}`);
   }
   (b.counters || []).forEach((c, k) => {
     const at = `${where}.counters[${k}]`;

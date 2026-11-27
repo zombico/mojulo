@@ -127,7 +127,51 @@ const HUMAN_SKULL_MOVES = [
 
 // (the skull and the gaunt face are the SIXTH GENERATION's: drawn for the undead on the creature door, which stand on the
 // tiered body now, lib/graph/undead, with their own skull and the landmark face; kept for the rows minted with them)
+// THE DRAGONS' SNOUTS (boss/dragons.js): five faces of the dragon's skull, each a silhouette read apart at play distance
+// and its element in it. The ornaments sit in a pin's own frame (x along the muzzle, y across it, z out of the skin).
+// (a raised NOSTRIL BOSS on the muzzle's top near its tip, each side: a furnace's vents)
+const NOSTRIL_BOSS = { kind: 'sweep', name: 'nostrilBoss', at: [4.7, 0.75], space: 'local', spine: [[0, 0, -0.012], [0.012, 0, 0.022], [0.03, 0, 0.038]], radii: [0.042, 0.032], m: 8, squash: [1.25, 1], group: 'Snout' };
+// (a BROW CREST swept back off the brow, each side: frost's)
+const BROW_CREST = { kind: 'sweep', name: 'browCrest', at: [2.0, 0.85], space: 'local', spine: [[0, 0, -0.012], [-0.07, 0, 0.05], [-0.18, 0, 0.1], [-0.3, 0, 0.13], [-0.4, 0, 0.13]], radii: [0.05, 0.04, 0.026, 0.01], m: 6, squash: [0.4, 1], group: 'Horns' };
+// (a NASAL FIN down the bridge's midline: storm's; one each of three stations, the front ones smaller)
+const NASAL_FIN = (st, h) => ({ kind: 'sweep', name: `nasalFin${st}`, at: [st, 0.0001], side: 'R', space: 'local', spine: [[0, 0, -0.008], [-0.02, 0, h * 0.6], [-0.05, 0, h]], radii: [0.026, 0.01], m: 6, squash: [0.3, 1], group: 'Crest' });
+// (a CHEEK SPIKE out and back from the jowl, each side: venom's broad face)
+const CHEEK_SPIKE = { kind: 'sweep', name: 'cheekSpike', at: [1.6, 2.0], space: 'local', spine: [[0, 0, -0.01], [-0.04, 0, 0.05], [-0.1, 0, 0.1]], radii: [0.024, 0.01], m: 6, group: 'Horns' };
+// (a TUSK down from the lip near the front, each side: gloom's hooked face)
+const LIP_TUSK = { kind: 'sweep', name: 'tusk', at: [4.4, 3.1], space: 'local', spine: [[0, 0, -0.008], [0.01, 0, 0.03], [0.03, 0, 0.06], [0.06, 0, 0.075]], radii: [0.016, 0.012, 0.005], m: 6, group: 'Teeth' };
+
 export const HEAD_DERIVATIONS = Object.freeze({
+  // THE DRAGONS (boss/dragons.js): each from the dragon's skull
+  'drake-ember': {
+    from: 'dragon', reads: 'a fire dragon: a deep, heavy, square-tipped snout, raised bosses over its nostrils like a furnace\'s vents, a heavy jaw',
+    family: 'reptile', head: 'long snout', serves: ['draconic'],
+    moves: [{ op: 'muzzle', pivot: -0.04, length: 1.12, width: 1.22, height: 1.34 }, { op: 'taper', from: 0.22, x: 1.12, z: 0.96 }, { op: 'skull', pivot: -0.06, width: 1.08, height: 1.04 }],
+    ornaments: { add: [NOSTRIL_BOSS] },
+  },
+  'drake-rime': {
+    from: 'dragon', reads: 'a frost dragon: a short, high, narrow snout drawn to a point, crests swept back off its brows',
+    family: 'reptile', head: 'short snout', serves: ['draconic'],
+    moves: [{ op: 'muzzle', pivot: -0.04, length: 0.82, width: 0.9, height: 0.96 }, { op: 'taper', from: 0.05, x: 0.58, z: 0.72 }, { op: 'skull', pivot: -0.06, width: 1.0, height: 1.04 }],
+    ornaments: { add: [BROW_CREST] },
+  },
+  'drake-storm': {
+    from: 'dragon', reads: 'a storm dragon: a long, narrow blade of a snout, a fin down its bridge',
+    family: 'reptile', head: 'long snout', serves: ['draconic'],
+    moves: [{ op: 'muzzle', pivot: -0.04, length: 1.46, width: 0.74, height: 0.86 }, { op: 'taper', from: 0.2, x: 0.5, z: 0.68 }],
+    ornaments: { add: [NASAL_FIN(2.4, 0.07), NASAL_FIN(3.3, 0.055), NASAL_FIN(4.1, 0.04)] },
+  },
+  'drake-venom': {
+    from: 'dragon', reads: 'a venom dragon: a broad, flat shovel of a snout, wide cheeks with spikes swept back off them',
+    family: 'reptile', head: 'shovel snout', serves: ['draconic'],
+    moves: [{ op: 'muzzle', pivot: -0.04, length: 0.86, width: 1.55, height: 0.72 }, { op: 'taper', from: 0.1, x: 1.32, z: 0.84 }, { op: 'skull', pivot: -0.06, width: 1.26, height: 1 }],
+    ornaments: { add: [CHEEK_SPIKE] },
+  },
+  'drake-gloom': {
+    from: 'dragon', reads: 'a shadow dragon: a long snout hooked down at its tip, tusks at its lip',
+    family: 'reptile', head: 'hooked snout', serves: ['draconic'],
+    moves: [{ op: 'muzzle', pivot: -0.04, length: 1.24, width: 0.94, height: 1.02 }, { op: 'drop', from: 0.14, z: 0.1 }],
+    ornaments: { add: [LIP_TUSK] },
+  },
   skull: {
     from: 'bear', reads: 'a human skull: a tall dome, a flat face, empty sockets, the teeth bared', family: 'mammal', head: 'skull', serves: ['skeleton'],
     units: { scale: 0.66 },
