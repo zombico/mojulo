@@ -24,6 +24,7 @@ describe('the foes a sentence names', () => {
     expect(w.brief.unread).not.toContain('skeletons');
     expect(w.brief.read.find((r) => r.word === 'zombies').decides).toEqual(['battles.foe=zombie']);
     expect(() => readGameworld(w)).not.toThrow();
-    expect(composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3 }).battles).toBeUndefined();
+    // (one naming none has no packs or looks of its own: only the party RPG's rules, a turn at a time, compose.js)
+    expect(composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3 }).battles).toEqual({ rules: { turns: 'timeline', foeHp: 'bar', openings: true }, chests: { n: 2, locked: 0.25, mimics: 0.15 }, techs: true });   // (and its treasure: chests.js; its openings)
   });
 });

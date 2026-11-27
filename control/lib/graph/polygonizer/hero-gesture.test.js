@@ -485,6 +485,10 @@ describe('the door clips', () => {
   it('the words: the stand\'s and the clip words, every number range-checked; a word the rig does not know refused by clip, key and word', () => {
     expect(validateHeroClips({ greet: [{}, K] })).toEqual([]);
     for (const none of [undefined, null, {}]) expect(validateHeroClips(none)).toEqual([]);
+    // (a channel a worn piece adds, the wings' beat, takes its degrees; unworn it is no clip word)
+    expect(validateHeroClips({ flap: [{ wingR: -40, crouch: 0.1 }] }, { channels: ['wingR', 'wingL'] })).toEqual([]);
+    expect(validateHeroClips({ flap: [{ wingR: 400 }] }, { channels: ['wingR'] }).join()).toMatch(/wingR: the degrees/);
+    expect(validateHeroClips({ flap: [{ wingR: -40 }] }).join()).toMatch(/wingR/);
     expect(validateHeroClips({ greet: [{ wristR: { flex: 30 } }] })).toEqual([expect.stringMatching(/^clips\.greet\[0\]\.wristR: the streamlined hand is rigid on the forearm \(no wrist; the structured core's has one\), so the clip refuses it \(have .*heelL, heelR, lift, jaw\)$/)]);
     expect(validateHeroClips({ greet: [{ dance: 1 }] })[0]).toMatch(/clips\.greet\[0\]\.dance: not a clip word/);
     expect(validateHeroClips({ greet: [{}, { elbowR: 'kinked' }] })[0]).toMatch(/^clips\.greet\[1\]\.elbowR: a bend word/);

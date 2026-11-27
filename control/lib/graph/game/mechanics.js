@@ -25,6 +25,9 @@ import { lowerRequest } from './request-mechanics.js';
 import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
+import { lowerGrade } from './grade.js';
+import { lowerWake } from './wake.js';
+import { lowerSortie } from './sortie.js';
 import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
@@ -75,6 +78,11 @@ const MECHANICS = {
       // place of `needs` where a way has both
       const held = p.holds && Number.isFinite(p.holds.count) && p.holds.count > 0 ? { v: `__held_${ctx.i}`, who: typeof p.holds.who === 'string' && p.holds.who ? p.holds.who : 'foe-*', count: p.holds.count } : null;
       const gate = held ? { if: { var: held.v, gte: held.count } } : typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
+      // `by`: an event that takes the way, never walked into (a save point's yes: levels.js stageWays `savePoint`)
+      if (typeof p.by === 'string' && p.by) {
+        const type = p.exit ? `goal:reached:${p.exit}` : 'goal:reached';
+        return { world: { reactions: [{ on: p.by, do: 'emit', type }] }, on: { [type]: p.exit ? { end: 'success', exit: p.exit } : { end: 'success' } } };
+      }
       return {
         world: {
           ...(held ? { vars: { [held.v]: 0 } } : {}),
@@ -104,6 +112,44 @@ const MECHANICS = {
         },
         on: { [type]: { door: id } },
         doors: [{ id, at, spawn: Array.isArray(p.spawn) ? p.spawn : at, heading: Number.isFinite(p.heading) ? p.heading : 0 }],
+      };
+    },
+  },
+
+  // a LOCK across the way (a walled core's gated door, met in play): a seal in a doorway that walking into opens for good
+  // where the bag holds its key (kept), else says what opens it and puts the walker back where it came from. Not an end:
+  // the way on is only barred. { id, key: '<bag item>', name?: its key's name, at, radius?, planar?, back }
+  //   lock:open:<id>   it opens (its seal off, `lock-<id>` set)
+  //   lock:shut:<id>   tried without its key (the walker put back)
+  lock: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+      if (typeof p.id !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(p.id)) throw new Error(`lock[${ctx.i}]: id is a lower-case word`);
+      if (typeof p.key !== 'string' || !p.key) throw new Error(`lock[${ctx.i}]: key is the bag item that opens it`);
+      if (!isVec(p.at) || !isVec(p.back)) throw new Error(`lock[${ctx.i}]: at is where it stands and back where a walker without its key is put, each [x, y, z]`);
+      const id = p.id, zone = `lock_${id}`, seal = `lock-${id}`, flag = `lock-${id}`, held = `held:bag:${p.key}`, name = p.name || p.key;
+      const tryT = `lock:try:${id}`, openT = `lock:open:${id}`, shutT = `lock:shut:${id}`;
+      return {
+        world: {
+          vars: { [flag]: 0 },
+          sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 1.4, planar: p.planar !== false, watch: ctx.player }],
+          entities: [{ id: seal, type: 'seal', on: true, position: p.at.slice(), radius: 0.9, color: '#7a1f1a' }],
+          reactions: [
+            // (its key held: the flag set at once, so the shut below sees it open; an unheld key is no var at all)
+            { on: 'enter', match: { zone }, if: { var: flag, eq: 0 }, do: 'emit', type: tryT },
+            { on: tryT, if: { var: held, gte: 1 }, do: 'set', var: flag, to: 1 },
+            { on: tryT, if: { var: held, gte: 1 }, do: 'emit', type: openT },
+            { on: tryT, if: { var: flag, eq: 0 }, do: 'emit', type: shutT },
+            { on: openT, do: 'toggle', target: seal, to: false },
+            { on: shutT, do: 'move', target: ctx.player, to: p.back.slice() },
+          ],
+          hud: [
+            { on: shutT, text: `Locked: the ${name} opens it`, as: 'toast', ttl: 1.6 },
+            { on: openT, text: `The ${name} opens the way`, as: 'toast', ttl: 1.6 },
+          ],
+        },
+        emits: [openT, shutT],
       };
     },
   },
@@ -193,8 +239,9 @@ const MECHANICS = {
       const world = { sources: [], reactions: [], ...(body ? {} : { vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] }) };
       hazards.forEach((hz, j) => {
         const zone = `hz_${ctx.i}_${j}`, by = Number.isFinite(hz.damage) ? hz.damage : 20;
-        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], radius: hz.radius != null ? hz.radius : 1.5, planar: true, watch: ctx.player });
-        world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by });
+        // (planar, as a hazard on a floor is; `planar: false` meets it at its height: a pillar or a rock in a flight's way)
+        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], ...(Array.isArray(hz.half) ? { half: hz.half } : { radius: hz.radius != null ? hz.radius : 1.5 }), planar: hz.planar !== false, watch: ctx.player });
+        world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by, min: 0 });
       });
       return { world };
     },
@@ -223,6 +270,42 @@ const MECHANICS = {
           hud: [{ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }],
         },
       };
+    },
+  },
+
+  // CRASH (a flight that is not a race: a lesson, a sortie, a stage): what a crash is and what it costs. A touchdown
+  // harder than the gear takes (the page's `touchdown`, `hard: 1`), or a soft one outside every `pads` box (the runways
+  // and pads a craft may set down on; none: any touchdown after flying), is a `crash`; the page says one itself for a
+  // surface in space. `then: 'fail'` (a lesson: the attempt is over) ends the level; `'respawn'` brings the craft back at
+  // `at` ({ spot, heading?, aloft? }: the respawn mechanic's point), `hurt` hp the less.
+  crash: {
+    role: 'terminal', ends: ['fail'], requires: [],
+    lower(p, ctx) {
+      const then = p.then ?? 'fail';
+      if (then !== 'fail' && then !== 'respawn') throw new Error(`crash[${ctx.i}]: then is 'fail' (the attempt is over) or 'respawn' (it comes back at at)`);
+      const pads = p.pads === undefined ? [] : p.pads;
+      if (!Array.isArray(pads) || !pads.every((q) => q && Array.isArray(q.at) && q.at.length === 3 && Array.isArray(q.half) && q.half.length === 3)) throw new Error(`crash[${ctx.i}]: pads is [{ at: [x, y, z], half: [hx, hy, hz] }]: the boxes a craft may set down in`);
+      const R = Array.isArray(p.at) ? { spot: p.at } : p.at ?? (Array.isArray(ctx.spawn) ? { spot: ctx.spawn } : null);
+      if (then === 'respawn' && !(R && Array.isArray(R.spot) && R.spot.length === 3)) throw new Error(`crash[${ctx.i}]: at is { spot: [x, y, z], heading?, aloft? }: where a crash comes back`);
+      const hurt = Number.isFinite(p.hurt) && p.hurt > 0 ? p.hurt : 0, i = ctx.i;
+      const world = { vars: {}, sources: [], reactions: [{ on: 'touchdown', match: { hard: 1 }, do: 'emit', type: 'crash', why: 'hard' }], hud: [{ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }] };
+      if (pads.length) {
+        // off every pad: the count of the pads' boxes it is not in equals their number (as the laps mechanic's landing)
+        const offs = `__crash_off_${i}`;
+        world.vars[offs] = pads.length;
+        pads.forEach((q, k) => {
+          const zone = `crash_pad_${i}_${k}`;
+          world.sources.push({ type: 'zone', zone, at: q.at.slice(), half: q.half.slice(), planar: false, watch: ctx.player });
+          world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: offs, by: -1 }, { on: 'exit', match: { zone }, do: 'inc', var: offs, by: 1 });
+        });
+        world.reactions.push({ on: 'touchdown', match: { hard: 0 }, if: { var: offs, eq: pads.length }, do: 'emit', type: 'crash', why: 'off' });
+      } else world.reactions.push({ on: 'touchdown', match: { hard: 0 }, do: 'emit', type: 'crash', why: 'ground' });
+      if (then === 'respawn') {
+        world.reactions.push({ on: 'crash', do: 'emit', type: 'respawn:0', spot: R.spot, heading: R.heading ?? 0, aloft: R.aloft ? 1 : 0 });
+        if (hurt) world.reactions.push({ on: 'crash', do: 'inc', var: 'hp', by: -hurt, min: 0 });
+        return { world };
+      }
+      return { world, on: { crash: { end: 'fail' } } };
     },
   },
 
@@ -859,7 +942,15 @@ const MECHANICS = {
 
   // OBJECTIVES (objectives.js): a level's tasks done in order, a section each: walked into, it begins (its foes woken);
   // met, its way on opens; the last met wins. A mission's structure (gameworld/mission-level.js)
-  objectives: { role: 'terminal', ends: ['success'], requires: [], lower: lowerObjectives },
+  objectives: { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerObjectives },
+  // THE GRADE (grade.js): a level's medal read off what it kept when it is won, each criterion's bounds of gold, silver
+  // and bronze; the worst a criterion gives is the medal, kept by its name
+  grade: { role: 'emitter', requires: [], lower: lowerGrade },
+  // WAKE (wake.js): foes asleep until the player passes a mark of one of its facts (a rail stage's waves by the distance
+  // along its path), each wave woken once
+  wake: { role: 'emitter', requires: [], lower: lowerWake },
+  // a mission's goals together, its craft arriving through it (game/sortie.js): a space-combat sim's sortie
+  sortie: { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerSortie },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in
@@ -1041,6 +1132,26 @@ const MECHANICS = {
     },
   },
 
+  // the JOURNEY (an emitter): a metroidvania castle cut into segments, each its own level (gameworld/metroidvania
+  // castle.js segmentsOf), keeps what the hero gains as it goes. Each gain the runtime raises as `journey:<what>:<id>`
+  // (worlds/controllable/held-gates.js: a relic taken, a boss felled, a gate opened, a tile walked, a node learned, a
+  // foe's souls) is kept as a flag of that name in a flags slice the game carries; entering the next segment, the page
+  // puts each back as it stood (carryIn), so her powers, the map and the castle's fallen go with her.
+  journey: {
+    role: 'emitter', requires: ['flags'],
+    lower(p, ctx) {
+      const slice = ctx.resolve('flags', p.slice, `journey[${ctx.i}]`);
+      return {
+        // (a gain counted: the page reads the world's happenings where a reaction hears one, playscape/ui/cast.js)
+        world: { vars: { __gains: 0 }, reactions: [{ on: 'journey', do: 'inc', var: '__gains', by: 1 }] },
+        produces: [{ type: 'setFlag', slice }],
+        on: { 'journey:*': { emit: { type: 'setFlag', slice, key: '{event}', value: true } } },
+        consumes: [{ slice }],
+        journey: { slice },
+      };
+    },
+  },
+
   // the BAG carried (an emitter): what the player holds goes from level to level. The level starts with the inventory
   // slice's items in its bag (held:bag:<item>, playscape/ui/items.js), and every item that comes into or leaves the
   // bag on the bus (`bag:in` / `bag:out`: a buy, a take, a give, a use) goes back to the slice as grant / consume. A
@@ -1126,7 +1237,7 @@ const MECHANICS = {
     role: 'emitter', requires: ['party'],
     lower(p, ctx) {
       const slice = ctx.resolve('party', p.slice, `party[${ctx.i}]`);
-      return { produces: [{ type: 'setStat', slice }], consumes: [{ slice }], party: { slice } };
+      return { produces: [{ type: 'setStat', slice }, { type: 'rename', slice }], consumes: [{ slice }], party: { slice } };
     },
   },
 
@@ -1516,7 +1627,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const audits = [];
   const doors = [];
   const keep = [];
-  let aftermath = null, bag = null, party = null;
+  let aftermath = null, bag = null, party = null, journey = null;
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -1551,6 +1662,7 @@ export function composeMechanics(mechanics, ctx = {}) {
     }
     for (const c of (low.consumes || [])) consumes.push(c);
     if (low.aftermath) aftermath = low.aftermath;
+    if (low.journey) journey = low.journey;
     if (low.bag) bag = low.bag;
     if (low.party) party = low.party;
     for (const k of (low.keep || [])) { if (keep.some((x) => x.var === k.var)) errors.push(`mechanics[${i}] (${m.kind}): var '${k.var}' is kept twice`); else keep.push(k); }
@@ -1620,5 +1732,5 @@ export function composeMechanics(mechanics, ctx = {}) {
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(bag ? { bag } : {}), ...(party ? { party } : {}) };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(journey ? { journey } : {}), ...(bag ? { bag } : {}), ...(party ? { party } : {}) };
 }

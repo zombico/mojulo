@@ -14,12 +14,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const E2E = [
   // a side map level resolved as its page resolves it and played to its goal by the side map's bot (gameworld/side-map/)
   'lib/graph/gameworld/side-map/level.e2e.test.js',
+  // a metroidvania's box resolved as its page resolves it and played on the side map's runtime (gameworld/metroidvania/)
+  'lib/graph/gameworld/metroidvania/level.e2e.test.js', 'lib/graph/gameworld/metroidvania/castle.e2e.test.js', 'lib/graph/gameworld/metroidvania/foes.e2e.test.js', 'lib/graph/gameworld/metroidvania/segments.e2e.test.js',
+  // a scroll stage resolved as its page resolves it and played to its end by Blaze Gunner's bot (gameworld/scroll-stage/)
+  'lib/graph/gameworld/scroll-stage/stage.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // Jobsified's bin round laid in Hijack City's downtown, its depot's trucks made cabs, driven by the errand proof
   'lib/graph/gameworld/jobsified.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
   'lib/mcp/tools/shoot-contact.e2e.test.js',
+  // the default heroes minted and exported as an engine takes them, held under their game budget (triangles, vertices,
+  // the atlas, the body opaque)
+  'lib/mcp/tools/hero-budget.e2e.test.js',
   // the exhibit starters made through create_exhibit: Pompeii resolves a whole historic town and its people
   'lib/graph/exhibit/starters.e2e.test.js',
   // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
@@ -38,6 +45,8 @@ export const E2E = [
   'lib/mcp/tools/design-game.climb.test.js',
   'lib/mcp/tools/design-game.quest.test.js',
   'lib/mcp/tools/design-game.mission.test.js',
+  // designed flight levels: each airspace flown for its flight goal (a lesson's tasks, a sortie's wings, a course)
+  'lib/mcp/tools/design-game.flight.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
@@ -76,6 +85,8 @@ export const E2E = [
   'lib/graph/gameworld/worldmap-bed.live.test.js',
   // the JRPG starter's town played: a townsperson's talk in the talk box, the innkeeper's inn
   'lib/graph/gameworld/jrpg-town.live.test.js',
+  'lib/graph/gameworld/jrpg-story.live.test.js', 'lib/graph/gameworld/wardrobe.live.test.js', 'lib/graph/gameworld/fight-clear.live.test.js',
+  'lib/graph/gameworld/jrpg-wilds.live.test.js',
   // the hover bot over a little world in headless Chromium: its ground cast, its teleport, its flight's step and hole
   'lib/graph/scene/hover-bot.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
@@ -95,8 +106,12 @@ export const E2E = [
   'lib/graph/scene/live-light.chrome.test.js',
   'lib/mana-ui/snapshot.chrome.test.js',
   'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
+  // keying in play: a walking body on twos in headless Chrome, its pose on the key and its place on every frame
+  'lib/graph/scene/channels/controllable/keying.chrome.test.js',
   // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
   'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
+  // big grounds: a flight's land and a race's backdrop loaded in headless Chrome, their heap held under a ceiling
+  'lib/graph/scene/channels/controllable/big-ground.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
   'lib/graph/gameworld/combat/artillery.chrome.test.js',

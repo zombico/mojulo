@@ -91,6 +91,15 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   sp: 3,
   levelup: { who: 'Ayla', level: 8, points: 3, stats: [{ id: 'atk', label: 'Attack', value: 21 }, { id: 'def', label: 'Defence', value: 18 }, { id: 'mag', label: 'Magic', value: 4, max: 6 }, { id: 'spd', label: 'Speed', value: 9 }] },
+  // a machine's hangar (the campaign idioms garage-slots, garage-parts, machine-sheet): its slots, one slot's parts and
+  // their figures, the machine as it stands
+  garage: {
+    slots: [{ slot: 'Core', name: 'Prow', then: { emit: 'garage:slot', slot: 'core' } }, { slot: 'Legs', name: 'Reverse M', then: { emit: 'garage:slot', slot: 'legs' } }, { slot: 'Right arm', name: 'Carbine', then: { emit: 'garage:slot', slot: 'armR' } }],
+    parts: [{ name: 'Prow', about: 'a headless forward fuselage', fitted: true, then: { emit: 'garage:fit', slot: 'core', item: 'cr-prow' } }, { name: 'Citadel', about: 'a heavy core, slow and hard to break', then: { emit: 'garage:fit', slot: 'core', item: 'cr-citadel' } }],
+    columns: [{ key: 'part', label: 'Part' }, { key: 'ap', label: 'AP', align: 'right' }, { key: 'wt', label: 'Weight', align: 'right' }],
+    rows: [{ part: 'Prow', ap: '9,200', wt: '14,800', mark: true }, { part: 'Citadel', ap: '13,600 +4,400', wt: '21,500 +6,700' }],
+    sheet: { title: 'Vanguard', load: 52, loadMax: 63, rows: [{ what: 'AP', value: '31,400' }, { what: 'Boost', value: '46' }], laws: [{ says: 'Within its legs\' load', ok: true }] },
+  },
   loadout: {
     weight: 34, weightMax: 50,
     slots: [
@@ -243,6 +252,21 @@ export const SAMPLE_STATE = Object.freeze({
   talk: { who: 'Keeper', text: 'You came by the garden gate. Few do. What brings you to the vale?', choices: [{ label: 'The east gate.', then: { emit: 'talk:gate' } }, { label: 'Who lives here?', then: { emit: 'talk:who' } }, { label: 'Goodbye.', then: { close: true } }] },
   // a scene's line in the talk box (idioms-talk.js), a choice up under it
   speech: { show: true, who: 'Keeper', face: 'Keeper', text: 'The gate has not opened in a hundred years. Why would it open for you?', more: false, choices: [{ n: 1, say: 'I carry the crest key.', mark: '▶' }, { n: 2, say: 'It will not. I came to see it.', mark: '▷' }], legend: [{ actions: ['up', 'down'], label: 'Move' }, { action: 'accept', label: 'Choose' }] },
+  // an action campaign (idioms-campaign.js): the place, the roster, a briefing three steps in, the tour, a debrief
+  campaign: {
+    state: 'Draft',
+    place: [{ name: 'Kessa System', first: true }, { name: 'Varn Cluster' }, { name: 'Vigil Station', now: true }, { name: 'Moon IV', ahead: true }],
+    roster: [{ name: 'Red', craft: 'Strike foil', count: '×3', side: 0, lit: true }, { name: 'Kestrel', craft: 'Corvette', count: '×1', side: 0 }, { name: 'Fighter', craft: 'Twin-panel', count: '×4', side: 1, lit: true }, { name: 'Dominion', craft: 'Frigate', count: '×1', side: 1 }],
+    brief: { kicker: 'Step 4 of 9', title: 'Red Flight', say: 'You fly Red 1, with Red 2 and Red 3 on your wing. Patrol out from the station to Nav 1.', step: 4, count: 9, ready: false, go: 'Launch',
+      steps: [{ title: 'Kessa System', mark: '✓', then: { emit: 'brief:go', to: 0 } }, { title: 'Varn Cluster', mark: '✓', then: { emit: 'brief:go', to: 1 } }, { title: 'Vigil Station', mark: '✓', then: { emit: 'brief:go', to: 2 } }, { title: 'Red Flight', mark: '▶', then: { emit: 'brief:go', to: 3 } }] },
+    missions: [
+      { name: 'Patrol', place: 'Kessa System | Varn Cluster | Vigil Station | Moon IV', brief: 'Break up a patrol probing the station.', state: 'Gold', record: '3 of 3 goals', then: { emit: 'tour:mission-1' } },
+      { name: 'Convoy', place: 'Kessa System | Varn Cluster | Vigil Station | Moon II', brief: 'Two transports wait at the rendezvous.', state: 'Open', record: 'not flown', then: { emit: 'tour:mission-2' } },
+      { name: 'Strike', place: 'Tor System | Ash Cluster | Hale Station | Moon I', brief: 'Gunboats run for the jump point.', state: 'Locked', record: 'not flown', then: { emit: 'tour:mission-3' }, disabled: true },
+    ],
+    debrief: { outcome: 'Mission complete', place: 'Kessa System | Varn Cluster | Vigil Station | Moon IV', goals: [{ text: 'Destroy the patrol', met: true }, { text: 'Destroy the interceptors', met: true }, { text: 'Keep clear of the Dominion', met: false }],
+      stats: [{ label: 'Kills', value: '5' }, { label: 'Hits taken', value: '12' }, { label: 'Time', value: '06:41' }], medal: 'Silver' },
+  },
 });
 
 // A GAME IN THREE LANGUAGES (a spec's `languages`), for the board's frames: each its own name and some of the runtime's

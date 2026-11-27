@@ -1,6 +1,7 @@
 ---
 name: figure-study
-description: Render the protoform human figure (male/female) as multi-view vexar studies — the whole body, or a focused piece like the bust — for visual analysis. Two modes: filled (lit mesh) and golden-ratio ring-wave wireframe (verify a region's construction before filling it). Also renders PROPORTION CASTS (figure-cast.js: heroic / brute / lithe / stout / child / chibi, or your own dials) as a contact sheet with a measurements table — use that after touching figure-cast.js, a cast preset, or any limb/segment length dial. Use when asked to "render/view/analyze the figure", "show the female form", "study the bust / <region>", "compare the casts / proportions / body types", to compare male|female, or after editing the figure builders. Invoke as `/figure-study <study-name>` or `/figure-study --casts [preset...]`.
+description: "Render the protoform human figure (male | female, whole or a region) as filled or ring-wave wireframe studies, or the proportion casts as a contact sheet. Use for \"view / analyze the figure\", \"study the bust\", \"compare the casts\", or after editing the figure builders or figure-cast.js."
+argument-hint: "<study-name> | --casts [preset...]"
 ---
 
 # figure-study

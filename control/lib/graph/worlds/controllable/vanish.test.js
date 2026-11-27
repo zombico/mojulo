@@ -25,6 +25,26 @@ describe('a mode with a class of its own', () => {
   });
 });
 
+describe('a mode of another body and another fight', () => {
+  it('defeated into a form with a body and a director\'s rule of its own: its hit egg grows, its fight begins afresh', () => {
+    const e = body('a', [0, 0, 0], { is: 'fade', linger: 0.5 });
+    const fight = (name) => ({ kind: 'human', name, moves: {}, phases: [{ moves: {}, tempo: 2 }] });
+    e.rule = { type: 'static', boss: fight('one') };
+    e.body = { ...e.body, type: 'figure-rig', figure: 'woman', egg: { a: 0.6, c: 1.3, cz: 1.3 }, modes: [{ figure: 'woman', hp: 20 }, { figure: 'beast', hp: 30, title: 'the beast', body: { egg: { a: 0.9, c: 1.8, cz: 1.8 }, radius: 0.6 }, rule: { collideHeight: 3.6, boss: fight('two') } }] };
+    const st = E.createWorld({ entities: [e] });
+    run(st, 1);
+    const a = st.byId.a;
+    a.bossS = { phase: 2 };
+    Object.assign(a, { downed: true }); a.body.hp = 0;
+    run(st, 1);
+    expect(a.body).toMatchObject({ figure: 'beast', hp: 30, radius: 0.6, egg: { a: 0.9, c: 1.8, cz: 1.8 } });
+    expect(a.rule.boss.name).toBe('two');
+    expect(a.rule.collideHeight).toBe(3.6);
+    expect(a.bossS).toBe(null);
+    expect(a.downed).toBe(false);
+  });
+});
+
 describe('a downed body goes', () => {
   it('it lies for its linger, then goes, its transit out of its kind and colour', () => {
     const st = E.createWorld({ entities: [body('a', [0, 0, 0], { is: 'motes', linger: 0.5, rgb: [0.2, 0.6, 0.5] }), body('b', [4, 0, 0])] });

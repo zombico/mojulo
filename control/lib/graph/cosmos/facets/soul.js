@@ -43,6 +43,8 @@ export const SOUL = Object.freeze({
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
         // Its body is a placeholder slab until the aircraft roster.
         aircraft: { status: 'built', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body is still a slab (craft.js): the craft shelf\'s airframes are made and exported, not yet what a flight pilots' },
+        // built 11-24 (Warlords of Mars): an assault frame of parts piloted on the frame rule (assault-frame/)
+        frame: { status: 'built', since: '2026-11-24', lowers: 'lib/graph/assault-frame/pilot.js', note: 'an assault frame: a mech of parts (core, head, arms, legs, booster, generator, FCS, a gun in each hand and a weapon on each shoulder) piloted on the frame rule, its numbers its parts\' (assemble.js), its body chrome and painted plate; a frame level\'s pilot and its enemy frames' },
         // built 10-19 (more than meets): a hero in two forms, one body (transformation/), B to change
         transformer: { status: 'built', lowers: 'lib/graph/transformation/index.js', note: 'a quick game\'s transformer: a variable suit folding into its waverider, or a car or jet standing up into a robot (controllable/forms.js: the rule of each form, the beat between them); a car\'s goals are a trail\'s, a flier\'s the fly goal' },
       },

@@ -208,7 +208,8 @@ export const FIXTURES = Object.freeze([
     why: 'a side camera, one interconnected map, abilities that open the way back',
     cube: {
       reality: { medium: '3d' },
-      space: { camera: 'side', topology: 'interconnected', traversal: 'platform' },
+      // (11-25: its map a box of screens, metroidvania/; before, the probe named no level form)
+      space: { camera: 'side', topology: 'interconnected', traversal: 'platform', levelForm: 'box' },
       power: { idiom: 'metroidvania-like', rules: ['platform'], systems: ['unlock'], combat: ['melee'] },
       soul: { hero: 'hero', gaits: ['jump', 'doubleJump'] },
       mind: { motivation: 'territorial', aggressiveness: 'bold', rank: 'miniboss' },
@@ -350,6 +351,32 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'mech-action',
+    name: 'Mech action',
+    anchor: false,
+    why: 'an assault frame of parts boosted and fought on a battlefield: quick boosts, climbs on its thrusters, a gun in each hand and a weapon on each shoulder, operation by operation',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['frame', 'ai'], combat: ['ranged'], mechanics: ['objectives', 'fail-on-death'] },
+      soul: { hero: 'frame' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'space-sim',
+    name: 'Space combat sim',
+    anchor: false,
+    why: 'a starfighter flown from its cockpit: the throttle set, the target picked, shields and power split, flight groups to destroy and craft to protect, mission by mission',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'first-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['starfighter', 'ai'], combat: ['ranged'], mechanics: ['sortie', 'fail-on-death'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'air-combat',
     name: 'Air combat',
     anchor: false,
@@ -466,10 +493,40 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear' },
     },
   },
-  // the time map (11-02): a game whose moments are shown on a clock of their own, the probe the world clock is priced by
+  // the cinematic action game (11-17): one core, a hero over the shoulder through a linear run of set pieces, cutscenes
+  // cut into play; Steel Serpents its stealth template, the climbing adventure its other pole (below)
   {
     id: 'cinematic-action',
     name: 'Cinematic action',
+    anchor: false,
+    why: 'a hero seen over the shoulder works through a linear run of set pieces: a gun aimed off the eye and a knife, objectives laid as a mission, getting over and onto things, cutscenes cut into play (Steel Serpents)',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'mission', traversal: 'wall' },
+      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', mechanics: ['hp-pool', 'objectives'] },
+      soul: { hero: 'hero' },
+      time: { progression: 'linear', sequence: ['cutscene', 'in-play'] },
+    },
+  },
+  // the same core as an adventure: climbing between gunfights behind breaking cover, a vehicle chase for a set piece,
+  // the story in acts and two who talk on the way; what the core still waits on to make one
+  {
+    id: 'cinematic-adventure',
+    name: 'Cinematic action adventure',
+    anchor: false,
+    why: 'the cinematic action core as an adventure: a treasure hunter climbs walls and ledges between gunfights behind cover that breaks, a chase in a vehicle for a set piece, the story told in acts with banter on the way',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', traversal: 'wall' },
+      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', destruction: 'cover', mechanics: ['hp-pool', 'defeat-all'] },
+      soul: { hero: 'hero', mount: 'vehicle' },
+      time: { progression: 'linear', arc: 'acts', sequence: ['cutscene', 'in-play'], shots: ['banter'] },
+    },
+  },
+  // the time map (11-02): a game whose moments are shown on a clock of their own, the probe the world clock is priced by
+  {
+    id: 'bullet-time-action',
+    name: 'Bullet-time action',
     anchor: false,
     why: 'a hero fights through set pieces in third person; time slows on a dodge and holds on the big blow, the camera moving free while the world crawls, and the finisher shown again',
     cube: {

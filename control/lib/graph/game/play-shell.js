@@ -42,7 +42,7 @@ import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { stageConfig, stageCss, stageImportmap, playStageRuntime } from './front-stage-page.js';
 import { FRONT_CARDS } from '../playscape/ui/front-cards/loader.js';
 import { readScreen, screenPayload } from './screen.js';
-import { buildFlowKernel, defaultFlow, readFlow } from './flow.js';
+import { buildFlowKernel, defaultFlow, readFlow, withNaming } from './flow.js';
 import { buildTurnKernel, turnOf, TURN_KEYS } from './turn.js';
 import { playCineRuntime } from './play-cine.js';
 import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
@@ -113,7 +113,9 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ? manifest.links.reduce((m, lk) => { (m[lk.from.ref] ||= {})[lk.from.door] = lk.to; (m[lk.to.ref] ||= {})[lk.to.door] = lk.from; return m; }, {})
     : null;
   // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
-  const flow = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front });
+  // (A NAME ASKED, game-manifest.js naming: the name screen before the first level, where the flow has none of its own)
+  const flow0 = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front, ...(manifest.gameOver === true ? { gameOver: true } : {}) });
+  const flow = manifest.naming ? withNaming(flow0) : flow0;
   // THE TURNS (turn.js): a level step that says picks or a trigger is run as a turn; a game whose steps say none
   // carries no key and none of the kernel. Picks are drawn by mana-ui: with no ui said, in the greybox
   const turns = {};
@@ -123,11 +125,14 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     const errs = readFlow(flow, { levels: levelTable.map((l) => l.ref), consumes: Object.fromEntries(levelTable.map((l) => [l.ref, (l.contract.consumes || []).map((c) => c.slice)])) });
     if (errs.length) throw new Error(`emitPlayShell: ${errs.join('; ')}`);
   }
-  const ui = manifest.ui || (hasPicks ? {} : null);
+  // (a name asked is typed on mana-ui's keyboard, so a pad can type it: in the greybox too where the game says no ui)
+  const ui = manifest.ui || (hasPicks || manifest.naming ? {} : null);
   const stageCard = manifest.front && manifest.front.stage && frontStage ? FRONT_CARDS[manifest.front.stage.composition] || null : null;
   // (the screens in mana-ui, and their sounds where the game's ui names a set the recorded library voices: the sounds are
   // the page script's, play-shell-mana.js shellManaScript, never the cfg's)
-  const manaAll = ui ? shellManaConfig(ui, { ...(hasPicks ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}) }) : null;
+  // (the pick screen too where the turns ask for picks, or the title asks which save: `slots`; the game over's screen,
+  // a game's with gameOver; the name asked, a game's naming)
+  const manaAll = ui ? shellManaConfig(ui, { ...(hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}), ...(manifest.gameOver === true ? { gameOver: true } : {}), ...(manifest.naming ? { naming: manifest.naming } : {}) }) : null;
   const { sounds: manaSounds = null, soundsK = null, soundsOf = null, ...manaRest } = manaAll || {};
   const cfg = {
     manifest,
@@ -204,6 +209,18 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   th{font-weight:500;color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
   tr.me td{color:var(--accent)}
   #frame{position:fixed;inset:0;width:100%;height:100%;border:0;display:none;background:#000}
+  /* THE CROSSING (a way taken aboard, a megaworld's crossings): the trip shown while the next map is built, over the veil */
+  #crossing{position:fixed;inset:0;display:none;z-index:9;background:#0b1220;overflow:hidden}
+  #crossing svg{position:absolute;inset:0;width:100%;height:100%}
+  #crossing .to{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);white-space:nowrap;padding:.25em .9em;border-radius:999px;background:rgba(10,18,32,.38);color:#fff;font-size:clamp(16px,3.2vw,30px);letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  @keyframes cr-drift{from{transform:translateX(0)}to{transform:translateX(-200px)}}
+  @keyframes cr-drift-slow{from{transform:translateX(0)}to{transform:translateX(-400px)}}
+  @keyframes cr-bob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-4px) rotate(1.5deg)}}
+  #crossing .w1{animation:cr-drift 3.2s linear infinite}
+  #crossing .w2{animation:cr-drift 5s linear infinite}
+  #crossing .c1{animation:cr-drift-slow 9s linear infinite}
+  #crossing .c2{animation:cr-drift-slow 15s linear infinite}
+  #crossing .bob{animation:cr-bob 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
   #veil{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg);z-index:5}
   #veil .bar{width:180px;height:3px;border-radius:2px;background:var(--line);overflow:hidden}
   #veil .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
@@ -232,6 +249,7 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
 <div id="front"></div>` : ''}
 <iframe id="frame" title="level" allow="gamepad; fullscreen; autoplay"></iframe>
 <div id="veil"><div class="muted" id="veilText">loading</div><div class="bar"><i></i></div></div>
+<div id="crossing"></div>
 <button id="pauseBtn" aria-label="pause">☰</button>
 <div id="pause"></div>
 <div id="playtag">playtest · nothing is saved</div>
@@ -305,44 +323,73 @@ export function playShellRuntime(cfg, K) {
   }
 
   // ---- the store: a save in localStorage for a game, memory for a playtest ----
-  const SAVE_KEY = 'moj-play:' + M.title;
-  const SET_KEY = SAVE_KEY + ':settings';
+  // (ROOT: the game's own keys, its settings, runs and bests; the save and what goes with it are a SLOT's, below)
+  const ROOT = 'moj-play:' + M.title;
+  const SET_KEY = ROOT + ':settings';
   const mem = {};
   let storage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; }, removeItem: (k) => { delete mem[k]; } };
   if (!PLAYTEST) {
-    try { localStorage.setItem(SAVE_KEY + ':probe', '1'); localStorage.removeItem(SAVE_KEY + ':probe'); storage = localStorage; }
+    try { localStorage.setItem(ROOT + ':probe', '1'); localStorage.removeItem(ROOT + ':probe'); storage = localStorage; }
     catch (e) { /* file:// or blocked storage: this session only */ }
   }
   let settings = { sfxOn: true };
   try { const s = JSON.parse(storage.getItem(SET_KEY) || 'null'); if (s && typeof s === 'object') settings = Object.assign(settings, s); } catch (e) { /* fresh prefs */ }
   const saveSettings = () => { try { storage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) { /* session only */ } };
 
+  // SAVE SLOTS (the game's `slots`, game-manifest.js): the save, the flow's steps it has seen and a level's own progress
+  // kept under the slot in use, slot 1 the game's own keys (a game saved before it had slots continues as its first);
+  // the slot in use kept beside the settings, and asked at the title's play or continue (slotAsk)
+  const SLOTS = Number.isInteger(M.slots) && M.slots > 1 ? M.slots : 0, SLOT_KEY = ROOT + ':slot';
+  const slotRoot = (n) => (n > 1 ? ROOT + ':slot' + n : ROOT);
+  let slot = 1;
+  if (SLOTS) { const n = Number(storage.getItem(SLOT_KEY)); if (Number.isInteger(n) && n >= 1 && n <= SLOTS) slot = n; }
+  let SAVE_KEY = slotRoot(slot);
   let state, runLog;
   // the flow's steps this save has entered (its cinematics: an opening plays on a first boot, the flow's `unseen`), kept
   // beside the save and cleared with it
-  const SEEN_KEY = SAVE_KEY + ':seen';
+  let SEEN_KEY = SAVE_KEY + ':seen';
   let seenSteps = {};
-  try { const v = JSON.parse(storage.getItem(SEEN_KEY) || 'null'); if (v && typeof v === 'object') seenSteps = v; } catch (e) { /* none seen */ }
   function freshStore() { state = K.createStore(SCHEMA); runLog = []; }
   // a reset (the player's, the drawer's): the store anew, and what the flow has shown forgotten with it (a first boot's
   // fresh store keeps it: a player who has seen the opening and not yet finished a level has no save, and has seen it)
   // THE LEVEL'S OWN SAVE (level-contract.js MSG_SAVE, a level that keeps its progress: the open city, one long level):
   // the newest of each level's, kept beside the store; continue goes to the last one saved and hands it back on its
   // launch (params.__resume); a reset or a new game forgets it. A game whose levels keep none: nothing of it runs
-  const PROGRESS_KEY = SAVE_KEY + ':progress';
+  let PROGRESS_KEY = SAVE_KEY + ':progress';
   let progress = {};
-  if (W.save) { try { const v = JSON.parse(storage.getItem(PROGRESS_KEY) || 'null'); if (v && typeof v === 'object') progress = v; } catch (e) { /* none kept */ } }
   const keepProgress = () => { try { storage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (e) { /* session only */ } };
   function resetStore() { freshStore(); seenSteps = {}; try { storage.removeItem(SEEN_KEY); } catch (e) { /* session only */ } if (W.save) { progress = {}; try { storage.removeItem(PROGRESS_KEY); } catch (e) { /* session only */ } } }
-  (function boot() {
+  // a slot taken up: its keys, then its save, what it has seen and its own progress read (none: a fresh store)
+  function loadSlot(n) {
+    slot = n; SAVE_KEY = slotRoot(n); SEEN_KEY = SAVE_KEY + ':seen'; PROGRESS_KEY = SAVE_KEY + ':progress';
+    if (SLOTS) { try { storage.setItem(SLOT_KEY, String(n)); } catch (e) { /* session only */ } }
+    seenSteps = {};
+    try { const v = JSON.parse(storage.getItem(SEEN_KEY) || 'null'); if (v && typeof v === 'object') seenSteps = v; } catch (e) { /* none seen */ }
+    progress = {};
+    if (W.save) { try { const v = JSON.parse(storage.getItem(PROGRESS_KEY) || 'null'); if (v && typeof v === 'object') progress = v; } catch (e) { /* none kept */ } }
     const raw = storage.getItem(SAVE_KEY);
     if (raw) {
       const p = K.parseSave(raw);
       if (p.ok) { state = p.save.storeState; runLog = p.save.runLog; return; }
     }
     freshStore();
-  })();
+  }
+  loadSlot(slot);
   const persist = () => { try { storage.setItem(SAVE_KEY, K.makeSave(state, runLog)); } catch (e) { /* session only */ } };
+  // A NAME ASKED (M.naming): the name as the store holds it, and the one typed, kept by rename (a game whose level keeps
+  // its own save forgets it first, as its new game would, so the name is not lost with it)
+  const NAMING = M.naming || null;
+  function namingInfo() {
+    const N = NAMING, sl = state[N.slice] || {}, who = N.id ? (sl.roster || {})[N.id] : sl;
+    return { label: N.label || 'Your name', value: (who && who.name) || '', max: N.max || 12, min: N.min || 1, back: !!onOf('back') };
+  }
+  function named(name) {
+    if (W.save && progress.__last) resetStore();
+    const r = K.applyEvents(SCHEMA, state, [Object.assign({ type: 'rename', slice: NAMING.slice, name: String(name || '') }, NAMING.id ? { id: NAMING.id } : {})]);
+    if (!r.ok) return false;
+    state = r.state; persist();
+    return go('done');
+  }
 
   const progression = (SCHEMA.slices.filter((s) => s.kind === 'progression')[0] || {}).name;
   const cleared = (ref) => !!(progression && state[progression].completed[ref]);
@@ -404,7 +451,7 @@ export function playShellRuntime(cfg, K) {
 
   // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
   // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
-  const RUN = cfg.run || null, RUNS_KEY = SAVE_KEY + ':runs', DEEP_KEY = SAVE_KEY + ':deepest';
+  const RUN = cfg.run || null, RUNS_KEY = ROOT + ':runs', DEEP_KEY = ROOT + ':deepest';
   let run = null;
   const num = (k) => { try { return Number(storage.getItem(k)) || 0; } catch (e) { return 0; } };
   const keep = (k, v) => { try { storage.setItem(k, String(v)); } catch (e) { /* this session only */ } };
@@ -565,6 +612,34 @@ export function playShellRuntime(cfg, K) {
   }
   // `stage`: a cinematic the flow plays on the level's page ({ scene, skip? }, params.__stage): the level plays it, held,
   // and says when it ends
+  // THE CROSSING: a way taken aboard (an exit's `crossing`) shows its trip in place of the veil while the next map is
+  // built, for CROSS_MIN at least so the trip reads as one, lifted once the map is drawn
+  const CROSS_MIN = 2600;
+  let crossNext = null, crossUntil = 0, crossTimer = 0;
+  function crossScene(by) {
+    // (a band of waves twice the screen's width, drifting left by one wave's length and again)
+    const waves = (y, c, k) => '<g class="' + k + '"><path fill="' + c + '" d="M0 ' + y + Array.from({ length: 12 }, () => ' q 25 -7 50 0').join('') + ' V 225 H 0 Z"/></g>';
+    const cloud = (x, y, r) => '<g fill="#ffffff" opacity=".9"><ellipse cx="' + x + '" cy="' + y + '" rx="' + r * 1.6 + '" ry="' + r * 0.6 + '"/><ellipse cx="' + (x + r * 0.6) + '" cy="' + (y - r * 0.35) + '" rx="' + r * 0.9 + '" ry="' + r * 0.55 + '"/></g>';
+    const clouds = (y, r, k, n) => '<g class="' + k + '">' + Array.from({ length: n }, (_, i) => cloud(i * (800 / n) + 30, y + (i % 2) * 14, r)).join('') + '</g>';
+    if (by === 'airship') return '<svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="crs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f7fcf"/><stop offset="1" stop-color="#d6e6ff"/></linearGradient></defs><rect width="400" height="225" fill="url(#crs)"/>'
+      + clouds(150, 26, 'c2', 8) + '<g class="bob"><ellipse cx="200" cy="92" rx="62" ry="24" fill="#c8553d"/><path d="M140 92 h120" stroke="#8a3424" stroke-width="2"/><path d="M262 92 l14 -12 v24 z" fill="#8a3424"/><path d="M178 114 l4 14 M222 114 l-4 14" stroke="#3b2a20" stroke-width="1.5"/><rect x="176" y="126" width="48" height="12" rx="3" fill="#5b4030"/></g>'
+      + clouds(190, 34, 'c1', 4) + '</svg>';
+    return '<svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="crs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb2e6"/><stop offset=".62" stop-color="#f3dcb4"/></linearGradient></defs><rect width="400" height="225" fill="url(#crs)"/><circle cx="300" cy="128" r="22" fill="#fff1c9"/>'
+      + waves(150, '#3d78a8', 'w2') + '<g class="bob"><path d="M150 150 h100 l-16 18 h-68 z" fill="#5b3a26"/><path d="M200 150 v-62" stroke="#3b2a20" stroke-width="3"/><path d="M203 92 q30 22 0 52 z" fill="#f4ecd8"/><path d="M197 98 q-24 18 0 44 z" fill="#efe4cc"/></g>'
+      + waves(166, '#2a5f8c', 'w1') + '</svg>';
+  }
+  function crossShow(by, title) {
+    const el = $('crossing');
+    el.innerHTML = crossScene(by) + '<div class="to">' + (by === 'airship' ? 'Flying to ' : 'Sailing to ') + String(title).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) + '</div>';
+    el.style.display = 'block';
+    crossUntil = performance.now() + CROSS_MIN;
+  }
+  function crossDone() {
+    const el = $('crossing');
+    if (el.style.display === 'none' || !el.style.display) return;
+    clearTimeout(crossTimer);
+    crossTimer = setTimeout(() => { el.style.display = 'none'; el.innerHTML = ''; }, Math.max(0, crossUntil - performance.now()));
+  }
   // THE SCREENS' SCORE (music.menu): looped while a screen is up (the title, the menus, the results), stopped as a level
   // launches, held under a stinger; a browser lets it start once the player has pressed something, so a press tries again
   const SCREENS = cfg.screens || null;
@@ -616,12 +691,14 @@ export function playShellRuntime(cfg, K) {
     if (STAGE && STAGE.loading(place)) { if (MANA) MANA.close(); /* the stage holds until the level is drawn, mana-ui's title put away */ }
     else if (MANA) MANA.loading(place);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; const bi = veil.querySelector('.bar i'); if (bi) { bi.style.animation = ''; bi.style.width = ''; } }
+    // (come aboard: the trip over the veil)
+    if (crossNext) { crossShow(crossNext.by, lv.title); crossNext = null; }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
     // a level without the bridge still shows, a while after it has)
     clearTimeout(veilHint);
     veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; if (STAGE) STAGE.slow('being built for the first time: a big map can take a few minutes'); if (MANA) MANA.progress(null, 'opening the level: a big one takes a minute or two'); }, 8000);
-    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); }, 600000);
+    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); crossDone(); }, 600000);
     frame.src = lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
@@ -645,7 +722,7 @@ export function playShellRuntime(cfg, K) {
     // the menu asked for from inside the level (Esc there, or the captured mouse let go by it): the pause opens
     if (d.moj === W.menu) { if (!paused && screen === 'level') setPaused(true); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); crossDone(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
     if (d.moj === W.sceneEnd) { if (turn && turn.s.phase === 'main' && turn.s.sub === 'start' && d.scene === turn.s.trigger.scene) { turnSceneEnd(); return; } const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
@@ -692,8 +769,12 @@ export function playShellRuntime(cfg, K) {
       const before = (cfg.front || M.final) && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
-      const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
-      if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
+      // (A GAME OVER, M.gameOver: a level lost is never kept; the store stays as it was last written, where the journey
+      // was kept, and the game over continues from there)
+      const over = M.gameOver === true && env.result === 'fail';
+      const r = over ? { ok: true, state } : K.applyOutcome(SCHEMA, state, session.level.contract, env);
+      if (over) { /* the defeat is not kept */ }
+      else if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
       else {
         state = r.state;
         // (a megaworld: leaving a map by a way is travel, never its completion)
@@ -727,6 +808,9 @@ export function playShellRuntime(cfg, K) {
       const fin = (cfg.front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
       // TRAVEL (a map game, the flow's $travel): a success through an open exit goes on to the level it leads to
       const travelTo = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
+      // (a way taken aboard: its trip shown as the next map loads)
+      const aboard = travelTo && (session.level.exits || []).find((x) => x.id === env.exit && x.crossing);
+      crossNext = aboard ? { by: aboard.crossing.by } : null;
       lastOutcome = { lv: session.level, env, ok: r.ok, fin };
       const more = { complete: !!fin, travelTo, from: session.level.ref };
       const next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, more, { level: at.level })));
@@ -859,9 +943,10 @@ export function playShellRuntime(cfg, K) {
   // the KEPT numbers (a level's game.keep, sent as stats.kept): each beside the best this save has seen, and a new best
   // remembered. A low best (a time) counts only a cleared run; a high one (a score) any run.
   function keptList(lv, env) {
-    const fmt = (k, v) => (Number.isInteger(v) ? String(v) : v.toFixed(1)) + (k.unit || '');
+    // (a value with names, a medal's, said by its name)
+    const fmt = (k, v) => (Array.isArray(k.names) && Number.isInteger(v) && k.names[v] !== undefined ? k.names[v] : (Number.isInteger(v) ? String(v) : v.toFixed(1)) + (k.unit || ''));
     return el('ul', { cls: 'gains' }, env.stats.kept.map((k) => {
-      const key = SAVE_KEY + ':best:' + lv.ref + ':' + k.label, v = Number(k.value);
+      const key = ROOT + ':best:' + lv.ref + ':' + k.label, v = Number(k.value);
       let prior = null;
       try { const s = storage.getItem(key); prior = s === null ? null : Number(s); } catch (e) { /* no memory */ }
       const counts = Number.isFinite(v) && (k.best === 'high' || env.result === 'success');
@@ -921,7 +1006,7 @@ export function playShellRuntime(cfg, K) {
     if (won && next && isOpen(next) && onOf('next')) items.push({ label: 'next: ' + next.title, then: { emit: 'next' } });
     if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
     if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
-    const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
+    const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: Array.isArray(k.names) && Number.isInteger(k.value) && k.names[k.value] !== undefined ? k.names[k.value] : String(k.value) + (k.unit || '') })) : [];
     return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : (env.stats && typeof env.stats.rank === 'string' ? env.stats.rank : ''), items };
   }
   // a run's end as data (the run is over once it is said)
@@ -937,6 +1022,7 @@ export function playShellRuntime(cfg, K) {
   }
   const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
     go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
+    ...(NAMING ? { naming: namingInfo, named } : {}),
     progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
     settings: () => settings,
     reset: () => { resetStore(); persist(); },
@@ -946,6 +1032,7 @@ export function playShellRuntime(cfg, K) {
     runTitle: () => { if (!RUN) return null; const deep = num(DEEP_KEY), runs = num(RUNS_KEY); return { rules: RUN.repeat ? RUN.length + ' maps, rolled anew each run. Fall, and it ends.' : RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each run. Fall, and it ends.', best: runs ? 'best ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') : '', runs }; },
     // the pause, as mana-ui's pause menu drives it
     turn: { pick: turnPick, confirm: () => turnStep({ pick: (turn.draft || []).slice() }), back: () => turnStep('back') },
+    slot: { pick: slotPick, asking: () => !!slotFor, back: () => { slotFor = null; } },
     // (a level is the player's: in play, not paused, no trigger on; a bare HUD draws no button under a mouse)
     playing: () => screen === 'level' && pauseBtn.style.display === 'block' && !paused && !(cfg.bareHud && window.matchMedia && window.matchMedia(cfg.bareHud).matches),
     pause: {
@@ -995,7 +1082,33 @@ export function playShellRuntime(cfg, K) {
   // does the step the game is on take this event (a screen draws only the buttons its step leads somewhere from)
   function onOf(event) { const s = FLOW.steps[at.step]; return !!(s && ((s.on && s.on[event] !== undefined) || (!s.on && s.next !== undefined))); }
   // an event on the step the game is on: where it leads is entered (false: it leads nowhere)
+  // THE SLOT ASKED (SLOTS, mana-ui's pick screen): the title's play or continue first asks which save, each slot said by
+  // where its party stands; play in a slot begins it anew, continue in an empty one plays it from the start
+  let slotChosen = false, slotFor = null;
+  function slotSays(n) {
+    const raw = storage.getItem(slotRoot(n)), p = raw ? K.parseSave(raw) : null;
+    if (!p || !p.ok) return { empty: true, tag: 'empty' };
+    const st = p.save.storeState, A = ATLAS && st[ATLAS.slice] ? st[ATLAS.slice].flags : null, lastRef = A && A.at ? A.at : (p.save.runLog.length ? p.save.runLog[p.save.runLog.length - 1].levelRef : null);
+    const lv = LEVELS.find((l) => l.ref === lastRef), maps = A ? Object.keys(A).filter((k) => k.indexOf('been:') === 0).length : 0;
+    return { empty: false, tag: (lv ? lv.title : 'begun') + (maps ? ' · ' + maps + ' places' : '') };
+  }
+  function slotAsk(event, more) {
+    slotFor = { event, more };
+    const rows = [];
+    for (let n = 1; n <= SLOTS; n++) { const d = slotSays(n); rows.push({ id: String(n), name: 'Slot ' + n, tag: d.tag, about: '', stats: [], mark: n === slot ? 'picked' : '', then: { emit: 'slot:pick', id: String(n) } }); }
+    MANA.pick({ title: M.title, ask: event === 'continue' ? 'Continue which journey?' : 'Begin in which slot?', hint: event === 'play' ? 'a journey kept there is begun anew' : '', step: 1, steps: 0, chosen: [], faces: false, many: false, short: false, shortWhy: '', why: '', rows }, true);
+  }
+  function slotPick(id) {
+    const n = Number(id), f = slotFor;
+    if (!f || !(n >= 1 && n <= SLOTS)) return;
+    slotFor = null; slotChosen = true;
+    const empty = slotSays(n).empty;
+    loadSlot(n);
+    if (f.event === 'play') { resetStore(); persist(); }
+    go(f.event === 'continue' && empty ? 'play' : f.event, f.more);
+  }
   function go(event, more) {
+    if (SLOTS && MANA && !slotChosen && !slotFor && (event === 'play' || event === 'continue') && FLOW.steps[at.step] && FLOW.steps[at.step].screen === 'title') { slotAsk(event, more); return true; }
     const m = more || {}, next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, m, { level: at.level })));
     if (!next) return false;
     enter(next, m);
@@ -1181,9 +1294,18 @@ export function playShellRuntime(cfg, K) {
     if (name === 'end') { if (!(front && front.end())) renderEnd(); return; }
     if (name === 'result') return lastOutcome ? renderResult(lastOutcome.lv, lastOutcome.env, lastOutcome.ok, lastOutcome.fin) : home();
     if (name === 'run-result') return renderRunResult();
+    if (name === 'gameover') return renderGameOver();
+    // (a name asked is mana-ui's to draw: a game that asks one always has it, play-shell-mana.js)
+    if (name === 'name') return go('done');
+  }
+  // THE GAME OVER (M.gameOver): the journey went no further; continue from where it was last kept, or the title
+  function renderGameOver() {
+    plain([el('div', { cls: 'result-mark fail', text: 'game over' }), el('h1', { text: M.title }), el('div', { cls: 'muted', text: GAME_OVER_SAYS }),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'continue', on: () => go('continue') }), el('button', { text: 'title', on: () => go('home') })])]);
   }
   // the screens a flow may name that a game without a front has none of: plain, and each its one way on
   const plain = (kids) => { show('title'); app.textContent = ''; app.appendChild(el('div', { cls: 'screen center' }, kids)); };
+  const GAME_OVER_SAYS = 'Your journey went no further. Continue from where it was last kept.';
   function renderPress() { plain([el('h1', { text: M.title }), el('button', { cls: 'primary big', text: 'press start', on: () => go('press') })]); }
   function renderOptions() {
     plain([el('h2', { text: 'options' }), el('button', { text: 'sound: ' + (settings.sfxOn ? 'on' : 'off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderOptions(); } }), el('button', { cls: 'primary', text: 'back', on: () => go('back') })]);

@@ -16,7 +16,7 @@
  * self-contained form.
  */
 
-import { PATCHES, TABLES } from './audio-patches.js';
+import { PATCHES, TABLES, RECORDED_TWINS } from './audio-patches.js';
 import { INSTRUMENTS, FEEL_PRESETS, resolveInstrument, resolveFeel, rangeOfPatch } from './instruments.js';
 import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 
@@ -807,6 +807,11 @@ export function validateBeatsManifest(manifest) {
     return { ok: false, errors: [`manifest.kind must be one of: ${BEATS_KINDS.join(', ')}`] };
   }
   if (!manifest.title || typeof manifest.title !== 'string') errors.push('manifest.title is required (string)');
+  // the RECORDED switch (the sound library's instruments): true puts every part whose patch has a recorded twin on it
+  if (manifest.recorded !== undefined && typeof manifest.recorded !== 'boolean') errors.push('manifest.recorded is true or false (every part whose patch has a recorded twin heard on it, where the sound library is installed)');
+  for (const k of ['parts', 'channels', 'tracks']) for (const [i, p] of (Array.isArray(manifest[k]) ? manifest[k] : []).entries()) {
+    if (p && p.recorded !== undefined && typeof p.recorded !== 'boolean') errors.push(`${k}[${i}].recorded is true or false (this part on its patch's recorded twin, or kept synthesized)`);
+  }
   // anthem styles: the compact authoring fields (chord symbols, a chart,
   // grooves, modulate, cue parts …) are taught first, then the recipe they
   // expand to is validated like any literal one.
@@ -1017,18 +1022,30 @@ export function validateBeatsManifest(manifest) {
 // B6: expand a part's `instrument` into { patch, chain, feel } (part fields
 // override the instrument's defaults), and resolve any `feel` preset name to
 // params. A node with neither is returned unchanged — the null path is stable.
-function expandNode(node, { allowInstrument }) {
+// The RECORDED switch (`recorded`, the manifest's, a part's own over it): a part whose patch has a recorded twin
+// (audio-patches.js RECORDED_TWINS: the sound library's instruments) plays the twin, its instrument's chain kept; the
+// twin falls back to the very patch it stands in for where the library is not installed, so a machine without it
+// renders the song byte for byte as it would without the switch.
+const twinOf = (patch, on) => (on && typeof patch === 'string' && RECORDED_TWINS[patch]) || patch;
+function expandNode(node, { allowInstrument, recorded = false }) {
   const out = { ...node };
+  const on = node.recorded ?? recorded;
+  delete out.recorded;
   if (allowInstrument && node.instrument) {
     const r = resolveInstrument(node.instrument, { patch: node.patch, chain: node.chain, feel: node.feel });
-    out.patch = r.patch;
+    out.patch = twinOf(r.patch, on);
     if (r.chain !== undefined) out.chain = r.chain; else delete out.chain;
+    // (a recorded twin heard through its instrument's amp: the amp's makeup moved by the twin's `ampTrim`, since a
+    // saturating amp's level follows its makeup, not its input; only on the instrument's own chain, once, as it expands)
+    const T = typeof out.patch === 'string' && PATCHES[out.patch] ? PATCHES[out.patch].ampTrim : undefined;
+    if (T && node.chain === undefined && Array.isArray(out.chain)) out.chain = out.chain.map((f) => (f && f.type === 'amp' ? { ...f, level: Math.round(((f.level == null ? -10 : f.level) + T) * 10) / 10 } : f));
     if (r.feel !== undefined) out.feel = r.feel; else delete out.feel;
     delete out.instrument;
   } else if (node.feel !== undefined) {
     const f = resolveFeel(node.feel);
     if (f !== undefined) out.feel = f; else delete out.feel;
   }
+  if (!(allowInstrument && node.instrument) && out.patch !== undefined) out.patch = twinOf(out.patch, on);
   return out;
 }
 
@@ -1112,7 +1129,7 @@ export function normalizeBeatsManifest(manifest) {
   if (m.kind === 'beats-ambient') {
     if (m.swing === undefined) m.swing = 0;
     m.channels = m.channels.map((ch) => {
-      const out = { level: 0, ...expandNode(ch, { allowInstrument: true }) };
+      const out = { level: 0, ...expandNode(ch, { allowInstrument: true, recorded: m.recorded === true }) };
       if (!out.patch) {
         out.patch = { harmony: 'pad', roots: 'bassMono', melody: 'sinePluck', pulse: 'kick' }[out.role];
       }
@@ -1127,7 +1144,7 @@ export function normalizeBeatsManifest(manifest) {
     if (m.swing === undefined) m.swing = 0;
     if (m.loop === undefined) m.loop = false;
     m.parts = m.parts.map((p) => {
-      const e = expandNode(p, { allowInstrument: true });
+      const e = expandNode(p, { allowInstrument: true, recorded: m.recorded === true });
       const out = { level: 0, ...e };
       if (out.cue !== undefined || out.gesture !== undefined) return out; // a cue part has no patch
       if (!out.patch) out.patch = 'sinePluck';
@@ -1148,7 +1165,7 @@ export function normalizeBeatsManifest(manifest) {
       m.progression = Array.from({ length: m.steps }, (_, i) => m.progression[Math.floor((i * pl) / m.steps)]);
     }
     m.tracks = m.tracks.map((tr) => {
-      const out = { level: 0, ...expandNode(tr, { allowInstrument: true }) };
+      const out = { level: 0, ...expandNode(tr, { allowInstrument: true, recorded: m.recorded === true }) };
       out.mask = expand(out.mask).map((v) => (v === true ? 0.9 : v === false ? 0 : v));
       if (out.notes) out.notes = expand(out.notes);
       return lowerPlayers(out);

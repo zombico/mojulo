@@ -58,7 +58,7 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], tasks: [{ id: 'out', kind: 'reach', text: 'Get out', at: [1, 0, 0] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] }, dots: ['gate'], locks: [{ when: { var: 'kills', gte: 3 } }], item: 'eggs', fragile: true, wants: [{ item: 'eggs' }], who: 'foe-*', arenas: [{ waves: [{ foes: ['foe-1'] }] }], bpm: 120, lanes: { a: { from: [10, 0], to: [1, 0], pool: ['n-1'] } }, chart: [{ beat: 4, lane: 'a' }],
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], tasks: [{ id: 'out', kind: 'reach', text: 'Get out', at: [1, 0, 0] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] }, dots: ['gate'], locks: [{ when: { var: 'kills', gte: 3 } }], item: 'eggs', fragile: true, wants: [{ item: 'eggs' }], who: 'foe-*', arenas: [{ waves: [{ foes: ['foe-1'] }] }], bpm: 120, lanes: { a: { from: [10, 0], to: [1, 0], pool: ['n-1'] } }, chart: [{ beat: 4, lane: 'a' }], criteria: [{ var: 'kills', best: 'high', gold: 3, silver: 2, bronze: 1 }], marks: [{ fact: 'along', min: 10, foes: ['foe-9'] }], goals: [{ destroy: ['foe-1'] }],
         // (a job's start and a faction's words: offer, call, task, join, act)
         id: 'job', flag: 'took-job', done: 'done-job', on: 'errand:done:other', app: 'taskfu', faction: 'reds', verb: 'tag',
         // (the law's: the police it brings)
@@ -66,7 +66,9 @@ describe('lowerMechanic — individual verbs', () => {
         // (a driving job's, a shift: its yard, the yard's vehicles, its round)
         depot: [0, 40, 0], cabs: ['car-1'], stops: [{ at: [9, 0, 0] }],
         // (a constituent's request: where it is fixed, the yard its material is had at, the material)
-        spots: [{ at: [3, 0, 0] }], yard: { at: [0, 40, 0], radius: 8 }, material: { item: 'asphalt', name: 'asphalt' } };
+        spots: [{ at: [3, 0, 0] }], yard: { at: [0, 40, 0], radius: 8 }, material: { item: 'asphalt', name: 'asphalt' },
+        // (a lock's: the bag item that opens it, where a walker without it is put)
+        key: 'key-1', back: [0, 0, 0] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -344,7 +346,7 @@ describe('the composed manifest actually drives the real bus (end to end)', () =
     const B = buildBus();
     const state = B.createBusState({ ...out.events, reactions: [...out.events.reactions, { on: 'dead', do: 'set', var: 'lost', to: 1 }] }, out.events.entities || []);
     const hero = { id: 'hero', transform: { pos: [0, 0, 0] } };
-    // walk into the hazard twice (60 dmg each → hp 100 → 40 → -20)
+    // walk into the hazard twice (60 dmg each → hp 100 → 40 → 0: it stops at none, as a hit's does)
     let z = B.deriveZoneEvents([hero], undefined, out.events.sources);
     B.processEvents(state, z.events);
     hero.transform.pos = [5, 0, 0];
@@ -352,7 +354,7 @@ describe('the composed manifest actually drives the real bus (end to end)', () =
     expect(state.vars.hp).toBe(40);
     hero.transform.pos = [0, 0, 0]; z = B.deriveZoneEvents([hero], z.prev, out.events.sources); B.processEvents(state, z.events);
     hero.transform.pos = [5, 0, 0]; z = B.deriveZoneEvents([hero], z.prev, out.events.sources); B.processEvents(state, z.events);
-    expect(state.vars.hp).toBe(-20);
+    expect(state.vars.hp).toBe(0);
     // the fail-on-death watch edges true → dead → lost
     B.processEvents(state, B.watchEvents(state));
     expect(state.vars.lost).toBe(1);

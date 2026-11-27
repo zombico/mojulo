@@ -340,7 +340,9 @@ describe('design_game: party battles on the book path (battles)', () => {
 
   it('a casting page: the cast rolled as one row, each member made from it by path, the first party and the familiar in the battle party', async () => {
     const casting = { scale: 'party', n: 1, cast: { party: { relation: 'party', n: 1, body: 'person' }, sprite: { relation: 'party', body: 'mascot' }, kin: { relation: 'party', body: 'beastkin', facets: { ancestry: 'lupine', humanity: 0.2 } }, pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } };
-    const world = { ...AUTO, characters: { ...AUTO.characters, casting }, battles: { per: 1 } };
+    // (the smallest book the page needs: the region its first level is in, no weapon classes beside the hero's own; every
+    // body of the cast is its own procedure and stays)
+    const world = { ...AUTO, levels: { 'meadow-ascent': AUTO.levels['meadow-ascent'] }, links: [], equipment: { ...AUTO.equipment, classes: {} }, characters: { ...AUTO.characters, casting }, battles: { per: 1 } };
     const out = await designGameHandler({ world, ref: 'gc', run: true });
     expect([action(out, 'casting'), action(out, 'cast-party-1'), action(out, 'cast-pet')]).toEqual(['make', 'make', 'make']);
     expect(stored('gc-casting')).toMatchObject({ kind: 'egocube', castSheet: { order: ['hero', 'hero/party-1', 'hero/sprite', 'hero/kin', 'hero/pet'] } });
@@ -372,7 +374,8 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(own('sprite').fall.once).toBe(true);
     const again = await designGameHandler({ ref: 'gc', run: true });
     expect([action(again, 'casting'), action(again, 'cast-party-1')]).toEqual(['keep', 'keep']);
-  }, 900_000);
+    // (a whole party game designed, run and built: past 900 s on a loaded runner, 1,060 s and 982 s on two runs)
+  }, 1_800_000);
 
   it('a journey cast is proposed: its part waits for the creator, and approving it readies the members', async () => {
     const world = { ...GATED, characters: { ...GATED.characters, casting: { scale: 'journey', n: 1 } } };

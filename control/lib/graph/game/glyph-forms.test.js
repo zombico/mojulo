@@ -5,7 +5,7 @@ import { getGlyphVocabCatalog, listGlyphVocab } from './glyph-cards/loader.js';
 
 describe('glyph-forms — the form shelf (game-ui-language U1)', () => {
   it('ships the icons and the rhythm notes, with complete metadata', () => {
-    expect(GLYPH_IDS).toEqual(['gem', 'coin', 'key', 'heart', 'medkit', 'ammo-crate', 'star', 'orb', 'flag', 'skull', 'note-up', 'note-down', 'note-left', 'note-right', 'note-any']);
+    expect(GLYPH_IDS).toEqual(['gem', 'coin', 'key', 'heart', 'medkit', 'chest', 'chest-open', 'ammo-crate', 'star', 'orb', 'flag', 'skull', 'note-up', 'note-down', 'note-left', 'note-right', 'note-any']);
     for (const id of GLYPH_IDS) {
       const row = GLYPH_FORMS[id];
       expect(row.name).toBeTruthy();

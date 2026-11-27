@@ -1,0 +1,160 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { boxOf } from './scene.js';
+import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, CASTLE_FIGURES, bossRow, bossLaws, figuredBosses, standBosses, castleFigure, FRAME_TOP } from './bosses.js';
+import { readGameworld } from '../world.js';
+import { runSteps } from '../runner.js';
+import { vampireSonataGame } from './vampire-sonata.js';
+import { vampireSonata, vampireSonataCastle } from './vampire-sonata.js';
+const castleBox = () => boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonataCastle(), stature: 1.63, bosses: 'stood' });
+
+let B, S;
+beforeAll(() => {
+  const m = { kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonata(), stature: 1.63 };
+  B = boxOf(m); S = boxOf({ ...m, bosses: 'stood' });
+});
+
+describe('the castle\'s bosses', () => {
+  it('reads a boss by its name, and one the shelf does not know as the default', () => {
+    expect(bossRow('the Gate Warden').id).toBe('gate-warden');
+    expect(bossRow('Lord of the Keep').known).toBe(true);
+    expect(bossRow('a stranger')).toMatchObject({ id: BOSS_DEFAULT, known: false });
+    // (each row a foe class on a skin, taller than the hero, its health in blows)
+    const row = Object.values(CASTLE_BOSSES)[0];
+    expect(row.tier).toBeGreaterThan(1);
+    expect(row.blows).toBeGreaterThan(0);
+  });
+
+  it('stood, leaves the stand-in blocks off: each boss is felled as its body falls, placed in its room', () => {
+    expect(B.breakables.some((b) => b.id.startsWith('boss-'))).toBe(true);
+    expect(S.breakables.some((b) => b.id.startsWith('boss-'))).toBe(false);
+    expect(S.breakables.length).toBe(B.breakables.length - B.bosses.length);
+    for (const b of S.held.bosses) expect(b.entity).toBe(b.id);
+    expect(B.held.bosses.some((b) => b.entity)).toBe(false);
+    for (const b of S.bosses) {
+      const r = S.layout.rooms.find((x) => x.id === b.place.room), W = S.greybox.screen.width;
+      expect(b.place.span[0]).toBeGreaterThanOrEqual(r.rect[0] * W);
+      expect(b.place.span[1]).toBeLessThanOrEqual((r.rect[0] + r.rect[2]) * W);
+      expect(b.place.at[1]).toBeGreaterThanOrEqual(b.place.span[0]);
+      expect(b.place.at[1]).toBeLessThanOrEqual(b.place.span[1]);
+    }
+    expect(() => boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonata(), bosses: true })).toThrow(/bosses is 'stood'/);
+  });
+
+  it('holds them to their laws, and says a boss the shelf does not know, one with no room, one easier going in', () => {
+    const lost = (X) => bossLaws(X).filter((l) => !l.holds).map((l) => l.id);
+    expect(bossLaws(S).map((l) => l.id)).toEqual([...BOSS_LAWS]);
+    expect(lost(S)).toEqual([]);
+    const with_ = (f) => ({ ...S, bosses: S.bosses.map(f) });
+    const last = S.bosses.at(-1).id;
+    expect(lost(with_((b) => (b.id === last ? { ...b, name: 'a stranger' } : b)))).toEqual(expect.arrayContaining(['known', 'rising']));
+    expect(lost(with_((b) => (b.id === last ? { ...b, place: { ...b.place, span: [b.place.span[0], b.place.span[0] + FIGHT_ROOM / 2] } } : b)))).toContain('room-to-fight');
+  });
+
+  it('holds in a castle of boxes too: its connectors\' keepers among its bosses', () => {
+    const C = boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonataCastle(), stature: 1.63, bosses: 'stood' });
+    expect(C.bosses.map((b) => bossRow(b.name).known)).not.toContain(false);
+    expect(bossLaws(C).filter((l) => !l.holds)).toEqual([]);
+  });
+
+  it('every boss on the shelf has a figure and stands somewhere in the castle; one that flies flies in its sky', () => {
+    const C = boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonataCastle(), stature: 1.63, bosses: 'stood' });
+    const named = new Set(C.bosses.map((b) => bossRow(b.name).id)), one = boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonata(), stature: 1.63, bosses: 'stood' });
+    for (const b of one.bosses) named.add(bossRow(b.name).id);
+    for (const id of Object.keys(CASTLE_BOSSES)) { expect(named.has(id)).toBe(true); expect(CASTLE_FIGURES[id]).toBeDefined(); }
+    // (a winged figure's wind-ups flap; a boss whose moves fly is stood with its sky, keeping its head in the frame)
+    const id = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].hero?.outfit?.style?.pieces?.some((q) => q.kind === 'wings'));
+    expect(castleFigure(id).hero.clips[`wind_${Object.values(CASTLE_BOSSES[id].moves)[0].pattern}`]).toHaveLength(6);
+    const G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), P = standBosses(G, C, { stature: 1.63, refs: { [id]: 'ref-1' } });
+    const e = P.entities.find((x) => bossRow(C.bosses.find((b) => b.id === x.id).name).id === id);
+    expect(e.rule.boss.sky).toBeGreaterThan(1);
+    expect(e.rule.boss.sky + e.rule.collideHeight).toBeLessThan(FRAME_TOP * C.greybox.screen.height);
+  });
+
+  it('each boss with a figure is made by the runner and stood as it, grown to its tier; one with none stands as a block', () => {
+    const names = S.bosses.map((b) => b.name), ids = figuredBosses(names);
+    expect(ids.length).toBeGreaterThan(0);
+    const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref' }), { ref: 'vs' }), steps = R.steps ?? R;
+    for (const id of ids) expect(steps.find((x) => x.key === `boss-${id}`)).toBeDefined();
+    // (stood: a door's body on its ref, at its tier; a beast fitted to its tier's height; no ref, no figure)
+    const G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), refs = Object.fromEntries(ids.map((id) => [id, `ref-${id}`]));
+    const P = standBosses(G, S, { stature: 1.63, refs }), e = P.entities[0], row = bossRow(S.bosses[0].name);
+    expect(P.figures[e.body.figure].heroRef).toBe(`ref-${row.id}`);
+    expect(e.body.scale).toBe(CASTLE_FIGURES[row.id].hero ? row.tier : undefined);
+    const bare = standBosses(G, S, { stature: 1.63 });
+    expect(bare.figures[bare.entities[0].body.figure].heroRef ?? null).toBe(null);
+    expect(figuredBosses(['the Great Bell', 'a stranger'])).toEqual([]);
+  }, 120000);
+
+  it('a person boss\'s figure carries a wind-up and a strike for each of its moves; a beast\'s is its own', () => {
+    const id = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].hero), F = castleFigure(id);
+    for (const m of Object.values(CASTLE_BOSSES[id].moves)) { expect(F.hero.clips[`wind_${m.pattern}`]).toHaveLength(2); expect(F.hero.clips[`strike_${m.pattern}`]).toHaveLength(2); }
+    const beast = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].animal);
+    expect(castleFigure(beast)).toEqual(CASTLE_FIGURES[beast]);
+  });
+
+  it('a bell no door makes stands as its card; a beast is minted with its strike and winds up on it', () => {
+    const C = castleBox(), G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref', castle: true }));
+    const bellId = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].bell), beastId = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].animal);
+    // (the bell: no mint, stood as its card; the beast: minted, and on its ref its wind-ups its own clips)
+    expect(figuredBosses(C.bosses.map((b) => b.name))).not.toContain(bellId);
+    const P = standBosses(G, C, { stature: 1.63, refs: { [beastId]: 'ref-beast' } }), id = (r) => C.bosses.find((b) => bossRow(b.name).id === r).id;
+    const bell = P.entities.find((e) => e.id === id(bellId)), beast = P.entities.find((e) => e.id === id(beastId));
+    expect(P.figures[bell.body.figure].bell).toEqual(CASTLE_FIGURES[bellId].bell);
+    expect(bell.body.scale).toBeUndefined();
+    expect(beast.rule.boss.wind).toEqual(CASTLE_FIGURES[beastId].wind);
+    expect(beast.body.fit.least).toBeGreaterThan(2);
+    const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref', castle: true }), { ref: 'vs' }), steps = R.steps ?? R;
+    expect(steps.find((x) => x.key === `boss-${beastId}`).order.animal.motion.strike).toBeDefined();
+    expect(steps.find((x) => x.key === `boss-${bellId}`)).toBeUndefined();
+  }, 120000);
+
+  it('the knights wear no pauldrons but a torn cloak over their plate, rags hung off it, and grim things at the hip', () => {
+    const knights = Object.keys(CASTLE_FIGURES).filter((k) => CASTLE_FIGURES[k].hero?.adorn?.style === 'knight');
+    expect(knights.length).toBeGreaterThan(0);
+    for (const k of knights) {
+      const H = castleFigure(k).hero;
+      expect(H.adorn.without).toContain('pauldron');
+      expect(H.outfit.style.pieces.map((p) => p.kind)).toEqual(expect.arrayContaining(['cloak', 'trophy', 'rags']));
+      expect(H.outfit.style.pieces.find((p) => p.kind === 'cloak').torn).toBeGreaterThan(0);
+      expect(H.stylism.silhouette).not.toBe('knight');
+    }
+  });
+
+  it('a boss of a second form is stood in two modes, the second its own figure, fight and size, and the runner makes both', () => {
+    const id = Object.keys(CASTLE_BOSSES).find((k) => CASTLE_BOSSES[k].second), b = S.bosses.find((x) => bossRow(x.name).id === id), row = CASTLE_BOSSES[id];
+    const G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' }));
+    const P = standBosses(G, S, { stature: 1.63, refs: { [id]: 'ref-1', [`${id}:second`]: 'ref-2' } }), e = P.entities.find((x) => x.id === b.id);
+    const [M1, M2] = e.body.modes;
+    expect(M1).toMatchObject({ figure: e.body.figure, hp: row.blows * 20 });
+    expect(M2).toMatchObject({ hp: row.second.blows * 20, title: row.second.title });
+    expect(P.figures[M2.figure].heroRef).toBe('ref-2');
+    expect(e.rule.boss.figures).toEqual([M2.figure]);
+    expect(Object.keys(M2.rule.boss.moves)).toEqual(Object.keys(row.second.moves));
+    expect(M2.rule.collideHeight).toBeCloseTo(1.63 * row.second.tier, 2);
+    expect(M2.body.fit.least).toBeCloseTo(1.63 * row.second.tier * (row.second.over ?? 1), 2);   // (its own size, its wings over its head: the page's mode fit)
+    expect(M2.rule.boss.room).toEqual(e.rule.boss.room);
+    // (its second form's fight held to the director's laws too: the castle's fights law names it)
+    expect(bossLaws(S).find((l) => l.id === 'fights').holds).toBe(true);
+    const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref' }), { ref: 'vs' }), steps = R.steps ?? R;
+    // (its second form a person's skeleton: its figure carries the wind-ups of its own moves, its WINGS beating through
+    // each tell (up, down, up, down, settled at the move's wound: six keys) and down through its strike, the page playing
+    // the stretch of each the mode's rule names)
+    const F2 = steps.find((x) => x.key === `boss-${id}-second`).order.spec;
+    expect(F2.outfit.style.pieces.map((q) => q.kind)).toContain('wings');
+    for (const m of Object.values(row.second.moves)) {
+      const W = F2.clips[`wind_${m.pattern}`];
+      expect(W).toHaveLength(6);
+      expect(W[1].wingR).toBeLessThan(0); expect(W[2].wingR).toBeGreaterThan(0); expect(W[0].wingR).toBeUndefined();
+      expect(M2.rule.boss.wind[m.pattern]).toEqual({ wind: [`wind_${m.pattern}`, 0, 5 / 6], strike: [`strike_${m.pattern}`, 0, 0.5] });
+    }
+    // (and it takes to the air: a move of its own that flies, in a sky that keeps its head in the frame; the first form,
+    // which never flies, has none)
+    expect(Object.values(M2.rule.boss.moves).some((x) => Array.isArray(x.flies))).toBe(true);
+    expect(M2.rule.boss.sky).toBeGreaterThan(1);
+    expect(M2.rule.boss.sky + M2.rule.collideHeight).toBeLessThan(FRAME_TOP * S.greybox.screen.height);
+    expect(e.rule.boss.sky).toBeUndefined();
+    // (and the level draws the figure it becomes)
+    const lv = steps.find((x) => x.key.startsWith('level-'));
+    expect(lv.order.manifest.figures[lv.order.manifest.entities.find((x) => x.id === b.id).body.modes[1].figure]).toBeDefined();
+  }, 120000);
+});

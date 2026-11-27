@@ -60,6 +60,11 @@
  *                                                  the game (the save's level, else the first), its title only where
  *                                                  quitting goes back to; no prologue: the opening is the one
  *                                                  sequence before play
+ *   withNaming(flow)                             → that flow ASKING A NAME as a game begins (a game's naming,
+ *                                                  game-manifest.js): a `naming` name screen stood before the first level
+ *                                                  where the title's play, or a start-in-play opening, would go to it (the
+ *                                                  first, a run, a prologue); a flow with a name screen of its own, or no
+ *                                                  such way in, as it was
  *   buildFlowKernel()                            → { stepFlow, levelStep, homeOf, walkFlow }: self-contained, inlined
  *                                                  in the play shell by toString(); node uses the same
  *   stepFlow(flow, at, event, ctx)               → { step, level } the event leads to (null: nowhere)
@@ -82,6 +87,11 @@ export const SCREEN_EVENTS = Object.freeze({
   end: Object.freeze(['done']),
   result: Object.freeze(['next', 'again', 'home']),
   'run-result': Object.freeze(['again', 'home', 'credits']),
+  // (a party RPG's game over: continue from the journey as it was last kept, or the title)
+  gameover: Object.freeze(['continue', 'home']),
+  // (a name asked of the player, the game's naming: typed on mana-ui's keyboard, kept in the store by rename; done goes
+  // on, back leaves it unnamed)
+  name: Object.freeze(['done', 'back']),
 });
 export const FLOW_SCREENS = Object.freeze(Object.keys(SCREEN_EVENTS));
 export const LEVEL_EVENTS = Object.freeze(['won', 'lost', 'left', 'door']);
@@ -276,8 +286,12 @@ export function defaultFlow(game) {
     const end = F && F.end;
     // the final level's clearing win never travels on (its end, else its result)
     const finalStop = end ? [{ when: 'complete', go: 'end' }] : map && game.final ? [{ when: 'complete', go: 'result' }] : [];
-    steps.play = { kind: 'level', level: '$any', on: { won: [...finalStop, ...(map ? ['$travel'] : []), 'result'], lost: 'result', left: 'result', ...(doors ? { door: '$door' } : {}) } };
+    // (a game with a GAME OVER, game.gameOver: a level lost is its game over, its defeat never kept, and continue takes
+    // the journey up where it was last kept)
+    const over = game.gameOver === true;
+    steps.play = { kind: 'level', level: '$any', on: { won: [...finalStop, ...(map ? ['$travel'] : []), 'result'], lost: over ? 'gameover' : 'result', left: 'result', ...(doors ? { door: '$door' } : {}) } };
     steps.result = { kind: 'screen', screen: 'result', on: { next: '$next', again: '$again', home } };
+    if (over) steps.gameover = { kind: 'screen', screen: 'gameover', on: { continue: ['$continue', '$first'], home } };
     if (end) steps.end = { kind: 'screen', screen: 'end', on: { done: end.credits ? 'credits' : 'title' } };
   }
   // THE STORY's cinematics (game.cinematics: { opening?, prologue?, ending?: { scene, stage } | { film } | { video } },
@@ -307,6 +321,25 @@ export function defaultFlow(game) {
     steps.play = { ...steps.play, on: { ...steps.play.on, won: [{ when: 'complete', go: 'ending' }, ...won] } };
   }
   return { start, home, steps };
+}
+
+// the ways a game begins: the targets a new game goes to from the title or a start-in-play opening
+const BEGINS = ['$first', '$run', 'prologue'];
+export const NAMING_STEP = 'naming';
+/** A flow that asks a name as a game begins (see the head): the name screen before the first level. */
+export function withNaming(flow) {
+  if (!isObj(flow) || !isObj(flow.steps) || flow.steps[NAMING_STEP] || Object.values(flow.steps).some((s) => isObj(s) && s.kind === 'screen' && s.screen === 'name')) return flow;
+  const steps = { ...flow.steps };
+  let begins = null;
+  const swap = (t) => (Array.isArray(t) ? t.map(swap) : isObj(t) ? { ...t, go: swap(t.go) } : BEGINS.includes(t) ? ((begins ??= t), NAMING_STEP) : t);
+  const T = steps.title;
+  if (isObj(T) && T.kind === 'screen' && isObj(T.on) && T.on.play !== undefined) { const play = swap(T.on.play); if (begins) steps.title = { ...T, on: { ...T.on, play } }; }
+  // (a game that starts in play: its opening goes on to the save's level, else a new game's first: that is where it asks)
+  const O = steps.opening, fresh = (t) => Array.isArray(t) && t.length > 1 && t[0] === '$continue';
+  if (isObj(O) && fresh(O.next)) { const was = begins; begins = null; const next = [O.next[0], ...O.next.slice(1).map(swap)]; if (begins) steps.opening = { ...O, next }; begins = begins ?? was; }
+  if (!begins) return flow;
+  steps[NAMING_STEP] = { kind: 'screen', screen: 'name', on: { done: begins, ...(steps.title ? { back: 'title' } : {}) } };
+  return { ...flow, steps };
 }
 
 /**

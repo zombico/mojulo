@@ -11,7 +11,8 @@ import { validateOutfitBuild } from './expand.js';
 import { OUTFIT_LAWS_VERSION } from './principles.js';
 import { MATERIAL_NAMES } from '../polygonizer/cloth-law.js';
 import { HOOD_WORDS } from '../polygonizer/body-garment.js';
-import { OUTFIT_KINDS, bodyMap } from '../polygonizer/outfit-plan.js';
+import { OUTFIT_KINDS, bodyMap, pieceChannels } from '../polygonizer/outfit-plan.js';
+import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { HERO_LAWS_VERSION } from '../polygonizer/hero-form.js';
 import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
@@ -126,5 +127,75 @@ describe('the fantasy headgear', () => {
     expect(headgearErrors(hat, { ...spec, form: 'realistic' })).toEqual([]);
     const r = wearHeadgear({ ...spec, form: 'realistic', headgear: hat }); expect(r.headwear).toBe(hat); expect(r.hair).toBe('crop');
     expect(heroPlanOf(heroRecord({ ...spec, headgear: hat })).adorn.some((A) => A.id === 'helmet')).toBe(true);
+  });
+});
+
+// RAGS (outfit-plan.js `rags`): torn strips draped from the hips, and with `shoulders` from the arms' tops, each a ribbon
+// laid over what lies beneath, no two alike, torn at its end
+describe('rags hung off what is worn', () => {
+  it('drapes its strips from the hips and the shoulders, each its own length, width and torn end', () => {
+    const style = { id: 'rags-only', dials: { stylize: 0.4, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces: [{ kind: 'rags', count: 6, len: 0.5, shoulders: true }] };
+    const { plan: P } = plan({ cast: 'male', register: 'round', adorn: { type: 'armor', style: 'knight', without: ['pauldron'] }, outfit: { type: 'outfit', style } });
+    const rags = (P.adorn || []).filter((A) => /^rag/.test(A.id));
+    expect(rags.filter((A) => A.part === 'pelvis')).toHaveLength(6);
+    expect(rags.filter((A) => /^upperArm/.test(A.part))).toHaveLength(2);
+    for (const A of rags) { expect(A.signature.kind).toBe('ribbon'); expect(A.signature.drape.len).toBeGreaterThan(0); }
+    const S = rags.map((A) => A.signature);
+    expect(new Set(S.map((x) => x.drape.len)).size).toBeGreaterThan(2);
+    expect(new Set(S.map((x) => x.tip))).toEqual(new Set(['point', 'swallow']));
+    expect(plan({ cast: 'male', register: 'round', adorn: { type: 'armor', style: 'knight', without: ['pauldron'] }, outfit: { type: 'outfit', style } }).plan).toEqual(P);
+  });
+});
+
+// WINGS (outfit-plan.js `wings`): a pair of membrane wings off the shoulder blades, each a board of level slices sweeping
+// up and out, an arm of bone up its leading edge and two fingers across it; swept back, they lie along the body
+describe('wings', () => {
+  const style = (sweep) => ({ id: 'wings-only', dials: { stylize: 0.4, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces: [{ kind: 'wings', span: 1, rise: 0.9, sweep }] });
+  const wingsOf = (sweep, more = {}) => (plan({ cast: 'male', register: 'round', ...more, outfit: { type: 'outfit', style: style(sweep) } }).plan.segments || []).filter((g) => /^wing/.test(g.name));
+  it('a pair, each its membrane, its arm and two fingers; swept back, its slices lie along the body', () => {
+    const spread = wingsOf(0), swept = wingsOf(0.8);
+    expect(spread.map((g) => g.name).sort()).toEqual(['wingFinger0L', 'wingFinger0R', 'wingFinger1L', 'wingFinger1R', 'wingL', 'wingR', 'wingSparL', 'wingSparR']);
+    const R = (W) => W.find((g) => g.name === 'wingR'), top = (g) => g.stations[g.stations.length - 1];
+    // (the wing rises over the shoulders, and its right one on the right)
+    expect(top(R(spread)).at[2]).toBeGreaterThan(R(spread).stations[0].at[2] + 0.5);
+    expect(top(R(spread)).at[0]).toBeGreaterThan(0.5);
+    // (spread: wide across, thin along; swept: thin across, wide along, and back along the body)
+    const mid = (g) => g.stations[2].r;
+    expect(mid(R(spread))[0]).toBeGreaterThan(mid(R(spread))[1]);
+    expect(mid(R(swept))[1]).toBeGreaterThan(mid(R(swept))[0]);
+    expect(top(R(swept)).at[1]).toBeLessThan(top(R(spread)).at[1] - 0.3);
+    expect(top(R(swept)).at[0]).toBeLessThan(top(R(spread)).at[0]);
+    // (on a beast's body as on a person's: a dragon on two legs)
+    expect(wingsOf(0.8, { head: 'none', beast: { kin: 'draconic', legs: 'digitigrade', head: 'dragon', tail: 'thick' } })).toHaveLength(8);
+  });
+  it('each wing on a bone of its own riding the trunk, beaten by its channel: raised high, beaten down and back', () => {
+    const { hero } = plan({ cast: 'male', register: 'round', outfit: { type: 'outfit', style: style(0.8) } }), R = validateRig(expandLayeredManifest({ hero }).recipe.rig);
+    for (const g of wingsOf(0.8)) expect(g.bind.bone).toBe(`wingBone${g.name.slice(-1)}`);
+    expect(pieceChannels(style(0.8).pieces)).toEqual(['wingR', 'wingL']);
+    expect(Object.keys(R.chains)).toEqual(expect.arrayContaining(['wingR', 'wingL']));
+    const tip = (pose) => rigNodesAt(R, pose).nodes.wingTipR, rest = tip({}), up = tip({ wingR: -40 }), down = tip({ wingR: 45 });
+    // (raised: the tip over the shoulder, higher and forward; beaten: low behind; the root where it was, the other wing still)
+    expect(up[2]).toBeGreaterThan(rest[2] - 0.05); expect(up[1]).toBeGreaterThan(rest[1] + 0.3);
+    expect(down[2]).toBeLessThan(rest[2] - 0.5); expect(down[1]).toBeLessThan(rest[1]);
+    expect(rigNodesAt(R, { wingR: 45 }).nodes.wingRootR).toEqual(rigNodesAt(R, {}).nodes.wingRootR);
+    expect(rigNodesAt(R, { wingR: 45 }).nodes.wingTipL).toEqual(rigNodesAt(R, {}).nodes.wingTipL);
+  });
+});
+
+// CORSET (outfit-plan.js `corset`): a stiff band from the natural waist up under the bust, laced up the back, skulls set
+// down the lacing (`skulls`), the topmost horned
+describe('corset', () => {
+  const style = (more = {}) => ({ id: 'corset-only', dials: { stylize: 0.4, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces: [{ kind: 'corset', ...more }] });
+  const adornOf = (more) => (plan({ cast: 'female', register: 'round', outfit: { type: 'outfit', style: style(more) } }).plan.adorn || []).filter((A) => /^corset/.test(A.id));
+  it('a band round the trunk, its lacing and its skulls on the back\'s middle line, as many as it asks', () => {
+    const A = adornOf({});
+    expect(A.find((x) => x.id === 'corset').t).toBe('wrap');
+    const skulls = A.filter((x) => /Skull/.test(x.id));
+    expect(skulls).toHaveLength(3);
+    for (const k of skulls) { expect(k.share).toBe(true); expect(k.t[0]).toBeGreaterThan(0.9); expect(k.signature.kind).toBe('skull'); expect(k.signature.dir[1]).toBeLessThan(0); }
+    // (down the back, the topmost horned, the rest not)
+    expect(skulls.map((k) => k.s[0])).toEqual([...skulls.map((k) => k.s[0])].sort((a, b) => a - b));
+    expect(skulls.map((k) => k.signature.horns)).toEqual([0, 0, 2]);
+    expect(adornOf({ skulls: 0 }).filter((x) => /Skull/.test(x.id))).toHaveLength(0);
   });
 });

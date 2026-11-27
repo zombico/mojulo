@@ -22,6 +22,8 @@ import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
 import { ROOM_CRAFT, readRoomCraft } from './room-craft.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { GEOCUBE_PRESETS } from './geocube.js';
+import { SOL_GEOCUBES } from '../sol/geocubes.js';
+import { FIELD_GEOCUBES } from '../assault-frame/geocubes.js';
 import { HEARTBEAT_PRESETS } from './heartbeat.js';
 import { GROUND_EDITS } from './out-ground.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
@@ -55,7 +57,9 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // limestone-crags; it stands at 5729 with all three
 // (6300 since the craft laws, the wetness law and the builder's 'too-small-to-read' (era/skandart.js its first reader)
 // joined the laws card: the laws of both eras and of craft, one line each)
-export const STAGE_CARD_BODY_CEILING = 6300;
+// 6300 -> 6400 (2026-11-24): the RPG dungeons' law, 'light-has-a-source' (era/dungeon.js sourceless measures it), one
+// line on the laws card; it stands at 6368 with it
+export const STAGE_CARD_BODY_CEILING = 6400;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -74,6 +78,16 @@ const KIT_STARTERS = {
   catacomb: { rooms: [{ id: 'stair', x: 0, y: 0, w: 8, d: 8, h: 6 }, { id: 'gallery-a', x: 8, y: 2, w: 16, d: 4, h: 4 }, { id: 'cubiculum', x: 24, y: 0, w: 8, d: 8, h: 4.5 },
     { id: 'gallery-b', x: 26, y: 8, w: 4, d: 14, h: 4 }, { id: 'crossing', x: 22, y: 22, w: 12, d: 10, h: 6 }, { id: 'ossuary', x: 10, y: 22, w: 12, d: 10, h: 6.5 }],
   links: [{ from: 'stair', to: 'gallery-a' }, { from: 'gallery-a', to: 'cubiculum' }, { from: 'cubiculum', to: 'gallery-b' }, { from: 'gallery-b', to: 'crossing' }, { from: 'crossing', to: 'ossuary' }], fire: true },
+  // the RPG dungeons (dungeon.js): a chamber and two halls into it, the shape an agent grows each from (a hall more, a
+  // chamber more, each linked as these are)
+  'deep-forge': { rooms: [{ id: 'adit', x: 6, y: 0, w: 5, d: 12, h: 5 }, { id: 'forge', x: 0, y: 12, w: 18, d: 16, h: 9 }, { id: 'store', x: 18, y: 16, w: 12, d: 5, h: 5 }],
+    links: [{ from: 'adit', to: 'forge' }, { from: 'forge', to: 'store' }] },
+  'fungal-grotto': { rooms: [{ id: 'crawl', x: 5, y: 0, w: 4, d: 12, h: 4 }, { id: 'grotto', x: 0, y: 12, w: 16, d: 16, h: 8 }, { id: 'seep', x: 16, y: 18, w: 12, d: 4, h: 3.5 }],
+    links: [{ from: 'crawl', to: 'grotto' }, { from: 'grotto', to: 'seep' }] },
+  'drowned-shrine': { rooms: [{ id: 'colonnade', x: 6, y: 0, w: 5, d: 14, h: 6 }, { id: 'sanctum', x: 0, y: 14, w: 17, d: 18, h: 10 }, { id: 'cloister', x: 17, y: 20, w: 12, d: 5, h: 5 }],
+    links: [{ from: 'colonnade', to: 'sanctum' }, { from: 'sanctum', to: 'cloister' }] },
+  'arcane-vault': { rooms: [{ id: 'antechamber', x: 6, y: 0, w: 5, d: 12, h: 6 }, { id: 'vault', x: 0, y: 12, w: 17, d: 17, h: 9 }, { id: 'stacks', x: 17, y: 16, w: 12, d: 5, h: 6 }],
+    links: [{ from: 'antechamber', to: 'vault' }, { from: 'vault', to: 'stacks' }] },
   'gothic-nave': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 24, h: 13 }] },
   'island-plaza': { rooms: [{ id: 'plaza', x: 0, y: 0, w: 26, d: 22, h: 12, open: ['-y', '+x'] }] },
   'research-lab': { rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }] },
@@ -86,6 +100,10 @@ const KIT_WORDS = {
   'gothic-stone': ['castle interior', 'torch-lit stone halls', 'stone dungeon rooms'],
   'gothic-ashlar': ['a grim stone crypt', 'realistic dungeon hall', 'tall plastered stone vault'],
   catacomb: ['catacombs', 'ossuary', 'underground burial galleries'],
+  'deep-forge': ['dwarven forge', 'underground smithy', 'molten mine hall'],
+  'fungal-grotto': ['mushroom cave', 'glowing fungus grotto', 'myconid cavern'],
+  'drowned-shrine': ['sunken temple', 'flooded shrine', 'underwater ruins'],
+  'arcane-vault': ['wizard vault', 'arcane library', "mage's archive"],
   'gothic-nave': ['cathedral', 'church nave', 'stained glass hall'],
   'island-plaza': ['sunny town square', 'mediterranean plaza', 'fountain square'],
   'research-lab': ['sci-fi lab', 'research base', 'industrial facility interior'],
@@ -288,38 +306,74 @@ export function railsCard() {
   };
 }
 
-/** The geocube: one style for a level's inside and outside, forged and checked before the level is built. */
+/** The geocube: one style for a level's inside and outside, forged and checked before the level is built. Its presets
+ *  are named a group a line, each group's described on a card of its own (geocubeGroupCard), so a new preset grows its
+ *  group's card and never this one. */
 export function geocubeCard() {
-  const P = GEOCUBE_PRESETS;
   const lines = [
     '# Geocube: a level\'s look, forged first', '',
-    'A cube is the core look of a level as data: its light, its key colours, its register, its surfaces\' patterns, the bones of its inside, the base of its outside and its principles. Both sides are lowered from the one cube, so the hall and the land cannot clash. Forge the cube, look at its two specimens, change the cube until both read right, then build the level on it.', '',
-    'FORGE      create_sketch { "kind": "geocube", "cube": <preset id | document | { "from": <preset>, …changes }>, "show": "room" | "land" }',
-    '           room: the bare bones in the cube\'s light, its accent wall. land: an island (a cliff side and a beach side) lit by polygons, no texture on the rock.',
-    'UPDATE     update_sketch the cube; both specimens re-lower from it. Show the other with "show".',
-    'BUILD ON   a stage recipe with "geocube": the same cube. Without "meru": the inside (the cube\'s bones, reference, tone and tiles; your rooms, the kit\'s dress). With "meru": the outside (its look card, land ramps, light, air and polygon land; your tiers over the cube\'s). Your keys win: vary the cube, never restyle it. A level copies its cube: a changed or new cube rebuilds nothing; re-create the level from it by hand.', '',
-    'BUILDINGS  a cube recommends its buildings: "buildings": { anchor, uses: [{ use, enter: "door" | "walk" }] }. A stage on the cube with "program": { "use" } lays one in its bones, its anchor setting the heights (card game-building).', '',
+    'A cube is the core look of a level as data: its light, its key colours, its register, its surfaces\' patterns, the bones of its inside, the base of its outside and its principles. Both sides are lowered from the one cube, so the hall and the land cannot clash. Forge the cube, look at its specimens, change the cube until they read right, then build the level on it.', '',
+    'FORGE      create_sketch { "kind": "geocube", "cube": <preset id | document | { "from": <preset>, …changes }>, "show": <a specimen> }',
+    'SHOW       room: the bare bones in the cube\'s light, its accent wall · hall: an interior walked · land: the outside lit by polygons, no texture on the rock (an island with a cliff side and a beach side; a field cube\'s open ground at a frame\'s scale; a works cube\'s hall over it) · trail, path: the way through its land, walked · town, city, geotown, geocity: a settlement on its land',
+    'UPDATE     update_sketch the cube; every specimen re-lowers from it. Show another with "show".',
+    'BUILD ON   a stage recipe with "geocube": the same cube. Without "meru": the inside (the cube\'s bones, reference, tone and tiles; your rooms, the kit\'s dress). With "meru": the outside (its look card, land ramps, light, air and polygon land; your tiers over the cube\'s). Your keys win: vary the cube, never restyle it. A level copies its cube: a changed or new cube rebuilds nothing; re-create the level from it by hand.',
+    'BUILDINGS  a cube recommends its buildings: "buildings": { anchor, uses: [{ use, enter: "door" | "walk" }] }. A stage on the cube with "program": { "use" } lays one in its bones, its anchor setting the heights (card game-building).',
+    'ON A PAGE  "sea" (the geocube recipe\'s): its land or room put under water by light alone, gen-7 (lamps where the sun does not reach).', '',
     'THE CUBE',
-    '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below), sky? { zenith, horizon, fog? } (the outside\'s; the reference\'s dome where none) }',
+    '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (below), sky? { zenith, horizon, fog? }, heavens? { void?, disc?, companion? } (what hangs in its sky: no air and stars by day, the sun\'s size, the Earth over the Moon) }',
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
-    '  register  { steps (0 … 8 bands), key (0..1) } or a name: cel (bands, outline, crisp creases), ink-wash, wii, continuous; { from, …changes } (outline?, creases?, contrast?). Inked by the theorist; a world\'s own creases win (card creases)',
-    '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation, metal } | false: Wii-era shading in the vertex (metal: metal takes the occlusion too)',
-    '  materials? true | { age?, <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); age new | worn | old | ancient tarnishes bronze to verdigris, blackens steel; cloth and leather painted (a group may name silk, velvet, wool, denim …); a hero takes it through its geocube',
-    '  palette   a pick_palette spec: the color theorist decides the colours, seeded where the cube is stored (a preset\'s character with it); the solve writes colour, shade, register.key, the moon and light.sky. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\', and a world on a cube alone takes the cube\'s for its HUD.',
-    '  avoid?    [{ line, law }]: the mistakes the style names, each measured by a law as the cube is read (a pick_palette law, quiet-surfaces, or register-ink) and written back as ok, value. Advice, never a refusal.',
+    '  register  { steps (0 … 8 bands), key (0..1) } or a name: cel, ink-wash, wii, continuous; { from, …changes } (outline?, creases?, contrast?). A world\'s own creases win (card creases)',
+    '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation, metal } | false: Wii-era shading in the vertex',
+    '  materials? true | { age?, <group>: <material> }: what its people wear is made of; age new | worn | old | ancient tarnishes it',
+    '  palette   a pick_palette spec: the color theorist solves colour, shade, register.key, the moon and light.sky, seeded where the cube is stored. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\'.',
+    '  avoid?    [{ line, law }]: the style\'s mistakes, each measured by a law (a pick_palette law, quiet-surfaces, register-ink) and written back as ok, value. Advice, never a refusal.',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
-    '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
-    '  outside   { base (an isekai card), tiers, island, land (LAND RULES), relief? rolling | craggy | eroded | terraced | dune | { from, … }, ground? { from: <painted-landscape: heartbeat, splatch, seed>, span (m; 40–60 reads at a level\'s scale), height (m) }, crystals? <gem> | { gem, where: crags | hollows, count, size (m), glow }, terrain?, terrains? }',
-     'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
+    '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y", interiors? { <name>: { reads?, bones?, size? } } }',
+    '  outside   { base (an isekai card), tiers, island, land (LAND RULES); its ground: relief?, ground? (a painted landscape: span 40–60 m reads at a level\'s scale), crystals?, cliff?, water?, dunes?; its standing rock: massif? (sheer blocks stepped by beds, gorges, talus, water under the floor); an interior over it: works? (a hall, its roof, crane, decks, furnaces and pipes: fought indoors); its drawing: rock? (colour by beds), materials?, rubble?, tiling?; terrains? (more outsides) }',
+    'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
     'LAND RULES polygon only, from the land\'s shape: crevice darkens what is concave toward the cube\'s shade colour (never black); ridge lifts a convex lip; blend carries a neighbouring surface\'s colour over a seam. Rock takes no pixels. Opt-in: mix (m) surfaces mixed per corner, facet (m) rock in planes, valley (0..1) hollows darken.', '',
-    'PRESETS', ...Object.values(P).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`), '',
+    'PRESETS (each group\'s card says what each reads as)',
+    ...GEOCUBE_GROUP_IDS.map((g) => { const ids = geocubeGroup(g); return ids.length ? `  ${g.padEnd(7)} ${GEOCUBE_GROUPS[g].line}: ${ids.join(', ')} (card geocube/${g})` : null; }).filter(Boolean), '',
     'PAINT A LEVEL a level\'s geocube (a gameworld level\'s style.geocube) paints every section once, trails and climbs, on one terrain: the level\'s terrain if it names one, else its heartbeat\'s if the cube has it, else the cube\'s own. Each stage answers `painted` (the terrain, from whom, what was offered). A section\'s own kit wins: a start, not a lock.',
     'THE LAND\'S FLOW is not the cube\'s: how the ground climbs, dips and breaks is a heartbeat (card heartbeat), a greybox the cube paints.',
   ];
   return {
     id: 'geocube', name: 'Geocube (a level\'s look, forged first)', family: 'world', entry: 'create_sketch', generated: true,
     summary: 'One style for a level\'s inside and outside: forge the cube, check its room and island specimens, then build the level on it.',
-    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen", "a Wii-era look", "vertex colour contrast", "a cel-shaded look", "toon outline on my level", "inked like a drawing"',
+    when: GEOCUBE_WHEN,
+    body: lines.join('\n'),
+  };
+}
+
+// the geocube's presets in groups, by what they are for, each found from the preset itself: a child of Sol by the Sol
+// shelf, a frame's field by the battlefield cubes, a works by the field's `works` (an interior over its land), the rest
+// a level's look
+export const GEOCUBE_GROUPS = Object.freeze({
+  looks: { line: 'a level\'s look, halls and lands', reads: 'A level\'s look: its light, its colours and its register over a room\'s bones and an island\'s land. Start a game\'s level from the one nearest its mood and change it.' },
+  fields: { line: 'a frame\'s open terrain', reads: 'Open terrain at an assault frame\'s scale, no trail: some 800 m a side, its standing rock in sheer blocks, gorges and talus (walls 40 to 120 m, fallen blocks for cover), read off a frame\'s radar and beacons (a frame level\'s field, `assault-frame/field.js`).' },
+  works: { line: 'a frame\'s industrial interior', reads: 'A frame\'s field under a roof: an industrial interior over the land, its machines, decks and ramps standing as what stops a frame, fought indoors (a works\' field, `assault-frame/field.js`).' },
+  sol: { line: 'the children of Sol', reads: 'The real bodies\' ground and sky (docs/sol.md): their rock, their light and what hangs over them (light.heavens).' },
+});
+export const GEOCUBE_GROUP_IDS = Object.freeze(Object.keys(GEOCUBE_GROUPS));
+const groupOf = (c) => (SOL_GEOCUBES[c.id] ? 'sol' : FIELD_GEOCUBES[c.id] ? (c.outside && c.outside.works ? 'works' : 'fields') : 'looks');
+/** The preset ids of a group, in the presets' order. */
+export function geocubeGroup(g) {
+  return Object.values(GEOCUBE_PRESETS).filter((c) => groupOf(c) === g).map((c) => c.id);
+}
+const GEOCUBE_WHEN = '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen", "a Wii-era look", "vertex colour contrast", "a cel-shaded look", "toon outline on my level", "inked like a drawing"';
+
+/** One group's card: what its presets are for, each preset as it reads, and a starter. */
+export function geocubeGroupCard(g) {
+  const G = GEOCUBE_GROUPS[g], ids = geocubeGroup(g), show = g === 'looks' ? 'room' : 'land';
+  const lines = [
+    `# Geocube presets: ${G.line}`, '', G.reads, '',
+    'PRESETS', ...ids.map((id) => `  - ${id}: ${GEOCUBE_PRESETS[id].reads}`), '',
+    `STARTER    create_sketch { "kind": "geocube", "cube": ${JSON.stringify(ids[0])}, "show": "${show}" }; then { "from": <preset>, …changes } for your own (card geocube)`,
+  ];
+  return {
+    id: `geocube/${g}`, name: `Geocube presets (${G.line})`, family: 'world', entry: 'create_sketch', generated: true,
+    summary: G.reads,
+    when: [`geocube ${g}`, G.line, ...ids.slice(0, 6)].map((w) => `"${w}"`).join(', '),
     body: lines.join('\n'),
   };
 }
@@ -350,7 +404,7 @@ export function heartbeatCard() {
   };
 }
 
-/** Every generated card: the hub, the geocube, the laws, the rails, each kit, each look. */
+/** Every generated card: the hub, the geocube, the laws, the rails, each kit, each look, each group of the geocube's presets. */
 export function stageEntryCards() {
-  return [stageHubCard(), geocubeCard(), heartbeatCard(), lawsCard(), railsCard(), roomCraftCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
+  return [stageHubCard(), geocubeCard(), heartbeatCard(), lawsCard(), railsCard(), roomCraftCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard), ...GEOCUBE_GROUP_IDS.filter((g) => geocubeGroup(g).length).map(geocubeGroupCard)];
 }

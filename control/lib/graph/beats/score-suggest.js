@@ -56,7 +56,9 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 // jungle-trail, isekai-meadow, island-plaza …).
 const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-ashlar': 'dungeon crypt', 'gothic-nave': 'cathedral', 'isekai-bamboo': 'bamboo grove', 'isekai-sakura': 'garden', 'alien-night': 'alien planet', 'research-lab': 'abandoned research lab',
   'bay-military': 'military hangar station', 'bay-utility': 'industrial warehouse station', 'bay-science': 'research lab',
-  'bay-everyday': 'office building shop', 'bay-vernacular': 'town tavern shop', 'bay-gallery': 'museum gallery shop' };
+  'bay-everyday': 'office building shop', 'bay-vernacular': 'town tavern shop', 'bay-gallery': 'museum gallery shop',
+  // (the RPG dungeons, era/dungeon.js)
+  'deep-forge': 'dungeon forge mine', 'fungal-grotto': 'dungeon cave grotto', 'drowned-shrine': 'dungeon underwater temple', 'arcane-vault': 'dungeon arcane library' };
 
 // ── the style: the orchestra (field) or electronic (club) ─────────────────────
 // A scene whose words say the future, a machine, a screen or a dance floor is scored electronic. The point the place

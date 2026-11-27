@@ -29,6 +29,10 @@ export const FIXTURE = [
   ['model a wine glass true to size', 'mint_solid'],
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
+  // a model made elsewhere, from a file on the machine: an object through mint_solid's model kind, a character through
+  // create_character's from (rigged onto the vajra)
+  ['I downloaded a low-poly barrel glb from a free asset site, can I put it in my level', 'mint_solid'],
+  ['this is my VRoid avatar as a .vrm file, make it the player character', 'create_character'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
   // a vehicle by name: the vehicle registry's door
   ['show me a pickup truck I can spin around and look at', 'mint_solid'],
@@ -146,6 +150,9 @@ export const FIXTURE = [
   // a commercial program on the same rail: its drawing set and its fit-out schedule
   ['floor plans and an FF&E schedule for a corner café', 'mint_building'],
   ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
+  // someone's own home, produced before it is made (the home's producer): nothing built, the one question to ask
+  ['we just got the keys to our flat and I have the plan from the estate agent, can you help us figure out how to live in it', 'mint_building', 'start'],
+  ['I keep wanting to redo our spare room but honestly have no idea where to begin', 'mint_building', 'start'],
   // a building as a game level: designed as a building, played as a level
   ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
   // a GENRE level set in a building: design_game's quick level, the building laid from its use (era/programs.js) on a bay kit

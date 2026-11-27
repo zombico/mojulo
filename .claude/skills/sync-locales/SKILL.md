@@ -1,6 +1,7 @@
 ---
 name: sync-locales
-description: Sync or regenerate control/messages/<locale>.json from en.json via the deterministic locale-sync helper — extract the unique-string todo, translate it (inline or one worker subagent at a time), mint and validate. One locale at a time, never parallel. Invoke as `/sync-locales <locale> [<locale> ...]` for an incremental sync, `/sync-locales --fresh <locale> ...` for full regeneration, and also to bootstrap brand-new locales (supersedes the old /translate-messages).
+description: "Sync or regenerate control/messages/<locale>.json from en.json with the deterministic helper, one locale at a time. Use after en.json changes, to regenerate a locale (--fresh), or to add a new one."
+argument-hint: "[--fresh] <locale> [<locale> ...]"
 ---
 
 # /sync-locales

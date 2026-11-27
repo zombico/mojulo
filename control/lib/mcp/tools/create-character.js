@@ -43,6 +43,7 @@ import { personaManifest, personaReads, readSummary, isPersonaKind } from '@/lib
 import { speakerFidelity, FACE_ERA } from '@/lib/graph/persona/fidelity.js';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { withReferenceViews } from '@/lib/mcp/tools/character-views';
+import { importModel } from '@/lib/mcp/tools/import-model';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_DOORS = {
@@ -81,11 +82,13 @@ async function createMascot({ spec = {}, title, ref, folder_ref: folderRef }) {
  * cube says unless `dress` says otherwise; a hero's `spec` words lay over the sheet's. The character records the sheet it
  * was made from ({ ref, rev, print, years }), so an edit to the sheet moves nothing already made and is said on an edit.
  */
+const isObjSpec = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 async function createFromEgocube({ egocube, years, member, dress, output, as, spec, title, ref, folder_ref: folderRef }) {
   const row = SketchRepository.getByRef(egocube);
   if (!row || row.manifest?.kind !== 'egocube') throw new Error(`create_character: '${egocube}' is not an egocube (make one with create_sketch { kind: 'egocube', roll })`);
   // `output: 'mascot'`: the cube's character made as its mascot (egocube/mascot-from-person.js), with its model sheet
-  const C = egocubeCreate(row.manifest, { years, member, dress, output });
+  // (a member made holding a weapon, its spec's `gear`: its battle attacks are the held swings, egocube/moves.js)
+  const C = egocubeCreate(row.manifest, { years, member, dress, output, armed: !!spec?.gear?.right });
   const makes = { hero: 'a person (as: hero)', creature: 'a body below the hero door (as: creature)', animal: 'a beast, a real species (as: animal)' };
   if (as !== undefined && as !== C.create.as) throw new Error(`create_character: the egocube '${egocube}'${member ? ` (${member})` : ''} makes ${makes[C.create.as]}; leave \`as\` out`);
   // a cast's beast (cast.js): the animal door, titled by what it is; the species is its body, the cast its reading
@@ -96,7 +99,9 @@ async function createFromEgocube({ egocube, years, member, dress, output, as, sp
   if (spec !== undefined && C.create.as !== 'hero') throw new Error('create_character: `spec` lays a hero\'s words over the sheet; a creature from an egocube is revised after, with update_character patch ops');
   const dials = dialsAfter(C.after);
   // (a word set to null in `spec` leaves the sheet's word off: the body a game lays over a foe's sheet, runner.js)
-  const own = Object.fromEntries(Object.entries({ ...C.create.spec, ...(spec || {}), ...(Object.keys(dials).length ? { dials } : {}) }).filter(([, v]) => v !== null));
+  // (a `motion` laid over the sheet's adds its words to the moves the sheet's part gives it, never drops them)
+  const moreMotion = spec && isObjSpec(spec.motion) && isObjSpec(C.create.spec.motion) ? { motion: { ...C.create.spec.motion, ...spec.motion } } : {};
+  const own = Object.fromEntries(Object.entries({ ...C.create.spec, ...(spec || {}), ...moreMotion, ...(Object.keys(dials).length ? { dials } : {}) }).filter(([, v]) => v !== null));
   const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}), ...(C.node.path ? { member: C.node.path } : {}) };
   // an anime game's person wears the character light (egocube/plan.js), a mint argument beside the spec as a book hero's
   // (a BEAST-KIN's rides in its spec, where the hero door reads it (hero-mint.js heroMintArgs): beside the spec the door
@@ -157,6 +162,12 @@ async function createFromPack({ pack, as, spec, title, ref, folder_ref: folderRe
 }
 
 export async function createCharacterHandler(input) {
+  // a character made elsewhere, from a file on this machine: rigged onto the vajra as a body or a mascot (import-model.js)
+  if (input && typeof input === 'object' && input.from !== undefined) {
+    const stray = ['spec', 'egocube', 'pack', 'member', 'years', 'output'].filter((k) => input[k] !== undefined);
+    if (stray.length) throw new Error(`create_character: a character from a file takes from, as?, height?, units?, up?, entry?, rig?, licence?, title, ref and folder_ref (not ${stray.join(', ')}); edit it after with update_character`);
+    return importModel(input, { door: 'character' });
+  }
   if (input && typeof input === 'object' && input.egocube !== undefined) return createFromEgocube(input);
   if (input && typeof input === 'object' && input.pack !== undefined) return createFromPack(input);
   if (!input || typeof input !== 'object') {
@@ -280,10 +291,10 @@ export function registerCreateCharacterTools() {
     description:
       "Make a CHARACTER: a body with a rig you can play, print or watch. `as: 'hero'`, a person (spec { cast: "
       + "'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }); "
-      + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a layered "
+      + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan or a layered "
       + "recipe); `as: 'animal'`, a real species (spec { species } or { archetype }); `as: 'mascot'`, cartoony, "
-      + "head-heavy (spec { brief: 'sonic-like', facets?, tune? }); `as: 'persona'`, a hero who reads scripts. A deterministic recipe: a still, a World that "
-      + 'plays its clips, a skinned `.glb`. Iterate in place with `update_character`; never re-mint. Manual: '
+      + "head-heavy (spec { brief: 'sonic-like', facets?, tune? }); `as: 'persona'`, a hero who reads scripts; `from`, a model file's path. A recipe: a still, a World playing "
+      + 'its clips, a skinned `.glb`. Iterate in place with `update_character`; never re-mint. Manual: '
       + "get_solid_vocab({ id: 'layered' }), ({ id: 'animal' }) for an animal.",
     inputSchema: {
       type: 'object',
@@ -294,6 +305,13 @@ export function registerCreateCharacterTools() {
         member: { type: 'string', description: 'A cast member\'s path (hero/rival).' },
         output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
         pack: { type: 'object', description: "A pack's character by name: { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))." },
+        from: { type: 'string', description: "A model file on this machine (.glb .vrm .gltf .obj .zip, or its folder), rigged for you; with height (m), units, up, entry (in a zip), rig: 'auto', licence. Manual: get_solid_vocab({ id: 'model' })." },
+        height: { type: 'number' },
+        units: { type: 'string', enum: ['mm', 'cm', 'm', 'in', 'ft'] },
+        up: { type: 'string', enum: ['y', 'z'] },
+        entry: { type: 'string' },
+        rig: { type: 'string', enum: ['auto'] },
+        licence: {},
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },

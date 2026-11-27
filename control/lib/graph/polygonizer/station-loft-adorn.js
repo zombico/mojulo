@@ -1336,6 +1336,22 @@ export const SIGNATURES = {
       const spine = Array.from({ length: K }, (_, k) => pt(k, jf - (S.droop ?? 0.4) * dmath.pow(k / (K - 1), 1.5)));
       out.push(sweep(spine, spine.slice(0, -1).map((_, i) => S.r * (1 - (S.taper ?? 0.4) * i / (K - 1))), 5, { squash: [1, 0.55] })); }
     return out; },
+  /** COURSES of rings round a shell's field (mail: rows of linked rings, the next row's rings over the gaps of the last):
+   * a course every `pitch` metres down the grid, each a beaded tube round the grid's rows lifted `lift` off it, its beads
+   * `bead` apart and every other course offset by half a bead; `r` a ring's radius; at most `max` courses of at most
+   * `beads` beads (the field reads as rows of rings well before each ring is drawn): { pitch, r, bead?, lift?, beads?, max? } */
+  courses: (fig, g, _b, S) => { const O = g.outer, K = O.length, J = O[0].length, out = [], lift = S.lift ?? S.r * 0.5, bead = S.bead ?? S.r * 3;
+    const pt = (kf, jf) => { const kk = g.closed ? ((kf % K) + K) % K : Math.max(0, Math.min(K - 1, kf)), k0 = Math.floor(kk), k1 = g.closed ? (k0 + 1) % K : Math.min(K - 1, k0 + 1), j0 = Math.max(0, Math.min(J - 1, Math.floor(jf))), j1 = Math.min(J - 1, j0 + 1), a = Math.max(0, Math.min(1, kk - k0)), b = Math.max(0, Math.min(1, jf - j0));
+      const P = add(add(mul(O[k0][j0], (1 - a) * (1 - b)), mul(O[k1][j0], a * (1 - b))), add(mul(O[k0][j1], (1 - a) * b), mul(O[k1][j1], a * b)));
+      const n = unit(add(add(mul(g.F[k0][j0].normal, (1 - a) * (1 - b)), mul(g.F[k1][j0].normal, a * (1 - b))), add(mul(g.F[k0][j1].normal, (1 - a) * b), mul(g.F[k1][j1].normal, a * b))));
+      return add(P, mul(n, lift)); };
+    const len = (path) => path.slice(1).reduce((t, p, i) => t + dmath.hypot(...sub(p, path[i])), 0);
+    const down = len(Array.from({ length: J }, (_, j) => O[Math.floor(K / 2)][j])), n = Math.max(1, Math.min(S.max ?? 24, Math.round(down / S.pitch)));
+    for (let q = 0; q < n; q++) { const jf = (J - 1) * (q + 0.5) / n, run = Array.from({ length: K }, (_, k) => pt(k, jf)), L = len(g.closed ? [...run, run[0]] : run);
+      const B = Math.max(2, Math.min(S.beads ?? 32, Math.round(L / bead))) * 2, span = g.closed ? K : K - 1, ph = q % 2 ? 0.5 : 0;
+      const P = Array.from({ length: B + (g.closed ? 1 : 0) }, (_, i) => pt(span * Math.min(B, i + (g.closed ? ph : 0)) / B, jf));
+      out.push(sweep(P, P.slice(0, -1).map((_, i) => S.r * ((i + (q % 2)) % 2 ? 0.55 : 1)), 4, { squash: [1, 0.6] })); }
+    return out; },
   /** a FUR roll along an edge: a lumpy tube lifted `lift` off it, with `tufts` short points hanging out and down:
    * { r, lift?, tufts?, j?, m? } */
   fur: (fig, g, _b, S) => { const E = edgeOf(g, S), lift = S.lift ?? S.r * 0.6;

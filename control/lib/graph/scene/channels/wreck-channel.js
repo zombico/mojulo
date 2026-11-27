@@ -119,7 +119,8 @@ function __wkMake(e) {
     : __wkGroups(fig.bones, fig.wreck && fig.wreck.parent, { sever: W.sever, seed: W.seed, ride: 0.065 }).groups.map((ids) => ids.map((i) => rf.boneMeshes[i]).filter(Boolean).map((m) => ({ m, geo: m.geometry })));
   // the floor: where the body's lowest point stood when it went down
   let ground = Infinity;
-  for (const m of rf.boneMeshes) if (m) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); ground = Math.min(ground, box.min.z); }
+  // (a figure drawn as one skinned mesh keeps bare bones here, no geometry of their own: nothing of them to shed)
+  for (const m of rf.boneMeshes) if (m && m.geometry) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); ground = Math.min(ground, box.min.z); }
   if (!isFinite(ground)) return { none: true };
   // a cleave's cut in the world: the plane through the trunk's bone as it stands now
   let nW = null, atW = null;
@@ -184,10 +185,11 @@ function __wkShed(e, X) {
   was.updateMatrixWorld(true);
   let a = (e.id.length * 7919 + X.seq * 104729) >>> 0 || 1; const rnd = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const box = new THREE.Box3(), V = new THREE.Vector3(); let ground = Infinity;
-  for (const m of rf.boneMeshes) if (m) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); ground = Math.min(ground, box.min.z); }
+  // (a figure drawn as one skinned mesh keeps bare bones here, no geometry of their own: nothing of them to shed)
+  for (const m of rf.boneMeshes) if (m && m.geometry) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); ground = Math.min(ground, box.min.z); }
   const pieces = [], f = X.from || [0, 0];
   for (const bi in parts) {
-    const m = rf.boneMeshes[bi]; if (!m) continue;
+    const m = rf.boneMeshes[bi]; if (!m || !m.material) continue;
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(parts[bi].pos), 3)); geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(parts[bi].col), 3, true)); geo.computeBoundingBox();
     const b = geo.boundingBox, pts = [], c = [0, 0, 0];
     for (let j = 0; j < 8; j++) { V.set(j & 1 ? b.max.x : b.min.x, j & 2 ? b.max.y : b.min.y, j & 4 ? b.max.z : b.min.z).applyMatrix4(m.matrixWorld); pts.push([V.x, V.y, V.z]); c[0] += V.x / 8; c[1] += V.y / 8; c[2] += V.z / 8; }

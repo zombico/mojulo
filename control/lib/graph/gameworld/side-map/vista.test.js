@@ -4,7 +4,7 @@
 // widens to fill the frame from anywhere along the zone; further back is further into the air; the same seed, the same vista.
 import { describe, it, expect } from 'vitest';
 import { vistaOf, VISTAS, VISTA_IDS } from './vista.js';
-import { dressSideMap } from './dress.js';
+import { dressSideMap, SETTINGS, settingOf } from './dress.js';
 import { layoutSideMap } from './layout.js';
 import { assembleSideMap } from './scene.js';
 import { reachOf } from '../feel/reach.js';
@@ -59,8 +59,61 @@ describe('the side map\'s vistas', () => {
   it('further back is further into the air', () => {
     const { L, D } = laid(chain('skyline')), [V] = vistaOf(L, D, { seed: 3, horizon: '#ffffff' });
     const at = (x) => V.boxes.filter((b) => b.x1 === x && !b.lit).map((b) => lum(b.fill));
-    const xs = [...new Set(V.boxes.map((b) => b.x1))].sort((a, b) => a - b), far = at(xs[0]), near = at(xs[xs.length - 1]);
+    const xs = [...new Set(V.boxes.filter((b) => !b.lit).map((b) => b.x1))].sort((a, b) => a - b), far = at(xs[0]), near = at(xs[xs.length - 1]);
     expect(Math.min(...far)).toBeGreaterThan(Math.max(...near));
+  });
+
+  // (docs/side-scroll-backgrounds.md) a vista is a place still running, on dice of its own so its layers stand where they stood
+  it('stands a sky vista against a dusk in bands, blinks its beacons, steams its stacks and lights a hall\'s clerestory', () => {
+    const sky = laid(chain('skyline')), [V] = vistaOf(sky.L, sky.D, { seed: 3 });
+    const glow = V.boxes.filter((b) => b.group === 'sidemap:vista-glow');
+    expect(glow.length).toBeGreaterThan(2);
+    // (behind every layer, and lighter than the far layer it stands behind: the silhouettes read dark against it)
+    expect(Math.max(...glow.map((b) => b.x1))).toBeLessThan(Math.min(...V.boxes.filter((b) => !b.group).map((b) => b.x0)));
+    expect(V.boxes.some((b) => b.group === 'sidemap:vista-beacon')).toBe(true);
+    const yard = laid(chain('yard')), [Y] = vistaOf(yard.L, yard.D, { seed: 3 });
+    expect(Y.boxes.some((b) => b.group === 'sidemap:vista-steam')).toBe(true);
+    const hall = laid(chain('hall')), [Hl] = vistaOf(hall.L, hall.D, { seed: 3 });
+    expect(Hl.boxes.filter((b) => b.lit && b.x0 === Hl.far.x1).length).toBeGreaterThan(1);
+    expect(Hl.boxes.some((b) => b.group === 'sidemap:vista-glow')).toBe(false);
+    // (the page moves them)
+    const page = assembleSideMap(M('skyline'));
+    expect(Object.keys(page.ambient.groups)).toContain('sidemap:vista-beacon');
+  });
+
+  it('lays the future\'s domed arcologies and its traffic, and turns the reactor\'s wheel and ring about its hub, opposite ways', () => {
+    const fut = laid(chain('future')), [F] = vistaOf(fut.L, fut.D, { seed: 3 });
+    // (domes drawn as shapes, lit glass inside them; a skyway's train and craft that the page moves)
+    expect(F.boxes.filter((b) => b.poly && b.group === 'sidemap:vista-dome').length).toBeGreaterThan(2);
+    for (const g of ['sidemap:vista-train', 'sidemap:vista-traffic']) expect(F.boxes.some((b) => b.group === g), g).toBe(true);
+    const re = laid(chain('reactor')), [R] = vistaOf(re.L, re.D, { seed: 3 }), Z = re.L.zones[0];
+    const spins = Object.values(R.motion).map((m) => m.spin);
+    expect(spins).toHaveLength(2);
+    expect(Math.sign(spins[0].rate)).toBe(-Math.sign(spins[1].rate));
+    // (its hub the zone's middle, the wheel inside the zone)
+    for (const sp of spins) expect(sp.at[0]).toBeCloseTo((Z.rect[0] + Z.rect[1]) / 2, 3);
+    const wheel = R.boxes.filter((b) => b.group === Object.keys(R.motion)[0]);
+    expect(Math.min(...wheel.map((b) => b.s0))).toBeGreaterThanOrEqual(Z.rect[0] - 1e-3);
+    expect(Math.max(...wheel.map((b) => b.s1))).toBeLessThanOrEqual(Z.rect[1] + 1e-3);
+    // (the page spins them)
+    const page = assembleSideMap(M('reactor'));
+    expect(Object.values(page.ambient.groups).filter((g) => g.spin).length % 2).toBe(0);
+    expect(Object.values(page.ambient.groups).filter((g) => g.spin).length).toBeGreaterThanOrEqual(2);
+  });
+
+  // (docs/backdrop-variations.md) seeded from the starters' rows: every setting's places toned, two settings and three
+  // vistas made of rows and pieces already there, every law holding
+  it('seeds settings and vistas from the starters\' rows: each place toned, every law holding', () => {
+    for (const set of Object.keys(SETTINGS)) for (const P of Object.values(SETTINGS[set].places).flat()) expect(P.tone, `${set}: ${P.name}`).toBeDefined();
+    for (const set of ['city', 'orbital']) expect(settingOf(`into the ${SETTINGS[set].words[0]}`)).toBe(set);
+    const orb = laid(chain('orbit')), [O] = vistaOf(orb.L, orb.D, { seed: 3 });
+    expect(O.boxes.some((b) => b.group === 'sidemap:vista-stars')).toBe(true);
+    expect(O.boxes.some((b) => b.group === 'sidemap:vista-glow')).toBe(false);
+    const mk = laid(chain('market')), [K] = vistaOf(mk.L, mk.D, { seed: 3 });
+    expect(K.boxes.filter((b) => b.group === 'sidemap:vista-neon').length).toBeGreaterThan(1);
+    const gh = laid(chain('greenhouse')), [G2] = vistaOf(gh.L, gh.D, { seed: 3 });
+    expect(G2.boxes.some((b) => b.group === 'sidemap:vista-garden')).toBe(true);
+    for (const v of ['market', 'orbit', 'greenhouse']) expect(assembleSideMap(M(v)).sidemap.laws.filter((l) => !l.holds), v).toEqual([]);
   });
 
   it('the same seed, the same vista', () => {

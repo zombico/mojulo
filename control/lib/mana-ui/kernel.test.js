@@ -12,6 +12,8 @@ const screen = (children, props = {}) => ({ use: 'screen', props, children });
 const run = (s, state = {}, log = []) => manaUi.runtime({ start: 'a', screens: { a: s } }, host(state, log));
 const press = (rt, ...as) => as.forEach((a) => rt.press(a));
 const txt = (value) => ({ use: 'text', props: { value } });
+// (a paged keyboard's key under its grid: down from the first row onto the keys, then along them)
+const toKey = (rt, kind) => { for (let i = 0; i < 12 && rt.state().kind !== kind; i++) rt.press(i < 3 ? 'down' : 'right'); expect(rt.state().kind).toBe(kind); };
 
 describe('mana-ui: reading teaches', () => {
   const read = (n, defs) => () => manaUi.readNode(n, defs);
@@ -85,6 +87,34 @@ describe('mana-ui: props down and state in three places', () => {
     expect(S.name).toBe('AB');
     while (rt.state().kind !== 'button') rt.press('down');
     expect([rt.typing(), rt.type('a'), rt.erase(), rt.submit()]).toEqual([false, false, false, false]);   // nothing in focus to type into
+  });
+  it('a name\'s keyboard: pages of capitals, small letters and marks, a pad\'s shoulders turn them and its back erases', () => {
+    const S = { name: 'Ash' }, log = [], rt = run(screen([{ use: 'textentry', props: { value: { bind: 'name' }, max: 6, min: 1, charset: 'name' }, on: { done: { emit: 'named', to: { input: true } }, cancel: { emit: 'kept' } } }], { layer: 'modal' }), S, log);
+    rt.input('pad', 'xbox');
+    press(rt, 'accept');                                  // the draft is the name held: Ash, and A after it
+    expect(rt.view()).toContain('AshA');
+    press(rt, 'tabNext', 'accept');                       // the small letters' page: the cursor stays on its key
+    expect(rt.view()).toContain('AshAa');
+    press(rt, 'back');                                    // a pad's back erases what this visit typed
+    expect(rt.view()).toContain('AshA<');
+    press(rt, 'tabPrev', 'tabPrev', 'accept');            // round to the marks: 0
+    expect(rt.view()).toContain('AshA0');
+    toKey(rt, 'char-done');
+    rt.press('accept');
+    expect([S.name, log.map((x) => x.e.emit)]).toEqual(['AshA0', [undefined, 'named']]);
+  });
+  it('a name\'s keyboard typed straight in keeps its case and marks; min holds done back; cancel leaves the name', () => {
+    const S = { name: '' }, log = [], rt = run(screen([{ use: 'textentry', props: { value: { bind: 'name' }, max: 8, min: 2, charset: 'name' }, on: { cancel: { emit: 'kept' } } }]), S, log);
+    expect(rt.type('R')).toBe(true);
+    expect(rt.submit()).toBe(true);                       // one letter: done refuses (a deny), the draft kept
+    expect(S.name).toBe('');
+    expect(rt.type("ex O'Hara")).toBe(true);
+    expect(rt.view()).toContain('Rex O&#39;Ha');              // its case kept, a mark kept, the max kept
+    toKey(rt, 'char-cancel');
+    rt.press('accept');
+    expect([S.name, log.map((x) => x.e.emit)]).toEqual(['', ['kept']]);
+    expect(rt.view()).not.toContain('Rex');               // the draft let go
+    expect(rt.submit()).toBe(true);
   });
   it('when and unless draw a node only while their value says so', () => {
     const rt = run(screen([{ use: 'text', props: { value: 'ready' }, when: { bind: 'ok' } }, { use: 'text', props: { value: 'wait' }, unless: { bind: 'ok' } }]), { ok: false });
@@ -420,6 +450,41 @@ describe('mana-ui: the live game', () => {
     expect(sl).toContain('height:25%');
     expect(sl).toContain('>E<');
     expect(hudOf([at({ use: 'gauge', props: { value: 120, max: 240 } })]).view()).toContain('rotate(0deg)');
+  });
+  it('a craft\'s shields are read off its plan, no words: each side\'s share and the hull\'s, a spent side marked, the plan its mask', () => {
+    const v = hudOf([at({ use: 'shields', props: { fore: 6, aft: 0, max: 8, hull: 3, hullMax: 12, shape: 'M50 5 L90 90 L10 90 Z' } })]).view();
+    expect(v).toContain('--f:0.75;--a:0;--h:0.25');
+    expect(v).toContain('data-aft="down"');
+    expect(v).not.toContain('data-fore=');
+    expect(v).toContain('data-hull="low"');
+    expect(v).toMatch(/mask-image:url\(&quot;data:image\/svg\+xml,[^"]*M50%205%20L90%2090/);
+    expect((v.match(/mana-sh-arc/g) || []).length).toBe(2);
+    expect(v).not.toMatch(/>[a-z]/i);                                  // no words drawn
+    // a craft with no shields: the plan alone; a shape is only its path's letters (nothing else reaches the image)
+    const n = hudOf([at({ use: 'shields', props: { hull: 12, hullMax: 12, shape: 'M0 0 L9 9 Z<script>' } })]).view();
+    expect(n).toContain('data-shields="none"');
+    expect(n).not.toContain('mana-sh-arc');
+    expect(n).toContain('d%3D&#39;M0%200%20L9%209%20Zsct&#39;');   // the path's letters and figures only: no tag reaches the image
+  });
+  it('a generator and its feeds: the core filling to the tick and beating as each lands, a conduit each by its share, a gauge each, a full and a redirected one marked', () => {
+    const feeds = [{ id: 'lasers', share: 0.75, fill: 1, got: 0 }, { id: 'shields', share: 0.5, fill: 0.4, got: 1, spill: true }, { id: 'engines', share: 0, fill: 0.5, got: 0 }];
+    const v = hudOf([at({ use: 'power', props: { phase: 0.25, pulse: 3, feeds } })]).view();
+    expect(v).toContain('--ph:0.25');
+    expect(v).toContain('data-beat="b"');
+    expect(v).toContain('--s:0.75;--f:1;--g:0');
+    const feed = (id) => (v.match(new RegExp(`<span class="mana-pw-feed"[^>]*data-id="${id}"[^>]*>`)) || [''])[0];
+    expect(feed('lasers')).toContain('data-full="yes"');
+    expect(feed('shields')).toContain('data-spill="yes"');
+    expect(feed('engines')).toContain('data-off="yes"');
+    expect(feed('lasers')).not.toContain('data-spill');
+    // a feed's routing as pips, where given
+    const pv = hudOf([at({ use: 'power', props: { feeds: [{ id: 'lasers', share: 0.75, pips: 3, max: 4, fill: 0.5 }] } })]).view();
+    expect(pv).toContain('<span class="mana-pw-pips">●●●○</span>');
+    expect(v).not.toContain('mana-pw-pips');
+    expect((v.match(/mana-pw-pool/g) || []).length).toBe(3);
+    // the next tick swaps the beat, so its pulse starts over; before any tick, no beat
+    expect(hudOf([at({ use: 'power', props: { phase: 0, pulse: 4, feeds } })]).view()).toContain('data-beat="a"');
+    expect(hudOf([at({ use: 'power', props: { phase: 0.5, feeds } })]).view()).not.toContain('data-beat');
   });
   it('a hud holds regions and layers only; a screen lays its own parts out in regions over the held game', () => {
     expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, peril, letterbox, effect\)/);

@@ -18,7 +18,9 @@
  * packs the same way, a clip named for its word (`relax`, `sleep`): one loop of the pose its strategy resolves to, from
  * behavior/pose.js, lasting as long as its loop's motion takes on a body that size (`behaviorSeconds`). A floating
  * behavior's surface is the ground's level. A `strike` (true, or its attack's `{ startup, active, recovery }`) packs the
- * one-shot a beast deals a blow by (behavior/strike.js), clip `strike`; absent, nothing. `gaitStride(id, gait)` says how
+ * one-shot a beast deals a blow by (behavior/strike.js), clip `strike`; absent, nothing. Its other ways at a foe
+ * (`strikes: { snap?, maul?, roar?, channel?: true | timing }`, a party battle's beast) each a one-shot the same way, a clip of its
+ * way's name; absent, nothing. `gaitStride(id, gait)` says how
  * far one stride goes and how fast, for the walker that moves the body (a level's fauna, era/biocube-fauna.js).
  */
 import { faunaSkeleton } from './skeleton.js';
@@ -26,7 +28,7 @@ import { gaitFrames, prepare } from './gait.js';
 import { BEHAVIORS, resolveBehavior, repertoire } from './behavior/index.js';
 import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose.js';
 import { reactsOf, reactionFrames, REACTION_SECONDS } from './behavior/react.js';
-import { strikesOf, strikeFrames, strikeSeconds, strikeTiming } from './behavior/strike.js';
+import { strikesOf, strikeWaysOf, strikeFrames, strikeSeconds, strikeTiming, STRIKE_WAYS } from './behavior/strike.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
 import { shapeId } from '../polygonizer/station-loft-plan.js';
 import { bodyPlan, bodyLocomotion } from './body.js';
@@ -127,7 +129,7 @@ export function checkBehaviors(id, behaviors = [], variants = {}) {
  * A copy of `plan` (the species' own) bound to its skeleton and carrying `motion`. Throws on a gait it does not have,
  * or a behavior it cannot be posed doing. `extra`: `{ behaviors, variants }`.
  */
-export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {}, reactions = [], strike } = {}) {
+export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {}, reactions = [], strike, strikes } = {}) {
   const have = motionGaits(id);
   for (const g of gaits) if (!have.includes(g)) throw new Error(`'${id}' has no gait '${g}' (it can: ${have.join(', ')})`);
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('motion keys must be an integer in [4, 96]');
@@ -135,6 +137,7 @@ export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behav
   for (const w of reactions) if (!reactsOf(id).includes(w)) throw new Error(`'${id}' has no reaction '${w}' (it can: ${reactsOf(id).join(', ') || 'none yet'})`);
   if (strike !== undefined && !strikesOf(id).length) throw new Error(`'${id}' cannot strike yet (a swimmer and a body on folded wings have no strike)`);
   const struck = strike === undefined ? undefined : strike === true ? true : strikeTiming(strike);
+  const ways = readWays(id, strikes);
   if (!gaits.length && !behaviors.length && !reactions.length && !struck) throw new Error('motion carries no clip: name a gait, a behavior, a reaction or the strike');
   const B = faunaBinds(id), out = structuredClone(plan);
   for (const s of out.segments) if (B.segments[s.name] !== undefined) s.bind = B.segments[s.name];
@@ -144,7 +147,21 @@ export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behav
   if (Object.keys(variants || {}).length) out.motion.variants = { ...variants };
   if (reactions.length) out.motion.reactions = [...reactions];
   if (struck) out.motion.strike = struck;
+  if (ways) out.motion.strikes = ways;
   return out;
+}
+
+// the other ways at a foe (behavior/strike.js): { <way>: true | its timing }, each one the species can take; none: undefined
+function readWays(id, strikes) {
+  if (strikes === undefined) return undefined;
+  if (!strikes || typeof strikes !== 'object' || Array.isArray(strikes)) throw new Error('motion strikes is { snap?, maul?, roar?, channel?: true | { startup, active, recovery } }');
+  const can = strikeWaysOf(id), out = {};
+  for (const [w, t] of Object.entries(strikes)) {
+    if (w === 'strike' || !STRIKE_WAYS.includes(w)) throw new Error(`motion strikes: no way '${w}' (${STRIKE_WAYS.slice(1).join(', ')}; the lunge is \`strike\`)`);
+    if (!can.includes(w)) throw new Error(`'${id}' has no ${w} (it can: ${can.join(', ') || 'none: it cannot strike yet'})`);
+    out[w] = t === true ? true : strikeTiming(t, w);
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Row-major rotation → quaternion [x, y, z, w] (the rig pack's convention: v' = h + R(q)(v − restHead)). */
@@ -198,7 +215,7 @@ export function behaviorSeconds(id, behavior, { variant } = {}) {
  * (dz, normals, light, …).
  */
 export function packFaunaRig(mesh, skin, motion, opts = {}) {
-  const { species: id, gaits = [], behaviors = [], variants = {}, reactions = [], strike, keys = 24 } = motion, dz = opts.dz || 0;
+  const { species: id, gaits = [], behaviors = [], variants = {}, reactions = [], strike, strikes, keys = 24 } = motion, dz = opts.dz || 0;
   const S = faunaSkeleton(id);
   const stand = { joints: {}, bones: S.bones.map((b) => ({ id: b.id, head: `${b.id}:h`, tail: `${b.id}:t` })) };
   for (const b of S.bones) { stand.joints[`${b.id}:h`] = b.head; stand.joints[`${b.id}:t`] = b.tail; }
@@ -221,5 +238,7 @@ export function packFaunaRig(mesh, skin, motion, opts = {}) {
   for (const w of reactions) clips[w] = { k: keys, b: packed(reactionFrames(id, w, keys)), s: REACTION_SECONDS[w] };
   // the strike (behavior/strike.js): a one-shot at its attack's timing (`true`, the default jab)
   if (strike) { const t = strike === true ? undefined : strike; clips.strike = { k: keys, b: packed(strikeFrames(id, t, keys)), s: strikeSeconds(t) }; }
+  // (its other ways at a foe: a snap, a maul, its roar, each at its own timing)
+  for (const [w, T] of Object.entries(strikes || {})) { const t = T === true ? undefined : T; clips[w] = { k: keys, b: packed(strikeFrames(id, t, keys, w)), s: strikeSeconds(t, w) }; }
   return { ...pack, clips };
 }

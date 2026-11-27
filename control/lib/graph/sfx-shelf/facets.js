@@ -41,8 +41,8 @@ export const WEIGHTS = Object.freeze({ light: 'small, quick, thin', mid: 'neithe
 
 // genres by kind of play (cosmos/fixtures.js ids): a family's genres are a group or several
 const G = {
-  shooting: ['shooter', 'arena-shooter', 'military-sim', 'tactical-espionage', 'run-and-gun', 'split-deathmatch', 'driver-and-gunner', 'cinematic-action'],
-  melee: ['stylish-action', 'action-rpg', 'arena-brawler', 'co-op-brawler', 'versus-fighter', 'top-down-adventure', 'open-adventure', 'dungeon-crawler', 'cinematic-action'],
+  shooting: ['shooter', 'arena-shooter', 'military-sim', 'tactical-espionage', 'run-and-gun', 'split-deathmatch', 'driver-and-gunner', 'cinematic-action', 'cinematic-adventure', 'bullet-time-action'],
+  melee: ['stylish-action', 'action-rpg', 'arena-brawler', 'co-op-brawler', 'versus-fighter', 'top-down-adventure', 'open-adventure', 'dungeon-crawler', 'cinematic-action', 'cinematic-adventure', 'bullet-time-action'],
   adventure: ['dungeon-crawler', 'top-down-adventure', 'open-adventure', 'action-rpg', 'jrpg', 'long-rpg', 'metroidvania', 'story-adventure', 'roguelike', 'headset-adventure'],
   platform: ['collectathon', 'platformer-3d', 'co-op-platformer', 'endless-runner', 'metroidvania', 'co-op-scroller'],
   racing: ['racing', 'kart-racer', 'driver-and-gunner'],
@@ -53,7 +53,7 @@ const G = {
   strategy: ['tower-defense', 'rts', 'tactics'],
   life: ['farming', 'co-op-kitchen'],
   table: ['party-mash', 'turn-sport'],
-  fight: ['versus-fighter', 'arena-brawler', 'co-op-brawler', 'stylish-action', 'cinematic-action'],
+  fight: ['versus-fighter', 'arena-brawler', 'co-op-brawler', 'stylish-action', 'cinematic-action', 'cinematic-adventure', 'bullet-time-action'],
   mecha: ['shooter', 'arena-shooter', 'run-and-gun'],
   rhythm: ['rhythm'],
   city: ['city-stalker', 'open-city-crime', 'open-adventure', 'demolition'],

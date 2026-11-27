@@ -585,6 +585,9 @@ export const VEHICLES = {
     { craft: 'arrowInterceptor', tech: 'winged' }),
   'dagger-interceptor': row('dagger-panel interceptor', ['dagger interceptor', 'dagger fighter'], 'space', 'interceptor', F, FIGHT,
     { craft: 'daggerInterceptor', tech: 'winged' }),
+  // (the scrolling shooter's hero ship: Blaze Gunner's, craft-shelf/hero-gunship.js; a gunship alone is the helicopter's)
+  'hero-gunship': row('hero gunship', ['hero fighter', 'hero ship', 'shmup ship', 'shoot em up ship'], 'space', 'superiority', F, FIGHT,
+    { craft: 'heroGunship', tech: 'winged' }),
   'facet-raider': row('faceted stealth raider', ['stealth raider', 'facet raider'], 'space', 'stealth', F, FIGHT,
     { craft: 'facetRaider', tech: 'winged' }),
   'utility-shuttle': row('twin-pod utility shuttle', ['utility shuttle', 'shuttle', 'dropship'], 'space', 'transport', F, AIR,

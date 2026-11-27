@@ -63,6 +63,7 @@ export const MENU_CSS = [
   '.moj-w-inv .pu-big{width:56px;height:56px}.moj-w-inv .pu-big svg{width:100%;height:100%}',
   '.moj-w-inv .pu-name{font-weight:700;color:var(--moj-ink);text-transform:capitalize}.moj-w-inv .pu-kind{font-size:11px;opacity:.7;color:var(--moj-ink);text-transform:uppercase;letter-spacing:1px}',
   '.moj-w-inv .pu-card .pu-about{color:var(--moj-ink)}.moj-w-inv .pu-foot b{font-weight:700;color:var(--moj-accent);margin-right:3px}',
+  '.moj-w-menu .pu-digits{display:flex;gap:6px;justify-content:center;font-size:22px;font-variant-numeric:tabular-nums}.moj-w-menu .pu-dig{min-width:22px;text-align:center;padding:2px 4px;border-bottom:2px solid var(--moj-line);cursor:pointer}.moj-w-menu .pu-dig.on{color:var(--moj-accent);border-color:var(--moj-accent)}',
   '.moj-w-menu .pu-map{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}.moj-w-menu .pu-map i{height:22px;border:1px solid var(--moj-line)}.moj-w-menu .pu-map i.here{background:var(--moj-accent)}',
 ].join('');
 
@@ -109,17 +110,24 @@ let __menuOpen = null, __menuF = 0, __menuPg = 0, __menuTab = 0, __menuShown = '
 function __menuDraw() { const h = __menuOpen ? menuHtml(__menuOpen, __menuF, __menuPg, __busState.vars, __menuTab).replace(/\\{([^}]+)\\}/g, (_, k) => String(__busState.vars[k] != null ? __busState.vars[k] : 0)) : ''; if (h !== __menuShown) { __menuShown = h; __menuHud.innerHTML = h; } }
 // a view's focusable rows, [row index, row] (menus.js viewLive: the drawing reads the same)
 function __menuLive(m) { return viewLive(m, __busState.vars, __menuTab); }
-function __menuCount(m) { return m.picks ? m.picks.length : m.kind === 'save' ? Math.min(m.slots, 4) : m.kind !== 'list' && m.rows ? __menuLive(m).length : m.kind === 'list' ? m.rows.length : 0; }
+function __menuCount(m) { return m.kind === 'number' ? m.digits : m.picks ? m.picks.length : m.kind === 'save' ? Math.min(m.slots, 4) : m.kind !== 'list' && m.rows ? __menuLive(m).length : m.kind === 'list' ? m.rows.length : 0; }
 function __menuClose() { if (__menuOpen) __inputQueue.push({ type: 'menu-close:' + __menuOpen.id }); }
 function __menuAct() {
   const m = __menuOpen; if (!m) return;
   if (m.kind === 'read' && __menuPg + 1 < m.pages.length) { __menuPg++; __menuDraw(); return; }
+  // (a number: written to its var, held to its bounds, before its pick's effects run)
+  if (m.kind === 'number') { __busState.vars[m.numVar] = Math.max(m.min, Math.min(m.max, Math.round(__busState.vars[m.edit] || 0))); __inputQueue.push({ type: 'menu-pick:' + m.id + ':0' }); return; }
   if (m.picks && m.picks.length) __inputQueue.push({ type: 'menu-pick:' + m.id + ':' + __menuF });
   else if (m.kind !== 'list' && m.rows) { const L = __menuLive(m), r = L[Math.min(__menuF, L.length - 1)]; if (r && r[1].verb) __inputQueue.push({ type: 'menu-act:' + m.id + ':' + r[0] }); }   // a view: the row's verb, the menu up
   else __menuClose();
 }
 function __menuDo(a) {
   const m = __menuOpen, n = __menuCount(m);
+  if (m && m.kind === 'number' && (a === 'up' || a === 'down')) {
+    // the digit in focus turned, round from 9 to 0
+    const place = Math.pow(10, m.digits - 1 - __menuF), v = Math.round(__busState.vars[m.edit] || 0), d = Math.floor(v / place) % 10;
+    __busState.vars[m.edit] = v + (((d + (a === 'up' ? 1 : 9)) % 10) - d) * place; __menuDraw(); return;
+  }
   if (m && m.layout === 'grid' && m.kind !== 'list' && m.rows) {
     // a grid: left / right a tile, up / down a row (the worn strip above the first); [ ] the tabs
     const L = __menuLive(m), nw = L.filter((x) => x[1].worn).length, cols = m.cols || 5, f = __menuF;
@@ -147,6 +155,8 @@ __menuHud.addEventListener('click', (ev) => {
   const t = ev.target.closest('[data-tab]'); if (t) { __menuTab = Number(t.getAttribute('data-tab')); __menuF = 0; __menuDraw(); return; }
   const p = ev.target.closest('[data-pick]'); if (!p) return;
   const i = Number(p.getAttribute('data-pick'));
+  // (a number's digit: the first click focuses it, a click on the focused one turns it up)
+  if (__menuOpen.kind === 'number') { if (i !== __menuF) { __menuF = i; __menuDraw(); } else __menuDo('up'); return; }
   // a tile: the first click focuses it, a click on the focused one does its verb (the pointer's select, then use)
   if (__menuOpen.layout === 'grid' && __menuOpen.rows && i !== __menuF) { __menuF = i; __menuDraw(); return; }
   __menuF = i; __menuAct();
@@ -166,7 +176,11 @@ function __menuPadNow() {
 function __syncMenus() {
   let open = null;
   for (const m of __MENUS) if (__busState.vars[m.var] === 1) open = m;
-  if (open !== __menuOpen) { __menuOpen = open; __menuF = 0; __menuPg = 0; __menuTab = 0; __mpPrev = __menuPadNow(); }   // what is held as it opens doesn't act in it
+  if (open !== __menuOpen) {
+    __menuOpen = open; __menuF = 0; __menuPg = 0; __menuTab = 0; __mpPrev = __menuPadNow();   // what is held as it opens doesn't act in it
+    // (a number starts at its var's value, within its bounds; the focus on its last digit)
+    if (open && open.kind === 'number') { __busState.vars[open.edit] = Math.max(open.min, Math.min(open.max, Math.round(__busState.vars[open.numVar] || 0))); __menuF = open.digits - 1; }
+  }
   else if (open) { const now = __menuPadNow(); for (const a in now) if (!__mpPrev[a]) __menuDo(a); __mpPrev = now; }
   if (__menuOpen && __menuOpen.kind !== 'list' && __menuOpen.rows) __menuF = Math.max(0, Math.min(__menuF, __menuLive(__menuOpen).length - 1));
   window.__mojMenuOpen = !!__menuOpen;

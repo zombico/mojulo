@@ -237,6 +237,21 @@ describe('the yoke: cloth on the tiered trunk hangs from the chest, not the shou
 describe('capeArm and hoodRound', () => {
   const cape = { id: 'cloak', fit: 'cape', part: ['torso', 'upperArm', 'pelvis', 'thigh', 'shank'], from: { part: 'torso', run: 1 }, to: { part: 'shank', run: 0.3 }, around: [70, 290], ease: 0.02, flare: [0, 0.1], rigidity: 'soft', group: 'Outer' };
   const armW = (P, key) => Object.entries(P.bind.blend[key] || {}).filter(([b]) => /^(upperArm|foreArm)/.test(b)).reduce((t, [, w]) => t + w, 0);
+  it('a torn hem: absent adds nothing; its tongues hang to the hem and the gaps between them tear up, only at its last rings', () => {
+    const base = worn({ preset: 'male', core: 'structured', outfit: [cape] }).recipe.parts.cloak_cape;
+    expect(JSON.stringify(worn({ preset: 'male', core: 'structured', outfit: [{ ...cape, torn: undefined }] }).recipe.parts.cloak_cape)).toBe(JSON.stringify(base));
+    const { recipe, mesh } = worn({ preset: 'male', core: 'structured', outfit: [{ ...cape, torn: { depth: 0.25, count: 5 } }] }), T = recipe.parts.cloak_cape;
+    expect(failures(mesh).filter((n) => n.startsWith('cloak'))).toEqual([]);
+    const zs = (P, i) => Object.values(P.stations[i].points).map((p) => p[2]), n = base.stations.length - 1;
+    // (above the hem, as it was; at the hem, its tips where the hem was and its gaps up by as much as the depth)
+    for (let i = 0; i < n - 1; i++) expect(zs(T, i)).toEqual(zs(base, i));
+    const lift = zs(T, n).map((z, k) => z - zs(base, n)[k]);
+    expect(Math.min(...lift)).toBeLessThan(0.01);
+    expect(Math.max(...lift)).toBeGreaterThan(0.12);
+    expect(Math.max(...lift)).toBeLessThanOrEqual(0.25 + 1e-6);
+    expect(validateGarments([{ ...cape, torn: { depth: 0.2, count: 1 } }])[0]).toMatch(/torn/);
+    expect(validateGarments([{ id: 'x', part: 'torso', ease: 0, group: 'Top', torn: { depth: 0.2, count: 4 } }])[0]).toMatch(/a cape's alone/);
+  });
   it('a cape: absent adds nothing; a wider reach takes the arm in cloth the default left on the trunk; a rolled hem stands out', () => {
     const base = worn({ preset: 'male', core: 'structured', outfit: [cape] }).recipe.parts.cloak_cape;
     expect(JSON.stringify(worn({ preset: 'male', core: 'structured', outfit: [{ ...cape, capeArm: undefined }] }).recipe.parts.cloak_cape)).toBe(JSON.stringify(base));

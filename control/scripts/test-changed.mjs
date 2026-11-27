@@ -36,6 +36,7 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/scene\/handoff-hlsl\//, by: ['lib/graph/scene/handoff-common.js'], why: 'the handoff\'s common pack includes the shader fragments Unreal\'s and Unity\'s ports share' },
   { reads: /^scripts\/godot-humanoid-probe\.gd$/, by: ['lib/mcp/tools/export-model.godot-humanoid.test.js'], why: 'the humanoid gate runs the probe in a real Godot' },
   { reads: /^lib\/graph\/versus\/[^/]+\.js$/, by: ['lib/graph/versus/versus-page.js'], why: 'the versus page inlines its modules and clients' },
+  { reads: /^lib\/graph\/(assault-frame\/(parts|assemble|body|clips|pilot|figure|hangar)|city\/plan\/dice|figures\/rig-bake|vehicle-designer\/vehicle-rig)\.js$/, by: ['lib/graph/assault-frame/kernel.js'], why: 'the frame kernel inlines the frame\'s modules and the dice\'s and the rig\'s packers, as text, for a page to build a chosen frame' },
   { reads: /^lib\/graph\/brawl\/[^/]+\.js$/, by: ['lib/graph/brawl/brawl-page.js'], why: 'the brawl page inlines its modules and its client' },
   { reads: /^lib\/graph\/broadcast\/broadcast\.client\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the broadcast graphics before its arena client' },
   { reads: /^lib\/graph\/contest\/contest-stats\.js$/, by: ['lib/graph/contest/meet-arena.js', 'lib/graph/contest/match-arena.js', 'lib/graph/contest/turn-arena.js', 'lib/graph/contest/team-arena.js', 'lib/graph/contest/innings-arena.js'], why: 'every contest channel inlines the stats fold its broadcast shows' },
@@ -46,12 +47,14 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/(physics\/flight|contest\/ball-card|worlds\/physics-sim|contest\/contest-kernel|contest\/bat-sim|contest\/innings-arena\.client)\.js$/, by: ['lib/graph/contest/innings-arena.js'], why: 'the field channel inlines the ball\'s flight, the ball card, the physics integrator, the kernel, the bat sim and its arena client' },
   { reads: /^lib\/graph\/(contest|versus|tabletop)\/[^/]+\.client\.js$/, by: ['lib/graph/game/arena-outcomes.test.js'], why: 'the arena outcome guard reads every arena client for the envelopes it posts' },
   { reads: /^lib\/graph\/tabletop\/holo-arena\.client\.js$/, by: ['lib/graph/tabletop/holo-arena.js'], why: 'the holo channel inlines the arena\'s client' },
+  { reads: /^lib\/graph\/campaign\/briefing(-editor)?\.client\.js$/, by: ['lib/graph/campaign/briefing-page.js'], why: 'the holo briefing (and its editor) inline their clients' },
   { reads: /^lib\/graph\/(versus\/versus-rig|versus\/versus-figure|contest\/athlete-pose|contest\/athlete\.client)\.js$/, by: ['lib/graph/scene/channels/contest.js'], why: 'a sport\'s channel inlines the figure that poses its athletes when its arena carries their bodies' },
   { reads: /^lib\/graph\/gameworld\/feel\/(cards|kernel|page\.client)\.js$/, by: ['lib/graph/gameworld/feel/page.js'], why: 'the action lab page inlines its kernel' },
   { reads: /^lib\/graph\/pixelizer\/[^/]+\.js$/, by: ['lib/graph/pixelizer/brickster-shell.js', 'lib/graph/pixelizer/philosophers-stone-shell.js'], why: 'the pixelizer shells inline their siblings' },
   { reads: /^lib\/graph\/scene\/scene-three\.js$/, by: ['lib/graph/era/era-marks.test.js'], why: 'the era marks read the World page\'s inputs from its source' },
   { reads: /^lib\/mana-ui\/[^/]+\.js$/, by: ['lib/mana-ui/boundary.test.js'], why: 'the boundary guard reads every mana-ui module for what it imports' },
   { reads: /^lib\/mcp\/apps\/preview-ui\.js$/, by: ['lib/mcp/apps/preview.js'], why: 'the app preview inlines its UI script' },
+  { reads: /^lib\/mcp\/routing-cards\/[^/]+\.md$/, by: ['scripts/plugin-agents.test.js', 'scripts/plugin-skills.test.js'], why: 'the Claude plugin\'s start skills copy their routing cards (plugin-skills.mjs); these hold them current' },
   { reads: /^lib\/mcp\/(catalysts|routing-cards)\/[^/]+\.md$|^lib\/graph\/(.+\/)?[a-z-]+-vocab\/.+\.md$|^lib\/mcp\/tools\/[^/]+\.js$|^scripts\/orient-mcp\.mjs$/, by: ['lib/mcp/no-dead-pointers.test.js'], why: 'the dead-pointer guard reads the shelves, the cards and the tools\' prose for names an agent cannot call' },
 ]);
 /** Modules that read files beside them that are DATA (cards, tables, stores, fonts, versions), not code: their own

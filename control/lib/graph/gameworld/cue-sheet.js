@@ -103,9 +103,12 @@ function spot(world, G) {
   ids.forEach((id, i) => {
     const L = G.levels?.[id] ?? {}, stage = stages.find((s) => s.level === id)?.manifest ?? null;
     out.push({ id: `level:${id}`, by: 'levels', for: `the level '${id}'`, role: 'place', loop: true, level: id, stage, final: ids.length > 1 && i === ids.length - 1 });
-    if (L.foes !== undefined || L.goal?.gauntlet) out.push({ id: `fight:${id}`, by: 'foes', for: `the fights of '${id}'`, role: 'battle', loop: true, level: id });
+    // (a world of party battles, battles.js: every level fought but its hub, the boss's on its last; played while a fight is
+    // up, audio.tension held by rpg.battle: runner.js sheetOf)
+    const party = !!G.battles && G.battles.on !== 'board' && id !== G.hub;
+    if (L.foes !== undefined || L.goal?.gauntlet || party) out.push({ id: `fight:${id}`, by: 'foes', for: `the fights of '${id}'`, role: 'battle', loop: true, level: id });
     // (a side map's boss too: its room's own piece, the fights' before it)
-    if (L.goal?.boss || L.sidemap?.boss) out.push({ id: `boss:${id}`, by: 'foes', for: `the boss of '${id}'`, role: 'boss', loop: true, level: id });
+    if (L.goal?.boss || L.sidemap?.boss || (party && G.battles.boss && i === ids.length - 1)) out.push({ id: `boss:${id}`, by: 'foes', for: `the boss of '${id}'`, role: 'boss', loop: true, level: id });
   });
   // the outcomes
   out.push({ id: 'victory', by: 'build', for: 'a level won', role: 'stinger', loop: false }, { id: 'defeat', by: 'build', for: 'a level lost', role: 'stinger', loop: false });

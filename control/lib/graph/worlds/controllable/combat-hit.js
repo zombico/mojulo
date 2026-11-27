@@ -102,6 +102,8 @@ export function buildCombatHit(E) {
   // Try to absorb `drain` off tg's shield from a shot originating at `src`. Returns true when
   // the shield ate the hit (so the caller skips hp/poise). Arms the break-stagger on depletion.
   function absorbShield(tg, src, drain, state) {
+    // (a ship's fore and aft shields, rules-starfighter.js `body.ship`: theirs to say; null leaves it to the suit's)
+    if (tg.ship && E.shipAbsorb) { const took = E.shipAbsorb(tg, src, drain, state); if (took !== null) return took; }
     if (!shieldCovers(tg, src)) return false;
     tg.shieldHp -= drain;
     if (tg.shieldHp <= 0) {

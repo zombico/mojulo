@@ -106,7 +106,19 @@ const __levelRank = ${levelRank.toString()};
   function emit(ev) { if (!st.ended && ev && typeof ev === 'object' && ev.type) st.events.push(ev); }
   function end(result, stats${exits ? ', exit' : ''}) {
     if (st.ended) return st.envelope;
-    st.ended = true;
+    // (a scene up as the level is won or lost, a moment at its exit: the level ends as the scene closes, never under it.
+    // A moment's zone and the exit's may fire on one frame, the scene up the next: a quarter second's grace first, on a
+    // page with scenes. A capture run, the audit's, ends at once)
+    if (!capture && window.__mojScenes) {
+      if (!st.graced) { st.graced = true; setTimeout(function () { end(result, stats${exits ? ', exit' : ''}); }, 250); return null; }
+      if (window.__mojScenes.on()) {
+        if (!st.held) st.held = setInterval(function () { if (!window.__mojScenes.on()) { clearInterval(st.held); st.held = null; end(result, stats${exits ? ', exit' : ''}); } }, 150);
+        return null;
+      }
+    }
+${game.wins ? `    // (what its win grants, the level's \`wins\`: an operation's reward, its parts; on a success only)
+    if ((result || 'success') === 'success' && Array.isArray(__GAME.wins)) for (const w of __GAME.wins) emit(w);
+` : ''}    st.ended = true;
     st.envelope = { contractVersion: __CV, levelRef: __GAME.levelRef, seed: st.seed, result: result || 'success', events: st.events.slice() };${exits ? `
     // the way the level was left, when it has several (a map game travels by it)
     if (typeof exit === 'string' && exit) st.envelope.exit = exit;` : ''}
@@ -144,7 +156,13 @@ ${ranks ? `    // THE RANK (game/rank.js), on a level won: read off the style me
     }
     return st.envelope;
   }
-${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes] }, a level that keeps its own progress: the open city).
+${game.party && game.party.slice ? `  // THE NAMES THE PLAYER GAVE (the party mechanic's roster, a member renamed: the store's rename, named): the page's
+  // lines say them (window.__mojNames, read by the scene channel), and the RPG's menus (its own copy of the roster)
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.party.slice], r = (s && s.roster) || {}, N = window.__mojNames = window.__mojNames || {};
+    for (const id in r) if (r[id] && r[id].named === true && typeof r[id].name === 'string') N[id] = r[id].name;
+  });
+` : ''}${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes] }, a level that keeps its own progress: the open city).
   // As an event it names passes, what the bus keeps under its prefixes (numbers, none of them nought) goes to the shell;
   // a continue hands it back (params.__resume): set on the bus as the level starts, then 'resumed' raised so what was
   // under way picks up. Standalone, nothing is sent and nothing comes back
@@ -212,7 +230,7 @@ ${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes
       return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
     };
 ${keeps ? `    // the KEPT numbers (game.keep), as the level ends: each var off the bus, scaled, beside how the shell keeps its best
-    const __kept = (state) => ({ kept: __GAME.keep.map((k) => ({ label: k.label, value: Math.round((Number(state.vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}) })) });
+    const __kept = (state) => ({ kept: __GAME.keep.map((k) => ({ label: k.label, value: Math.round((Number(state.vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}), ...(k.names ? { names: k.names } : {}) })) });
 ` : ''}    const prev = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
       // Match against state.log's DELTA, not the incoming array: the reducer cascades
@@ -325,6 +343,19 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       const C = window.__mojCtrl;
       if (!C || !C.restore) { if (n < 100) setTimeout(function () { restore(n + 1); }, 50); return; }
       for (const id of ids) C.restore(id);
+    })(0);
+  });
+` : ''}${game.journey ? `  // the JOURNEY carried in (the journey mechanic): what the hero gained in the castle's segments before (a relic, a
+  // boss felled, a gate, the map, a node, a foe's souls) put back as it stood (held-gates.js carryIn), once the
+  // controllable world is up
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.journey.slice], fl = (s && s.flags) || {};
+    const keys = Object.keys(fl).filter((k) => fl[k] && k.indexOf('journey:') === 0);
+    if (!keys.length) return;
+    (function carry(n) {
+      const C = window.__mojCtrl;
+      if (!C || !C.carryIn) { if (n < 100) setTimeout(function () { carry(n + 1); }, 50); return; }
+      C.carryIn(keys);
     })(0);
   });
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame

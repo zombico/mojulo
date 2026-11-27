@@ -13,7 +13,10 @@
  * The read, in order:
  *   1. its BONES BY NAME: each skin joint's humanoid bone (VRM's names) from the file's own VRM map (VRMC_vrm, VRM 0.x)
  *      when it has one, else from the joint's name (JOINT_WORDS: the conventions above, the side from left | right | l | r
- *      as a word); the spine's joints counted up from the hips (spine, chest, the rest the chest's upper part)
+ *      as a word; a palm the hand on a side with none); the spine's joints counted up from the hips (spine, chest, the
+ *      rest the chest's upper part). When the names make no humanoid (numbered chains, no names at all), its SHAPE is
+ *      read (shapeVrmMap: the hips the joint that sends a mirrored pair down and the spine up, the chest the one that
+ *      sends a mirrored pair across). `ledger.how` says which: 'file' | 'name' | 'shape'
  *   2. its REST: every vertex skinned once by its own weights at the nodes' rest (so the armature's own scale and turn are
  *      in it, as an engine draws it), each joint where its node stands
  *   3. its FRAME: turned so its head is up (+z), its right leg on +x and its face to +y (the native frame), standing on
@@ -61,10 +64,12 @@ const JOINT_WORDS = Object.freeze({
   neck: ['neck', 'neck1', 'neck01', 'neck001'], head: ['head'],
   Shoulder: ['shoulder', 'clavicle', 'collar'],
   UpperArm: ['arm', 'upperarm', 'uparm'], LowerArm: ['forearm', 'lowerarm'], Hand: ['hand', 'wrist'],
+  // a palm (a rig with no wrist joint carries its fingers on palms off the forearm): the hand only when the side has none
+  Palm: ['palm', 'palm1', 'palm2', 'palm3', 'palm01', 'palm02', 'palm03', 'metacarpal'],
   UpperLeg: ['upleg', 'upperleg', 'thigh'], LowerLeg: ['leg', 'lowerleg', 'calf', 'shin'], Foot: ['foot', 'ankle'], Toes: ['toebase', 'toes', 'toe', 'ball'],
 });
 const STEM_OF = new Map(Object.entries(JOINT_WORDS).flatMap(([stem, ws]) => ws.map((w) => [w, stem])));
-const SIDED = new Set(['Shoulder', 'UpperArm', 'LowerArm', 'Hand', 'UpperLeg', 'LowerLeg', 'Foot', 'Toes']);
+const SIDED = new Set(['Shoulder', 'UpperArm', 'LowerArm', 'Hand', 'Palm', 'UpperLeg', 'LowerLeg', 'Foot', 'Toes']);
 
 /** A joint's humanoid bone by its name (VRM's: `leftUpperArm`, `hips`), `spine` for any spine joint, or null (a finger,
  * an eye, a twist, an end: it rides the bone above it). */
@@ -141,6 +146,114 @@ export async function decodeModelImages(bytes) {
 }
 
 // ── the import ──────────────────────────────────────────────────────────────────────────────────────────────────────
+// ── the skeleton by its shape ───────────────────────────────────────────────────────────────────────────────────────
+/**
+ * A humanoid read off a skeleton's SHAPE when its names do not say it (numbered chains, no names at all): the hips are
+ * the joint that sends a mirrored pair of chains one way (the legs) and a third chain the other (the spine); up the
+ * spine, the chest is the joint that sends a mirrored pair across (the arms) and a chain on up (the neck and head). A
+ * chain's joints are its WEIGHTED ones (an end joint that moves no vertex, `HeadTop_End`, is not a bone). Its sides are
+ * its names' (`L`, `R`, `left`) when they say them, else glTF's facing: a figure faces +z, its right on −x.
+ *
+ *   shapeVrmMap(json, bin, skin, J, parent) → { map: Map(node → VRM bone) } | { why }
+ */
+export function shapeVrmMap(json, bin, skin, J, parent) {
+  const nodes = json.nodes || [];
+  const inSkin = new Set(J.map((j) => j.node));
+  const pos = new Map(J.map((j) => [j.node, j.at]));
+  // the skin's own tree: each joint's parent the nearest joint above it
+  const up = (n) => { for (let p = parent[n]; p >= 0; p = parent[p]) if (inSkin.has(p)) return p; return -1; };
+  const kids = new Map(J.map((j) => [j.node, []]));
+  for (const j of J) { const p = up(j.node); if (p >= 0) kids.get(p).push(j.node); }
+  // the weight each joint carries (the meshes skinned to this skin)
+  const weight = new Map(J.map((j) => [j.node, 0]));
+  const sk = json.skins.indexOf(skin);
+  for (const n of nodes) {
+    if (n.mesh === undefined || n.skin !== sk) continue;
+    for (const prim of json.meshes[n.mesh].primitives || []) {
+      const A = prim.attributes || {};
+      if (A.JOINTS_0 === undefined || A.WEIGHTS_0 === undefined) continue;
+      const JN = readAccessor(json, bin, A.JOINTS_0), WT = readAccessor(json, bin, A.WEIGHTS_0);
+      for (let i = 0; i < WT.length; i++) if (WT[i] > 0) { const node = skin.joints[JN[i]]; if (node !== undefined) weight.set(node, weight.get(node) + WT[i]); }
+    }
+  }
+  const total = [...weight.values()].reduce((a, b) => a + b, 0) || 1;
+  const moves = (n) => weight.get(n) > total * 1e-4;
+  const size = new Map();
+  const sizeOf = (n) => size.get(n) ?? (size.set(n, 1 + kids.get(n).reduce((t, c) => t + sizeOf(c), 0)), size.get(n));
+  const depthOf = (n) => (kids.get(n).length ? 1 + Math.max(...kids.get(n).map(depthOf)) : 0);
+  // a branch's middle: the mean of its joints (a T-pose's arms cancel across, so the spine's points up)
+  const mid = (n) => { const acc = [0, 0, 0]; let k = 0; const walk = (m) => { const q = pos.get(m); acc[0] += q[0]; acc[1] += q[1]; acc[2] += q[2]; k++; kids.get(m).forEach(walk); }; walk(n); return mul(acc, 1 / k); };
+  const far = (n) => { let best = pos.get(n), d0 = -1; const walk = (m) => { const d = len(sub(pos.get(m), pos.get(n))); if (d > d0) { d0 = d; best = pos.get(m); } kids.get(m).forEach(walk); }; walk(n); return best; };
+  // a chain down a branch: the heaviest child each step (the most joints under it), its weighted joints kept
+  const chain = (n, stop = () => false) => { const out = []; for (let m = n; m !== undefined; m = kids.get(m).slice().sort((a, b) => sizeOf(b) - sizeOf(a) || a - b)[0]) { if (moves(m) || !out.length) out.push(m); if (stop(m)) break; } return out.filter((m, i) => moves(m) || i === 0); };
+  // two branches that mirror: as many joints, as deep, reaching as far
+  const mirror = (a, b, from) => sizeOf(a) === sizeOf(b) && depthOf(a) === depthOf(b)
+    && Math.abs(len(sub(far(a), from)) - len(sub(far(b), from))) <= 0.15 * Math.max(len(sub(far(a), from)), len(sub(far(b), from)), 1e-9);
+  const pairsAt = (n) => { const c = kids.get(n), out = []; for (let i = 0; i < c.length; i++) for (let k = i + 1; k < c.length; k++) if (mirror(c[i], c[k], pos.get(n))) out.push([c[i], c[k]]); return out; };
+  // the hips: a mirrored pair one way, the biggest other branch the other
+  let hips = null, legs = null, spineRoot = null;
+  for (const j of J) {
+    const n = j.node, here = pos.get(n);
+    for (const [a, b] of pairsAt(n)) {
+      const rest = kids.get(n).filter((c) => c !== a && c !== b).sort((x, y) => sizeOf(y) - sizeOf(x) || x - y)[0];
+      if (rest === undefined || sizeOf(rest) <= sizeOf(a)) continue;
+      const down = unit(sub(add(mid(a), mid(b)), mul(here, 2))), upDir = unit(sub(mid(rest), here));
+      if (dot(down, upDir) < -0.5) { hips = n; legs = [a, b]; spineRoot = rest; break; }
+    }
+    if (hips !== null) break;
+  }
+  if (hips === null) return { why: 'no joint sends a mirrored pair of chains one way and a bigger chain the other (no hips and legs)' };
+  const upAxis = unit(sub(mid(spineRoot), pos.get(hips)));
+  // the chest: up the spine, the first joint whose mirrored pair goes across
+  let chest = null, arms = null;
+  for (let m = spineRoot; m !== undefined && chest === null; m = kids.get(m).slice().sort((a, b) => sizeOf(b) - sizeOf(a) || a - b)[0]) {
+    for (const [a, b] of pairsAt(m)) {
+      const across = unit(sub(far(a), far(b)));
+      if (Math.abs(dot(across, upAxis)) < 0.6 && kids.get(m).some((c) => c !== a && c !== b)) { chest = m; arms = [a, b]; break; }
+    }
+  }
+  if (chest === null) return { why: 'up the spine, no joint sends a mirrored pair across (no shoulders and arms)' };
+  // its sides: by the names when they say them, else glTF's facing (+z forward, right on −x)
+  const sideWord = (n) => { for (let m = n; m !== undefined; m = kids.get(m)[0]) { const w = jointWords(nodes[m].name || '').map((x) => SIDE_WORDS[x]).find(Boolean); if (w) return w; if (m !== n) break; } return null; };
+  const sided = (pair) => {
+    const [a, b] = pair, sa = sideWord(a), sb = sideWord(b);
+    if (sa && sb && sa !== sb) return sa === 'left' ? { left: a, right: b } : { left: b, right: a };
+    let fwd = [0, 0, 1]; if (Math.abs(dot(fwd, upAxis)) > 0.9) fwd = [0, -1, 0];
+    const right = unit(cross(fwd, upAxis));
+    return dot(sub(pos.get(a), pos.get(b)), right) > 0 ? { right: a, left: b } : { right: b, left: a };
+  };
+  const map = new Map();
+  // the spine: the weighted joints from the hips' spine branch to the chest, the chest the last
+  const spine = []; for (let m = spineRoot; m !== undefined; m = kids.get(m).slice().sort((a, b) => sizeOf(b) - sizeOf(a) || a - b)[0]) { if (moves(m) || m === chest) spine.push(m); if (m === chest) break; }
+  map.set(hips, 'hips');
+  spine.slice(0, 3).forEach((m, i) => map.set(m, ['spine', 'chest', 'upperChest'][i]));
+  // the neck and the head: the chest's other branch, its weighted joints (the last the head; the first the neck when two)
+  const neckRoot = kids.get(chest).filter((c) => c !== arms[0] && c !== arms[1]).sort((a, b) => sizeOf(b) - sizeOf(a) || a - b)[0];
+  const head = chain(neckRoot).filter(moves);
+  if (!head.length) return { why: 'the chest\'s other branch moves nothing (no neck or head)' };
+  map.set(head[head.length - 1], 'head');
+  if (head.length > 1) map.set(head[0], 'neck');
+  // an arm: its weighted joints to the hand (the first joint whose children are three or more, its fingers, or the end)
+  const S = { left: 'left', right: 'right' };
+  for (const [side, n] of Object.entries(sided(arms))) {
+    const c = chain(n, (m) => kids.get(m).length >= 3).filter(moves);
+    if (c.length < 3) return { why: `the ${side} arm moves on ${c.length} joint${c.length === 1 ? '' : 's'} (an upper arm, a forearm and a hand are three)` };
+    // a clavicle first when the chain's first joint is short beside the next (a shoulder is a stub, an upper arm a limb);
+    // past the hand, what follows (a finger the chain ran on into) rides it
+    const seg = (i) => len(sub(pos.get(c[i + 1]), pos.get(c[i])));
+    const i0 = c.length >= 4 && seg(0) < 0.6 * seg(1) ? 1 : 0;
+    if (c.length - i0 < 3) return { why: `the ${side} arm moves on ${c.length - i0} joints past its shoulder (an upper arm, a forearm and a hand are three)` };
+    if (i0) map.set(c[0], `${S[side]}Shoulder`);
+    map.set(c[i0], `${S[side]}UpperArm`); map.set(c[i0 + 1], `${S[side]}LowerArm`); map.set(c[i0 + 2], `${S[side]}Hand`);
+  }
+  for (const [side, n] of Object.entries(sided(legs))) {
+    const c = chain(n).filter(moves);
+    if (c.length < 3) return { why: `the ${side} leg moves on ${c.length} joint${c.length === 1 ? '' : 's'} (a thigh, a shin and a foot are three)` };
+    ['UpperLeg', 'LowerLeg', 'Foot', 'Toes'].forEach((b, i) => { if (c[i] !== undefined) map.set(c[i], `${S[side]}${b}`); });
+  }
+  return { map };
+}
+
 export function importRig(bytes, { height = null, images = null } = {}) {
   const { json, bin } = parseGlb(bytes);
   const skin = json.skins?.[0];
@@ -173,11 +286,24 @@ export function importRig(bytes, { height = null, images = null } = {}) {
     for (const [n, v] of [...vrm]) if (v === 'spine' && !spine.includes(n)) vrm.delete(n);
     spine.forEach((n, i) => vrm.set(n, i === 0 ? 'spine' : i === 1 ? 'chest' : 'upperChest'));
   }
-  // one joint per bone (the first by the skin's order), the upper chest the chest's when both stand
+  // a palm is the hand on a side with no hand (its fingers ride it); on a side with one, it rides the hand
+  for (const side of ['left', 'right']) {
+    const hasHand = [...vrm.values()].includes(`${side}Hand`);
+    for (const [n, v] of [...vrm]) if (v === `${side}Palm`) { if (hasHand) vrm.delete(n); else vrm.set(n, `${side}Hand`); }
+  }
+  let how = own ? 'file' : 'name';
+  const missingByName = MODEL_REQUIRED.filter((v) => ![...vrm.values()].includes(v));
+  let shapeWhy = null;
+  if (!own && missingByName.length) {
+    // 1b. the names do not make a humanoid: read the skeleton's SHAPE (shapeVrmMap)
+    const byShape = shapeVrmMap(json, bin, skin, J, parent);
+    if (byShape.map) { vrm.clear(); for (const [n, v] of byShape.map) vrm.set(n, v); how = 'shape'; }
+    else shapeWhy = byShape.why;
+  }
   const nodeOf = {};
   for (const j of J) { const v = vrm.get(j.node); if (v && nodeOf[v] === undefined) nodeOf[v] = j.node; }
   const missing = MODEL_REQUIRED.filter((v) => nodeOf[v] === undefined);
-  if (missing.length) throw new Error(`rig-import: not a humanoid skeleton (no ${missing.join(', ')} among its joints: ${J.slice(0, 12).map((j) => j.name).join(', ')}${J.length > 12 ? ' …' : ''}); its bones are read by name (Mixamo, VRM, Unreal, Rigify)`);
+  if (missing.length) throw new Error(`rig-import: not a humanoid skeleton (no ${missing.join(', ')} among its joints: ${J.slice(0, 12).map((j) => j.name).join(', ')}${J.length > 12 ? ' …' : ''}); its bones are read by name (Mixamo, VRM, Unreal, Rigify)${shapeWhy ? `, and by its shape: ${shapeWhy}` : ''}`);
   const ids = [];
   const idOf = (v) => (v === 'spine' ? (nodeOf.chest !== undefined ? 'lumbar' : 'torso') : v === 'chest' || v === 'upperChest' ? 'torso' : BONE_ID[v]);
   const ORDER = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', ...['left', 'right'].flatMap((s) => ['Shoulder', 'UpperArm', 'LowerArm', 'Hand', 'UpperLeg', 'LowerLeg', 'Foot', 'Toes'].map((b) => s + b))];
@@ -189,17 +315,25 @@ export function importRig(bytes, { height = null, images = null } = {}) {
 
   // 2. the rest: every vertex skinned by its own weights
   const tris = [];   // { p: [3][3], n: [3][3] | null, w: [3] Map(bone → weight), col: [3][3] }
-  const ledger = { bones: {}, riders: 0, triangles: 0, colour: new Set(), undecoded: [], dropped: [] };
-  const meshNodes = nodes.map((n, i) => [n, i]).filter(([n]) => n.mesh !== undefined && n.skin !== undefined);
+  const ledger = { how, bones: {}, riders: 0, triangles: 0, colour: new Set(), undecoded: [], dropped: [] };
+  // a mesh with no skin under one of the skeleton's joints moves wholly with that joint (glTF's rigid attachment: a
+  // robot of parts, each hung on its bone)
+  const rigidOf = (ni) => { for (let p = parent[ni]; p >= 0; p = parent[p]) if (jointOf.has(p)) return jointOf.get(p); return -1; };
+  const meshNodes = nodes.map((n, i) => [n, i]).filter(([n, i]) => n.mesh !== undefined && (n.skin !== undefined || rigidOf(i) >= 0));
   for (const [n, ni] of meshNodes) {
-    const { J: SJ, bone: jointBone } = skins[n.skin];
-    if (!jointBone.some((b) => b !== boneOfVrm.hips) && n.skin !== 0) { ledger.dropped.push(`${n.name || 'a mesh'}: skinned to another skeleton`); continue; }
+    const rigid = n.skin === undefined ? rigidOf(ni) : -1;
+    const { J: SJ, bone: jointBone } = skins[rigid >= 0 ? json.skins.indexOf(skin) : n.skin];
+    if (rigid < 0 && !jointBone.some((b) => b !== boneOfVrm.hips) && n.skin !== 0) { ledger.dropped.push(`${n.name || 'a mesh'}: skinned to another skeleton`); continue; }
+    if (rigid >= 0) ledger.rigid = (ledger.rigid || 0) + 1;
     for (const prim of json.meshes[n.mesh].primitives || []) {
       if ((prim.mode ?? 4) !== 4) { ledger.dropped.push(`${n.name || 'a mesh'}: a primitive not of triangles`); continue; }
       const A = prim.attributes || {};
-      if (A.POSITION === undefined || A.JOINTS_0 === undefined || A.WEIGHTS_0 === undefined) { ledger.dropped.push(`${n.name || 'a mesh'}: a primitive without its weights`); continue; }
+      if (A.POSITION === undefined || (rigid < 0 && (A.JOINTS_0 === undefined || A.WEIGHTS_0 === undefined))) { ledger.dropped.push(`${n.name || 'a mesh'}: a primitive without its weights`); continue; }
       const P = readAccessor(json, bin, A.POSITION), N = A.NORMAL !== undefined ? readAccessor(json, bin, A.NORMAL) : null;
-      const JN = readAccessor(json, bin, A.JOINTS_0), WT = readAccessor(json, bin, A.WEIGHTS_0);
+      const count0 = json.accessors[A.POSITION].count;
+      // a rigid part: every vertex on its joint, carried by the part's own node (its joint's matrix is its parent's)
+      const JN = rigid >= 0 ? new Array(count0 * 4).fill(0).map((_, k) => (k % 4 === 0 ? rigid : 0)) : readAccessor(json, bin, A.JOINTS_0);
+      const WT = rigid >= 0 ? new Array(count0 * 4).fill(0).map((_, k) => (k % 4 === 0 ? 1 : 0)) : readAccessor(json, bin, A.WEIGHTS_0);
       const mat = json.materials?.[prim.material] ?? {}, pbr = mat.pbrMetallicRoughness ?? {};
       const fac = Array.isArray(pbr.baseColorFactor) ? pbr.baseColorFactor : [1, 1, 1, 1];
       const texInfo = pbr.baseColorTexture, img = texInfo ? json.textures?.[texInfo.index]?.source : undefined;
@@ -217,7 +351,8 @@ export function importRig(bytes, { height = null, images = null } = {}) {
         for (let k = 0; k < 4; k++) {
           const wk = WT[i * 4 + k]; if (!(wk > 0)) continue;
           const jk = JN[i * 4 + k], j = SJ[jk]; if (!j) continue;
-          pos = add(pos, mul(xf(j.M, p), wk)); if (N) nrm = add(nrm, mul(xfv(j.M, [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]]), wk)); ws += wk;
+          const M = rigid >= 0 ? G[ni] : j.M;
+          pos = add(pos, mul(xf(M, p), wk)); if (N) nrm = add(nrm, mul(xfv(M, [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]]), wk)); ws += wk;
           w.set(jointBone[jk], (w.get(jointBone[jk]) || 0) + wk);
         }
         if (!(ws > 0)) { pos = xf(G[ni], p); w.set(boneOfVrm.hips, 1); ws = 1; }

@@ -127,6 +127,30 @@ export const DOOR_PROBES = Object.freeze([
     now: 'type',
   },
   {
+    // (the arcade flight shooter: Wolf Squadron's stages, a craft flown down a path on the rail rule)
+    family: 'rail-stage', genre: 'space-shooter', prompt: 'a star fox style rail shooter down a canyon',
+    concept: 'an airspace level whose craft is flown down a path',
+    holds: ({ steps }) => someLevel(steps, (m) => m.kind === 'airspace' && pilotsOf(m).some((e) => e.rule?.type === 'rail')),
+    reference: { book: { id: 'ref', levels: { a: { airspace: { map: { form: 'canyon', craft: 'multirole' }, rail: { speed: 120, waves: 3 } } } } } },
+    now: 'type',
+  },
+  {
+    // (the space combat sim: Rebel Storm's missions, a starfighter flown from its cockpit)
+    family: 'cockpit', genre: 'space-sim', prompt: 'a space combat sim like x-wing, flown from the cockpit',
+    concept: 'an airspace level whose starfighter is flown from its cockpit',
+    holds: ({ steps }) => someLevel(steps, (m) => m.kind === 'airspace' && pilotsOf(m).some((e) => e.rule?.type === 'starfighter')),
+    reference: { book: { id: 'ref', levels: { a: { airspace: { map: { craft: 'fighter' }, space: { asteroids: 'sparse' }, cockpit: true } } } } },
+    now: 'type',
+  },
+  {
+    // (the mech game: Warlords of Mars's operations, an assault frame fought on its feet and its thrusters)
+    family: 'frame', genre: 'mech-action', prompt: 'an armored core style mech game on mars',
+    concept: 'a level whose pilot is an assault frame on the frame rule, armed in its slots',
+    holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some((e) => e.rule?.type === 'frame' && Object.keys(e.rule.slots ?? {}).length > 0)),
+    reference: { book: { id: 'ref', levels: { a: { airspace: { map: { form: 'plain', field: 1400, craft: 'jet' }, ground: { geocube: 'mars' }, frame: {} } } } } },
+    now: 'type',
+  },
+  {
     family: 'seats', genre: 'co-op-platformer', prompt: 'a two-player co-op platformer to play with my friend',
     concept: 'a level with a seat for each player',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && (m.seats.max ?? 0) >= 2),

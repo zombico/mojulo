@@ -6,7 +6,7 @@
  * this: no kernel, no sheet, no theme, no host.
  *
  *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
- *   shellManaSpec(ui, { picks }) → (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
+ *   shellManaSpec(ui, { picks, gameOver, naming }) → (naming: the game's, a `name` screen on mana-ui's keyboard) (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
  *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
  *   shellManaCss(ui)             → the sheet and the theme, scoped to the mana root
@@ -43,7 +43,7 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
+export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver = false, naming = null } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
   // the name enters letter by letter in its look's way (theme.js titleLetters; a look that says still: at once); on a
   // staged start screen the stage draws the name, and the menu is words with no window behind (front-stage-page.js)
@@ -80,6 +80,19 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
   };
   // UNTAP (turn.js): one pick of a level's turn, the pick-screen idiom over what the shell says of it (the store's
   // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
+  // THE GAME OVER (a game's gameOver, game-manifest.js): the words, the title under them, continue or the title
+  if (gameOver) screens.gameover = { use: 'screen', props: { place: 'center' }, children: [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
+    { use: 'text', props: { value: B('overMark'), role: 'display' } },
+    { use: 'text', props: { value: B('overText') } },
+    { use: 'text', props: { value: B('title'), role: 'caption' } },
+    button('continue', 'continue'),
+    button('quitToTitle', 'home'),
+  ] }] };
+  // A NAME ASKED (game-manifest.js naming): mana-ui's keyboard (a pad types from its grid, a keyboard straight in), the
+  // name the store holds as its draft; done keeps it (the shell's rename) and goes on, cancel and back leave it unnamed
+  if (naming) screens.name = { use: 'screen', props: { title: B('name.label'), place: 'center' }, children: [{ use: 'window', children: [
+    { use: 'textentry', props: { value: B('name.value'), max: Math.min(24, naming.max || 12), min: Math.max(1, naming.min || 1), charset: 'name' }, on: { done: { emit: 'name:done', name: { input: true } }, cancel: { emit: 'name:back' } } },
+  ] }] };
   if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
   // and the way into the pause while a level is the player's: a button in the corner, tapped or clicked (it takes no
@@ -161,7 +174,7 @@ export function playShellManaRuntime(cfg, api) {
     if (e.emit === 'mana:closed') {
       if (quiet) return;
       // (a pick left by its back: the turn unwinds one pick, or is left)
-      if (up === 'pick') { up = null; api.turn.back(); return; }
+      if (up === 'pick') { up = null; if (api.slot && api.slot.asking()) { api.slot.back(); draw('title'); return; } api.turn.back(); return; }
       // (the pause left by its back: the game resumes)
       if (up === 'pause' || up === 'controls') { up = null; api.pause.resume(); return; }
       // a back that emptied the stack: the step's back, else the screen it left drawn again
@@ -170,7 +183,10 @@ export function playShellManaRuntime(cfg, api) {
       if (!(api.onOf('back') && api.go('back'))) draw(was);
       return;
     }
+    if (e.emit === 'name:done') { if (!api.named(e.name)) draw('name'); return; }
+    if (e.emit === 'name:back') { if (!api.go('back')) draw('name'); return; }
     if (e.emit === 'turn:pick') { api.turn.pick(e.id); return; }
+    if (e.emit === 'slot:pick') { api.slot.pick(e.id); return; }
     if (e.emit === 'turn:confirm') { api.turn.confirm(); return; }
     if (e.emit === 'pause:open') { api.pause.open(); return; }
     if (e.emit === 'pause:resume') { api.pause.resume(); return; }
@@ -218,6 +234,8 @@ export function playShellManaRuntime(cfg, api) {
     if (name === 'options') u.optionsTitle = 'options';
     if (name === 'credits') u.credits = ((F.credits && F.credits.roll) || []).map((r) => ({ role: r.role, names: r.names.join(' · ') })).concat(F.credits && F.credits.attribution === false ? [] : [{ role: '', names: 'made with mojulo · github.com/zombico/mojulo' }]);
     if (name === 'end') { u.endMark = 'game complete'; u.endText = (F.end && F.end.text) || 'The end'; }
+    if (name === 'name') u.name = api.naming();
+    if (name === 'gameover') { u.overMark = 'Game Over'; u.overText = 'Your journey went no further. Continue from where it was last kept.'; }
     if (name === 'result' || name === 'run-result') { u.result = name === 'result' ? api.result() : api.run(); u.result.bare = !((u.result.stats || []).length || u.result.rank); }
   }
   function draw(name) {

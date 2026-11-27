@@ -861,6 +861,23 @@ beyond.
 This is phase 2 of bringing rupa to the geocube. The way on: one wind for the flora, the ground grid from the substrate,
 the cube's water as the fluid layer, then the geocity's physical ring near the player.
 
+## In space
+
+A world whose gravity is 0 (`matter: { g: 0 }`: a capital ship's or a station's level, `fleet/`) keeps its blocks where
+they are: nothing settles or falls, and nothing is crushed by weight. What holds a block is its welds back to an
+`anchor` (a breakable's flag: the reactor's casing): a block touching, face to face, one that is held is held. A hit
+that cuts a section loose sends it off as one piece, every block of it stripped and thrown at one velocity away from
+the anchors (the breaks say `how: 'drift'` and its `drift` { pivot, away, n }), and the page turns its own drawing
+slowly about that pivot as it goes; the pieces of a break fly on and fade instead of falling.
+
+A thing built of such blocks is an entity with a `structure`. With `systems` (entity ids) and a block `prefix` it is a
+procedural enemy: its hull reads the share of its systems standing, and when the last goes it is downed and BLOWS UP.
+Its blocks are stripped in a chain over `blowTime` s (3.5), outermost first and the heart last. Each is flung away from
+the middle at a few to a dozen m/s with a spin of its own (a drift break with `n: 1`), and every third goes with a
+craft's blast. With `core` and `breach` instead, its hull reads its core blocks and the holes through them, and it is
+downed when the core is gone or holed `breach` times. An entity with `onBlock` (a gun on its mount, a system on the
+hull) is downed when its block goes.
+
 ## Where it plugs in
 
 - `breakability.js`: the `physical` degree; under it, each breakable carries `blockMatter` numbers and its matter's cut.
@@ -869,7 +886,12 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - `world-scene.js`: under `physical`, `payload.rupa` is the level's `matter` read by `readMatterSpec`.
 - `world-scene.js`: with `scars`, `payload.rupa.scars` is the level's `scars` read by `readScarsSpec` (any degree).
 - `compose.js`: `EMISSION_OPT_IN.rupa`, composed onto a page only when its blocks carry matter.
+- `fleet/build.js` `fleetPayload` and `world-scene.js`: a capital ship's or a station's blocks as breakables, their
+  faces grouped by block, under `physical` and `g: 0` (`gameworld/levels.js` sets both for a sortie with a fleet).
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
+- `gameworld/metroidvania/scene.js`: a metroidvania box's secret walls, under `physical`, its room's wall matter at a
+  facing calibrated to its blows (`secretMatter`), the box's own breakables beside its held gates
+  (`docs/metroidvania-map.md` "Secret walls").
 - `rupa/panels.js` and `world-scene.js`: under `physical`, an entity's `panels` resolved to plates and their metal's
   numbers; the page draws them only when an object carries them.
 - Engines: the physics is the web build's. The engine handoff (`export_model { engine }`) carries a level's models and

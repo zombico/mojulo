@@ -42,7 +42,7 @@ import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
-import { vistaOf } from './vista.js';
+import { vistaOf, VISTA_MOTION } from './vista.js';
 import { lightSideMap, sideMapTextures } from './light.js';
 import { doodadsOf } from './doodads.js';
 import { shadowCasters } from './shadow.js';
@@ -136,7 +136,9 @@ export function assembleSideMap(m, ctx = {}) {
   for (const B of backdropOf(L, D, { seed: m.seed ?? 1 })) for (const r of B.rects) face(faces, B.x, r.s0, r.s1, r.z0, r.z1, mixHex(lit(Z[B.zone].key, FACE.px), horizon, B.haze), `sidemap:${B.layer}`);
   // each zone's VISTA (vista.js): its far wall and its things at their depths, a box's front, top and ends (hazed in their
   // own colours: the light pass keeps them as they are)
+  const vistaMotion = {};
   for (const V of vistaOf(L, D, { seed: m.seed ?? 1, horizon })) {
+    Object.assign(vistaMotion, V.motion ?? {});
     if (V.far) {
       const F = V.far, side = mixHex(F.fill, '#000000', 0.25);
       face(faces, F.x1, F.s0, F.s1, F.z0, F.z1, F.fill, 'sidemap:vista-far');
@@ -144,7 +146,9 @@ export function assembleSideMap(m, ctx = {}) {
       for (const [sv, n] of [[F.s0, FACE.py], [F.s1, FACE.ny]]) quad(faces, [[F.x1, sv, F.z0], [BACK, sv, F.z0], [BACK, sv, F.z1], [F.x1, sv, F.z1]], n, side, 'sidemap:vista-far');
     }
     for (const b of V.boxes) {
-      const g = b.lit ? 'sidemap:vista-light' : 'sidemap:vista';
+      const g = b.group ?? (b.lit ? 'sidemap:vista-light' : 'sidemap:vista');
+      // (a shape drawn flat at its depth: a dome, a disc, a ring's segment, a spoke)
+      if (b.poly) { faces.push({ corners: b.poly.map(([sv, zv]) => [b.x1, sv, zv]), normal: FACE.px, fill: b.fill, group: g }); continue; }
       face(faces, b.x1, b.s0, b.s1, b.z0, b.z1, b.fill, g);
       if (b.lit) continue;
       quad(faces, [[b.x0, b.s0, b.z1], [b.x1, b.s0, b.z1], [b.x1, b.s1, b.z1], [b.x0, b.s1, b.z1]], FACE.top, mixHex(b.fill, '#ffffff', 0.08), g);
@@ -243,6 +247,9 @@ export function assembleSideMap(m, ctx = {}) {
     pack: true,
     ...(L.crates?.length ? { anchors: L.crates.map((c) => ({ id: c.id, kind: 'crate' })) } : {}),
   };
+  // (the vistas' life moves: beacons blink, steam drifts; channels/ambient.js)
+  const moving = Object.fromEntries(Object.entries({ ...VISTA_MOTION, ...vistaMotion }).filter(([g]) => litFaces.some((f) => f.group === g)));
+  if (Object.keys(moving).length) payload.ambient = { groups: moving };
   Object.defineProperty(payload, 'sidemap', { value: { layout: L, dress: D, paint: D0.paint, laws: D0.laws, cube: D0.cube.id, stature: D0.stature }, enumerable: false });
   return payload;
 }

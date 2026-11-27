@@ -36,7 +36,9 @@ import { landForm, LAND_CLASSES, OPT_CLASSES, DEEP_FADE, DEEP_TONE, UNDER_TONE, 
 import { b64 } from '../scene/emit-util.js';
 import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
-import { landLayers, LAYER_OF, PATH_REACH } from './land-layers.js';
+import { landLayers, LAYER_OF, PATH_REACH, evenHash } from './land-layers.js';
+import { readRockColour, rockColourAt } from './rock-colour.js';
+import { readMaterials } from './land-materials.js';
 import { strHash } from '../city/plan/dice.js';
 import { landStones, stoneForms, SHAPES, STONE_DENSITY } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
@@ -59,7 +61,7 @@ export const LAWN = Object.freeze({ bare: 0.12 });
  *  what they show; its street trees lay no litter (a kept street is swept, channels/form-flora.js). */
 export const TOWN_FLORA = Object.freeze({ grass: 0.4, litter: false });
 /** A 32-bit hash's bits mixed through (murmur3's finaliser): every bit of the key moves every bit of the dice. */
-export const evenHash = (h0) => { let h = h0 >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16; return h >>> 0; };
+export { evenHash };
 /** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short
  *  and thin at its edge, so no blade leans into it. */
 export const GRASS_OFF = 0.6;
@@ -152,20 +154,22 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // (rock, scree, soil, sand) and the path is a mask at its own resolution over the trail; the renderer blends the layers'
   // materials by them, by height. A layer's texture modulates its palette-solved base about its own mean, so the palette's
   // colours hold on average.
+  // (a cube's MATERIALS, `outside.materials`, form/land-materials.js: the four natural layers dressed as its set's)
+  const MAT = readMaterials(C.outside?.materials), mat = (id, own) => (MAT ? { id, cut: MAT[id].cut, metres: MAT[id].metres, role: MAT[id].role } : own);
   const LAYERS = [
-    { id: 'rock', cut: 'strata', metres: 6, role: 'stone' }, { id: 'scree', cut: 'scree', metres: 4, role: 'stone' },
+    mat('rock', { id: 'rock', cut: 'strata', metres: 6, role: 'stone' }), mat('scree', { id: 'scree', cut: 'scree', metres: 4, role: 'stone' }),
     // (the cover's slot: dirt, on every land; on a green one the undergrowth grows over it, its own slot last)
-    { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' },
-    { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' },
+    mat('soil', { id: 'soil', cut: 'soil', metres: 1.5, role: 'floor' }),
+    mat('sand', { id: 'sand', cut: 'sand', metres: 1.5, role: 'sand' }),
     dress.surface === 'sand' ? { id: 'path', cut: 'sand', metres: 1.5, role: 'sand' } : { id: 'path', cut: 'powder', metres: 1.2, role: 'floor' },
     // (the dirt's other half: clay's clods)
     { id: 'clay', cut: 'clay', metres: 1.4, role: 'floor' },
     // (what grows under the grass, over the dirt, on a green land)
     { id: 'undergrowth', cut: 'undergrowth', metres: 1.0, role: 'grass' }];
   const GREEN = L.faces.some((F) => F.cls === 'ground');
-  const TEX = ATLAS_TEX, LY = landLayers(P.faces, L, { seed: 3 }), layered = (F, i) => LY.layered(i) && !!F;
+  const TEX = ATLAS_TEX, LY = landLayers(P.faces, L, { seed: 3, ...(C.outside?.massif ? { even: true } : {}) }), layered = (F, i) => LY.layered(i) && !!F;
   // (the layers' textures are the cuts', the same for every cube: painted once per dress surface and kept)
-  const { A, means, png, dicePng } = layerAtlas(LAYERS, dress.surface);
+  const { A, means, png, dicePng } = layerAtlas(LAYERS, MAT ? `${dress.surface}|${LAYERS.slice(0, 4).map((Ly) => `${Ly.cut}:${Ly.metres}`).join(',')}` : dress.surface);
   // the path's mask as the page reads it: the weight a byte, the trail's height two (over the trail's own span)
   // (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways; deeper is
   // held at SD_IN, where it once ran under the byte and wrapped to the far verge: a wide trail's middle read as off it)
@@ -177,10 +181,15 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   })();
   // (the cover's dirt, under the undergrowth on a green land, the theorist's humus; the bare island's soil its own floor)
   const roleBase = LAYERS.map((Ly, li) => (li === 2 && GREEN ? hexL(lin(hexRgb(soilTones(C.colour.floor).humus)).map((v, c) => light.linearBases.floor[c] * v / Math.max(1e-6, lin(hexRgb(C.colour.floor))[c]))) : bases[Ly.role])).map((h) => hexRgb(h));
+  // (the rock's colour by its beds and its weather, a cube's `outside.rock`, form/rock-colour.js; absent, the layer's own)
+  const RC = readRockColour(C.outside?.rock), ROCK = RC ? rockColourAt(RC, bases, { seed: 3 }) : null;
   // the sand under the line, corner by corner, as form/land-form.js fades it into the deep water's colour: every sand
   // face, the ones the line crosses too, so the sand meets its shallows without a step at a face's edge
   const sandZ = P.faces.flatMap((f, i) => (L.faces[i].cls === 'sand' ? f.corners.map((c) => c[2]) : []));
-  const FADE = L.waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, L.waterZ - Math.min(L.waterZ, ...sandZ)), sandBase = hexRgb(bases.sand);
+  // (the sand's lowest by a loop: a spread of a large land's sand overflows the stack)
+  let sandLow = L.waterZ;
+  if (L.waterZ !== null) for (const z of sandZ) if (z < sandLow) sandLow = z;
+  const FADE = L.waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, L.waterZ - sandLow), sandBase = hexRgb(bases.sand);
   const underAt = (z) => { const lost = Math.min(1, Math.max(0, (L.waterZ - z) / FADE)) ** 2; return sandBase.map((v, c) => Math.round(v * UNDER_TONE * (1 - lost) + L.deep[c] * lost)); };
 
   // faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours
@@ -191,6 +200,21 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // normal the mean of the faces round it that lie within CREASE of the face's own, so a cliff's edge stays crisp
   const CREASE = Math.cos((55 * Math.PI) / 180), nKey = (c) => `${Math.round(c[0] * 100)},${Math.round(c[1] * 100)},${Math.round(c[2] * 100)}`, NB = new Map();
   P.faces.forEach((f, i) => { if (!L.faces[i].cls || L.faces[i].cls === 'water' || L.faces[i].under) return; const n = f.normal || [0, 0, 1]; for (const c of f.corners) (NB.get(nKey(c)) ?? NB.set(nKey(c), []).get(nKey(c))).push(n); });
+  // (the rock's WEAR, a cube's `outside.rock.wear`: how far each corner stands out of its neighbours along its normal, read
+  // off the land's own mesh: the mean of the corners it shares an edge with, against the mean of its faces' normals)
+  const CONVEX = RC?.wear ? (() => {
+    const acc = new Map();
+    P.faces.forEach((f, i) => {
+      if (!L.faces[i].cls || L.faces[i].cls === 'water' || L.faces[i].under) return;
+      const n = f.normal || [0, 0, 1], m = f.corners.length;
+      for (let j = 0; j < m; j++) {
+        const c = f.corners[j], k = nKey(c), a = acc.get(k) ?? acc.set(k, { s: [0, 0, 0], q: 0, n: [0, 0, 0] }).get(k);
+        for (const o of [f.corners[(j + 1) % m], f.corners[(j + m - 1) % m]]) { a.s[0] += o[0]; a.s[1] += o[1]; a.s[2] += o[2]; a.q += 1; }
+        a.n[0] += n[0]; a.n[1] += n[1]; a.n[2] += n[2];
+      }
+    });
+    return (c) => { const a = acc.get(nKey(c)); if (!a || !a.q) return 0; const l = Math.hypot(...a.n) || 1; return ((c[0] - a.s[0] / a.q) * a.n[0] + (c[1] - a.s[1] / a.q) * a.n[1] + (c[2] - a.s[2] / a.q) * a.n[2]) / l; };
+  })() : null;
   const smoothAt = (c, n) => { const m = [0, 0, 0]; for (const q of NB.get(nKey(c)) || [n]) if (q[0] * n[0] + q[1] * n[1] + q[2] * n[2] >= CREASE) { m[0] += q[0]; m[1] += q[1]; m[2] += q[2]; } const l = Math.hypot(...m) || 1; return m.map((v) => Math.round((v / l) * 127)); };
   const pos = [], c7 = [], spl = [], nrm = [], faceOf = [], cornerOf = [], ranges = [];
   for (const i of order) {
@@ -199,7 +223,9 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // (a layered face's corner: its layers' weights, and its base their solved bases by weight; wet sand keeps its own)
     const wAt = (j) => (layered(F, i) ? LY.weightAt(f.corners[j]) : F.under ? [0, 0, 0, 1] : [0, 0, 0, 0]);
     // (a face the read does not class keeps its paint: its fill, else its first corner's, a textured face's grey)
-    const base = F.cls ? F.base : hexRgb(f.fill ?? f.cornerFills?.[0] ?? '#808080'), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? [0, 1, 2].map((c) => Math.round(wAt(j).reduce((s, x, li) => s + x * roleBase[li][c], 0))) : base);
+    // (the rock's own colour at the corner where a cube names it, `outside.rock`: its bed, its thin bed's tone, its varnish)
+    const roleAt = ROCK ? (j) => { const c = f.corners[j], r = ROCK(c[0], c[1], c[2], roleBase[0], CONVEX ? CONVEX(c) : 0); return [r, ...roleBase.slice(1)]; } : () => roleBase;
+    const base = F.cls ? F.base : hexRgb(f.fill ?? f.cornerFills?.[0] ?? '#808080'), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? ((w, rb) => [0, 1, 2].map((c) => Math.round(w.reduce((s, x, li) => s + x * rb[li][c], 0))))(wAt(j), roleAt(j)) : base);
     let R = ranges[ranges.length - 1];
     if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });
     for (let k = 1; k + 1 < f.corners.length; k++) for (const j of [0, k, k + 1]) {
@@ -250,7 +276,10 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
   // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
   const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;
-  const STONES = landStones(P.faces, LY, { seed: 3, ...(stones !== 1 ? { density: STONE_DENSITY * stones } : {}), rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
+  // (a cube's own RUBBLE, `outside.rubble`: its scree's stones at its scale, a frame's knee-high blocks where a walker's
+  // pebbles would be; absent, the stones as they always were)
+  const RB = C.outside?.rubble;
+  const STONES = landStones(P.faces, LY, { seed: 3, ...(RB ? { sizes: RB.sizes, density: RB.density * stones } : stones !== 1 ? { density: STONE_DENSITY * stones } : {}), rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases[MAT ? MAT.scree.role : 'stone'] ?? light.linearBases.stone;
   const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
   // THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
   // off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways
@@ -391,6 +420,11 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   return { P, L, own, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, roleBase, FADE, underAt,
     ranges, pos, c7, spl, nrm, faceOf, cornerOf, land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, DEPTH_CELL, DEPTH_MAX, depthMap,
     tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, driftKinds, weedKinds, ROW, SEG, brush, dress, moss,
+    // (the layers' tiling, a cube's `outside.tiling`: 'stochastic', each tile sampled at offsets a slow noise picks)
+    tiling: C.outside?.tiling === 'stochastic' ? 'stochastic' : null, MAT,
+    // (a massif's land, a frame's field, LEAN: its painted groups never sent, the form's meshes the page's ground,
+    // scene/scene-three.js; a world on it waits for them, controllable landHold)
+    lean: !!C.outside?.massif,
     // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
     relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
@@ -416,8 +450,12 @@ export function formPayload(R) {
       forms: Object.fromEntries(Object.entries(stoneForms()).map(([k, L]) => [k, L.map((f) => ({ pos: b64(new Uint8Array(f.pos.buffer)), nrm: b64(Int8Array.from(f.nrm, (x) => Math.round(x * 127))) }))])) },
     layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF),
       pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => r4(v * 0.82)),
-      green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX, ...(moss ? { moss } : {}) },
-    path: pathTex, depth: depthMap,
+      green: GREEN, stoneBase: R.stoneBase ?? light.linearBases.stone, dice: dicePng, size: TEX, ...(moss ? { moss } : {}),
+      // (a cube's materials: each natural layer's metalness and its roughness over its cut's own)
+      ...(R.MAT ? { metal: ['rock', 'scree', 'soil', 'sand'].map((k) => R.MAT[k].metal), roughs: ['rock', 'scree', 'soil', 'sand'].map((k) => R.MAT[k].rough ?? 1) } : {}) },
+    path: pathTex, depth: depthMap, ...(R.tiling ? { tiling: R.tiling } : {}), ...(R.lean ? { lean: true } : {}),
+    // (a works' floors of grating, local-meru/works.js: plates a frame stands on, ray-cast and never drawn)
+    ...(P.faces.some((f) => f.group === 'works:floor') ? { ghosts: ['works:floor'] } : {}),
     // (the grass's ground map: its height and where grass grows, at GCELL; channels/form-grass.js draws the grass from it)
     grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass,
       // (the drifts: their map, a channel each, and their plants)

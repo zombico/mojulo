@@ -5,7 +5,7 @@ import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
 import { heroOrders, castOrders } from './hero-looks.js';
 import { gameStages, stageLevelOrder, stageEnds, stageSpots, stageLane, gameStore } from './levels.js';
-import { bindStory } from './story.js';
+import { bindStory, readGameQuests, questRaises, levelQuests } from './story.js';
 import { reviewParts } from './review.js';
 import { gameworldBibleHtml } from './bible-html.js';
 import { storyReport } from './runner.js';
@@ -255,6 +255,20 @@ describe('choices and quests, cascaded', () => {
   }, 240_000);
 });
 
+describe('a quest step raised by what happens (on, at)', () => {
+  it('its flag set as its event fires on its level\'s stages, or as the level starts; read and taught; never unset', () => {
+    const Q = [{ id: 'the-key', steps: [{ log: 'Find the key.', done: 'found-key', on: 'pickup:key', at: 'gate' }, { log: 'Go in.', done: 'in', on: 'start' }] }];
+    const R = readGameQuests(Q);
+    expect(R[0].steps[0]).toMatchObject({ done: 'found-key', on: 'pickup:key', at: 'gate' });
+    expect(questRaises(R, 'gate')).toEqual([{ id: 'quest-the-key-1', when: { on: 'pickup:key' }, then: { emit: 'flag:found-key' } }, { id: 'quest-the-key-2', when: { start: true }, then: { emit: 'flag:in' } }]);
+    expect(questRaises(R, 'elsewhere').map((c) => c.id)).toEqual(['quest-the-key-2']);
+    // (the page's quests never see them: levelQuests leaves on and at off)
+    expect(levelQuests(R)[0].steps[0]).toEqual({ log: 'Find the key.', done: 'found-key' });
+    expect(() => readGameQuests([{ id: 'x', steps: [{ done: 'a', at: 'gate' }] }])).toThrow(/at is the level whose stages raise it/);
+    expect(() => readGameQuests([{ id: 'x', steps: [{ done: 'a', on: '' }] }])).toThrow(/on is what raises its flag/);
+  });
+});
+
 describe('companions: a cast member who joins', () => {
   const stages = gameStages(W());
   const castRefs = { mayor: 'gw-cast-mayor', guard: 'gw-cast-guard' };
@@ -308,9 +322,12 @@ describe('the story in a building level (structure rails merged in)', () => {
     expect(inn.entities.find((e) => e.id === 'guard')).toMatchObject({ dormant: true, team: 'party', rule: { mind: { motivation: 'escort' } } });
   }, 240_000);
 
-  it('a moment aimed at a building level is unplaced, said, not thrown', () => {
+  it('a moment aimed at a building level binds to its places (its start, its goal room, its rooms); one it lacks is said', () => {
     const r = storyReport(WB({ story: [{ ...WELCOME, where: { level: 'inn' } }] }));
-    expect(r.unplaced).toEqual([{ id: 'welcome', why: expect.stringMatching(/is a building: a moment binds to a walk's stages for now/) }]);
+    expect(r.unplaced).toEqual([]);
+    expect(r.bound).toEqual([expect.objectContaining({ id: 'welcome', level: 'inn' })]);
+    const lost = storyReport(WB({ story: [{ ...WELCOME, where: { level: 'inn', place: 'no-such-room' } }] }));
+    expect(lost.unplaced).toEqual([{ id: 'welcome', why: expect.stringMatching(/has no place 'no-such-room' \(places: start, exit, goal, boss/) }]);
   }, 240_000);
 });
 

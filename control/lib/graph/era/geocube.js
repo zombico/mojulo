@@ -9,7 +9,8 @@
  *             solved day palette's light; the reference keeps the sun's arc and strength; era/cube-light.js reads it
  *             as the hue the palette's light is solved in, the hour's key where it is absent), the share of its light
  *             the sky gives (`skyShare`, 0–1: the form render's, era/cube-light.js; left out, the look's own, raised
- *             to meet the sky the cube paints), and the cast's `rim`
+ *             to meet the sky the cube paints), the `interior` (a land under a roof, no sky: its void, its smoke haze,
+ *             its high-bay lamps and its glow, form/interior-light.js), and the cast's `rim`
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
  *             the reference's horizon at the cast light's own strength), and the night's register (`night`:
              stylized, the night reference's deep blue, unless said; realistic, the colour drained by the dark, a pale
@@ -47,7 +48,18 @@
  *             relief card or { from, …changes } (noise/relief.js), `ground` (optional): a terrain world's field
  *             under the plain ({ from: <painted-landscape recipe>, span?, height?, at? }, local-meru/ground.js),
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
- *             count?, size?, glow?, seed? }, local-meru/crystals.js); `cliff` (optional): the far cliff its trails
+ *             count?, size?, glow?, seed? }, local-meru/crystals.js); `massif` (optional, an island's): its standing rock, sheer
+ *             blocks stepped by beds, gorges, talus and water carved under the floor (a card or { from?, … },
+ *             local-meru/massif.js); `works` (optional, an island's): an industrial interior over the land, its hall and
+ *             roof, crane, decks and ramps, furnaces, tanks, ladles and pipes (a card or { from?, … }, local-meru/works.js);
+ *             `rock` (optional): the colour its rock takes in the form render, by its beds' heights, each
+ *             thin bed's own tone and the varnish streaked down its walls ({ beds, blend?, thin?, varnish? }, form/rock-colour.js);
+ *             `materials` (optional): the land's four natural layers dressed as a works' materials, steel plate, slag,
+ *             concrete, ash (a set's name or { from?, rock?, scree?, soil?, sand? }, form/land-materials.js);
+ *             `rubble` (optional): the scree's stones at the cube's own scale ({ sizes: [lo, hi] radii in metres, density per
+ *             square metre of scree }, form/land-stones.js: a frame's knee-high blocks where a walker's pebbles lie);
+ *             `tiling` (optional): 'stochastic', the form render's layer tiles (rock, scree, soil, sand) never repeating in a
+ *             grid (form/land-read.js, scene/channels/form-land.js), or 'grid' as they always were; `cliff` (optional): the far cliff its trails
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
  *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
  *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
@@ -85,6 +97,9 @@
  *   avoid     (optional) the mistakes the style names, [{ line, law }], each measured by its law when the cube is read
  *             (geocube-laws.js: a palette law off the solved contract, or the cube's own) and written back on the line
  *             as { ok, value }: advice, never a refusal
+ *   box       (optional) the metroidvania box its side levels are dressed in ({ library, tint?, rock? }: a box library of
+ *             gameworld/metroidvania/themes.js, its rings tinted toward the cube's colours by `tint`, its crystals the
+ *             cube's `outside.crystals`, its boulders `rock`; gameworld/metroidvania/cube.js reads it)
  *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution
  *   target    what the level is drawn for (target.js: resolution, framing, error; 1080p third-person by default): how
  *             many pixels a metre covers, so how dense its cast's rings and its surfaces' texels need to be. A hero lit
@@ -140,6 +155,11 @@ import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readGround as readTrailGround } from './out-ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
+import { readMassif } from '../local-meru/massif.js';
+import { readWorks } from '../local-meru/works.js';
+import { readRockColour } from '../form/rock-colour.js';
+import { readMaterials } from '../form/land-materials.js';
+import { readInterior } from '../form/interior-light.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
@@ -161,6 +181,9 @@ import { planLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from './out-town.js';
 import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readCone } from '../scene/channels/view-cone.js';
+import { readHeavens, heavensCard } from './heavens.js';
+import { SOL_GEOCUBES, SOL_GEOCUBE_PALETTES, SOL_GEOCUBE_BUILDINGS } from '../sol/geocubes.js';
+import { FIELD_GEOCUBES, FIELD_GEOCUBE_PALETTES, FIELD_GEOCUBE_BUILDINGS } from '../assault-frame/geocubes.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -199,6 +222,8 @@ export const GEOCUBE_PRESETS = Object.freeze({
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
     outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
+    // (its metroidvania box: the castle, in its own colours (tint 0): Vampire Sonata's, gameworld/metroidvania/cube.js)
+    box: { library: 'castle', tint: 0 },
     why: [
       'Stone is cool blue-grey, never warm: the only warm light is fire.',
       'One accent, a deep red, on one wall inside; outside it lives only in the light.',
@@ -382,6 +407,12 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'Quiet surfaces: the shape of a platform is read before its texture.',
     ],
   },
+  // THE CHILDREN OF SOL (sol/geocubes.js): the bodies with ground under foot, Mercury to Pluto, the Moon among them (the
+  // Earth is every cube above); their ground and their sky, and what hangs in it (era/heavens.js)
+  ...SOL_GEOCUBES,
+  // THE BATTLEFIELD CUBES (assault-frame/geocubes.js): sandstone country at a mech's scale, pure terrain, its standing rock
+  // its own words (local-meru/massif.js); a frame's fields are cut from them
+  ...FIELD_GEOCUBES,
 });
 
 /**
@@ -402,6 +433,9 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'limestone-crags': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'sherbet-orchard': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'toy-hill': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'hall', enter: 'walk' }] },
+  // the children of Sol's: a colony's (sol/geocubes.js)
+  ...SOL_GEOCUBE_BUILDINGS,
+  ...FIELD_GEOCUBE_BUILDINGS,
 });
 /**
  * The levels a preset makes, beyond its own room and land: its other terrains and interiors, and the domains that
@@ -446,6 +480,10 @@ export const GEOCUBE_PALETTES = Object.freeze({
   // lighter than that group, which the value-groups law says, and it is the orchard's point)
   'sherbet-orchard': { intent: 'sherbet pastels: peach ground, pink blossom, a mint accent', key: 'high', heat: 0.6, weight: -0.8, activity: 0.7, scheme: 'analogous', hues: { sky: 215, ground: 70, foliage: 10, rock: 60, soil: 40, accent: '#3fc9a0' }, lock: { foliage: '#e8789a' }, values: { groups: 3 } },
   'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
+  // the children of Sol's (sol/geocubes.js)
+  ...SOL_GEOCUBE_PALETTES,
+  // the battlefield cubes' (assault-frame/geocubes.js)
+  ...FIELD_GEOCUBE_PALETTES,
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
 const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] , 'city-night': [0, 1], 'toy-hill': [0, 1, 2, 3], 'sherbet-orchard': [0, 1, 2, 3] });
@@ -462,7 +500,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, wind: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, wind: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1, box: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -472,6 +510,8 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // (and `figureGrade`: the grade its bodies are baked at, figures/figure-grades.js: a level played on the place asks for
 // the play grade, as every other level does; and `farFigures`: its bodies drawn coarse far off, worlds/world-scene.js)
 const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade', 'screen', 'radar', 'farFigures']);
+/** The geocube kind's own words (its specimens' and a level's on them); a played land (world-kinds.js) is handed only these. */
+export const GEOCUBE_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', 'crowns', 'grass', 'hats', ...LEVEL_KEYS]);
 const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
@@ -535,7 +575,10 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade', 'heavens', 'interior'], 'light');
+  if (c.light.interior !== undefined) { try { readInterior(c.light.interior); } catch (e) { no(e.message); } }
+  // (what hangs in its sky, era/heavens.js: no air and the stars by day, the sun's width, a companion world, rings)
+  readHeavens(c.light.heavens, no);
   if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
   if (c.light.shade !== undefined && !(typeof c.light.shade === 'number' && c.light.shade >= 0.02 && c.light.shade <= 0.6)) no('light.shade is the share of the light the inside\'s shade keeps from its lamps, 0.02 (black shade, lamp-lit pools) to 0.6 (era/stage.js shade)');
   if (c.light.skyShare !== undefined && !(typeof c.light.skyShare === 'number' && c.light.skyShare > 0 && c.light.skyShare < 1)) no('light.skyShare is the share of its light the sky gives, between 0 and 1 (0.1 a hard sun over deep shade, 0.4 a clear noon, 0.85 an overcast sky; the form render\'s, era/cube-light.js: left out, the look\'s own, raised to meet the sky it paints)');
@@ -579,6 +622,13 @@ export function readGeocube(spec) {
   if (c.contrast === undefined && c.register.contrast !== undefined && c.register.contrast !== false) c.contrast = c.register.contrast;
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
+  // (the metroidvania box its side levels are dressed in: a library of gameworld/metroidvania/themes.js, read there)
+  if (c.box !== undefined) {
+    if (!isObj(c.box) || typeof c.box.library !== 'string') no('box is { library, tint?, rock? }: the metroidvania box library its levels are dressed in (gameworld/metroidvania/cube.js)');
+    only(c.box, ['library', 'tint', 'rock'], 'box');
+    if (c.box.tint !== undefined && !(Number.isFinite(c.box.tint) && c.box.tint >= 0 && c.box.tint <= 1)) no('box.tint is 0 (the library\'s own colours) to 1 (the cube\'s hues)');
+    if (c.box.rock !== undefined && typeof c.box.rock !== 'string') no('box.rock is a rock preset (polygonizer/rock-minerals.js)');
+  }
   // matter (optional): what its things are made of, by role (rupa/look-matter.js); a role it names none is read off its look
   if (c.matter !== undefined) {
     if (!c.matter || typeof c.matter !== 'object' || Array.isArray(c.matter)) no(`matter is { <role>: matter }, its roles ${LOOK_ROLES.join(', ')}`);
@@ -620,13 +670,24 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'works', 'rock', 'tiling', 'rubble', 'materials', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
   if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.massif !== undefined) { try { readMassif(c.outside.massif); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.works !== undefined) { try { readWorks(c.outside.works); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.rock !== undefined) { try { readRockColour(c.outside.rock); } catch (e) { no(`outside.${e.message}`); } }
+  if (c.outside.materials !== undefined) { try { readMaterials(c.outside.materials); } catch (e) { no(`outside.${e.message}`); } }
+  if (c.outside.rubble !== undefined) {
+    const R = c.outside.rubble;
+    if (!isObj(R) || Object.keys(R).some((k) => !['sizes', 'density'].includes(k))) no('outside.rubble is { sizes: [lo, hi], density }: the scree\'s stones at the cube\'s scale (radii in metres, stones per square metre of scree)');
+    if (!(Array.isArray(R.sizes) && R.sizes.length === 2 && R.sizes[0] > 0 && R.sizes[1] >= R.sizes[0] && R.sizes[1] <= 6)) no('outside.rubble.sizes is [lo, hi] radii in metres, above 0 and at most 6');
+    if (!(typeof R.density === 'number' && R.density > 0 && R.density <= 4)) no('outside.rubble.density is stones per square metre of scree, above 0 and at most 4');
+  }
+  if (c.outside.tiling !== undefined && c.outside.tiling !== 'stochastic' && c.outside.tiling !== 'grid') no("outside.tiling is 'stochastic' (the land's layer tiles sampled at offsets a slow noise picks, never repeating in a grid) or 'grid' (as it always was)");
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
     if (!isObj(c.outside.terrains)) no(`outside.terrains is { <name>: { ${TERRAIN_KEYS.map((k) => `${k}?`).join(', ')} } }: the cube's other terrains`);
@@ -1012,7 +1073,7 @@ function lowerOutside(cube0, terrain, hour, clouds) {
   const key = ref.light.key ? { color: ref.light.key.color, elevation: ref.light.key.elevation, azimuth: ref.light.key.azimuth ?? 225 } : { color: cube.light.moon.color, elevation: cube.light.moon.elevation, azimuth: cube.light.moon.azimuth };
   const light = { ...card.light, key, ambient: ref.light.ambient, ...(ref.light.key ? {} : { sunGain: cube.light.moon.gain }) };
   const air = { ...card.air, fog: { color: S?.fog ?? ref.air.fog.color, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
-  const lookCard = { ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why };
+  const lookCard = heavensCard({ ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why }, cube.light.heavens);
   return outsideOf(cube, base, sw, land, lookCard);
 }
 
@@ -1039,7 +1100,7 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow, own
   // (the disc dropped where it stands: the card's keys keep their order, so its print, and the look's id, hold)
   // (and the cube's own light beside the hour's: what is drawn in its ramps' stops rather than baked moves by the
   // difference, era/isekai.js hourShift)
-  const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band, ownLight };
+  const lookCard = heavensCard({ ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band, ownLight }, cube.light.heavens);
   if (!A.disc) delete lookCard.sun;
   return outsideOf(cube, base, sw, land, lookCard);
 }
@@ -1074,10 +1135,10 @@ function outsideOf(cube, base, sw, land, lookCard0) {
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land, made: { ...sw.made, ...cubeMade(cube) } } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
-  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals, Mf = cube.outside.massif, Wk = cube.outside.works;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
     ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(cube.grit !== undefined ? { grit: cube.grit } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
-    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}) } };
+    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}), ...(Mf !== undefined && Mf !== false ? { massif: Mf } : {}), ...(Wk !== undefined && Wk !== false ? { works: Wk } : {}) } };
 }
 
 /**
@@ -1459,7 +1520,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', 'crowns', 'grass', 'hats', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!GEOCUBE_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
   // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
   // (its floodlights, a gen-7 land's: scene/channels/form-floods.js)
   if (manifest.floods !== undefined) { try { readFloods(manifest.floods); } catch (e) { no(e.message.replace(/^floods: /, 'floods: ')); } }

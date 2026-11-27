@@ -14,7 +14,15 @@
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
- *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
+ *              'box' (a box variant of Galaxy Boy's rail: its template's box on its geocube, `cube` said: Vampire
+ *              Sonata's castle on the gothic night, XenoJager's planet on its own, metroidvania/) or
+ *              'pilot-school' (Pilot School's: its first lessons on one airfield, each graded, pilot-school.js) or
+ *              'wolf-squadron' (Wolf Squadron's: its stages down a path, on a planet and in space, wolf-squadron.js),
+ *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js),
+ *              'blaze-gunner' (Blaze Gunner's: its stages on a screen that scrolls on its own, blaze-gunner.js) or
+ *              'warlords-of-mars' (Warlords of Mars's: its operations on Mars in an assault frame, warlords-of-mars.js) or
+ *              'compose' (a first reading of the genre the rail starts from, compose.js, one level; a rail's own
+ *              starter words where it has them: the party RPG's round, its levels)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
  *
@@ -23,15 +31,24 @@
 import { readRail, railOf, railSheet, variantOf } from './rails.js';
 import { platformerStart } from './platformer-game.js';
 import { hijackCityStart } from './hijack-city.js';
+import { pilotSchoolStart } from './pilot-school.js';
+import { wolfSquadronStart } from './wolf-squadron.js';
+import { blazeGunnerStart } from './blaze-gunner.js';
+import { rebelStormStart } from './rebel-storm.js';
+import { warlordsOfMarsStart } from './warlords-of-mars.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
+import { vampireSonataStart } from './metroidvania/vampire-sonata.js';
+import { xenoJagerStart } from './metroidvania/xeno-jager.js';
 import { levelPlan, planOfWords } from './action-levels.js';
 import { STYLISH } from './style-meter.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
 import { ACTION_OUTFITS } from '../outfit/styles.js';
 import { HAIR_STYLE_NAMES, HAIR_KEYS } from '../polygonizer/humanoid-hair.js';
 
+/** the box starters a box variant names (rails.js variants' `box.game`) */
+const BOX_STARTS = Object.freeze({ 'vampire-sonata': vampireSonataStart, xenojager: xenoJagerStart });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 // the workflow's own keys of a composed world: the starter brings its ground, never its review or its brief
 const NOT_THE_STARTERS = ['id', 'name', 'mode', 'review', 'brief', 'made'];
@@ -46,6 +63,15 @@ export function pitchStart(world, { title } = {}) {
   if (P.size !== undefined && P.size !== 'designed') return { unlaid: `a ${P.size} game is made in its own call (${S.sizes.find((z) => z.size === P.size)?.door ?? 'its door'}): it needs no starter` };
   if (!R.sizes.includes('designed')) return { unlaid: `${R.name} is not laid as a designed game yet: it reaches ${R.sizes.join(', ')}` };
   const named = { ...(title && world.name === undefined ? { name: title } : {}) };
+  // a BOX variant (Galaxy Boy's: Vampire Sonata's castle, XenoJager's planet): its template's box on its geocube, the
+  // box's look left to the cube (metroidvania/cube.js), its own feel; every key the creator wrote winning
+  const V0 = P.variant ? variantOf(R, P.variant) : null;
+  if (V0?.box) {
+    // (a castle played a map a box, `box.castle`: its maps the megaworld's chain, castle.js segmentsOf)
+    const { id: _id, name: _name, ...ground } = BOX_STARTS[V0.box.game](V0.box.castle ? { castle: V0.box.castle } : {});
+    const W = { ...ground, ...world, ...named, ...(world.intent === undefined && R.handles.genres[0] ? { intent: { from: R.handles.genres[0] } } : {}) };
+    return { world: W, laid: { by: 'box', variant: V0.id, cube: V0.box.cube, levels: Object.keys(W.levels), says: SAYS } };
+  }
   const withFeel = { ...world, ...(world.feel === undefined && R.handles.pole ? { feel: R.handles.pole } : {}) };
   // the platformer's rail: its first level and the flow that plays it, as the words its start offers
   const plat = (() => { try { return platformerStart(withFeel); } catch { return null; } })();
@@ -53,15 +79,41 @@ export function pitchStart(world, { title } = {}) {
     const W = { ...plat.world, ...withFeel, ...named };
     return { world: W, laid: { by: 'platformer', dimension: plat.dimension, levels: Object.keys(W.levels), says: SAYS } };
   }
+  // Pilot School's rail: its first lessons on one airfield, each flown for its tasks and graded (pilot-school.js)
+  if (R.id === 'pilot-school') {
+    const PS = pilotSchoolStart({ ...withFeel, ...named });
+    return { world: PS.world, laid: { by: 'pilot-school', levels: Object.keys(PS.world.levels), says: SAYS } };
+  }
+  // Wolf Squadron's rail: its stages down a path, a planet's canyon and a field of rocks, each to its boss (wolf-squadron.js)
+  if (R.id === 'wolf-squadron') {
+    const WS = wolfSquadronStart({ ...withFeel, ...named });
+    return { world: WS.world, laid: { by: 'wolf-squadron', levels: Object.keys(WS.world.levels), says: SAYS } };
+  }
+  // Blaze Gunner's rail: its stages on a screen that scrolls on its own, each to its boss (blaze-gunner.js)
+  if (R.id === 'blaze-gunner') {
+    const BG = blazeGunnerStart({ ...withFeel, ...named });
+    return { world: BG.world, laid: { by: 'blaze-gunner', levels: Object.keys(BG.world.levels), says: SAYS } };
+  }
+  // Rebel Storm's rail: its opening tour of missions, each a sector flown from the cockpit (rebel-storm.js)
+  if (R.id === 'rebel-storm') {
+    const RS = rebelStormStart({ ...withFeel, ...named });
+    return { world: RS.world, laid: { by: 'rebel-storm', levels: Object.keys(RS.world.levels), says: SAYS } };
+  }
+  // Warlords of Mars's rail: its operations on Mars, each a field fought for in an assault frame (warlords-of-mars.js)
+  if (R.id === 'warlords-of-mars') {
+    const WM = warlordsOfMarsStart({ ...withFeel, ...named });
+    return { world: WM.world, laid: { by: 'warlords-of-mars', levels: Object.keys(WM.world.levels), says: SAYS } };
+  }
   // Hijack City's rail: its own starter, the district, the story, the law and the shops (hijack-city.js)
   if (R.id === 'hijack-city') {
     const H = hijackCityStart({ ...withFeel, ...named });
     if (H) return { world: { ...H.world, ...(world.intent === undefined ? { intent: { from: 'open-city-crime' } } : {}) }, laid: { by: 'hijack-city', levels: Object.keys(H.world.levels), says: SAYS } };
   }
-  const prompt = S.starts ? genrePrompt(S.starts) : null;
+  // (a rail's own starter words where its genre's one level would not be its game: the party RPG's round, rails.js)
+  const prompt = R.starter?.prompt ?? (S.starts ? genrePrompt(S.starts) : null);
   if (!prompt) return { unlaid: `${R.name} has no starter the book lays from its cube yet: write its first level (gameworld-guide), and the pitch is kept with it` };
   const name = world.name ?? title;
-  const C = composeGameworld({ prompt, levels: 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
+  const C = composeGameworld({ prompt, levels: R.starter?.levels ?? 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
   const starter = Object.fromEntries(Object.entries(C).filter(([k]) => !NOT_THE_STARTERS.includes(k)));
   const intent = world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {};
   // a STYLISH rail: its genre's reading, its level a plan fought room by room, its kit, its meter, its look; the

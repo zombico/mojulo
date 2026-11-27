@@ -104,7 +104,10 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
 
   // 4 play: the feel and the powers
   const playChapters = ['motion', 'actions'].map(st), felt = world.feel !== undefined && world.feel !== null;
-  const playMet = playChapters.every(done) && felt;
+  // (a game whose every level is a scroll stage plays as its stages say: the ship on the d-pad, its gears and its
+  // arsenal, gameworld/scroll-stage/: its play is written by them, its hp, lives and pods its stage's words)
+  const L0 = isObj(world.levels) ? Object.values(world.levels) : [], staged = L0.length > 0 && L0.every((L) => isObj(L?.airspace?.scroll));
+  const playMet = staged || (playChapters.every(done) && felt);
   post('play', playMet ? 'met' : playChapters.some(begun) || felt ? 'partial' : 'open', playMet ? null : [...['motion', 'actions'].filter((c, i) => !done(playChapters[i])).map((c) => `${c} open`), ...(felt ? [] : ['no feel written'])].join('; '), (!felt && rail.play) || 'write the motion and the actions, and a feel (gameworld-feel)');
 
   // 5 the plan: the quest's beats, the first buildable, nothing blocking

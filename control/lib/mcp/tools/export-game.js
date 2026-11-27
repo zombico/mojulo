@@ -81,7 +81,11 @@ const PREVIEW_SRC = (ref) => `levels/preview-${ref}.html`;
  * a game as a page. 2.0.9 through 2.1 defaulted to the CDN; 2.2 made it opt-in.
  */
 async function emitWorldPage(sketch, role, { cdn = false, era, reads = null } = {}) {
-  const { payload, kind } = await resolveWorldScene(sketch, era ? { era } : {});
+  // (an airspace level ships as the /world route serves it, live: its weather's sky and clouds, its country's cover, plan
+  // and buildings under their shaders, its sea and its lights at night, all inline; else its country baked to faces and
+  // no sky. Every other kind as it was)
+  const live = sketch.manifest?.kind === 'airspace';
+  const { payload, kind } = await resolveWorldScene(sketch, { ...(era ? { era } : {}), ...(live ? { live: true } : {}) });
   // (what the era drew short of built, era/era-marks.js: each surface a gen-7 page draws as paint)
   if (era && reads && payload) for (const r of eraReading(payload, era).approximated) reads.set(r.input, r.how);
   if (!payload) {

@@ -12,6 +12,8 @@
  *   the chimney    the wall kick, sustained, under a frame that rises on its own: the screen from below
  *   a landing      after the climb: wide, flat, the place shown off, the next thing seen at its size
  *   gauntlet       movement and fire together, six foes, the heavies among them
+ *   the atrium     the climb through the plant's heart: two screens round its core, stairs walked across, ladders at
+ *                  the turns, the way woven through the core from screen to screen (climbed by its structure)
  *   the chute      the commit: a one-way drop, shut at its foot
  *   the boss       one screen, shut behind as the hero comes in (its shutter: play.js); level 0's a giant robot; its power the level's end (`goal.boss`; when not asked, the room holds the
  *                  power alone)
@@ -41,6 +43,7 @@ export function firstSideMap({ premise = FIRST_SIDE_MAP_PREMISE, boss } = {}) {
       { run: 'up', screens: 2, climb: 'chimney', rises: true },
       { run: 'across', screens: 2, beat: 'landing', reveal: true },
       { run: 'across', screens: 7, teach: 'gauntlet', spawners: 6 },
+      { run: 'up', screens: 3, climb: 'atrium' },
       { run: 'down', screens: 2, drop: 'chute' },
       { room: [1, 1], teach: 'boss' },
     ],

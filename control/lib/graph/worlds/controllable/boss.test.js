@@ -40,7 +40,60 @@ describe('a human boss', () => {
     expect(t.byId.p.body.hp).toBe(100);
   });
 
-  it('a cover hazard is stopped by a box between its origin and the body', () => {
+  it('a hazard that says how high it reaches misses a body whose feet are over it: a jump clears it', () => {
+    // (a boss of the side view's spring, `lunge`: a low line down the aim)
+    const row = { ...BOSSES[id], moves: { ...BOSSES[id].moves, spring: { pattern: 'lunge', says: 'springs low' } } };
+    const R = bossRule(row, { first: 0.5 }), rule = { ...R, phases: R.phases.map((p) => ({ ...p, moves: { spring: 1 } })) };
+    const s = world([pilot([4, 0]), human(rule)]);
+    run(s, 3);
+    expect(s.byId.p.body.hp).toBeLessThan(100);
+    const t = world([pilot([4, 0]), human(rule)]);
+    run(t, 3, {}, (w) => { w.byId.p.transform.pos[2] = 1.6; w.byId.p.vel = [0, 0, 0]; });
+    expect(t.byId.p.body.hp).toBe(100);
+  });
+
+  it('a move that FLIES takes it off its floor along its path and down again by its landing, under its room\'s ceiling', () => {
+    // (a boss of the air's swoop: up off the floor, hanging over the room, a dive raking the floor)
+    const row = { ...BOSSES[id], moves: { ...BOSSES[id].moves, rake: { pattern: 'swoop', says: 'dives' } } };
+    const R = bossRule(row, { first: 0.5 }), rule = { ...R, phases: R.phases.map((p) => ({ ...p, moves: { rake: 1 } })) };
+    const fly = (room) => { const s = world([pilot([6, 0]), human(room ? { ...rule, room } : rule)]); let top = 0, x = 0; const track = [];
+      run(s, 3.2, {}, (w) => { const b = w.byId.b; top = Math.max(top, b.transform.pos[2]); x = Math.max(x, b.transform.pos[0]); if (w.bosses.b && b.bossS.cur) track.push([w.time - b.bossS.cur.t0, b.transform.pos[2], b.aloft]); });
+      return { s, top, x, track }; };
+    const A = fly(null);
+    expect(A.top).toBeGreaterThan(3);                                      // (its path's height, 3.2 m)
+    expect(A.x).toBeGreaterThan(10);                                       // (carried on past where the body stood)
+    expect(A.track.some(([, , a]) => a > 3)).toBe(true);
+    expect(A.s.byId.b.transform.pos[2]).toBeCloseTo(0, 3);                  // (on its floor again)
+    expect(A.s.byId.p.body.hp).toBeLessThan(100);                          // (the rake lands on a body standing in it)
+    // (a room 5 m high for a boss 2 m tall: the whole path lowered under its ceiling, never cut)
+    const B = fly([-20, 20, 0, 5]);
+    expect(B.top).toBeLessThanOrEqual(5 - 2 - 0.2 + 1e-6);
+    expect(B.top).toBeGreaterThan(2);
+  });
+
+  it('a boss kept to its room stands on its room\'s floor: lifted onto a ledge, it is put back; a flight still takes it up', () => {
+    const rule = { ...oneMove(id, charge), room: [-20, 20, -1, 8] };
+    const s = world([pilot([8, 0]), human(rule)]);
+    run(s, 0.2);
+    s.byId.b.transform.pos[2] = 3; run(s, 0.1);
+    expect(s.byId.b.transform.pos[2]).toBeCloseTo(0, 6);
+    // (a body never stood in a room keeps no floor: as it was)
+    const t = world([pilot([8, 0]), human(oneMove(id, charge))]);
+    run(t, 0.2); t.byId.b.transform.pos[2] = 3; run(t, 0.1);
+    expect(t.byId.b.bossS.floor).toBeUndefined();
+  });
+
+  it('a boss kept to its room takes no move while the body is out of it', () => {
+    const rule = { ...oneMove(id, charge), room: [-5, 5, -1, 4] };
+    const s = world([pilot([0, 12]), human(rule)]);
+    run(s, 4);
+    expect(s.bossHazards.length).toBe(0);
+    s.byId.p.transform.pos = [0, 3, 0];
+    run(s, 3);
+    expect(s.byId.p.body.hp).toBeLessThan(100);
+  });
+
+    it('a cover hazard is stopped by a box between its origin and the body', () => {
     const lockMove = Object.keys(BOSSES.glint.moves).find((m) => BOSSES.glint.moves[m].pattern === 'lock');
     const open = world([pilot([12, 0]), human(oneMove('glint', lockMove))]);
     run(open, 4);

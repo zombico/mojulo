@@ -43,7 +43,8 @@
  *                                  unset: [{ quest, step, flag }] (a step's flag that no moment or answer sets: a cue may),
  *                                  notes?: [{ id, script, notes: [{ id, says, why, try }] }] (each script's director's
  *                                  notes as it is blocked on its stage, actor/notes.js: advice, never a refusal) }
- *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane } (handed in: levels.js reads
+ *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane, buildingEnds?, buildingSpots? }
+ *                                (a building's places: its start, its goal room, its boss's spot, its rooms) (handed in: levels.js reads
  *                                the world, which reads this)
  */
 import { readScenes } from '../playscape/ui/scenes.js';
@@ -132,11 +133,28 @@ export function readGameQuests(Q, story = []) {
       owner[m] = `${q.id}, step ${j + 1}`;
     }
   }));
+  // (a step RAISED BY WHAT HAPPENS: `on` a bus event (a glob: a pickup, a fight won) or 'start' (the level begun), on the
+  // stages of level `at` (else every stage): its flag set as it fires, levels.js stageLevelOrder)
+  Q.forEach((q, i) => (Array.isArray(q?.steps) ? q.steps : []).forEach((s, j) => {
+    if (!isObj(s)) return;
+    const at = `[${i}].steps[${j}]`;
+    if (s.on !== undefined && !(typeof s.on === 'string' && s.on.trim() && s.on.length <= 80)) throw qerr(`${at}.on is what raises its flag: a bus event ('pickup:crypt-key', 'rpg-won:*') or 'start' (its level begun)`);
+    if (s.at !== undefined && !(typeof s.at === 'string' && s.at && s.on !== undefined)) throw qerr(`${at}.at is the level whose stages raise it (with on)`);
+  }));
   let read;
   try { read = readQuests({ quests: levelQuests(Q) }); } catch (e) { throw qerr(e.message.replace(/^play\.quests/, '')); }
-  return read.map((q, i) => ({ ...q, steps: q.steps.map((s, j) => ({ ...s, ...(Q[i].steps[j].moments?.length ? { moments: [...Q[i].steps[j].moments] } : {}) })) }));
+  return read.map((q, i) => ({ ...q, steps: q.steps.map((s, j) => { const W = Q[i].steps[j]; return { ...s, ...(W.moments?.length ? { moments: [...W.moments] } : {}), ...(W.on !== undefined ? { on: W.on } : {}), ...(W.at !== undefined ? { at: W.at } : {}) }; }) }));
 }
-export const levelQuests = (Q) => (Q ?? []).map((q) => (isObj(q) && Array.isArray(q.steps) ? { ...q, steps: q.steps.map((s) => { if (!isObj(s)) return s; const { moments: _, ...rest } = s; return rest; }) } : q));
+export const levelQuests = (Q) => (Q ?? []).map((q) => (isObj(q) && Array.isArray(q.steps) ? { ...q, steps: q.steps.map((s) => { if (!isObj(s)) return s; const { moments: _, on: _o, at: _a, ...rest } = s; return rest; }) } : q));
+/** The cues a stage lays for the quest steps raised by what happens on it: each its flag set as its event fires. */
+export function questRaises(quests, level) {
+  const out = [];
+  for (const q of quests ?? []) q.steps.forEach((s, j) => {
+    if (s.on === undefined || (s.at !== undefined && s.at !== level)) return;
+    out.push({ id: `quest-${q.id}-${j + 1}`.slice(0, 64), when: s.on === 'start' ? { start: true } : { on: s.on }, then: { emit: `flag:${s.done}` } });
+  });
+  return out;
+}
 export function questGates(quests) {
   const out = {};
   for (const q of quests ?? []) q.steps.forEach((s, j) => {
@@ -183,15 +201,19 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
     if (!lv.length) { unplaced.push({ id: m.id, why: `no level '${m.where.level}' (levels: ${[...new Set(stages.map((s) => s.level))].join(', ')})` }); continue; }
     const stage = m.where.stage ? lv.find((s) => s.node === m.where.stage) : lv[0];
     if (!stage) { unplaced.push({ id: m.id, why: `the level '${m.where.level}' has no stage '${m.where.stage}' (stages: ${lv.map((s) => s.node).join(', ')})` }); continue; }
-    // a building level (or a building's inside) lays its rooms from a program at read: no places to bind to yet
-    if (stage.section === 'building' || stage.section === 'interior') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a building: a moment binds to a walk's stages for now` }); continue; }
+    // a building level (or a building's inside) lays its rooms from a program at read: its places are its way in, its
+    // goal room, its boss's spot and its rooms on the way (levels.js buildingEnds, buildingSpots), handed in by the layout
+    const building = stage.section === 'building' || stage.section === 'interior';
+    if (building && !layout.buildingEnds) { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a building, and no building layout was handed in` }); continue; }
     if (stage.section === 'city') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a city's segment: a moment binds to a walk's stages for now` }); continue; }
     if (stage.section === 'roadway') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a roadway: a moment binds to a walk's stages for now` }); continue; }
     if (stage.section === 'airspace') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is an airspace: a moment binds to a walk's stages for now` }); continue; }
     const missing = (m.who ?? []).filter((w) => !cast[w]);
     if (missing.length) { unplaced.push({ id: m.id, why: `${missing.map((w) => `'${w}'`).join(', ')} not in the cast (cast: ${Object.keys(cast).join(', ') || 'none'})` }); continue; }
-    const cam = G.camera === 'side' && stage.manifest.trail !== undefined ? stageLane(stage) : null;
-    const ends = stageEnds(stage.manifest), spots = stageSpots(ends, cam);
+    const cam = !building && G.camera === 'side' && stage.manifest.trail !== undefined ? stageLane(stage) : null;
+    let ends, spots;
+    try { ends = building ? layout.buildingEnds(stage) : stageEnds(stage.manifest); spots = building ? layout.buildingSpots(ends) : stageSpots(ends, cam); }
+    catch (e) { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} could not be laid to bind to: ${String(e.message).split('\n')[0]}` }); continue; }
     const names = spots.map((s) => s.id).join(', ');
     const place = m.where.place ? placeIn(spots, m.where.place) : null;
     if (m.where.place && !place) { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} has no place '${m.where.place}' (places: ${names})` }); continue; }
@@ -238,7 +260,7 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
   // (and the battles' boss's fall, battles.sets: the flag its pack's win sets)
   const sets = new Set([...readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]), ...(typeof G.battles?.sets === 'string' ? [G.battles.sets] : [])]);
   const unset = [];
-  for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done)) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
+  for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done) && s.on === undefined) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
   return { byStage, byEpoch, bound, unplaced, ...(G.quests ? { unset } : {}), ...(notes.length ? { notes } : {}) };
 }
 const answers = (beats) => beats.flatMap((b) => (b.kind === 'choose' ? b.choose.options.flatMap((o) => [...o.sets, ...answers(o.beats)]) : []));

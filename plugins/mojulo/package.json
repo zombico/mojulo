@@ -1,0 +1,9 @@
+{
+  "name": "mojulo-claude-plugin",
+  "private": true,
+  "description": "The mojulo MCP server for the Claude plugin, installed by Claude Code from the lockfile beside this file.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "mojulo": "3.1.1"
+  }
+}

@@ -42,6 +42,13 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont merged with 1116-rc): `game`, `kitchen-sink`, `kitchen-sink-capture`,
+// `brawl`, `holo` and `mission`, each pinned anew on both sides since they parted: the candidate's emission and the
+// branch's (the party RPG's channel and its fight shot, the wardrobe's looks, the music an event changes to, a walk that
+// finds its way, mana-ui's name keyboard) read together. Every other page is the candidate's, byte for byte.
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont: a name typed in game): `brawl`, `mission` and `holo`, the pages that
+// embed the game UI runtime whole. Its text entry grows a name's keyboard (`charset: 'name'`: pages, Space, Cancel, `min`),
+// a pad's back erasing a draft and its shoulders turning the pages, and two words (Space, Page). Nothing else moved.
 // Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
 // runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
 // page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.
@@ -1133,3 +1140,68 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-18 (1117-hero-beat-em-up: the review's fixes): `brawl` only. Its page inlines the sway keeping each
 // region's own rest positions (no copy of a part's buffer), and a boss stage's form read as any fighter's recipe. The
 // fixture plays as it did.
+// Re-pinned 2026-11-22 (1122-sim-fixing: the ground grid and index sized to their meshes): the fixtures that embed the
+// controllable runtime. The ground grid's `gridFit` coarsens within 16 cells and 32 listings a triangle, the ground index's
+// `indexBuckets` within 64 cells and 256 listings an item, and the grid raycast first tests the mesh's bounding sphere as
+// three's own does: a flight's land and a race's backdrop no longer exhaust the page. Each only chooses which surfaces a
+// ray tests, so what every fixture plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: flight goals and the craft as its airframe): the fixtures that embed the
+// controllable runtime or the event bus. The bus's zone pass reads a `gauge` source too (a fact of a pilot's in a range:
+// worlds/event-bus.js); the fly rule writes `agl`; the flight HUD's tick waits for the world to be published. No fixture
+// has a gauge or a flight, so what each plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: Wolf Squadron's rail): the fixtures that embed the controllable runtime or the
+// event bus. The page's controllable block treats a rail pilot as a vehicle (scene/channels/controllable/index.js); the
+// bus's gauges read `along`; a hazard's hp stops at zero, as a hit's does (game/mechanics.js hazard-damage). The rail
+// rule and its foes on station are opt-in, emitted only into a page with a rail pilot. No fixture has a rail, a gauge on
+// `along`, or a hazard taking its hp past zero, so what each plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: the cockpit core): the fixtures that embed the controllable runtime. A space
+// mind leads a travelling round in three dimensions, and a mind hunting the other side passes over a body asleep or
+// gone (mind.js); a ship's shields are asked first by the shield absorption (combat-hit.js). The starfighter, its
+// cockpit and its HUD are opt-in, emitted only into a page whose pilot is one. No fixture has a space mind with a
+// travelling round, a sleeping body hunted, or a ship, so what each plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: fighters fly passes): the fixtures that embed the controllable runtime. A space
+// mind with `rule.passes` flies down its nose, runs in, breaks and extends (mind.js); no fixture's mind has it, so what each
+// plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: shields on a plan): the fixtures whose page carries mana-ui (brawl, holo,
+// mission). Its kernel gains the `shields` component (a craft's shields read off its plan) and its sheet that
+// component's rules; no fixture draws one, so what each shows is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: a craft's own blast): the fixtures that embed the controllable runtime. A death
+// burst takes a body's `blast` (its size, marked a craft's) and a body with one is gone in it (combat-match.js); a ship's
+// shield records where it took a round (rules-starfighter.js). No fixture's body has a blast or a ship, so what each plays
+// is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: power redirection): the fixtures whose page carries mana-ui (brawl, holo,
+// mission). Its kernel gains the `power` component (a generator and its feeds) and its sheet that component's rules
+// and beats; the shield plan's spent-side and low-hull rules now name its own parts. No fixture draws either, so what
+// each shows is as it was.
+// Pinned 2026-11-23 (1122-sim-fixing-mana-ui: the holo briefing): the `briefing` fixture joins the matrix (a space
+// mission's briefing over its level: campaign/briefing-page.js's block in a scope of its own, the table's client, mana-ui
+// and the controls host, the mission held on the pause sidecar until Launch). Every other page is byte-identical, and a
+// page without a `briefing` key emits no block.
+// Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: beacons): the fixtures that embed the controllable runtime, and
+// `briefing`. A mission's beacon (gameworld/flight-sortie.js) is a mesh body the page draws as a lit core in turning
+// rings (its own branch of the body builder and of the entity sync), and the starfighter's targeting computer holds one
+// as a goal, never a hostile. No fixture carries a beacon, so what each shows is as it was. The briefing's labels size to
+// their words.
+// Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: the mission designer): `briefing` only. The table's client gives the
+// editor its handle (a place moved with its name, post and ring; everything shown; the camera's turn held); the page over
+// a level carries no editor, so what it shows is as it was.
+// Pinned 2026-11-24 (1122-sim-fixing: Pilot School on mana-ui): the `lesson` fixture joins the matrix (a flying lesson's
+// brief over its level: gameworld/lesson-brief.js's words, scene/channels/lesson-brief.js's block in a scope of its own,
+// mana-ui and the controls host, the lesson held on the pause sidecar until Start). Every other page is byte-identical,
+// and a page without a `lesson` key emits no block.
+// Re-pinned 2026-11-24 (1122-sim-fixing: Wolf Squadron's stages): the `briefing` fixture's level page takes the keys
+// as its briefing mounts (window.focus), so a pilot steps the table from the game's shell without clicking into it.
+// Every other page is byte-identical.
+// Re-pinned 2026-11-24 (1122-sim-fixing: Wolf Squadron's ground stages): the holo table's client draws a ground stage's
+// land (theatre.terrain, its heights stretched by theatre.vertical, the colony's masses); a mission's table, with neither,
+// draws as it did. Every other page is byte-identical.
+// Pinned 2026-11-24 (1122-sim-fixing: the speed's look): the `speedfx` fixture joins the matrix (a flown craft's speed in
+// the world round it, channels/speed-fx.js: the air's speed lines, space's dust, driven by its pilot's speed). Every other
+// page is byte-identical, and a page without a `speedfx` key emits no block.
+// Re-pinned 2026-11-24 (1122-sim-fixing merged with 1116-rc): the pages of the controllable channel carry both
+// branches' emission (this branch's rail and starfighter rules and the cockpit's HUD; 1116-rc's keying clock, route
+// finding and a member's looks), so the pins both had moved are pinned again over the merged emission. Each moved pin
+// was one this branch had re-pinned for its own channels; every other page is byte-identical to 1116-rc.
+// Re-pinned 2026-11-25 (1124-mech-battle-kai-rail: an operation's briefing): `briefing` only. The table's roster is
+// headed in the design's word, a binding (`rosterTitle`: a squadron's Flight groups, an operation's Forces), where it
+// was the literal; a space mission's briefing says Flight groups as it did, so what it shows is as it was.

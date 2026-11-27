@@ -1085,7 +1085,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: { ...(st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) }),
+    sky: { ...(st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: companionAt(st.companion) } : {}) }),
       // (a geocube's weather: its clouds painted round the dome, matte-paint/sky.js)
       ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     glow: !!Gl,
@@ -1210,10 +1210,16 @@ function domeAt({ azimuth, elevation, size = 4, phase = 0.6 }) {
 }
 /** THE VOID (a card's `void`: a world with no air): the sky the palette's void, the stars out by day, the sun a white
  *  disc where the key comes from, and a world hanging where the card puts it. */
-function voidSky(st, dir) {
+export function voidSky(st, dir) {
   const V = st.void, sky = st.palette.sky;
+  // (no sun seen, a cube's heavens' `disc: false`: none drawn; the light still comes from where it would be)
   return { zenith: sky[0], horizon: sky[sky.length - 1], day: 0, stars: V.stars ?? 1, seed: 1,
-    sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 }, ...(V.companion ? { moon: { ...domeAt(V.companion), ...(V.companion.color ? { color: V.companion.color } : {}) } } : {}) };
+    ...(st.sun === null ? {} : { sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 } }), ...(V.companion ? { moon: companionAt(V.companion) } : {}) };
+}
+/** A companion world on the dome (a card's, or a cube's heavens, era/heavens.js): where it hangs, its colour and the
+ *  spots of land and cloud on its face where it has them. */
+export function companionAt(C) {
+  return { ...domeAt(C), ...(C.color ? { color: C.color } : {}), ...(C.spots ? { spots: C.spots } : {}) };
 }
 export function nightSky(st, dir) {
   const N = st.night, sky = st.palette.sky, az = Math.atan2(dir[1], dir[0]), el = Math.asin(Math.max(-1, Math.min(1, dir[2])));

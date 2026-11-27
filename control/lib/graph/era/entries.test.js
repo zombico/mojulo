@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { stageEntryCards, kitCard, lookCard, stageHubCard, STAGE_CARD_BODY_CEILING } from './entries.js';
+import { stageEntryCards, kitCard, lookCard, stageHubCard, STAGE_CARD_BODY_CEILING, geocubeCard, geocubeGroup, geocubeGroupCard, GEOCUBE_GROUP_IDS } from './entries.js';
+import { GEOCUBE_PRESETS } from './geocube.js';
 import { STAGE_KITS, planStage } from './stage.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
 import { getViewVocabCatalog, _resetViewVocabCache } from '../views/view-vocab/loader.js';
@@ -15,6 +16,18 @@ describe('stage entries: generated kit and look cards', () => {
     for (const l of SIXTH_GEN_LOOK_IDS) expect(ids).toContain(`look/${l}`);
     expect(Object.values(SIXTH_GEN_LOOKS).sort()).toEqual(Object.keys(SIXTH_GEN_REFERENCES).sort());
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every geocube preset in one group on the geocube card, and says how each reads on its group\'s card alone', () => {
+    const groups = GEOCUBE_GROUP_IDS.map(geocubeGroup), hub = geocubeCard().body;
+    expect(groups.flat().sort()).toEqual(Object.keys(GEOCUBE_PRESETS).sort());
+    for (const id of Object.keys(GEOCUBE_PRESETS)) expect(hub).toMatch(new RegExp(`[ ,]${id}[,( ]`));
+    // (a preset's description is its group's card's, so a new preset grows that card, never the geocube's)
+    const P = Object.values(GEOCUBE_PRESETS).find((c) => c.reads && c.reads.length > 40);
+    expect(hub).not.toContain(P.reads);
+    const g = GEOCUBE_GROUP_IDS.find((k) => geocubeGroup(k).includes(P.id));
+    expect(geocubeGroupCard(g).body).toContain(P.reads);
+    expect(stageEntryCards().map((c) => c.id)).toContain(`geocube/${g}`);
   });
 
   it('keeps every body within its ceiling', () => {

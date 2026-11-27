@@ -44,7 +44,8 @@ const KEYS = ['theme', 'colour', 'languages', 'language', 'radar', 'map', 'inven
 export const INTENT_LOOKS = Object.freeze({
   'dungeon-crawler': 'grim', 'survival-horror': 'grim', roguelike: 'grim',
   tactics: 'tactician', rts: 'tactician', 'tower-defense': 'tactician',
-  jrpg: 'rebel', 'long-rpg': 'rebel', 'story-adventure': 'rebel', 'cinematic-action': 'rebel',
+  // (a party RPG wears the console RPG's plain windows, the classic-rpg card: a party game's layers are a party game's)
+  jrpg: 'classic-rpg', 'long-rpg': 'rebel', 'story-adventure': 'rebel', 'cinematic-action': 'rebel', 'cinematic-adventure': 'rebel', 'bullet-time-action': 'rebel',
   'arena-brawler': 'arcade', 'versus-fighter': 'arcade', 'arena-shooter': 'arcade', 'space-shooter': 'arcade', 'pixel-puzzle': 'arcade', 'block-puzzle': 'arcade', 'endless-runner': 'arcade', rhythm: 'arcade',
   'co-op-brawler': 'street', 'co-op-scroller': 'street',
   // (a look may be a card: a city's open world at night, theme-cards/downtown.json)
@@ -64,7 +65,9 @@ export const MENU_SOUNDS = Object.freeze({
 /** The sound set a game's menus play: its rail's (its feel's pole), else its genre's, else its look's (`theme`'s sounds). */
 export function menuSoundSet(G, theme) {
   const F = G && G.feel, pole = typeof F === 'string' ? F : F && typeof F === 'object' ? F.pole : null;
-  const own = (pole && MENU_SOUNDS.pole[pole]) || MENU_SOUNDS.intent[G && G.intent && G.intent.from];
+  // (the game's own, `sound.menus`, a box variant's: Vampire Sonata's castle on the crypt, not its rail's robot)
+  const said = G && G.sound && typeof G.sound === 'object' && typeof G.sound.menus === 'string' ? G.sound.menus : null;
+  const own = said || (pole && MENU_SOUNDS.pole[pole]) || MENU_SOUNDS.intent[G && G.intent && G.intent.from];
   if (own) return own;
   try { return readTheme(theme === undefined ? 'greybox' : theme).sounds; } catch { return null; }
 }

@@ -23,9 +23,14 @@
  *   seen     how it is seen, said outright where its tables' cameras are not the game's (seenOf reads it alone)
  *   words    the words people say for it that its pole's and its genres' own word lists lack
  *   lacks    what it does not do yet, beyond its pole's own `needs`
- *   variants { <id>: { name, like, level1, words, ask, quick, street } }: the variants of the type a door's words make
- *            (the beat-em-up's heroes): its own name and words, the step it ASKS before anything is made (`ask`, with
- *            its card), its quick door's words beside the goal and what a designed game's street carries (`street`)
+ *   starter  { prompt, levels } the words its locked pitch's starter is composed from (pitch-start.js), where its genre's
+ *            own one level would not be its game (the party RPG's round)
+ *   steps    [{ step, does, card }] its game's own steps in the designed chain, before its first level
+ *   variants { <id>: { name, like, level1, words, ask, quick?, street?, box? } }: the variants of the type a door's words
+ *            make (the beat-em-up's heroes, Galaxy Boy's boxes): its own name and words, the step it ASKS before anything
+ *            is made (`ask`, with its card), its quick door's words beside the goal, what a designed game's street carries
+ *            (`street`), and the box a designed game starts from (`box`: { game, cube, library, castle? }, its starter and
+ *            the geocube that dresses it, pitch-start.js)
  *
  * How it is played THROUGH (levels in turns or an open world, the world's shape) is not a rail's: it is the Game
  * Brief's labour (gmn.js LABOURS). A rail says how a moment plays.
@@ -80,6 +85,8 @@
  *     labours   the Game Brief's labours that suit it (gmn.js: advice, any labour may be mixed with any rail)
  *     chain     the tools that build it, in order, each with the card to pull when it is reached
  *     kinds     the kinds of level a game of it is built from (level-kinds.js LEVEL_KINDS), where the rail names them
+ *     box       a box variant's: { game, cube, library }, the starter its pitch lays and the geocube that dresses its box
+ *               (railReport says it back, so the readout names the cube)
  *   nearestRails(text, n?)     → [{ id, name, like, sizes, matched }] the rails whose words the text uses, most first;
  *                              a heuristic over words, said to be one: the agent, the real reader of a brief, picks
  *                              from it or asks. It suggests and refuses nothing
@@ -143,11 +150,33 @@ export const RAILS = Object.freeze({
   'jumping-giuseppe': row({ name: 'Jumping Giuseppe', like: 'a platformer: the jump is the game, things to collect, foes to stomp',
     handles: row({ pole: 'jumping-giuseppe', genres: list(['collectathon', 'platformer-3d', 'co-op-platformer']), quick: list(['collect']) }), sizes: list(['quick', 'designed']), level1: 'a level: basics, a first foe, the harder jumps, a gauntlet, a boss if asked' }),
   'galaxy-boy': row({ name: 'Galaxy Boy', like: 'a side-on run and gun: the dash, the wall kick, a charged shot, powers that open the map',
-    handles: row({ pole: 'galaxy-boy', genres: list(['metroidvania']) }), sizes: list(['designed']), level1: 'a level seen from the side, its first power at the end' }),
+    handles: row({ pole: 'galaxy-boy', genres: list(['metroidvania']) }), sizes: list(['designed']), level1: 'a level seen from the side, its first power at the end',
+    // its BOX variants: a metroidvania laid as one box of screens spiralling to a core (metroidvania/box.js), started from
+    // a template's box on its geocube (`box`: the starter, the cube that dresses it, metroidvania/cube.js), its words the
+    // person's to change
+    variants: row({
+      'vampire-sonata': row({ name: 'Vampire Sonata', like: 'a metroidvania castle: a hunter storms a vampire lord\'s castle ring by ring to its keep, each power found opening the way on and the pockets behind',
+        level1: 'a box: the castle on the gothic night cube, its outer wall, great halls, inner ward and keep, a power and a boss a ring',
+        words: list(['castlevania', 'igavania', 'gothic metroidvania', 'castle metroidvania', 'vampire castle', 'symphony of the night', 'vampire sonata']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their box (its premise, its size in screens, its rings and their places, its powers and bosses: theirs to design; the castle\'s if they have none) and its cube (the gothic night\'s castle, or another cube with a box)', card: 'gameworld-box' }),
+        box: row({ game: 'vampire-sonata', cube: 'gothic-night', library: 'castle' }) }),
+      // (the castle of boxes played a map a box, metroidvania/castle.js segmentsOf: the tower, the courtyard and the keep
+      // each its own level on the megaworld's chain, the bridge and the gatehouse the ways between, what she gains carried)
+      'vampire-sonata-castle': row({ name: 'Vampire Sonata: the castle in maps', like: 'a metroidvania castle crossed map to map: a bell tower, a courtyard and a keep, each its own map joined by a bridge and a gatehouse, every power, relic, felled boss and room explored going on with the hunter',
+        level1: 'three maps on the gothic night cube: the bell tower, the courtyard and the keep, joined on the megaworld\'s chain, a power and a boss in each',
+        words: list(['castle of maps', 'connected maps', 'castle in maps', 'castle segments', 'segmented metroidvania', 'map to map', 'metroidvania megaworld']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their castle (its boxes in the order she crosses them, each box\'s size, rings, powers and bosses, the connectors between: theirs to design; the bell tower, courtyard and keep if they have none), its cube (the gothic night\'s castle, or another cube with a box) and their hunter', card: 'gameworld-box' }),
+        box: row({ game: 'vampire-sonata', cube: 'gothic-night', library: 'castle', castle: 'segments' }) }),
+      xenojager: row({ name: 'XenoJager', like: 'a metroidvania planet: an explorer goes down through a dangerous planet\'s caves, region by region to the nest at its core',
+        level1: 'a box: the planet on its own cube, its crust, fungal caverns, flooded depths and magma core, a power and a boss a region',
+        words: list(['metroid', 'metroid-like', 'super metroid', 'planet exploration', 'alien planet', 'subterranean exploration', 'xenojager']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their box (its premise, its size in screens, its regions, its powers and bosses: theirs to design; the planet\'s if they have none), its cube (the planet\'s, or another cube with a box) and their explorer', card: 'gameworld-box' }),
+        box: row({ game: 'xenojager', cube: 'xenojager', library: 'xeno' }) }),
+    }) }),
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
     // (seen in the third person, the operator's word: the template's lab view is from overhead and the espionage cube's
     // from above, neither the game's camera)
-    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
+    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage', 'cinematic-action']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
     seen: list(['free']) }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
@@ -158,8 +187,18 @@ export const RAILS = Object.freeze({
   'mech-battle-kai': row({ name: 'Mech Battle Kai', like: 'robot action: a heavy machine that boosts, hovers, shoots and transforms',
     handles: row({ pole: 'mech-battle-kai', genres: list([]) }), sizes: list(['designed']), level1: 'a battlefield crossed in the machine',
     lacks: list(['no genre cube of its own: a designed game names its feel and starts from the cube nearest the ask']) }),
+  // (its starter is the ROUND, compose.js: the town at its heart with an inn, a temple and a save point, the wilds as the
+  // world map's blocks, a castle that keeps the core's key, and the dungeon at the core with its boss; laid in words the
+  // composer reads, and taught as the round's steps beside the designed game's own)
   'isekai-party': row({ name: 'Isekai Party', like: 'a party RPG: battles turn by turn, classes, skills and a bestiary',
-    handles: row({ pole: 'isekai-party', genres: list(['jrpg', 'story-adventure', 'long-rpg']), quick: list(['battle']) }), sizes: list(['quick', 'designed']), level1: 'a level: a field, its first battles, a town' }),
+    handles: row({ pole: 'isekai-party', genres: list(['jrpg', 'story-adventure', 'long-rpg']), quick: list(['battle']) }), sizes: list(['quick', 'designed']),
+    level1: 'the round: a town at its heart (an inn, a temple, a save point), the wilds with their first battles, a castle keeping the key, and the dungeon at the core with its boss',
+    starter: row({ prompt: 'a jrpg: a walled town, the wilds with monsters, a castle, and a dungeon with a boss', levels: 4 }),
+    steps: list([
+      row({ step: 'round', does: 'the round as a mandala (megaworld): the town, the wilds and the castle round it, the core behind a key; its save points (saves), and a crossing by ship or airship where the world goes further', card: 'gameworld-world' }),
+      row({ step: 'battles', does: 'the party and its classes, the packs, the boss as a party battle with its pattern and its pages, the states', card: 'gameworld-battles' }),
+      row({ step: 'talk', does: 'the townspeople: what each says, as pages that follow the story (the key held, the boss beaten)', card: 'gameworld-folk' }),
+    ]) }),
   // ── with a gun ──
   conscription: row({ name: 'Conscription', like: 'a first-person shooter: a soldier\'s run, cover, the guns',
     handles: row({ pole: 'conscription', genres: list(['shooter', 'military-sim']), quick: list(['shoot']) }), sizes: list(['quick', 'designed']), level1: 'a level: armed foes behind cover, shot through to the end' }),
@@ -193,7 +232,33 @@ export const RAILS = Object.freeze({
   racing: row({ name: 'Racing', like: 'a race: a track or a road, checkpoints, rivals, the best time kept',
     handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick']), level1: 'a race: the laps, the podium' }),
   flight: row({ name: 'Flight', like: 'flying: a gate course, a dogfight, a sector of space',
-    handles: row({ genres: list(['flight-sim', 'air-combat', 'space-shooter']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
+    handles: row({ genres: list(['air-combat']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
+  // a licence earned lesson by lesson (pilot-school.js: its starter, the lessons on one airfield, each graded)
+  'pilot-school': row({ name: 'Pilot School', like: 'learning to fly a light aircraft: lessons on one airfield, each graded bronze to gold, a licence at the end',
+    handles: row({ genres: list(['flight-sim']) }), sizes: list(['designed']), level1: 'a lesson: the take-off, the first rings, leveling off over the field',
+    words: list(['pilot school', 'flight school', 'learn to fly', 'flying lessons', 'flight lessons', 'flight training', 'pilot licence', 'pilot license', 'pilotwings', 'flight instructor', 'realistic flight']),
+    lacks: list(['the circuit and the landing lesson, the stall, the cross-country, the crosswind and the check ride are later lessons, laid on the same words']) }),
+  // stages flown down a path, flight as a concept (wolf-squadron.js: its starter, a planet's canyon and a field of rocks)
+  'wolf-squadron': row({ name: 'Wolf Squadron', like: 'an arcade flight shooter: stages flown down a path on planets and in space, boost, brake and roll, waves of fighters, a boss at the end of each',
+    handles: row({ genres: list(['space-shooter']) }), sizes: list(['designed']), level1: 'a stage: down a canyon on a planet, its waves and its boss',
+    words: list(['wolf squadron', 'rail shooter', 'on-rails shooter', 'on rails shooter', 'arcade flight', 'arcade space shooter', 'starfighter', 'star fox', 'starfox', 'rogue squadron', 'barrel roll', 'space fighter game']),
+    lacks: list(['the squad and its calls, the rival squad and the all-range arena are to come', 'its cube is the space shooter\'s: its stages fly on the rail rule (power.rules=rail), which a stage of its own names']) }),
+  // a scrolling shooter, left to right (blaze-gunner.js: its starter, the fleet's edge; gameworld/scroll-stage/)
+  'blaze-gunner': row({ name: 'Blaze Gunner', like: 'a scrolling shooter: a small ship on the d-pad over a screen that scrolls on its own, waves in formation, pods taken from foes for weapons, a capital ship broken by its systems, then into a station: its corridors, guns, hatches, crushers and locks, its reactor at the heart',
+    handles: row({ genres: list(['co-op-scroller']) }), sizes: list(['designed']), level1: 'a stage: waves in the open, a hull run, the boss broken by its systems; then a second, the infiltration of a station to its reactor',
+    seen: list(['side', 'above']),
+    words: list(['blaze gunner', 'shmup', 'shoot em up', "shoot 'em up", 'bullet hell', 'scrolling shooter', 'horizontal shooter', 'side scrolling shmup', 'side scrolling space shooter', 'gradius', 'r-type', 'einhander', 'gunpod', 'gunpods', 'infiltrate a space station', 'fortress stage']),
+    lacks: list(['a vertical stage (seen from above, scrolling up) is the same stage turned: its frame is built, its first recipe is to come', 'its stage\'s own lives are the World page\'s: a designed level is lost when the ship is down, its continue the game\'s']) }),
+  // a war flown from the cockpit, mission by mission (rebel-storm.js: its starter, the rebels' opening tour)
+  'rebel-storm': row({ name: 'Rebel Storm / Rise of Empire', like: 'a space combat sim flown from the cockpit: the throttle set, the target picked, shields and power split, flight groups to destroy and craft to protect, a campaign of missions from either side of a war',
+    handles: row({ genres: list(['space-sim']) }), sizes: list(['designed']), level1: 'a mission: a patrol of fighters met with Red flight, interceptors jumping in',
+    words: list(['rebel storm', 'rise of empire', 'space combat sim', 'space sim', 'cockpit', 'x-wing', 'tie fighter', 'wing commander', 'freespace', 'flight groups', 'space combat campaign']),
+    lacks: list(['Rise of Empire, the other side\'s campaign, is laid on the same words to come; debriefs between missions are to come']) }),
+  // an assault frame of parts boosted and fought on Mars (warlords-of-mars.js: its starter, three operations; the frame rule)
+  'warlords-of-mars': row({ name: 'Warlords of Mars', like: 'a mech game: an assault frame built from parts, boosted, quick-boosted and fought in the air as much as on the ground, a gun in each hand and a weapon on each shoulder, operation by operation on Mars',
+    handles: row({ genres: list(['mech-action']) }), sizes: list(['designed']), level1: 'an operation: a landing on the Tharsis plain, its gun line and its tank column',
+    seen: list(['free']), words: list(['warlords of mars', 'armored core', 'armoured core', 'assault frame', 'mech game', 'mech shooter', 'boost and quick boost', 'mech on mars', 'single player mech']),
+    lacks: list(['the garage where a frame is built part by part, the arena and the Gundam tuning (Mech Battle Kai\'s heavy suit) are to come; reverse-joint, tank and quad legs are later rows']) }),
   sports: row({ name: 'Sports', like: 'a sport in an arena: a net game, a turn sport, a team goal game, bat and ball, an athletics meet',
     handles: row({ genres: list(['net-game', 'turn-sport', 'team-goal-game', 'athletics-meet']), quick: list(['contest', 'meet']) }), sizes: list(['quick']), level1: 'a match, or an event of the meet',
     words: list(['sport', 'match', 'tournament', 'cricket']) }),
@@ -362,6 +427,8 @@ function chainOf(R, size, from, V = null) {
     ...(H.pole ? [{ step: 'feel', does: `feel: '${H.pole}', tuned toward their game; tried in a practice room before any level`, card: 'gameworld-feel' }] : []),
     ...(V?.ask ? [{ ...V.ask }] : []),
     { step: 'chapters', does: 'the book a chapter at a time: the hero, the world, the main quest, the foes', card: 'gameworld-studio' },
+    // (a rail's own steps, its game's shape taught before its first level: the party RPG's round)
+    ...(R.steps ?? []).map((x) => ({ ...x })),
     { step: 'first-level', does: `the first level: ${level1}${street}; made, then proved by the machine gate`, card: 'gameworld-ledger' },
     { step: 'play', does: 'the person plays it: the eyes gate is theirs' },
   ];
@@ -375,6 +442,7 @@ export function railSheet(id, variant = null) {
   const pole = H.pole ? POLES[H.pole] : null;
   return {
     id: R.id, ...(V ? { variant: V.id } : {}), name: V?.name ?? R.name, like: V?.like ?? R.like, seen: seenOf(R), level1: V?.level1 ?? R.level1,
+    ...(V?.box ? { box: { ...V.box } } : {}),
     ...(R.variants && !V ? { variants: Object.entries(R.variants).map(([vid, v]) => ({ id: vid, name: v.name, like: v.like })) } : {}),
     sizes: R.sizes.map((size) => ({ size, name: SIZES[size].name, door: SIZES[size].door, with: keysFor(R, size) })),
     from, starts, ...(gaps.length ? { gaps } : {}),
@@ -456,7 +524,7 @@ export function railReport(world, before = null) {
     ...(P.size ? { size: P.size } : {}), ...(short ? { short } : {}),
     seen: S.seen, level1: S.level1,
     keeps: Object.keys(TUNINGS).filter((k) => !P.departs[k]), departs: P.departs, locked: P.locked,
-    starts: S.starts, ...(S.gaps ? { gaps: S.gaps } : {}),
+    starts: S.starts, ...(S.gaps ? { gaps: S.gaps } : {}), ...(S.box ? { box: S.box } : {}),
     ...(was?.locked && was.from !== P.from ? { replanned: { was: was.from } } : {}),
     card: `gameworld-rail-${P.from}${P.variant ? `-${P.variant}` : ''}`,
   };

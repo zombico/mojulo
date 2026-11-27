@@ -16,7 +16,7 @@
  *
  *   SABER_STRIKE   the blade's numbers: damage (a cut's, × the move's), reach, cone, colour
  *   SABER_COMBOS   the string as a combo manifest (combos.js readCombos)
- *   saberRule()    → the platform rule's strike: { strike: 'melee', strikeContact, strikeDamage, strikeReach, strikeCone,
+ *   saberRule(blade?) → the platform rule's strike (a steel blade, `blade.steel`: no strand, its slash in steel): { strike: 'melee', strikeContact, strikeDamage, strikeReach, strikeCone,
  *                  strikeFx, moveset }
  *
  * Pure.
@@ -42,9 +42,14 @@ export const SABER_COMBOS = Object.freeze({
     { id: 'air-cut', name: 'Air cut', air: true, beats: ['L'], moves: ['saber-air'] }],
 });
 
-/** The platform rule's strike for the saber: the string on the fire press, in place. */
-export function saberRule() {
+/** A STEEL blade's light (a card's `blade: { kit: 'saber', steel: true }`): the string the saber's, its blade the hero's
+ * own sword with no strand of light over it, its cut's slash drawn in cold steel rather than the saber's hue. */
+export const STEEL_SLASH = 0xc9d3dc;
+
+/** The platform rule's strike for the saber: the string on the fire press, in place. `blade.steel`: a sword of steel
+ * playing the string, no strand over it and its slash in steel (STEEL_SLASH). */
+export function saberRule(blade = {}) {
   readCombos(SABER_COMBOS);
-  const S = SABER_STRIKE;
-  return { strike: 'melee', strikeContact: [...S.contact], strikeDamage: S.damage, strikeReach: S.reach, strikeCone: S.cone, strikeFx: { color: S.color, scale: 1 }, moveset: lowerCombos(SABER_COMBOS) };
+  const S = SABER_STRIKE, steel = blade && blade.steel === true;
+  return { strike: 'melee', strikeContact: [...S.contact], strikeDamage: S.damage, strikeReach: S.reach, strikeCone: S.cone, strikeFx: steel ? { color: STEEL_SLASH, scale: 1, strand: false } : { color: S.color, scale: 1 }, moveset: lowerCombos(SABER_COMBOS) };
 }

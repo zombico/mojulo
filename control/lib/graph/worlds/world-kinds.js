@@ -29,9 +29,10 @@ import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-sch
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
-import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
+import { assembleGeocubeScene, geocubeReadout, GEOCUBE_KEYS } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
 import { assembleSideMap, SIDE_MAP_SCENE_KEYS } from '@/lib/graph/gameworld/side-map/scene';
+import { assembleBox, BOX_SCENE_KEYS } from '@/lib/graph/gameworld/metroidvania/scene';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene, GEOCITY_KEYS } from '@/lib/graph/geocity/scene';
@@ -127,6 +128,7 @@ import { residualRuns } from '@/lib/graph/scene/channels/stroke-overlay';
 import { frameSource } from '@/lib/graph/scene/wire-svg';
 import { LAYERED_VIEW_AZ } from '@/lib/graph/scene/depth-raster';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
+import { assembleModelScene } from '@/lib/graph/worlds/model';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
 import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
@@ -634,13 +636,19 @@ export const WORLD_KINDS = {
       // reach, dressed and built where the camera sees, lit by the cube
       // (played, a level's: its pilot, camera and game layered over it by the page, the scene reading its own words only)
       if (m.show === 'sidemap') return assembleSideMap(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k))), { title: ctx.title });
+      // a metroidvania's box (gameworld/metroidvania/scene.js): its rooms built in greybox for the hero's stature and jump,
+      // its gates held until the hero holds what opens them (played, a level's pilot, camera and game layered over it)
+      if (m.show === 'metroidvania') return assembleBox(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k))), { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
       // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
       if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k)), (k) => (m.figures?.[k]?.crowd === 'real' ? `${k}:near` : null)).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null, stops = jobStopsOf(m), op = operateOf(m), fix = fixSitesOf(m); return { ...q, ...(fix ? { fixSites: fix } : {}), ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}), ...(stops ? { jobStops: stops } : {}), ...(op ? { operate: op } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m), ...(gatedOf(m).length ? { gated: gatedOf(m) } : {}) } : {}), ...(operatedSites(m).length ? { operated: operatedSites(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
-      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
+      // (a played land, a frame's field: assault-frame/field.js: the level's pilot, camera and game layered over it by the
+      // page, the scene reading its own words only)
+      const own = m.show === 'land' && (m.entities !== undefined || m.game !== undefined) ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCUBE_KEYS.includes(k))) : m;
+      const p = assembleGeocubeScene(own, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
   },
@@ -1241,6 +1249,12 @@ export const WORLD_KINDS = {
   scad: {
     title: 'mojulo scad',
     resolve: async (m, ctx) => assembleScadScene({ ...m, title: ctx.title, light: ctx.light, toon: ctx.toon }),
+  },
+  // A model made outside mojulo (mint_solid kind 'model', create_character { from }): the recipe is what the import
+  // decided, the geometry its bound file, on the same studio (worlds/model.js).
+  model: {
+    title: 'mojulo model',
+    resolve: async (m, ctx) => assembleModelScene(m, { ref: ctx.ref, title: ctx.title, light: ctx.light, toon: ctx.toon }),
   },
   // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
   // lower to baked faces (turntable cameras + .glb export). When a skin is bound

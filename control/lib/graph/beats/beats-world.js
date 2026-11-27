@@ -23,6 +23,13 @@
  *     run?:        { <event>: <gesture list> | <a held voice> }   a run and gun's voices (gameworld/sound-sheet.js
  *                  RUN_SOUNDS: the buster, the hero, its robot foes, a rock, the shutter; `charge` and `treads` held),
  *                  played by scene/channels/run-audio.js
+ *     frame?:      an assault frame's field heard (gameworld/frame-sound.js frameAudio, scene/channels/frame-audio.js):
+ *                  { weights: { <weight>: { step, land } }, drives: { <drive>: { held: <a held voice>, boost, quick } },
+ *                  arms: { <weapon kind>: { shot, every?, charge?, charged?, hit? } }, units: { <unit kind>: { shot?,
+ *                  every?, missile?, hum?: <a held voice>, down } }, cockpit: { jump?, enOut?, enBack?, lock?, boot?,
+ *                  warn? }, world: { struck?, shield?, shieldBreak?, burst?, blast?, wreck? }, parts: { legs: { <part id>:
+ *                  <weight> }, booster: { <part id>: <drive> } }, ui?: { <ui cue>: <cue id> } }, each cue an id of the
+ *                  level's sfx cues
  *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
  *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
  *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
@@ -60,6 +67,7 @@ import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
+import { CLUB_MOODS } from './club-score.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-palettes.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
 import { resolveSoundId } from '../sfx-shelf/roster.js';
@@ -72,6 +80,7 @@ export const RUN_FOE_MOVES = Object.freeze(['wake', 'hop', 'brace', 'stun', 'div
 import { bedManifest, resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { resolveTension } from './adaptive-music.js';
 import { SURFACES } from '../weather/weather.js';
+import { FLIGHT_EVENTS, FLIGHT_HELD } from '../sfx-shelf/flight-sounds.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
 const DEFAULT_FOOTSTEPS = {
@@ -201,6 +210,19 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     out.boss = resolveTrack(audioSpec.boss, { ...ctx, game: identity }, 'audio.boss').recipe;
   }
 
+  // THE MUSIC AN EVENT CHANGES TO (a cue's `music`, playscape/ui/cues.js: `music:<word>` on the bus): each mood the
+  // level's play names a piece of its own, in the soundtrack's identity (the game's key), played crossfaded in place of
+  // the place's score; `stop` and `place` need none. Named by none, not a byte.
+  if (Array.isArray(ctx.music) && ctx.music.length) {
+    const pieces = {};
+    for (const w of ctx.music) {
+      if (w === 'stop' || w === 'place') continue;
+      const club = !SCORE_MOODS[w] || (clubStyle && CLUB_MOODS[w]);
+      pieces[w] = resolveTrack({ score: { mood: w, ...(club ? { style: 'club' } : {}), ...(identity !== null ? { game: identity } : {}) } }, ctx, `music '${w}'`).recipe;
+    }
+    out.pieces = pieces;
+  }
+
   // THE BEAT (audio.beat: { lead? }): the soundtrack's pulse said on the bus, `lead` (0.15 s) before each beat. A beat
   // is a quarter, or a dotted quarter in a compound meter (6/8, 9/8, 12/8)
   if (audioSpec.beat !== undefined) {
@@ -231,7 +253,9 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (sheet) {
     const style = sheet.style ?? 'mouth';
     const flavor = typeof sheet.flavor === 'string' ? sheet.flavor : null;
-    const cueOf = (word) => { const v = sfxSound(word, { style, flavor }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
+    // (a word the shelf has but nothing voices here, a row only the library records, is silent: only a word the shelf has
+    // not is refused)
+    const cueOf = (word) => { const v = sfxSound(word, { style, flavor }); if (!v && !resolveSoundId(word)) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v?.gestures ?? null; };
     // (`sheet.cues`: more cues, each a gesture list, for the level's book: its guns' own, played from the weapon)
     const cues = { ...(sheet.cues && typeof sheet.cues === 'object' ? sheet.cues : {}) }, on = {};
     for (const kind of Array.isArray(ctx.mechanics) ? ctx.mechanics : []) {
@@ -240,6 +264,11 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
         const g = cues[cue] ?? cueOf(sheet.on?.[cue] ?? cue);
         if (g) { cues[cue] = g; on[glob] = cue; }
       }
+    }
+    // (the sounds the level's play names, a cue's `sound` effect, playscape/ui/cues.js: each word a cue on `sfx:<word>`)
+    for (const w of Array.isArray(ctx.sounds) ? ctx.sounds : []) {
+      const id = `sfx-${w}`, g = cues[id] ?? cueOf(w);
+      if (g) { cues[id] = g; on[`sfx:${w}`] = id; }
     }
     // (`sheet.events`: any of the bus's events by its glob, voiced by a shelf word, `ev-<word>` a cue of the level's: a
     // guard's sighting the alert's sting, a garrison's alarm found the siren, a thing taken the pickup. Over the mechanics')
@@ -564,7 +593,48 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     }
     if (Object.keys(rOut).length) out.run = rOut;
   }
+  // a boss fight on the director (`director`, scene/channels/boss-audio.js): each pattern's wind-up and strike, each voice's
+  // roar, hurt and fall, a form shed and a boss felled, every one a gesture list; checked
+  if (audioSpec.director !== undefined) {
+    const D = audioSpec.director, cueAt = (g, at) => { const c = validateBeatsManifest({ kind: 'beats-sfx', title: at, cues: { c: g } }); if (!c.ok) throw new Error(`${at}: invalid cue:\n - ${c.errors.join('\n - ')}`); return g; };
+    if (!D || typeof D !== 'object' || Array.isArray(D)) throw new Error('audio.director is { moves?: { <pattern>: { tell?, strike? } }, voices?: { <class>: { roar?, hurt?, fall? } }, shed?, fall? }');
+    const dOut = { moves: {}, voices: {} };
+    for (const [p, M] of Object.entries(D.moves ?? {})) { dOut.moves[p] = {}; for (const [k, g] of Object.entries(M ?? {})) { if (!['tell', 'strike'].includes(k)) throw new Error(`audio.director.moves.${p}.${k}: a move is its tell and its strike`); dOut.moves[p][k] = cueAt(g, `audio.director.moves.${p}.${k}`); } }
+    for (const [v, M] of Object.entries(D.voices ?? {})) { dOut.voices[v] = {}; for (const [k, g] of Object.entries(M ?? {})) { if (!['roar', 'hurt', 'fall'].includes(k)) throw new Error(`audio.director.voices.${v}.${k}: a boss's voice roars, is hurt and falls`); dOut.voices[v][k] = cueAt(g, `audio.director.voices.${v}.${k}`); } }
+    for (const k of ['shed', 'fall']) if (D[k] !== undefined) dOut[k] = cueAt(D[k], `audio.director.${k}`);
+    for (const k of Object.keys(D)) if (!['moves', 'voices', 'shed', 'fall'].includes(k)) throw new Error(`audio.director.${k} is not a boss fight's (moves, voices, shed, fall)`);
+    out.director = dOut;
+  }
+  // a metroidvania's held gates (`gates`, scene/channels/boss-audio.js): a boss's room shut and opened, a gate broken by its
+  // kind, any other wall struck down; checked
+  if (audioSpec.gates !== undefined) {
+    const Gt = audioSpec.gates, cueAt = (g, at) => { const c = validateBeatsManifest({ kind: 'beats-sfx', title: at, cues: { c: g } }); if (!c.ok) throw new Error(`${at}: invalid cue:\n - ${c.errors.join('\n - ')}`); return g; };
+    if (!Gt || typeof Gt !== 'object' || Array.isArray(Gt)) throw new Error('audio.gates is { shut?, open?, break?, breaks?: { <gate kind>: <a gesture list> } }');
+    const gOut = { breaks: {} };
+    for (const k of ['shut', 'open', 'break']) if (Gt[k] !== undefined) gOut[k] = cueAt(Gt[k], `audio.gates.${k}`);
+    for (const [k, g] of Object.entries(Gt.breaks ?? {})) gOut.breaks[k] = cueAt(g, `audio.gates.breaks.${k}`);
+    if (Gt.secrets !== undefined) { if (!Array.isArray(Gt.secrets) || !Gt.secrets.every((x) => typeof x === 'string')) throw new Error('audio.gates.secrets is the secret walls\' breakable ids'); gOut.secrets = Gt.secrets.slice(); }
+    for (const k of Object.keys(Gt)) if (!['shut', 'open', 'break', 'breaks', 'secrets'].includes(k)) throw new Error(`audio.gates.${k} is not a held gate's (shut, open, break, breaks)`);
+    out.gates = gOut;
+  }
+  // a flown level's sounds (`flight`, scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js):
+  // each event a gesture list (a cue), the engine, the air and the wheels held voices; checked
+  if (audioSpec.flight !== undefined) {
+    const Fl = audioSpec.flight, fOut = {};
+    if (!Fl || typeof Fl !== 'object' || Array.isArray(Fl)) throw new Error(`audio.flight is { <event>: <a gesture list> | <a held voice> } (${FLIGHT_EVENTS.join(', ')})`);
+    for (const [ev, v] of Object.entries(Fl)) {
+      if (!FLIGHT_EVENTS.includes(ev)) throw new Error(`audio.flight.${ev} is not a flight's event (${FLIGHT_EVENTS.join(', ')})`);
+      if (FLIGHT_HELD.includes(ev)) { fOut[ev] = heldVoice(v, `audio.flight.${ev}`); continue; }
+      const check = validateBeatsManifest({ kind: 'beats-sfx', title: `flight ${ev}`, cues: { [ev]: v } });
+      if (!check.ok) throw new Error(`audio.flight.${ev}: invalid cue:\n - ${check.errors.join('\n - ')}`);
+      fOut[ev] = v;
+    }
+    if (Object.keys(fOut).length) out.flight = fOut;
+  }
   if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
+  // an assault frame's field (`frame`): its parts' sounds, its units', its cockpit's and the world's, each a cue id of the
+  // level's, the drives' thrust and the units' hums held voices; checked
+  if (audioSpec.frame !== undefined) out.frame = resolveFrame(audioSpec.frame, out.cues || {}, heldVoice);
   // an RPG battle's sounds (`battle`: { order, ends: [[<happening>, <cue id>]…], also: { crit?, weak? } }): of the
   // happenings a frame of the page's RPG carries (playscape/rpg/juice.js juiceKeys, on the bus as rpg-on:<key>), the
   // first of each lane plays, the accents over them; each a cue id of the level's
@@ -575,6 +645,52 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   return Object.keys(out).length ? out : null;
 }
 
+export const FRAME_SOUNDS = Object.freeze({
+  weights: ['step', 'land'], drives: ['boost', 'quick'], arms: ['shot', 'charge', 'charged', 'hit'], units: ['shot', 'missile', 'down'],
+  cockpit: ['jump', 'enOut', 'enBack', 'lock', 'boot', 'warn'], world: ['struck', 'shield', 'shieldBreak', 'burst', 'blast', 'wreck'],
+});
+function resolveFrame(f, cues, held) {
+  const bad = (m) => new Error(`audio.frame${m}`);
+  const isO = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (!isO(f)) throw bad(' is { weights, drives, arms, units, cockpit, world, parts, ui? }: an assault frame\'s field heard');
+  const cue = (v, at) => { if (typeof v !== 'string' || !cues[v]) throw bad(`${at} names '${v}', not one of the level's sfx cues`); return v; };
+  const out = {};
+  for (const k of Object.keys(f)) if (![...Object.keys(FRAME_SOUNDS), 'parts', 'ui'].includes(k)) throw bad(`.${k} is not part of a frame's sounds (${[...Object.keys(FRAME_SOUNDS), 'parts', 'ui'].join(', ')})`);
+  for (const group of ['weights', 'drives', 'arms', 'units']) {
+    if (f[group] === undefined) continue;
+    if (!isO(f[group])) throw bad(`.${group} is { <name>: { ${FRAME_SOUNDS[group].join(', ')} } }`);
+    out[group] = {};
+    for (const [name, S] of Object.entries(f[group])) {
+      if (!isO(S)) throw bad(`.${group}.${name} is { ${FRAME_SOUNDS[group].join(', ')} }`);
+      const o = {};
+      for (const [k, v] of Object.entries(S)) {
+        const at = `.${group}.${name}.${k}`;
+        if (k === 'every') { if (!(Number.isFinite(v) && v > 0 && v <= 5)) throw bad(`${at} is the least seconds between two shots heard, over 0 to 5`); o.every = v; }
+        else if ((group === 'drives' && k === 'held') || (group === 'units' && k === 'hum')) o[k] = held(v, `audio.frame${at}`);
+        else if (FRAME_SOUNDS[group].includes(k)) o[k] = cue(v, at);
+        else throw bad(`${at} is not one of a frame's ${group} sounds (${FRAME_SOUNDS[group].join(', ')}${group === 'drives' ? ', held' : group === 'units' ? ', hum, every' : group === 'arms' ? ', every' : ''})`);
+      }
+      out[group][name] = o;
+    }
+  }
+  for (const group of ['cockpit', 'world']) {
+    if (f[group] === undefined) continue;
+    if (!isO(f[group])) throw bad(`.${group} is { ${FRAME_SOUNDS[group].join('?, ')}? }`);
+    out[group] = {};
+    for (const [k, v] of Object.entries(f[group])) { if (!FRAME_SOUNDS[group].includes(k)) throw bad(`.${group}.${k} is not one of ${FRAME_SOUNDS[group].join(', ')}`); out[group][k] = cue(v, `.${group}.${k}`); }
+  }
+  if (f.parts !== undefined) {
+    if (!isO(f.parts) || !isO(f.parts.legs) || !isO(f.parts.booster)) throw bad('.parts is { legs: { <part id>: <weight> }, booster: { <part id>: <drive> } }');
+    for (const [id, w] of Object.entries(f.parts.legs)) if (!(out.weights && out.weights[w])) throw bad(`.parts.legs.${id} is '${w}', not one of .weights`);
+    for (const [id, d] of Object.entries(f.parts.booster)) if (!(out.drives && out.drives[d])) throw bad(`.parts.booster.${id} is '${d}', not one of .drives`);
+    out.parts = { legs: { ...f.parts.legs }, booster: { ...f.parts.booster } };
+  }
+  if (f.ui !== undefined) {
+    if (!isO(f.ui)) throw bad('.ui is { <ui cue>: <cue id> }');
+    out.ui = Object.fromEntries(Object.entries(f.ui).map(([k, v]) => [k, cue(v, `.ui.${k}`)]));
+  }
+  return out;
+}
 export const MOVE_SOUNDS = Object.freeze({ weighted: ['swing', 'hit'], weights: ['light', 'heavy', 'finisher'], one: ['block', 'parry', 'break', 'draw', 'loose', 'arrow', 'felled', 'cycle', 'foeSwing', 'hurt'] });
 function resolveBattle(b, cues) {
   const bad = (m) => new Error(`audio.battle${m}`);

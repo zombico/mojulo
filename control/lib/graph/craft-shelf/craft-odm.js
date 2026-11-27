@@ -32,6 +32,7 @@ import { DRONE_KINDS, DRONE_ODM } from './drone-odm.js';
 import { HELI_KINDS, HELI_ODM } from './heli-odm.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
 import { ROCKET_KINDS, ROCKET_ODM } from './rocket-odm.js';
+import { HERO_GUNSHIP_ODM } from './hero-gunship.js';
 
 export const CRAFT_KINDS = {
   'craft-fuselage': 'the fuselage or hull: the airframe every other part hangs from',
@@ -1280,3 +1281,5 @@ Object.assign(CRAFT_ODM, BOAT_ODM);
 // the launch vehicles' parts (rocket-odm.js): stages, boosters, engines, fairings, capsules, fins, legs, the orbiter
 Object.assign(CRAFT_KINDS, ROCKET_KINDS);
 Object.assign(CRAFT_ODM, ROCKET_ODM);
+// the hero gunship's parts (hero-gunship.js): Blaze Gunner's ship, after every other row
+Object.assign(CRAFT_ODM, HERO_GUNSHIP_ODM);

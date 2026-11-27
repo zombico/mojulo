@@ -50,9 +50,12 @@ import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
 import { LETTER_RIM, letterRimFilter, immersiveCss } from '../../game/immersive-ui.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
-import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
+import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../../controls/mana-controls.js';
+import { SCHEMES } from '../../controls/schemes.js';
+import { PAD as SCROLL_PAD } from '../../gameworld/scroll-stage/controls.js';
 import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan, planFloors, floorPlanSvg } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
+import { boxMapView } from '../../gameworld/metroidvania/hud.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
 import { faceFrame, buildTalkFace } from './talk-face.js';
 
@@ -206,7 +209,10 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const H = !!(hud.feed && hud.feed.hero);
   const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
   // (a HUD of the level's own making may bring its parts' look over the theme: a side map's, gameworld/side-map/hud.js)
-  const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null;
+  const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null, SG = hud.feed && hud.feed.scroll ? hud.feed.scroll : null;
+  // (a BOX's vitals, moments, boss and pause, gameworld/metroidvania/hud.js; and the HUD's SOUNDS where its look is heard,
+  // mana-hud-sounds.js: its cues played by the beats kernel the set needs. Either absent, not a byte of it)
+  const BX = hud.feed && hud.feed.box ? hud.feed.box : null, HS = hud.sounds && hud.sounds.sounds ? hud.sounds : null;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -227,7 +233,48 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''}${vit ? ", halo: { on: false, fill: 0, stocks: 1 }, vit: { hp: 0, max: 1, has: false, ghost: 0 }" : ''} };
-  ${SM ? `// A SIDE MAP's columns and screens (gameworld/side-map/hud.js): the energy, the boss's while it fights, READY and the
+  ${SG ? `// A SCROLL STAGE's corners and its menu (gameworld/scroll-stage/hud.js): the score, the ships, the hull, the gear, the
+  // pods' cards, the boss's systems while it is on the screen, READY, the end, the controls in the device's glyphs; the
+  // menu over the held stage. Read off the world each frame
+  const SGF = F.scroll, SHELL = window.parent !== window, SGC = SHELL ? SGF.controls.in : SGF.controls.off, SGK = ${json({ keys: manaControls().keys, pad: manaControls().pad })};
+  const SG_MENU = SHELL ? ${json(SCROLL_PAD.menuInShell)} : ${json(SCROLL_PAD.menu)}, SG_PADS = { xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo' };
+  // (the hints: the controls for the first seconds and again a while when the other device is picked up, then faded
+  // out; the menu turns them off, remembered on this browser where it may)
+  let sgShow = true; try { sgShow = window.localStorage.getItem('moj.scroll.controls') !== 'off'; } catch (e) { /* no storage: shown */ }
+  // (timed in the wall's seconds, as reading is: the HUD's own clock is held back on a slow frame)
+  const sgWall = function () { return performance.now() / 1000; };
+  let sgHint = -1, sgDev = '', sgHintAgain = false, sgFade = '';   // (sgHint: when they end; started with play)
+  st.sg = { score: 0, scoreWord: '', lives: SGF.lives, livesRow: [], livesMore: '', hp: SGF.hp, slots: [], gears: [], bossOn: false, boss: SGF.boss ? SGF.boss.systems : 0, ready: true, end: false, endWord: '', keysOn: sgShow, keys: SGC.keys, moments: [], menu: [], aside: [], sheet: [], padName: 'Xbox', stage: SGF.stage || '' };
+  let sgLives = -1, sgReady = 2.4, sgOn = false, sgOff = -1, sgTint = '', sgUp = null, sgQuiet = false;
+  const sgPadPrev = {};
+  // (a pod's hue on the HUD's own root, by slot: the HUD draws its cards afresh, so a card keeps no style of its own)
+  function sgTints() { st.sg.slots.forEach(function (x, i) { if (x.hue) root.style.setProperty('--sg-tint-' + i, x.hue); else root.style.removeProperty('--sg-tint-' + i); }); }
+  // (the menu up holds the stage as a level's own menus do: no input to the ship, the world and its clock stopped, and
+  // the shell's Esc menu not asked for over it, scene-three's .moj-menu-hud)
+  const sgHold = document.createElement('div'); sgHold.className = 'moj-menu-hud'; sgHold.style.display = 'none'; document.body.appendChild(sgHold);
+  function sgDevice() { const S = rt.state(); return S.input === 'pad' ? (SG_PADS[S.layout] ? S.layout : 'xbox') : null; }
+  function sgMenuRows() {
+    st.sg.menu = [{ label: 'Resume', then: { emit: 'sg:resume' } }, { label: 'Controls', then: { open: 'controls' } }, { label: 'Control hints: ' + (sgShow ? 'on' : 'off'), then: { emit: 'sg:controls' } }];
+    st.sg.aside = [{ label: 'Score', value: String(st.sg.score) }, { label: 'Ships', value: '×' + st.sg.lives }, { label: 'Pods', value: st.sg.slots.map(function (x) { return x.name; }).join(' · ') || '—' }];
+    const L = sgDevice() || 'xbox', K = SGC.sheet.keys, P = SGC.sheet.pad[L] || SGC.sheet.pad.xbox;
+    st.sg.sheet = K.map(function (k, i) { return { does: k.does, keys: [{ actions: k.caps, label: '' }], pad: P[i] ? [{ actions: P[i].caps, label: '' }] : [] }; }); st.sg.padName = SG_PADS[L];
+  }
+  function sgFree() { window.__mojMenuOpen = false; window.__mojFreeze = false; if (sgHintAgain) { sgHintAgain = false; sgHint = sgWall() + 6; } setTimeout(function () { if (!sgUp) sgHold.textContent = ''; }, 0); }
+  function sgOpen() {
+    if (sgUp || window.__mojMenuOpen || st.sg.end) return;
+    sgMenuRows(); sgQuiet = true; try { rt.close(); rt.open('menu'); } finally { sgQuiet = false; }
+    sgUp = 'menu'; window.__mojMenuOpen = true; window.__mojFreeze = true; sgHold.textContent = 'menu';
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    view.paint();
+  }
+  function sgClose() { if (!sgUp) return; sgUp = null; sgQuiet = true; try { rt.close(); } finally { sgQuiet = false; } sgFree(); view.paint(); }
+  function sgAct(e) {
+    // (a back that empties the stack resumes; a back from the sheet is the menu again, the runtime's own)
+    if (e.emit === 'mana:closed') { if (sgQuiet || !sgUp) return; sgUp = null; sgFree(); return; }
+    if (e.emit === 'sg:resume') { sgClose(); return; }
+    if (e.emit === 'sg:controls') { sgShow = !sgShow; sgHintAgain = sgShow; try { window.localStorage.setItem('moj.scroll.controls', sgShow ? 'on' : 'off'); } catch (x) { /* kept for this page */ } sgMenuRows(); view.paint(); }
+  }
+` : ''}  ${SM ? `// A SIDE MAP's columns and screens (gameworld/side-map/hud.js): the energy, the boss's while it fights, READY and the
   // lives under it, the keys at first; the intro card, the start menu and GAME OVER over the held level
   const SMF = F.sidemap, SMK = ${json({ keys: manaControls().keys, pad: manaControls().pad })};
   st.sm = { lives: SMF.lives, livesWord: '×' + SMF.lives, energy: SMF.energy || 0, weaponOn: false, weapon: 0, weaponMax: 1, bossOn: false, boss: SMF.boss ? SMF.boss.hp : 0, ready: !SMF.intro, keysOn: true, keys: SMF.keys, moments: [], weapons: [], gate: '', keep: 'Weapons' };
@@ -277,7 +324,50 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     if (e.emit === 'sm:equip') { smEquip(e.i); smClose(); return; }
   }
 ` : ''}
-  let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
+${HS ? `  // THE HUD'S SOUNDS (mana-hud-sounds.js): the look's set, its cues heard as the runtime emits them, muted with the game's
+  // sound; the recordings decoded before the first where the library voices the set
+  const HSC = { K: (${HS.K})(), of: (${HS.of}), n: 0, cues: ${json(HS.sounds)}${HS.samples ? `, samples: ${json(HS.samples)}` : ''} };
+  function hsReady() {
+    if (HSC.engine !== undefined) return HSC.engine;
+    try { const C = window.AudioContext || window.webkitAudioContext; HSC.ctx = new C(); HSC.engine = HSC.K.createEngine(HSC.ctx);
+      if (HSC.samples) HSC.engine.loadSamples({ cards: HSC.samples.cards, bytes: Object.fromEntries(Object.entries(HSC.samples.bytes).map(function (kv) { return [kv[0], Uint8Array.from(atob(kv[1]), function (c) { return c.charCodeAt(0); }).buffer]; })) }); } catch (err) { HSC.engine = null; }
+    return HSC.engine;
+  }
+  function hsHear(e) {
+    const ms = window.__mojManaState; if (ms && ms.ui && ms.ui.settings && ms.ui.settings.sound === 0) return;
+    if (window.__mojMuted) return;
+    const g = HSC.cues[HSC.of(e)] || HSC.cues[e.sound], E = g && hsReady();
+    if (!E) return;
+    if (HSC.ctx.state === 'suspended') HSC.ctx.resume();
+    E.playCue(g, null, null, 1, ++HSC.n);
+  }
+  window.__mojHudSounds = { set: ${json(HS.set)}, heard: function () { return HSC.n; } };
+` : ''}${BX ? `  // A BOX's vitals, moments, boss and pause (gameworld/metroidvania/hud.js): the room she stands in read off her place in
+  // the box's cells; what is found said as it is taken; the pause's map of the rooms walked
+  const BXF = F.box;
+  st.bx = { place: '', hp: 1, hpMax: 1, mp: 0, mpMax: 1, moments: [], bossOn: false, bossName: '', boss: 0, bossMax: BXF.bossHp || 1, heldWord: '', hasHeld: false, shapes: [], markers: [], focus: { x: 0.5, y: 0.5 }, zoom: BXF.map ? BXF.map.zoom : 1, relics: [], roomsWord: '0', wakeWord: '0' };
+  let bxUp = null, bxQuiet = false, bxSeen = 0, bxSeenMap = 0, bxBrokeN = 0, bxRoom = -1, bxRing = -1, bxN = 0, bxHeld = '', bxCell = -1;
+  // (the screens walked, revealed one at a time as she enters each: the map's view, gameworld/metroidvania/hud.js)
+  const bxCells = {}, bxBossSaid = new Set(), __bxView = ${boxMapView.toString()};
+  const bxHoldEl = document.createElement('div'); bxHoldEl.className = 'moj-menu-hud'; bxHoldEl.style.display = 'none'; document.body.appendChild(bxHoldEl);
+  function bxOpen(id) { bxQuiet = true; try { rt.close(); rt.open(id); } finally { bxQuiet = false; } bxUp = id; window.__mojMenuOpen = true; window.__mojFreeze = true; bxHoldEl.textContent = id; view.paint(); }
+  function bxShut() { window.__mojMenuOpen = false; window.__mojFreeze = false; setTimeout(function () { if (!bxUp) bxHoldEl.textContent = ''; }, 0); }
+  function bxMoment(m) { st.bx.moments = st.bx.moments.concat([Object.assign({ id: 'bx' + (++bxN) }, m)]).slice(-8); }
+  // (the map: the screens walked, the one she stands in marked, a room's screens joined and the doors between rooms; a
+  // gate until she holds its opener, a relic until taken; the save rooms found; the bosses still standing. The minimap
+  // the same on her, the pause's the whole box)
+  function bxMap() {
+    const G = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.heldGates;
+    const WB = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.breakables, broken = {};
+    if (WB) WB.forEach(function (b) { if (b.broken) broken[b.id] = 1; });
+    const V = __bxView(BXF.map, { seen: bxCells, here: bxCell, held: G && G.held, taken: G && G.taken, felled: G && G.felled, broken: broken });
+    st.bx.shapes = V.shapes; st.bx.markers = V.markers; st.bx.focus = V.focus; st.bx.roomsWord = V.rooms + ' of ' + BXF.rooms.length;
+    st.bx.relics = BXF.relics.map(function (x) { const got = !!(G && G.taken && G.taken[x.id] != null); return { name: got ? x.name : '— — —', icon: got ? (x.kind === 'key' ? 'key' : x.kind === 'power' ? 'star' : 'gem') : 'lock' }; });
+  }
+  function bxAct(e) {
+    if (e.emit === 'mana:closed') { if (bxQuiet || !bxUp) return; bxUp = null; bxShut(); }
+  }
+` : ''}  let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
 ${race ? `  // A RACE's (gameworld/race-hud.js): the lights, then the laps, the place and the times off the laps mechanic's vars
   const RACE = F.kind === 'race' ? { m: F.mech || 0, lights: null, done: 0, lapStart: 0, best: 0, over: false } : null;
   if (RACE) { st.race = { place: 1, of: F.racers, placeSays: '1st', field: '/ ' + F.racers, lap: 1, laps: F.laps, lapSays: '1/' + F.laps, time: 0, best: 0, hasBest: false, speed: 0, speedMax: F.speedMax, markers: [], solo: F.racers < 2, hasItem: false, itemSays: '—', itemIcon: '' }; st.fx = { finish: 0, best: 0 }; st.start = { lit: 0, of: F.lights.count, lights: '', sub: F.words.ready }; }
@@ -317,12 +407,14 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
 ` : ''}  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
   function press(e) {
-    ${SM ? "if (e && typeof e.emit === 'string' && (e.emit.indexOf('sm:') === 0 || e.emit === 'mana:closed')) { smAct(e); return; }" : ''}
+    ${SM ? "if (e && typeof e.emit === 'string' && (e.emit.indexOf('sm:') === 0 || e.emit === 'mana:closed')) { smAct(e); return; }" : ''}${BX ? "if (e && e.emit === 'mana:closed') { bxAct(e); return; }" : ''}
+    ${SG ? "if (e && typeof e.emit === 'string' && (e.emit.indexOf('sg:') === 0 || e.emit === 'mana:closed')) { sgAct(e); return; }" : ''}
     if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
     if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit);
   }
-  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: press, now: function () { return clock; }${hud.count ? ', countUp: 0.8' : ''} });
-  rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
+  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: ${HS ? "function (e, from) { if (e && typeof e.sound === 'string') { hsHear(e); return; } press(e, from); }" : 'press'}, now: function () { return clock; }${hud.count ? ', countUp: 0.8' : ''}${HS ? `, cues: ${json(HS.cues)}` : ''} });
+  rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });${SG ? `
+  rt.glyphs(${json(manaGlyphs([SCHEMES.menu]))});   // (a scroll stage's menu: its pick and its back in the device's glyphs)` : ''}
   // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
   const __tq = new URLSearchParams(location.search).get('touch');
   rt.input(__tq === '1' || (__tq !== '0' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'touch' : 'keys');
@@ -371,6 +463,21 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
   window.addEventListener('keydown', function (e) {
     if (e.key !== SMF.menuKey || e.repeat || smUp || window.__mojMenuOpen || st.sm.lives <= 0) return;
     smWeapons(); smOpen('menu'); e.preventDefault();
+  });` : ''}${BX ? `
+  // the keys and the pad drive the pause while it is up; the menu key opens it over play
+  const __bxHost = ${manaHostSource()};
+  __bxHost.connect(rt, view, { keys: ${json(manaControls().keys)}, pad: ${json(manaControls().pad)} });
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== BXF.menuKey || e.repeat || bxUp || window.__mojMenuOpen) return;
+    bxMap(); bxOpen('pause'); e.preventDefault();
+  });` : ''}
+  ${SG ? `// the keys and the pad drive the menu while it is up (controls/mana-host.js: with none up a key is play's); Enter
+  // opens it over play, and Esc where no game's shell holds Esc (the pad's own button is read each frame, below)
+  const __sgHost = ${manaHostSource()};
+  __sgHost.connect(rt, view, { keys: SGK.keys, pad: SGK.pad, padLayout: (${padLayoutSource()}) });
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat || sgUp || window.__mojMenuOpen || !(e.key === 'Enter' || (e.key === 'Escape' && !SHELL))) return;
+    sgOpen(); e.preventDefault();
   });` : ''}
   // the level has started (the shell's params are in): its place in the run, and the start cue
   function begin(params) {
@@ -584,7 +691,85 @@ ${race ? `    if (RACE) {
       if (smOn && st.sm.boss <= 0 && smOff < 0) smOff = clock + 1.5;
       st.sm.bossOn = smOn && (smOff < 0 || clock < smOff);
     }` : ''}
-    // (the touch layer's word for its pad, when the page has one)
+${BX ? `    // (the box's: her vitals; what is found said as it is taken; the room she stands in, a new region named as she crosses
+    // into it and a boss as she comes into its room; the boss's bar while it stands; what she holds)
+    if (me && me.body) { st.bx.hpMax = me.hpMax || 1; st.bx.hp = Math.max(0, Number.isFinite(me.body.hp) ? me.body.hp : st.bx.hpMax); const MP = me.rule && me.rule.moveset && me.rule.moveset.mp; st.bx.mpMax = MP ? MP.max : 1; st.bx.mp = MP ? Math.max(0, me.mp == null ? MP.max : me.mp) : 0; }
+    const BG = W && W.heldGates;
+    if (BG) {
+      while (bxSeen < BG.got.length) {
+        const g = BG.got[bxSeen++], R0 = BXF.relics.find(function (x) { return x.id === g.id; }), Bo = BXF.bosses.find(function (x) { return x.id === g.id; });
+        if (g.kind === 'save') bxMoment({ text: 'Saved', sub: st.bx.place, weight: 'normal', icon: 'star' });
+        else if (g.kind === 'wake') bxMoment({ text: 'You wake', sub: g.name.replace(/^Woken in /, ''), weight: 'major' });
+        else if (Bo) bxMoment({ text: Bo.name + ' falls', sub: g.name.indexOf(' · ') > 0 ? g.name.split(' · ').pop() : '', weight: 'decisive', tier: 'rare' });
+        else if (R0 && R0.kind === 'power') bxMoment({ text: R0.name, sub: 'A power', weight: 'major', tier: 'rare', icon: 'star' });
+        else if (R0 && R0.kind === 'key') bxMoment({ text: R0.name, sub: 'A key', weight: 'normal', icon: 'key' });
+        else if (R0) bxMoment({ text: R0.name, sub: 'Found', weight: 'minor', icon: 'gem' });
+      }
+      // (redrawn on anything got, and on a wall broken: a secret's prize comes onto the map)
+      const nb = W.breakables ? W.breakables.reduce(function (n, b) { return n + (b.broken ? 1 : 0); }, 0) : 0;
+      if (bxSeen !== bxSeenMap || nb !== bxBrokeN) { bxSeenMap = bxSeen; bxBrokeN = nb; bxMap(); }
+      st.bx.wakeWord = String(BG.deaths || 0);
+      const hw = BXF.relics.filter(function (x) { return x.kind !== 'prize' && BG.taken[x.id] != null; }).map(function (x) { return x.name; }).join(' · ');
+      if (hw !== bxHeld) { bxHeld = hw; st.bx.heldWord = hw; st.bx.hasHeld = !!hw; }
+    }
+    if (me && me.transform) {
+      const ps = me.transform.pos, ft = ps[2] - ((me.rule && me.rule.eye) || 0), c = Math.floor(ps[1] / BXF.screen[0]), r = Math.floor(ft / BXF.screen[1]);
+      const k = c >= 0 && r >= 0 && c < BXF.cols && r < BXF.rows ? BXF.cells[r * BXF.cols + c] : -1;
+      const ci = k >= 0 ? r * BXF.cols + c : -1;
+      if (ci >= 0 && ci !== bxCell) { bxCell = ci; bxCells[ci] = 1; bxMap(); }
+      if (k >= 0 && k !== bxRoom) {
+        bxRoom = k; const R = BXF.rooms[k]; st.bx.place = R.place;
+        if (R.ring !== bxRing) { if (bxRing >= 0) bxMoment({ text: BXF.rings[R.ring], weight: 'major' }); bxRing = R.ring; }
+        if (R.boss && !bxBossSaid.has(k) && !(BG && BG.felled['boss-' + R.id] != null)) { bxBossSaid.add(k); bxMoment({ text: R.boss.charAt(0).toUpperCase() + R.boss.slice(1), weight: 'decisive' }); }
+      }
+      const R = bxRoom >= 0 ? BXF.rooms[bxRoom] : null, bb = R && R.boss && W.breakables ? W.breakables.find(function (b) { return b.id === 'boss-' + R.id; }) : null;
+      st.bx.bossOn = !!(bb && !bb.broken && Number.isFinite(bb.hp)); if (st.bx.bossOn) { st.bx.bossName = R.boss; st.bx.boss = Math.max(0, bb.hp); }
+    }
+` : ''}${SG ? `    // (the scroll stage's: its ship's lives, hp, pods and gear; the score; READY at the start and after a life lost; the
+    // boss's systems once its hull is on the screen, its name said as it comes in, gone a moment after it falls; the end;
+    // the controls in the glyphs of the device in hand)
+    if (me && me.rule && me.rule.type === 'scroll-ship') {
+      const lv = me.livesLeft != null ? me.livesLeft : SGF.lives;
+      if (sgLives >= 0 && lv < sgLives) sgReady = clock + 2.2;
+      if (lv !== sgLives) { st.sg.livesRow = []; for (let k = 0; k < Math.min(lv, 5); k++) st.sg.livesRow.push({ k: k }); st.sg.livesMore = lv > 5 ? '×' + lv : ''; }
+      sgLives = lv; st.sg.lives = lv;
+      st.sg.hp = me.downed ? 0 : Math.max(0, me.body && Number.isFinite(me.body.hp) ? me.body.hp : SGF.hp);
+      const A = me.rule.arsenal, S = me.slots || [null, null], live = me.live || 0, hold = A && A.eject > 0 ? A.eject : 1;
+      st.sg.slots = S.map(function (x, k) {
+        const P = x && A && A.pods ? A.pods[x.id] : null, on = k === live, ej = on && x && me._ejectT > 0 ? Math.min(1, me._ejectT / hold) : 0;
+        return { live: on, mark: on ? '▶' : '', icon: x ? 'sg-' + x.id : on ? 'sg-twin' : 'sg-empty', name: x ? String(x.id).toUpperCase() : on ? 'TWIN' : 'EMPTY', ammoWord: x ? String(Math.max(0, Math.ceil(x.ammo))) : on ? '∞' : '—', ammo: x ? Math.max(0, x.ammo) : 0, max: P ? P.ammo : 1, bar: !!x, ejOn: ej > 0, ej: ej, hue: P ? P.hue : on && A && A.base ? A.base.hue : '' };
+      });
+      const tk = st.sg.slots.map(function (x) { return x.hue; }).join(); if (tk !== sgTint) { sgTint = tk; sgTints(); }
+      const N = (me.rule.gears || [0.45, 0.65, 0.9]).length, g = me.gear || 0;
+      if (st.sg.gears.length !== N || st.sg.gears.filter(function (x) { return x.icon === 'sg-pip'; }).length !== g + 1) { st.sg.gears = []; for (let k = 0; k < N; k++) st.sg.gears.push({ icon: k <= g ? 'sg-pip' : 'sg-pip-off' }); }
+    }
+    if (W) {
+      st.sg.score = W.scrollScore || 0;
+      const cam = W.camera, Bo = SGF.boss && W.byId ? W.byId[SGF.boss.id] : null;
+      if (Bo && (Bo.structure || SGF.boss.hp)) {
+        // (its systems still up; or, a boss read by its hp, the share of it left in the bar's ticks)
+        st.sg.boss = Bo.structure ? Bo.structure.systems.filter(function (id) { const y = W.byId[id]; return y && !y.downed && !y.gone; }).length
+          : Bo.downed || Bo.gone ? 0 : Math.max(1, Math.ceil((Math.max(0, (Bo.body && Bo.body.hp) || 0) / SGF.boss.hp) * SGF.boss.systems));
+        const near = cam && cam._sc && cam.rule && Math.abs(Bo.transform.pos[1] - cam._sc[0]) < cam.rule.screen[0] * 0.6;
+        if (!sgOn && near) { sgOn = true; st.sg.moments = st.sg.moments.concat([{ id: 'boss', text: SGF.boss.name, weight: 'decisive' }]); }
+        if (sgOn && (Bo.downed || st.sg.boss <= 0) && sgOff < 0) sgOff = clock + 1.5;
+        st.sg.bossOn = sgOn && (sgOff < 0 || clock < sgOff);
+      }
+      const over = !!W.scrollOver, clear = !!(cam && cam.scrollEnd && (!Bo || Bo.downed) && !(me && me.downed));
+      st.sg.end = over || clear; st.sg.endWord = over ? 'Game over' : clear ? 'Stage clear' : ''; st.sg.scoreWord = 'Score ' + st.sg.score;
+    }
+    st.sg.ready = !st.sg.end && clock < sgReady;
+    // (the hints: again a while when the other device is picked up; shown, then faded out over their last second)
+    const dv = sgDevice() || 'keys', ky = dv !== 'keys' ? SGC.pad[dv] || SGC.pad.xbox : SGC.keys; if (st.sg.keys !== ky) st.sg.keys = ky;
+    const wall = sgWall();
+    if (sgHint < 0 && me && me.rule && me.rule.type === 'scroll-ship') sgHint = wall + 8;
+    if (dv !== sgDev) { if (sgDev) sgHint = Math.max(sgHint, wall + 6); sgDev = dv; }
+    st.sg.keysOn = sgShow && !st.sg.end && !sgUp && sgHint > 0 && wall < sgHint + 1;
+    const fd = wall >= sgHint ? 'fade' : 'on'; if (fd !== sgFade) { sgFade = fd; root.dataset.sgHint = fd; }
+    // (the pad's menu button on its press edge: start, or select in a game's shell, whose pause holds start; again to
+    // resume from the menu itself)
+    if (navigator.getGamepads) { const ps = navigator.getGamepads(); for (let k = 0; k < ps.length; k++) { const g = ps[k]; if (!g || !g.connected) continue; const id = 'p' + g.index, dn = SG_MENU.some(function (b) { return g.buttons[b] && g.buttons[b].pressed; }); if (dn && !sgPadPrev[id]) { if (sgUp === 'menu') sgClose(); else if (!sgUp) sgOpen(); } sgPadPrev[id] = dn; } }
+` : ''}    // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
     const TT = window.__mojTouch; if (TT) { if (TT.view) st.touch = TT.view(); else st.touch.on = !!TT.on() && !window.__mojMenuOpen; }
   })();

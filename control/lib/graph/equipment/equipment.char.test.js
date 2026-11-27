@@ -83,6 +83,13 @@ const PINS = {
   'saber/staff': '70666039f67417f5',
   'saber/bow': '66c1a1488c2d6c65',
   'saber/shield': 'fbe5b6baad9c71d4',
+  // (the hunter's: a new card, Vampire Sonata's monster hunter's arms; its own rows, every other pin as it was)
+  'hunter/dagger': '9d84474cb75b6fc0',
+  'hunter/sword': 'dea17d0fa0401a01',
+  'hunter/greatsword': '3ec8d5d795e3d7f6',
+  'hunter/staff': '0e4bc61e4bfab3fb',
+  'hunter/bow': '707ec79695055ac0',
+  'hunter/shield': '59c838cb50b5cf74',
 };
 const hash = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex').slice(0, 16);
 

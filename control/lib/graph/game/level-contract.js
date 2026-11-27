@@ -208,13 +208,18 @@ export function validateLevelContract(game, schema) {
   if (game.aftermath !== undefined && !(game.aftermath && typeof game.aftermath.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.aftermath.slice))) {
     errors.push('game.aftermath is { slice }: a flags slice the level consumes (its broken blocks, kept and restored)');
   }
+  // JOURNEY: the flags slice a castle's segments keep the hero's gains in (the journey mechanic), carried in on entry
+  if (game.journey !== undefined && !(game.journey && typeof game.journey.slice === 'string' && consumed(game.journey.slice))) {
+    errors.push('game.journey is { slice }: a flags slice the level consumes (what the hero gained in the segments before, carried in)');
+  }
 
   // KEEP: the numbers a level reports at its end (a score, a time), each kept best by the shell: { var, label, best:
   // 'high' | 'low', scale?, unit? } (the laps and score mechanics write them)
   // RANK: a level ranked on its results (game/rank.js): { par?: the seconds it is judged against }
   if (game.rank !== undefined && (!game.rank || typeof game.rank !== 'object' || Array.isArray(game.rank) || (game.rank.par !== undefined && !(Number.isFinite(game.rank.par) && game.rank.par > 0)))) errors.push('game.rank is { par?: seconds, more than 0 }');
   if (game.keep !== undefined) {
-    if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit? }]');
+    if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit?, names? }]');
+    else if (game.keep.some((k) => k && k.names !== undefined && !(Array.isArray(k.names) && k.names.length && k.names.every((n) => typeof n === 'string' && n)))) errors.push('game.keep[].names is the words its whole values are shown as (0 the first): a medal\'s no medal, bronze, silver, gold');
     else game.keep.forEach((k, i) => { if (!k || typeof k.var !== 'string' || typeof k.label !== 'string' || (k.best !== 'high' && k.best !== 'low') || (k.scale !== undefined && !Number.isFinite(k.scale)) || (k.unit !== undefined && typeof k.unit !== 'string')) errors.push(`game.keep[${i}] is { var, label, best: 'high' | 'low', scale?, unit? }`); });
   }
 

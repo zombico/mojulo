@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { emitPlayShell } from './play-shell.js';
 import { defaultFlow, startInPlay } from './flow.js';
-import { normalizeGameManifest } from './game-manifest.js';
+import { normalizeGameManifest, validateGameManifest } from './game-manifest.js';
 import { normalizeLevelContract, CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE, MSG_DOOR, MSG_SCENE_END } from './level-contract.js';
 
 // THE FLOW RUNNER, played: the play shell runs the game's flow (flow.js), the game's own or the one its front, levels and
@@ -51,6 +51,32 @@ describe('the play shell runs the game\'s flow', () => {
     P.click('title', '#front .fx-end button');
     expect(P.d.querySelector('#front .fx-menu')).not.toBeNull();
   });
+  it('a game with a game over: a level lost is its game over, its defeat never kept; continue takes the journey up where it was kept', () => {
+    const P = page({ front: {}, gameOver: true });
+    P.click('start', '#front .fx-menu button');
+    P.end('success', { events: [{ type: 'promote', slice: 'campaign', ref: 'vale', result: 'success' }] }); P.say({ moj: MSG_CARD_DONE });
+    P.click('next: GATE');
+    expect(P.level()).toBe('gate');
+    const kept = P.w.localStorage.getItem('moj-play:Lantern Keep');
+    P.end('fail', { events: [{ type: 'promote', slice: 'campaign', ref: 'gate', result: 'success' }] }); P.say({ moj: MSG_CARD_DONE });
+    expect(P.screen()).toContain('game over');
+    // (the defeat not kept: the save as it was, the level lost not marked)
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep')).toBe(kept);
+    P.click('continue');
+    expect(P.level()).toBe('gate');
+    P.end('fail'); P.say({ moj: MSG_CARD_DONE });
+    P.click('title');
+    expect(P.d.getElementById('front').style.display).toBe('block');
+  });
+
+  it('a game over is a journey\'s, in the light shell, and said true', () => {
+    expect(defaultFlow({ levels: REFS, gameOver: true }).steps.play.on.lost).toBe('gameover');
+    expect(defaultFlow({ levels: REFS, gameOver: true }).steps.gameover.on.continue).toEqual(['$continue', '$first']);
+    expect(defaultFlow({ levels: REFS }).steps.play.on.lost).toBe('result');
+    expect(validateGameManifest({ ...game(), gameOver: 'yes' }).errors.join(' ')).toMatch(/gameOver is true/);
+    expect(validateGameManifest({ ...game(), gameOver: true, shell: undefined }).errors.join(' ')).toMatch(/gameOver plays in the light shell/);
+  });
+
   it('the veil lifts on the level\'s first frame, not on its ready', () => {
     const P = page({ front: {} });
     P.click('start', '#front .fx-menu button');

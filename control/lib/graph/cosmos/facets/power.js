@@ -8,7 +8,7 @@ export const POWER = Object.freeze({
     mechanics: {
       multi: true,
       // built 11-13 (Shovels & Buckets): a work card played on a level, game/work-mechanics.js
-      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', since: { work: '2026-11-13' } },
+      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', since: { work: '2026-11-13', sortie: '2026-11-23' } },
       // built 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
       // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
       // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Three shapes of
@@ -37,6 +37,12 @@ export const POWER = Object.freeze({
       // (11-10: partial. Its parts run: the platform rule's stop-and-charge leap (rules-platform.js chargeMax), the vayo
       // jump on the hero's own air, the slam a hard landing staggers what is near with (knock.js); no key says the leap)
       planned: {
+        // built 11-23 (1122-sim-fixing): the flown rules a flight level's airspace names, opt-in beside the engine's base set:
+        // Wolf Squadron's arcade flier down a stage's path, and Rebel Storm's starfighter flown from its cockpit
+        rail: { status: 'built', since: '2026-11-23', requires: ['space.levelForm=airspace'], lowers: 'lib/graph/worlds/controllable/rules-rail.js', note: 'an arcade flier down a stage\'s path (Wolf Squadron): the path carries it, the stick moves it about the frame, boost, brake and a roll; waves of fighters, ground units and a boss on the stage\'s plan (skyscape/rail-stage.js), on a planet\'s route in segments or in space' },
+        starfighter: { status: 'built', since: '2026-11-23', requires: ['space.levelForm=airspace'], lowers: 'lib/graph/worlds/controllable/rules-starfighter.js', note: 'a starfighter flown from its cockpit (Rebel Storm): the throttle set, the target picked, shields and power split between lasers, shields and engines; flight groups to destroy and craft to protect on a sortie (game/sortie.js), capital ships and stations their targets' },
+        // built 11-24 (Warlords of Mars): the assault frame's rule, opt-in: boost, quick boost, climb, EN, the FCS lock, four guns
+        frame: { status: 'built', since: '2026-11-24', requires: ['space.levelForm=airspace'], lowers: 'lib/graph/worlds/controllable/rules-frame.js', note: 'an assault frame on its feet and its thrusters (Warlords of Mars): walk, a skate on the booster, a quick boost\'s burst, a jump and a climb, the generator\'s EN drawn and back, the FCS\'s lock on the foe in its sights, a gun in each hand and a weapon on each shoulder on their own triggers; an enemy frame on the same rule with its own mind' },
         'super-jump': { status: 'partial', effort: 'M', pkg: 'comic-blows', requires: ['power.rules=platform'], lowers: 'lib/graph/worlds/controllable/rules-platform.js', note: 'a charged leap several storeys high with a hang at its top and a landing that staggers what stands near: the charged leap, the air jump and the landing slam each run (rules-platform.js, vayo-move.js, knock.js); nothing composes them into one move a hero is given' },
       },
     },

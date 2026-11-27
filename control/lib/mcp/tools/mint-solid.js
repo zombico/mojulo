@@ -26,6 +26,7 @@
  */
 
 import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
+import { importModel } from '@/lib/mcp/tools/import-model';
 import { registerTool } from '@/lib/mcp/server';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import {
@@ -98,6 +99,10 @@ export const SOLID_KINDS = {
   // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
   // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
   'scad': { family: 'object', handler: createScadHandler },
+  // A model made OUTSIDE mojulo, read from this machine (spec { from, units?, up?, entry?, licence? }): the file made one
+  // GLB, bound to a `model` row whose recipe is what the import decided (lib/mcp/tools/import-model.js). A character
+  // from a file is create_character({ from }).
+  'model': { family: 'object', handler: (spec) => importModel(spec, { door: 'solid' }) },
   // A solid born layered (stations × slots, pinned details, dials): the recipe is stored and lowers to
   // the workbench studio on every read, so a dial patch reshapes it in place. Stores kind:'layered'.
   'layered': {
@@ -261,12 +266,12 @@ export function registerMintSolidTools() {
       + 'Characters: create_character; figure, layered, manji-tree. From words: equipment (gear), furniture. '
       + 'Hard-edged or fitted parts: scad (OpenSCAD with an `mj_*` library of threads, fits, gears, '
       + 'enclosures; which standard parts → fabricate_solid). Measured or organic objects: workbench, code. '
-      + 'Also assembler, carved-solid (metal wordmark), solid-turntable, edifice (an institution), '
-      + 'vehicle. A house or room is mint_building. Size the ask: `spec.ask` look|fit|function|engineered caps `next`. Params go '
+      + 'Also assembler, carved-solid (wordmark), solid-turntable, edifice (an institution), '
+      + 'vehicle. A file you have: model (spec.from). A house or room is mint_building. Size the ask: `spec.ask` look|fit|function|engineered caps `next`. Params go '
       + 'in `spec`; `via` picks an authoring door (manji-tree: ir/parts/prompt/packet; layered: '
-      + "plan, hero — a human by cast word + proportion tune). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
-      + "manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the stored "
-      + 'recipe in place via `update_sketch`.',
+      + "plan, hero — a human by cast word + proportion tune). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }); read its "
+      + "manual, get_solid_vocab({ id: '<kind>' }), before passing spec. Iterate in place: "
+      + '`update_sketch`.',
     inputSchema: {
       type: 'object',
       properties: {

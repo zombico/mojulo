@@ -62,9 +62,14 @@ it holds to.
 | `toy` | round and chunky, as the hero is; bright plates; pictures before words; sized for the hand | toybox, hilltop, kart-candy |
 | `broadcast` | read from across a room: capitals, hard cuts on the slant, a scoreline's one loud colour, fast | matchday, floodlight |
 | `cosy` | made by hand: paper or wool, soft corners, warm ink, nothing in a hurry, pattern in place of shine | picnic, knit |
-| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit, pit-wall |
+| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit, pit-wall, logbook |
 | `dread` | restraint: near black, one bad colour, texture over everything, nothing that moves fast | dread, static |
-| `machine`, `grave`, `fight`, `brawl`, `table` | (see their cards) | blueprint, departure-board, ink-and-gold, … |
+| `grave` | dark fantasy's restraint: a serif, aged metal on black, a cresting, nothing that slams; the castle's show | ink-and-gold, nocturne (a metroidvania's castle) and its re-keys nocturne-frost, nocturne-blood and nocturne-xeno (XenoJager's planet) |
+| `machine`, `fight`, `brawl`, `table` | (see their cards) | blueprint, departure-board, galaxy and its re-keys galaxy-neon and galaxy-orbit, … |
+
+A RE-KEY is a child card that changes only its tokens: the same frame, motion and sounds in another place's colours
+(nocturne-frost over nocturne, galaxy-neon over galaxy). A level may pick its re-key by what it is (a box's theme, a
+side map's setting).
 
 A look also says its pictograms (`icons`: solid, line, chunky, badge, duo; `mana-ui/icons.js`) and may give each kind
 of screen its own stage (`stage` as a list).

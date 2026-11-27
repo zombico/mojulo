@@ -150,12 +150,19 @@ export const MECHANIC_SFX = {
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
   notes: { 'note:hit': 'beat-hit', 'note:miss': 'beat-miss', 'notes:failed': 'lose', 'notes:done': 'goal' },
   'wave-gauntlet': { wave: 'wave', 'gauntlet:arena': 'chime', 'gauntlet:again': 'lose', 'gauntlet:sealed:*': 'thud', 'gauntlet:clear:*': 'chime', 'gauntlet:out:*': 'goal' },
-  objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', wave: 'wave', 'objectives:done': 'goal' },
+  objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', 'objective:gate': 'checkpoint', wave: 'wave', 'objectives:done': 'goal', 'objectives:failed': 'death' },
+  // a flight's crash: the attempt over (a lesson's) or the craft brought back
+  crash: { crash: 'death' },
+  // a cockpit's mission: each goal met, a flight group arriving, the mission won or a protected craft lost
+  sortie: { 'sortie:goal': 'checkpoint', arrival: 'wave', 'sortie:won': 'goal', 'sortie:lost': 'death' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
   work: { 'work:took': 'pickup', 'work:made': 'thud', 'work:ready': 'chime', 'work:burned': 'hit', 'work:served': 'goal', 'work:walked': 'lose', 'work:full': 'thud', 'work:won': 'goal', 'work:lost': 'lose' },
   aftermath: { 'broke:*': 'thud' },
+  // (a castle segment's gain kept: its own moment already sounds, the relic's pickup or the boss's fall; the keeping is a
+  // step, as quiet as a footfall)
+  journey: { 'journey:*': 'step' },
   trade: { 'pickup:*': 'pickup', 'trade:*:short': 'thud' },
   cargo: { 'cargo:lost:*': 'hit' },
   bounty: { 'bounty:*': 'pickup' },
@@ -178,6 +185,7 @@ export const MECHANIC_SFX = {
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },
   map: { 'map-go:*': 'door' },
   runner: { 'run-won': 'goal', 'runner:crash': 'death' },
+  lock: { 'lock:open:*': 'checkpoint', 'lock:shut:*': 'thud' },
   'escape-room': { 'key:*': 'pickup', 'lock:locked': 'thud', 'lock:opened': 'checkpoint', 'escape:open:*': 'chime', 'escape:sealed:*': 'thud', 'escape:out:*': 'goal' },
 };
 
