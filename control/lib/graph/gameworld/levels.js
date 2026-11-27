@@ -1100,12 +1100,13 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
     // (told on the holo table before the drop, campaign/operation-brief.js: the briefing channel over the level)
     if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
-    // (its guide, channels/guide.js: the way to each place a task names (a reach's, a scan's), shown as its task begins,
+    // (its guide, channels/guide.js: the way to each place a task names (a reach's, a scan's: a scan's with its ring, the
+    // rings pulsing in while it is stood in), shown as its task begins,
     // an arrow and the metres under the objectives' own line, which says what it is (said once, not twice)
     // and passed as it is met, the objectives' task in hand its clock; and what it teaches as it is played, frame-goal.js
     // FRAME_LESSONS, each group as its task begins)
     const OB = game.mechanics.find((m) => m && m.kind === 'objectives');
-    const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
+    const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, ...(t.kind === 'scan' ? { ring: true } : {}), when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
     // (its script, gameworld/script.js: each line raised on the bus at its moment, shown on the page as comms)
     if (X0?.script) pilotPart = { ...pilotPart, events: { ...pilotPart.events, sequences: [...(pilotPart.events.sequences ?? []), ...scriptSequences(X0.script.lines)] }, comms: commsData(X0.script) };
     // (a frame level that teaches: each lesson waits for the pilot to do it, no count shown; and the keys' legend along

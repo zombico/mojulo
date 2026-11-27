@@ -56,6 +56,8 @@
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
+ *   • A MIND'S ROUNDS are fired at where its target is as they leave the gun (no lead: a round seen coming can be dodged,
+ *     a step or a quick boost aside); `mind.leadShots` leads them as the pilot's lock does. Missiles home as before.
  *   • HELD: while the pilot's input is held (`input.held`: a scene playing, a menu up, the page's freeze) every mind
  *     stands down with it, its keys idle (a scene's cast still moves it: a walk, a glide), and takes up again after.
  *   • AN ALLY THAT HOLDS (`mind.hold`): it stands its ground turned to the pilot, fighting only a foe that comes to it,
@@ -535,7 +537,9 @@ export function buildRulesFrame(E) {
     // (unlocked, the pilot's guns meet at what the reticle covers: sightPoint; a mind's, along its aim)
     const sight = !tg && Array.isArray(inp.aim) && inp.aim.length === 6 && inp.aim.every(Number.isFinite) ? sightPoint(e, world, inp.aim, W.range ?? 400) : null;
     for (let k = 0; k < n; k++) {
-      let to = tg ? lead(from, tg, W.speed) : sight;
+      // (a mind's guns fire at where the target is as they fire, not where it will be, so a round can be dodged: its
+      // mind's `leadShots` leads them; the pilot's lock leads)
+      let to = tg ? (e.rule.mind && !e.rule.mind.leadShots ? lead(from, tg, Infinity) : lead(from, tg, W.speed)) : sight;
       if (!to) { const a = aimDir(t.heading, e.aimPitch), R = W.range ?? 400; to = [from[0] + a[0] * R, from[1] + a[1] * R, from[2] + a[2] * R]; }
       const pellets = W.pellets || 1;
       for (let p = 0; p < pellets; p++) {

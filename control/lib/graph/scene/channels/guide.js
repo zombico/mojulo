@@ -22,7 +22,13 @@ const FRAME_FACTS = new Set(['boost', 'quick-boost', 'climb', 'assault-boost', '
 // one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
 // with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
+/** A scan's ring (a step's `ring`): its edge's width (a share of its radius), its lift off the ground (m), its opacity at
+ *  rest and stood in, the pulses in flight at once, each from the edge to `least` of the radius over `period` s. */
+export const GUIDE_RING = Object.freeze({ color: '#ffd36b', edge: 0.025, lift: 0.6, rest: 0.35, held: 0.85, pulses: 3, period: 1.4, least: 0.12 });
+
 export function guideScript(guide, { host = false } = {}) {
+  // (a scan's ring: emitted only where a step asks for one)
+  const rings = Array.isArray(guide.steps) && guide.steps.some((x) => x && x.ring);
   // (a frame's lessons, gameworld/frame-goal.js FRAME_LESSONS: their facts read off the frame's own state, and a lesson
   // that waits for its task, `when`; a guide with neither is as it was, byte for byte)
   const L0 = Array.isArray(guide.lessons) ? guide.lessons : [];
@@ -34,7 +40,7 @@ export function guideScript(guide, { host = false } = {}) {
   return `
 // --- the guide: the level's intro and the way on, one thing at a time (level/guide.js) ---
 (function () {
-  const GD = ${safeJson(guide)};
+  const GD = ${safeJson(guide)};${rings ? ` const GR = ${JSON.stringify(GUIDE_RING)};` : ''}
   const host = (typeof wrap !== 'undefined' && wrap) || document.body;
   const sheet = document.createElement('style');
   sheet.textContent = '.moj-gd{position:absolute;left:50%;top:22px;transform:translateX(-50%);pointer-events:none;z-index:14;max-width:min(640px,86%);text-align:center;color:#fbf6e9;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 10px rgba(0,0,0,.6);transition:opacity .35s ease;font:600 17px/1.35 system-ui,sans-serif;letter-spacing:.3px}'
@@ -62,12 +68,21 @@ export function guideScript(guide, { host = false } = {}) {
   // (a lesson: read for LESSON.read seconds at least, done by its fact, let go after LESSON.patience)
   const LESSON = { read: 1.4, patience: 14, plain: 5, move: 3, look: 0.9, sprint: 0.6 };
   let li = 0, ls = null;
-  let k = 0, pillar = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
+  let k = 0, pillar = null, ringOn = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
   const T3 = typeof THREE !== 'undefined' ? THREE : null, S3 = typeof scene !== 'undefined' ? scene : null;
   function plant() {
     if (!T3 || !S3) return;
-    if (pillar) { S3.remove(pillar); pillar = null; }
-    const s = GD.steps[k]; if (!s || s.fight) return;
+    if (pillar) { S3.remove(pillar); pillar = null; }${rings ? `
+    if (ringOn) { S3.remove(ringOn.g); ringOn = null; }` : ''}
+    const s = GD.steps[k]; if (!s || s.fight) return;${rings ? `
+    // (a place held to be read, a scan's, \`ring\`: its ring on the ground, and while it is stood in, rings pulsing in from
+    // it toward its middle, one after another, until its clock is run: GUIDE_RING)
+    if (s.ring) {
+      const g = new T3.Group(), mk = (w, o) => { const m = new T3.Mesh(new T3.RingGeometry(1 - w, 1, 96), new T3.MeshBasicMaterial({ color: GR.color, transparent: true, opacity: o, depthWrite: false, depthTest: false, side: T3.DoubleSide })); m.renderOrder = 3; m.raycast = function () {}; g.add(m); return m; };
+      const edge = mk(GR.edge, GR.rest), pulses = Array.from({ length: GR.pulses }, () => mk(GR.edge * 1.6, 0));
+      g.position.set(s.at[0], s.at[1], s.at[2] + GR.lift); g.scale.setScalar(s.radius); S3.add(g);
+      ringOn = { g, edge, pulses };
+    }` : ''}
     pillar = new T3.Mesh(new T3.CylinderGeometry(0.5, 0.5, 60, 12, 1, true), new T3.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.28, depthWrite: false, side: T3.DoubleSide }));
     pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
     S3.add(pillar);
@@ -119,7 +134,15 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
       const now = performance.now(), cur = GD.steps[k];${guide.steps.some((x) => x && x.from) ? `
       // (a step held back until its task begins, \`from\`: neither its way nor its pillar shown before)
       const gated = !!(cur && cur.from && !(window.__mojBus && window.__mojBus.state.vars[cur.from.var] >= cur.from.gte));
-      if (pillar) pillar.visible = !gated;` : ''}
+      if (pillar) pillar.visible = !gated;` : ''}${rings ? `
+      if (ringOn && cur) {
+        const shown = ${guide.steps.some((x) => x && x.from) ? '!gated' : 'true'}, inside = shown && p && Math.hypot(cur.at[0] - p.transform.pos[0], cur.at[1] - p.transform.pos[1]) < cur.radius;
+        ringOn.g.visible = shown; ringOn.edge.material.opacity = inside ? GR.held : GR.rest;
+        ringOn.pulses.forEach(function (m, i) {
+          const u = (((now / 1000) / GR.period) + i / GR.pulses) % 1;
+          m.scale.setScalar(1 - (1 - GR.least) * u); m.material.opacity = inside ? GR.held * (1 - u) * Math.min(1, u * 6) : 0;
+        });
+      }` : ''}
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
       if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
 ${waits ? `      // (a lesson that waits for its task, \`when\`: the objectives' task in hand; until then nothing of it shows)

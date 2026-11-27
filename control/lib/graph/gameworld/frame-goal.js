@@ -26,6 +26,8 @@
  *     across the screen, the words under its title, its own klaxon)
  *     allies[].hold   true: it stands its ground, an instructor on the range; <task number>: till that task begins,
  *                     then it fights and keeps by the pilot (the cast's `unhold`, rules-frame.js)
+ *     retry  true: the pilot down begins the task in hand again (game/objectives.js RETRY: the screen faded, the pilot up
+ *            whole where it fell, each fought group put back where it stood, whole), not the level lost
  *     split  { ally, foe: <group id>, at: <task number>, to: [x, y], back?: <task number>, title?, line?: { who, say } }
  *            as task `at` begins, a scene: the foe's group shown (its title a banner), the ally and the foe in one frame,
  *            the line said, and the two of them off together toward `to` and gone, a fight of their own off the field;
@@ -78,7 +80,7 @@ export const OPERATION = Object.freeze({
     // `spin` turns a second; its hit and aim at its hull, `hitAt` m up, not up among its rotors)
     thunderhead: Object.freeze({ hp: 64000, damage: 60, rof: 10, range: 820, speed: 560, air: 115, turn: 0.9, floor: 60, boss: 'Thunderhead', hitAt: 2.2, flight: Object.freeze({ mode: 'orbit', radius: 260, alt: 115, speed: 44, turn: 0.7, under: 55, spin: 3.2 }), missiles: Object.freeze({ count: 80, lockTime: 2.4, cone: 40, range: 850, speed: 150, turn: 0.3, damage: 1500, splash: 16, prox: 5, fuse: 8, cooldown: 5, impact: 0.5 }) }),
     harrow: Object.freeze({ hp: 32000, damage: 90, rof: 7, range: 520, speed: 520, air: 45, turn: 1.4, floor: 18, boss: 'Harrow', flight: Object.freeze({ mode: 'circuit', radius: 170, alt: 42, speed: 26, hover: Object.freeze([3.5, 11]), turn: 1.2 }), missiles: Object.freeze({ count: 120, lockTime: 1.2, cone: 60, range: 650, speed: 115, turn: 1.3, damage: 480, splash: 9, prox: 4, fuse: 9, cooldown: 1.4, impact: 0.1 }) }),
-    gnat: Object.freeze({ hp: 700, damage: 32, rof: 4, range: 260, speed: 420, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
+    gnat: Object.freeze({ hp: 700, damage: 32, rof: 4, range: 260, speed: 170, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
   }),
   reach: 60,
   // (a scan's ring and how long it takes inside it)
@@ -93,7 +95,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split', 'retry'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -183,11 +185,13 @@ export function readOperation(v, at = 'goal.operation') {
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
   // (its marks: named places on the field for its scenes, a walk's end, a shot's place: each a spot of its name)
   const marks = v.marks === undefined ? null : readMarks(v.marks, `${at}.marks`);
+  // (its retry: the pilot down begins the task in hand again, game/objectives.js RETRY)
+  if (v.retry !== undefined && typeof v.retry !== 'boolean') throw new Error(`${at}.retry is true: the pilot down begins the task in hand again (its foes up and whole, where they stood), not the level lost`);
   // (its split: an ally and a foe off together, SPLIT)
   const split = v.split === undefined ? null : readSplit(v.split, { allies: allies ?? [], groups, tasks: tasks.length, speakers: script ? Object.keys(script.speakers) : (allies ?? []).map((a) => a.id) }, `${at}.split`);
   // (its props: things stood on the field for its scenes to move, PROP)
   const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}), ...(v.retry ? { retry: true } : {}) };
 }
 /** A FOE'S INTRO (a group's `intro: true | { title?, line?, who? }`): the first time the group comes (its down task
  *  begins, or the level starts for a group awake from the start), a short scene: the letterbox, the camera pushed in on
@@ -374,8 +378,10 @@ export function operationMechanics(op, ends) {
   for (const g of op.groups) if (g.comes) for (const m of membersOf(g, ends)) ops[g.comes - 1].push({ op: 'spawn', who: m.id, fresh: true });
   for (const a of op.allies ?? []) if (Number.isInteger(a.hold)) ops[a.hold - 1].push({ op: 'unhold', who: a.id });
   if (op.split?.back) { const S = op.split, [x, y] = placeOf(ends, S.to); ops[S.back - 1].push({ op: 'spawn', who: S.ally, at: [x, y, r2(ends.ground(x, y))] }, { op: 'unhold', who: S.ally }); }
+  // (a retry: each fought group put back where it stood as its task is begun again; the pilot down is no loss then)
+  const again = op.retry ? op.tasks.map((t) => (t.down ? op.groups.filter((g) => t.down.includes(g.id)).flatMap((g) => membersOf(g, ends).map((m) => ({ op: 'spawn', who: m.id, at: m.at, fresh: true }))) : [])) : null;
   // (quiet: the frame's own HUD says what it needs; the objectives show the task in hand and its own clock, no count)
-  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}) })), say: 'line', quiet: true }, { kind: 'fail-on-death', of: 'body' }];
+  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}), ...(again?.[i].length ? { again: again[i] } : {}) })), say: 'line', quiet: true, ...(op.retry ? { retry: true } : {}) }, ...(op.retry ? [] : [{ kind: 'fail-on-death', of: 'body' }])];
 }
 
 export function operationCast(op, ends) {

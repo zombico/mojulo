@@ -58,4 +58,14 @@ describe('the encounter\'s script', () => {
     expect(() => readOperation({ ...OP, allies: [{ id: 'cole', name: 'Cole', hold: 1 }] })).toThrow(/the number of the task it holds till/);
     expect(() => readOperation({ ...OP, tasks: [{ reach: [0, 0.2], alarm: 7 }, ...OP.tasks.slice(1)] })).toThrow(/alarm is the words on its banner/);
   });
+
+  it('a retry: the pilot down begins the task in hand again, each fought group put back where it stood; no loss on death', () => {
+    const op = readOperation({ ...OP, retry: true }), [obj, ...rest] = operationMechanics(op, ends), heavy = operationCast(op, ends).entities.find((e) => e.id === 'heavy');
+    expect(obj.retry).toBe(true);
+    expect(rest.some((m) => m.kind === 'fail-on-death')).toBe(false);
+    expect(obj.tasks[2].again).toEqual([{ op: 'spawn', who: 'heavy', at: heavy.transform.pos, fresh: true }]);
+    expect(obj.tasks[0].again).toBeUndefined();
+    // (none asked: the pilot down loses the level, as before)
+    expect(operationMechanics(readOperation(OP), ends).some((m) => m.kind === 'fail-on-death')).toBe(true);
+  });
 });

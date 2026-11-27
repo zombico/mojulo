@@ -11,7 +11,8 @@
  *   A CARD         a unit as data (GROUND_UNITS): its parts, each a primitive by role, in metres, +y its front, +z up, +x
  *                  its right (the vehicle frame the page's rig figures share), standing on z = 0, in life's metres
  *                  (drawn GROUNDFORCE_SCALE times larger); its `size` (its hit radius, m, at life), `hp`, its gun (`rof`
- *                  shots a second, `range` m) and its `points` on a stage
+ *                  shots a second, `range` m) and its `points` on a stage; its `livery` ({ hull?, hull2?, accent?,
+ *                  dark? }) where it wears its own colours over the palette's
  *
  *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card; `flies`: it is stood in the air, not on the ground)
  *   GROUND_PROP_IDS                 the cards that are PROPS (`prop`): a thing a level's scene stands and moves (a pusher
@@ -75,6 +76,8 @@ export const GROUNDFORCE_SCALE = 2.5;
 export const GROUNDFORCE_PALETTE = Object.freeze({
   hull: '#7d8590', hull2: '#5d646e', dark: '#2c3036', accent: '#b8323a', sensor: '#ff3a2e', drive: '#ffb24a', blur: '#4a525c',
 });
+// (a card's colours: the palette's, its own `livery` over them where it has one: { hull?, hull2?, accent?, dark? })
+const colours = (U) => (U.livery ? { ...GROUNDFORCE_PALETTE, ...U.livery } : GROUNDFORCE_PALETTE);
 // (what is lit is drawn its own colour, unshaded)
 const LIT = new Set(['sensor', 'drive']);
 const KEY = Object.freeze({ dir: [-0.42, -0.36, 0.83], ambient: 0.46, gain: 0.62 });
@@ -270,29 +273,32 @@ export const GROUND_UNITS = Object.freeze({
       ...[-1, 1].flatMap((s) => P.box([s * 1.25, -4.16, 1.3], [1.0, 0.08, 0.5], 'drive')),
     ],
   }),
-  // a flier, one of a swarm: a flat armoured pod slung between two ducted fans burning under it, a red eye forward, one
-  // chin gun; it orbits and strafes, a small thing hard to hold in a lock
+  // a flier, one of a swarm: no fans or rotors: a lens of armour borne up on a ring of plasma round its waist (the drive
+  // lit all the way round, held off the hull on four spokes), a red eye in its rim, one chin gun, two fins aft. Its own
+  // livery (`livery`): bone white under a hazard-orange dome, a dark stripe round its rim, so it stands out against black space and grey
+  // ground; it orbits and strafes, a small thing hard to hold in a lock
   gnat: Object.freeze({
-    label: 'gnat drone', reads: 'a flat pod between two glowing ducted fans, a red eye, a chin gun: one of a swarm',
-    size: 0.85, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
-    // (half a walker's metres: some 5 m across as drawn, a thing a frame swats, not one it duels)
-    parts: () => { const k = 0.5, S = (v) => v.map((x) => x * k); return [
-      ...P.box(S([0, 0.1, 0.55]), S([1.2, 2.0, 0.55]), 'hull', { ch: 0.3 * k }),
-      ...P.box(S([0, -0.25, 0.95]), S([0.8, 1.1, 0.3]), 'hull2', { ch: 0.22 * k }),
-      ...P.box(S([0, 1.12, 0.6]), S([0.62, 0.08, 0.2]), 'sensor'),
-      ...P.box(S([0.62, 0.2, 0.62]), S([0.05, 1.2, 0.12]), 'accent'),
-      ...[-1, 1].flatMap((sd) => [
-        ...P.box(S([sd * 0.85, 0, 0.55]), S([0.6, 0.35, 0.22]), 'dark', { ch: 0.06 * k }),
-        ...P.prism(S([sd * 1.45, 0, 0]), 0.72 * k, 0.72 * k, 0.38 * k, 0.78 * k, 'hull2', 12),
-        // (the fan's face in the duct's mouth, burning: seen from above and in front, and its wash under it)
-        ...P.prism(S([sd * 1.45, 0, 0]), 0.56 * k, 0.56 * k, 0.78 * k, 0.81 * k, 'drive', 12),
-        ...P.prism(S([sd * 1.45, 0, 0]), 0.5 * k, 0.5 * k, 0.33 * k, 0.4 * k, 'drive', 12),
-        ...P.prism(S([sd * 1.45, 0, 0]), 0.16 * k, 0.16 * k, 0.4 * k, 0.86 * k, 'dark', 6),
-        ...[0, 1, 2].flatMap((i) => P.box(S([sd * 1.45, 0, 0.84]), [0.08 * k, 1.05 * k, 0.03 * k], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const a = (i * Math.PI) / 3, x = c[0] - sd * 1.45 * k, y = c[1]; return [sd * 1.45 * k + x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), c[2]]; }) }))),
-      ]),
-      ...P.pipe(S([0, 0.7, 0.22]), S([0, 1.75, 0.22]), 0.08 * k, 'dark', 6),
-      ...P.box(S([0, 0.55, 0.28]), S([0.3, 0.5, 0.2]), 'dark', { ch: 0.05 * k }),
-    ]; },
+    label: 'gnat drone', reads: 'a white lens of armour under an orange dome on a glowing drive ring, a red eye in its rim, a chin gun: one of a swarm',
+    size: 1.4, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
+    livery: Object.freeze({ hull: '#e9e4d6', hull2: '#e2632d', accent: '#23343a' }),
+    // (some 7 m across its ring as drawn: a thing a frame swats, not one it duels, and sees coming)
+    parts: () => {
+      const R = 1.45, n = 16, seg = ((2 * Math.PI * R) / n) * 1.04;
+      const spin = (faces, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] * Math.cos(a) - c[1] * Math.sin(a), c[0] * Math.sin(a) + c[1] * Math.cos(a), c[2]]) }));
+      return [
+        ...P.prism([0, 0, 0], 0.72, 0.72, 0.26, 0.46, 'dark', 12),
+        ...P.prism([0, 0, 0], 1.0, 1.0, 0.46, 0.8, 'hull', 16),
+        ...P.prism([0, 0, 0], 1.03, 1.03, 0.6, 0.67, 'accent', 16),
+        ...P.dome([0, 0, 0.8], 0.8, 0.8, 0.8, 0.38, 'hull2', 12, 3),
+        ...P.box([0, 1.0, 0.63], [0.5, 0.08, 0.16], 'sensor'),
+        // (the drive: a ring of plasma round its waist, lit all the way round, on four spokes)
+        ...Array.from({ length: n }, (_, i) => spin(P.box([0, R, 0.63], [seg, 0.13, 0.13], 'drive'), (2 * Math.PI * i) / n)).flat(),
+        ...[1, 3, 5, 7].flatMap((i) => spin(P.box([0, 1.22, 0.63], [0.09, 0.5, 0.09], 'dark'), (Math.PI / 4) * i)),
+        ...[-1, 1].flatMap((sd) => P.box([sd * 0.34, -0.55, 1.02], [0.06, 0.55, 0.34], 'accent')),
+        ...P.box([0, 0.5, 0.3], [0.32, 0.42, 0.2], 'dark', { ch: 0.05 }),
+        ...P.pipe([0, 0.62, 0.3], [0, 1.65, 0.3], 0.07, 'dark', 6),
+      ];
+    },
   }),
   // a strike drone: a swept delta, a single engine burning at its tail, twin guns under its nose, a red eye in a chin
   // fairing; it dives on a frame, rakes past firing and pulls away to come round again
@@ -483,12 +489,12 @@ const normalOf = (C) => {
 export function unitFaces(kind) {
   const U = GROUND_UNITS[kind];
   if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${[...GROUND_UNIT_IDS, ...GROUND_PROP_IDS].join(', ')})`);
-  const L = KEY.dir, ll = Math.hypot(...L);
+  const L = KEY.dir, ll = Math.hypot(...L), C = colours(U);
   const k = GROUNDFORCE_SCALE;
   return partsOf(U, false).filter((f) => f.role !== 'blur').map((f) => {
-    const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]), base = hexRgb(GROUNDFORCE_PALETTE[f.role]);
+    const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]), base = hexRgb(C[f.role]);
     const bone = f.bone ? { bone: f.bone } : {};
-    if (LIT.has(f.role)) return { corners, fill: GROUNDFORCE_PALETTE[f.role], role: f.role, ...bone };
+    if (LIT.has(f.role)) return { corners, fill: C[f.role], role: f.role, ...bone };
     const n = normalOf(corners), lam = KEY.ambient + KEY.gain * Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / ll);
     return { corners, fill: rgbHex(base.map((v) => v * lam)), role: f.role, ...bone };
   });
@@ -518,14 +524,14 @@ const SMOOTH_COS = Math.cos((40 * Math.PI) / 180);
 export function unitFormFaces(kind) {
   const U = GROUND_UNITS[kind];
   if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
-  const k = GROUNDFORCE_SCALE;
+  const k = GROUNDFORCE_SCALE, C = colours(U);
   const faces = partsOf(U, true).map((f) => { const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]); return { corners, role: f.role, n: normalOf(corners), w: areaOf(corners), bone: f.bone ?? null }; });
   const key = (p) => p.map((v) => Math.round(v * 200)).join(',');
   const at = new Map();
   faces.forEach((f, i) => f.corners.forEach((p) => { const kk = key(p); if (!at.has(kk)) at.set(kk, []); at.get(kk).push(i); }));
   const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
   return faces.map((f) => ({
-    ...(f.bone ? { bone: f.bone } : {}), corners: f.corners.map((p) => p.map(r4)), material: f.role, albedo: GROUNDFORCE_PALETTE[f.role], outNormal: f.n.map(r4),
+    ...(f.bone ? { bone: f.bone } : {}), corners: f.corners.map((p) => p.map(r4)), material: f.role, albedo: C[f.role], outNormal: f.n.map(r4),
     cornerNormals: f.corners.map((p) => {
       const sum = [0, 0, 0];
       for (const j of at.get(key(p))) { const m = faces[j].n; if (faces[j].bone === f.bone && m[0] * f.n[0] + m[1] * f.n[1] + m[2] * f.n[2] >= SMOOTH_COS) for (let c = 0; c < 3; c++) sum[c] += m[c] * faces[j].w; }
