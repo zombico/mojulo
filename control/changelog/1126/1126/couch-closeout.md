@@ -32,3 +32,6 @@
   the other. A team deathmatch with a designed hero would not build at all before; it does now.
 - The hill-climb marks versus, free-for-all and teams as built. The three couch genres still blocked now wait on the
   lobby, plus the time-window contest (party mash), roles (driver and gunner) or split screen (split deathmatch).
+- A game can open each level on a lobby. Every player slot shows in its colour and says whether that player has joined;
+  each controller joins with a press. The level waits behind the lobby until player 1 presses Start (or Enter on the
+  keyboard), then joining closes for that level. A game that lets players drop in at any time is unchanged.
