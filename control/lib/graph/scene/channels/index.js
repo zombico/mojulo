@@ -26,6 +26,7 @@ import { broadcastScreenScript } from './broadcast-screen.js';
 import { missionChannelScript } from './mission.js';
 import { briefingChannelScript } from './briefing.js';
 import { lessonChannelScript } from './lesson-brief.js';
+import { seatLobbyScript } from './seat-lobby.js';
 import { speedFxScript } from './speed-fx.js';
 import { damageRingChannelScript } from './damage-ring.js';
 import { glowSpriteScript } from './glow.js';
@@ -317,6 +318,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a flying lesson's brief over its level, the lesson held until Start (gameworld/lesson-brief.js)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojLesson'] },       // the brief's runtime and whether it is up, for probes
+  { key: 'seatLobby', anchor: 'post-capture', script: seatLobbyScript,
+    normalizeIn: 'emitThreeWorld',     // a level whose seats join by lobby: who plays, the level held until seat 1 starts it
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojLobby'] },        // the lobby's runtime, what it says and whether it is up, for probes
   { key: 'speedfx', anchor: 'post-capture', script: speedFxScript,
     normalizeIn: 'emitThreeWorld',     // a flown craft's speed in the world round it: speed lines in the air, dust in space
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
@@ -413,6 +418,7 @@ export { broadcastScreenScript } from './broadcast-screen.js';
 export { missionChannelScript } from './mission.js';
 export { briefingChannelScript } from './briefing.js';
 export { lessonChannelScript } from './lesson-brief.js';
+export { seatLobbyScript } from './seat-lobby.js';
 export { speedFxScript, speedFxConfig, SPEED_FX } from './speed-fx.js';
 export { damageRingChannelScript } from './damage-ring.js';
 export { specularChannelScript } from './specular.js';

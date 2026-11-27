@@ -160,9 +160,21 @@ export function buildTurret(E) {
     if (p.rule && p.rule.type === 'fly') p.airspeed = p.rule.launchSpeed || 0;
     p.bank = 0; p.yawV = 0; p.tilt = { pitch: 0, roll: 0 };
   }
+  // A GUNNER SEAT (a world's `seats.crew: { <n>: { body, as: 'gunner' } }`, docs/local-multiplayer-principles.md: roles):
+  // seat n works the gun on the pilot's body, a seat with no body of its own. Its look slews the turret and its trigger
+  // fires; the pilot's stick drives, its own look and trigger put by. With nobody in seat n the pilot's hand has the gun,
+  // as without a gunner. Absent, nothing.
+  E.registerStateInit((state, spec) => {
+    const C = spec && spec.seats && spec.seats.crew;
+    if (!C || typeof C !== 'object') return;
+    for (const k of Object.keys(C)) if (C[k] && C[k].as === 'gunner' && C[k].body === state.pilotId) state.crewGun = +k;
+  });
   E.stepWorld = function stepWithTurret(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
-    let inp = p && p.turret && input ? aim(p, input, dt) : input;
+    const g = state.crewGun && input && input.seats ? input.seats[state.crewGun] : null;
+    let inp = p && p.turret && input
+      ? (g ? (() => { const a = aim(p, { lookDX: g.lookDX || 0, lookDY: g.lookDY || 0, slot: g.slot || 0 }, dt); return { ...input, lookDX: 0, lookDY: 0, slot: 0, fire: g.fire ? 1 : 0, aim: a.aim }; })() : aim(p, input, dt))
+      : input;
     const T = p && p.turret, S = T && T.strike;
     // (a striking base: its round released on its path, at its velocity, when it is fired or when it met the ground)
     let striking = false;

@@ -311,6 +311,12 @@ export const EMIT_FIXTURES = [
   // speedfx (a flown craft's speed in the world round it: channels/speed-fx.js): its block alone, the air's speed lines
   // (the space's dust is the same block's other branch)
   ['speedfx', { faces: [floor()], speedfx: { mode: 'air', base: 120, turbo: 204 } }],
+  // seat-lobby (a level whose seats join by lobby: channels/seat-lobby.js): two pilotable bodies, two seats joining by lobby;
+  // the seats block's lobby lines and the lobby's own block, mana-ui in a scope of its own
+  ['seat-lobby', { faces: [floor()], camera: { rule: 'side', target: 'p1' }, seats: { bodies: ['p2'], join: 'lobby' }, entities: [
+    { id: 'p1', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform', eye: 0, speed: 6 }, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6] } },
+    { id: 'p2', pilotable: true, transform: { pos: [-2, 0, 0], heading: 0 }, rule: { type: 'platform', eye: 0, speed: 6 }, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6] } },
+  ] }],
   // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned

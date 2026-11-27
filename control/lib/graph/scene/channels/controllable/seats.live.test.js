@@ -60,6 +60,30 @@ describe('seats on the World page', () => {
     await page.close();
   }, 60000);
 
+  it('a seat\'s chip carries its body\'s hp as a bar, and follows it', async () => {
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(world({ bodies: ['p2'] }).replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats, { timeout: 20000 });
+    const settle = () => page.evaluate(() => new Promise((r) => { let n = 6; const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }));
+    // pad 0 sits first (seat 1), then pad 1 (seat 2), its body given hp
+    await page.evaluate(() => { window.__pads[0].axes[1] = -1; });
+    await settle();
+    await page.evaluate(() => { const e = window.__mojCtrl.world.byId.p2; e.hpMax = 10; e.body.hp = 10; window.__pads[0].axes[1] = 0; window.__pads[1].axes[1] = -1; });
+    await settle();
+    expect(await page.evaluate(() => window.__mojSeats().seats.map((s) => s.n))).toEqual([1, 2]);
+    // the bar's fill: the last inner span of seat 2's chip
+    const fill = () => page.evaluate(() => { const chips = [...document.querySelectorAll('span')].filter((c) => /^P2/.test(c.textContent)); const f = chips[0] && chips[0].querySelector('span > span > span'); return f ? f.style.width : null; });
+    expect(await fill()).toBe('100%');
+    await page.evaluate(() => { window.__mojCtrl.world.byId.p2.body.hp = 4; });
+    await settle();
+    expect(await fill()).toBe('40%');
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
+
   it('four pads take four seats in the order they press, each driving its own body under its own colour', async () => {
     if (!browser) return;
     const page = await browser.newPage();
@@ -130,5 +154,61 @@ describe('seats on the World page', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 60000);
-});
 
+  it('a contest of presses: each seat\'s fresh A counted on the bus, the most the winner at the horn', async () => {
+    const events = composeMechanics([{ kind: 'mash', seconds: 3 }], { player: 'p1', spawn: [0, 0, 0], fall: 'none', seats: ['p2'] }).events;
+    const html = emitThreeWorld({ faces: [floor], entities: [hero('p1', 0), hero('p2', -2)], camera: { rule: 'side', target: 'p1' }, seats: { bodies: ['p2'] }, events, inline: true });
+    expect(html).toMatch(/__mojPresses = true/);
+    expect(world({ bodies: ['p2'] })).not.toMatch(/__mojPresses = true/);
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html.replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats && window.__mojBus, { timeout: 20000 });
+    const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    const tap = async (i) => { await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: true, value: 1 }; }, i); await frames(3); await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: false, value: 0 }; }, i); await frames(3); };
+    await tap(0); await tap(1);                               // each sits down (the press that seats it is no jump)
+    const v = () => page.evaluate(() => { const x = window.__mojBus.state.vars; return [x['presses:1'], x['presses:2'], x.__mash_winner_0]; });
+    const [a0, b0] = await v();
+    for (let k = 0; k < 3; k++) await tap(0);
+    for (let k = 0; k < 6; k++) await tap(1);
+    const [a1, b1] = await v();
+    expect([a1 - a0, b1 - b0]).toEqual([3, 6]);
+    await page.waitForFunction(() => window.__mojBus.state.vars.__mash_open_0 === 0, { timeout: 10000 });
+    expect((await v())[2]).toBe(2);
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
+
+  it('a gunner seat: seat 2\'s right stick slews the car\'s turret, seat 1\'s stick drives it', async () => {
+    const car = { id: 'car', pilotable: true, rule: { type: 'drive', topSpeed: 20, eye: 0 }, body: { type: 'mesh', shape: 'box', size: [2, 4, 1.4] }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 },
+      turret: { mount: { at: [0, 0, 1.6], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 } },
+      weapon: { fireClass: 'sight', auto: true, cooldown: 0.15, magazine: 40, reload: 2.5, damage: 1, range: 40 } };
+    const html = emitThreeWorld({ faces: [floor], entities: [car], camera: { rule: 'follow', target: 'car', dist: 11, height: 4.5 }, seats: { bodies: [], crew: { 2: { body: 'car', as: 'gunner' } } }, inline: true });
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html.replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats, { timeout: 20000 });
+    const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    const tap = async (i) => { await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: true, value: 1 }; }, i); await frames(3); await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: false, value: 0 }; }, i); await frames(3); };
+    await tap(0); await tap(1);
+    expect(await page.evaluate(() => window.__mojSeats().seats.map((s) => s.n))).toEqual([1, 2]);
+    const st = () => page.evaluate(() => { const c = window.__mojCtrl.world.byId.car; return { yaw: c.turret.yaw ?? 0, x: c.transform.pos[0], y: c.transform.pos[1] }; });
+    const a = await st();
+    await page.evaluate(() => { window.__pads[1].axes[2] = 1; });   // seat 2's right stick, hard over
+    await frames(30);
+    await page.evaluate(() => { window.__pads[1].axes[2] = 0; });
+    const b = await st();
+    expect(Math.abs(b.yaw - a.yaw)).toBeGreaterThan(10);
+    expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThan(0.2);     // the car never moved for it
+    await page.evaluate(() => { window.__pads[0].axes[1] = -1; });  // seat 1's stick: the throttle
+    await frames(40);
+    const c = await st();
+    expect(Math.hypot(c.x - b.x, c.y - b.y)).toBeGreaterThan(0.5);
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
+});

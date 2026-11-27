@@ -93,6 +93,7 @@ export const E2E = [
   'lib/graph/game/stage.live.test.js',
   'lib/graph/playscape/ui/scene-takes.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',
+  'lib/graph/scene/channels/seat-lobby.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
   'lib/graph/worlds/controllable/vayo-move.live.test.js',
   'lib/graph/worlds/controllable/knock.live.test.js', 'lib/graph/scene/channels/controllable/shot-light.live.test.js', 'lib/graph/worlds/cel-body.e2e.test.js',

@@ -417,6 +417,8 @@ export function buildCore(E) {
       state.seatOf = {};
       state.seatDrop = spec.seats.drop === 'pause' ? 'pause' : 'ai';
       state.seatFloor = Number.isFinite(spec.seats.floor) ? spec.seats.floor : -20;
+      // (`downs: 'level'`: the level's own mechanics bring a downed seat back, a match's frags; seat-falls leaves it)
+      if (spec.seats.downs === 'level') state.seatDownsLevel = true;
       // LIVES (opt-in `lives`, docs/local-multiplayer-principles.md: soul.pool): each seat's own count (`pool: 'own'`) or
       // one the seats share (`'shared'`); a fall below the floor costs one (rules-basic.js 'seat-falls'). Absent: a fall
       // costs nothing, and seat 1's is the level's catch.
