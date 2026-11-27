@@ -62,8 +62,9 @@ export const HEADWEAR = Object.freeze({
   shooterWrap: Object.freeze({ kind: 'shield', front: -0.3, back: -0.05, ease: 0.011, arc: 1.5, span: Object.freeze({ lo: -0.024, hi: 0.02 }), thick: 0.0025,
     strap: Object.freeze({ h: 0.006, thick: 0.002, gap: 0.0008 }), wrap: Object.freeze({ lo: -0.14, hi: -0.03, arc: 3.05, ease: 0.006, thick: 0.004, group: 'Helmet' }),
     group: 'HelmetVisor', trimGroup: 'HelmetTrim' }),
-  // the bandana: the circlet's band in cloth, wide over the brow, no gem; a knot at the back and two tails hanging from it
-  bandana: Object.freeze({ kind: 'circlet', front: 0.5, back: 0.12, gap: 0.0004, h: 0.034, peak: 1, thick: 0.0016, gem: 0,
+  // the bandana: the circlet's band in cloth over the brow, no gem; a knot at the back and two tails hanging from it. Tied
+  // low and narrow, so it reads as cloth knotted round the head and the hair stands above it, not a rim round a helmet
+  bandana: Object.freeze({ kind: 'circlet', front: 0.36, back: 0.06, gap: 0.0004, h: 0.026, peak: 1, thick: 0.0014, gem: 0,
     tails: Object.freeze({ len: 0.2, w: 0.028, thick: 0.0016, spread: 0.22, back: 0.3, knot: 0.012 }), group: 'Helmet' }),
 });
 

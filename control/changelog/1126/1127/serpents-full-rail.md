@@ -54,3 +54,6 @@
   the keycard scene, the results. Played end to end in headless Chrome by a bot on the stand-in: every task met, no page
   error. Coral made through the character door on the operative's body (stubble, swept hair; the watch cap not yet).
   The lessons' words are placeholders in brackets, for the person's own.
+- **The bandana tied lower and narrower** (headgear/realistic.js `bandana`): its front a little over a third of the way
+  from the brow to the hairline (half before), its back near the skull's back point, its band 26 mm (34), its cloth
+  thinner, so it reads as cloth knotted round the head with the hair standing above it rather than a rim round a helmet.
