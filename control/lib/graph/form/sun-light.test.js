@@ -65,4 +65,17 @@ describe('the sun as a baked light', () => {
     expect(faces[0]).toBe(glass);
     expect(faces[1]).toBe(bare);
   });
+
+  it('a level face asked for (`level`) shows its own paint lit flat: its base solved on a face turned up; a wall keeps the sun\'s', () => {
+    const low = { ...light, dir: (() => { const d = [light.dir[0], light.dir[1], 0.12], l = Math.hypot(...d); return d.map((v) => v / l); })() };
+    const [road, wall] = sunLitFaces([flat(0, 1, 'town:road'), wallAt(0)], low, { level: true }).faces;
+    const [road0, wall0] = sunLitFaces([flat(0, 1, 'town:road'), wallAt(0)], low).faces;
+    expect(wall.fill).toBe(wall0.fill);
+    expect(road.fill).not.toBe(road0.fill);
+    expect(road.fill).toBe(sunLitFaces([flat(0, 1, 'town:road')], low, { reference: [0, 0, 1] }).faces[0].fill);
+    // (and a face turned down, a deck's underside, on a face turned down: its own paint, never the ground's bounce alone)
+    const [under] = sunLitFaces([flat(3, -1, 'town:soffit')], low, { level: true }).faces;
+    expect(under.fill).toBe(sunLitFaces([flat(3, -1, 'town:soffit')], low, { reference: [0, 0, -1] }).faces[0].fill);
+    expect(under.fill).not.toBe(road.fill);
+  });
 });

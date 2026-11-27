@@ -52,3 +52,48 @@ describe('the gun shop', () => {
     expect(poor.log).toContain('gunshop:short'); expect(poor.ops.some((o) => o.op === 'rearm')).toBe(false);
   });
 });
+
+describe('the forger (and the job that asks for its papers)', () => {
+  const FORGER = { kind: 'forger', at: [80, 0, 0], price: 150, item: 'fake-id', name: 'heavy machinery licence' };
+  const TASK = { kind: 'task', id: 'heavy', app: 'jobsified', flag: 'took-heavy', name: 'Jobsified', subscribe: true, needs: { item: 'fake-id', name: 'heavy machinery licence' } };
+  it('walked into with the price: the papers into the bag, once; short, it says so; had, it says so', () => {
+    const r = play([FORGER], [{ at: [80, 0, 0] }, { at: [0, 0, 0] }, { at: [80, 0, 0] }], { coin: 400 });
+    expect(r.vars).toMatchObject({ 'held:bag:fake-id': 1, 'held:bag:coin': 250 });
+    expect(r.log).toContain('forger:had');
+    const short = play([FORGER], [{ at: [80, 0, 0] }], { coin: 40 });
+    expect(short.log).toContain('forger:short');
+    expect(short.vars).toMatchObject({ 'held:bag:fake-id': 0, 'held:bag:coin': 40 });
+  });
+  it('a task that asks for papers is taken only with them: without, the app says what it needs', () => {
+    const without = play([TASK], [{ event: 'app:take:heavy' }]);
+    expect(without.log).toContain('task:needs:heavy');
+    expect(without.vars['flag-took-heavy']).toBe(0);
+    const bought = play([FORGER, TASK], [{ at: [80, 0, 0] }, { event: 'app:take:heavy' }], { coin: 150 });
+    expect(bought.vars['flag-took-heavy']).toBe(1);
+    // (a task that asks for nothing is taken as it always was)
+    const { needs: _n, ...free } = TASK;
+    expect(play([free], [{ event: 'app:take:heavy' }]).vars['flag-took-heavy']).toBe(1);
+  });
+});
+
+describe('the forger of several papers (a licence, an office badge)', () => {
+  const PAPERS = [{ item: 'fake-id', name: 'heavy machinery licence', price: 150 }, { item: 'office-id', name: 'office ID badge', price: 90, says: 'You are Gary now.' }];
+  const FORGER = { kind: 'forger', at: [80, 0, 0], papers: PAPERS, asks: { heavy: 0, temp: 1 } };
+  const task = (id, app, needs) => ({ kind: 'task', id, app, flag: `took-${id}`, name: app, subscribe: true, needs });
+  const TASKS = [task('heavy', 'jobsified', { item: 'fake-id', name: 'heavy machinery licence' }), task('temp', 'placeholder', { item: 'office-id', name: 'office ID badge' })];
+  it('sells the paper the job last turned away asked for, at its price; asked for none, it asks what for', () => {
+    const none = play([FORGER, ...TASKS], [{ at: [80, 0, 0] }], { coin: 400 });
+    expect(none.log).toContain('forger:what');
+    expect(none.vars['held:bag:coin']).toBe(400);
+    const badge = play([FORGER, ...TASKS], [{ event: 'app:take:temp' }, { at: [80, 0, 0] }, { event: 'app:take:temp' }], { coin: 400 });
+    expect(badge.vars).toMatchObject({ 'held:bag:office-id': 1, 'held:bag:fake-id': 0, 'held:bag:coin': 310, 'flag-took-temp': 1 });
+    expect(badge.log).toContain('forger:bought:2');
+    // (then the licence, when the heavy call turns the player away)
+    const both = play([FORGER, ...TASKS], [{ event: 'app:take:temp' }, { at: [80, 0, 0] }, { at: [0, 0, 0] }, { event: 'app:take:heavy' }, { at: [80, 0, 0] }], { coin: 400 });
+    expect(both.vars).toMatchObject({ 'held:bag:office-id': 1, 'held:bag:fake-id': 1, 'held:bag:coin': 160 });
+    // (short of it, it says so and takes nothing)
+    const short = play([FORGER, ...TASKS], [{ event: 'app:take:temp' }, { at: [80, 0, 0] }], { coin: 50 });
+    expect(short.log).toContain('forger:short:2');
+    expect(short.vars['held:bag:coin']).toBe(50);
+  });
+});

@@ -101,9 +101,25 @@ describe('the soft end: lo-fi house, lo-fi beats, ambient', () => {
   });
 
   it('the soft moods are byte-identical to their pin', () => {
+    // (the three the pin was taken over, by name: the city's two, shady and vibrant, joined after and are pinned below)
     const h = createHash('sha256');
-    for (const mood of SOFT) for (const seed of SEEDS) for (const id of [undefined, 7]) h.update(JSON.stringify(clubScore(mood, { seed, identity: id })));
+    for (const mood of ['ambient', 'chill', 'lofi']) for (const seed of SEEDS) for (const id of [undefined, 7]) h.update(JSON.stringify(clubScore(mood, { seed, identity: id })));
     expect(h.digest('hex')).toBe('393fffbc9f743380dc6efd03a1b004003c502dafc0d9c08c056c2f570f42622b');
+  });
+
+  it('the city\'s two faces are byte-identical to their pin, and one is the other\'s mirror', () => {
+    const h = createHash('sha256');
+    for (const mood of ['shady', 'vibrant']) for (const seed of SEEDS) for (const id of [undefined, 7]) h.update(JSON.stringify(clubScore(mood, { seed, identity: id })));
+    expect(h.digest('hex')).toBe('526b717c53e6bc819a2945cb46c6e042c92043e9ca9f7b8cb6ff245488a20cd6');
+    // (the mirror: the same seed gives the same tempo and the same tonic, minor against its parallel major, and the
+    // same melody's rhythm under the shady lead's lean-ins)
+    for (const seed of SEEDS.slice(0, 6)) {
+      const a = clubScore('shady', { seed, identity: 7 }), z = clubScore('vibrant', { seed, identity: 7 });
+      expect(z.bpm).toBe(a.bpm);
+      expect(a.key).toBe(`${z.key}m`);
+      const beats = (m) => m.parts.find((p) => p.name === 'lead').events.filter((e) => e[2] !== 0.25).map((e) => e[0]);
+      expect(beats(z)).toEqual(beats(a));
+    }
   });
 
 });

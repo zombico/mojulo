@@ -63,6 +63,10 @@ describe('lowerMechanic — individual verbs', () => {
         id: 'job', flag: 'took-job', done: 'done-job', on: 'errand:done:other', app: 'taskfu', faction: 'reds', verb: 'tag',
         // (the law's: the police it brings)
         police: ['police-1'],
+        // (a driving job's, a shift: its yard, the yard's vehicles, its round)
+        depot: [0, 40, 0], cabs: ['car-1'], stops: [{ at: [9, 0, 0] }],
+        // (a constituent's request: where it is fixed, the yard its material is had at, the material)
+        spots: [{ at: [3, 0, 0] }], yard: { at: [0, 40, 0], radius: 8 }, material: { item: 'asphalt', name: 'asphalt' },
         // (a lock's: the bag item that opens it, where a walker without it is put)
         key: 'key-1', back: [0, 0, 0] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();

@@ -875,7 +875,11 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // or a ceiling would pull the eye in onto the body, not on a stair alone; absent, not a byte
   const clearAll = !!(camera && camera.clear === true), clearOn = stairsOn || clearAll;
   // (what the eye's line back from the look point passes through, read by the wall pull-in and the clear line's search alike)
-  const camSkips = `${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
+  // (a page with cars to drive, its cabs: while the camera follows a car it pulls in for walls alone, never for the street's
+  // kit, its trees or the traffic, every one of them drawn instanced, which crossed the line back from a car every second
+  // or two at speed and threw the eye forward each time; on foot it is as it was)
+  const carCam = entities.some((e) => e && e.mount && e.mount.cab);
+  const camSkips = `${carCam ? "        if (typeof __camDrv !== 'undefined' && __camDrv && ho.isInstancedMesh) continue;\n" : ''}${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
         // hands and the gun before it, hidden now: a thing not drawn hides nothing)
         { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
         // (nor on what stands between the look point and the body: the look leads the body, so a body run up against a
@@ -3243,7 +3247,8 @@ function __driveCameraBy(dt) {
       const ux = dx / full, uy = dy / full, uz = dz / full;
       __camRay.set(new THREE.Vector3(look[0], look[1], look[2]), new THREE.Vector3(ux, uy, uz));
       __camRay.far = full; __camRay.camera = camera;   // sprite-safe traverse (see __ground's E8 note)
-      const own = __bodySet();
+      const own = __bodySet();${carCam ? `
+      const __tgD = __world.byId[c.rule.target], __camDrv = !!(__tgD && __tgD.mount && __tgD.mount.cab);` : ''}
       let hitD = full;
       for (const hit of __camRay.intersectObjects(__rayRoots(own), true)) {
         const ho = hit.object;

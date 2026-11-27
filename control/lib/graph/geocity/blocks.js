@@ -16,13 +16,21 @@
  *             frame's with a long side on an arterial mid-rise, the rest mid-rise or slabs; the outskirts' with a long
  *             side on an arterial an edge (its avenue facing it), on a collector a main street (a short end on either is
  *             its houses' corners), a school at its middle, the rest houses, walk-ups and low-rises by weight
+ *   places    a share of neighbourhoods (the metro's `civic`) a place of worship (its `faith`) and their largest block
+ *             a cemetery, on their own dice: in the outskirts a calm block its own; in the core and the frame a LOT in a
+ *             built block (`urban`), a slice at its end on a street corner (its id the block's and `.p`), the block's
+ *             rest built as it was, a `party` side between them
+ *   alleys    in the core and the frame a share of built blocks (the metro's `alleys`) cut down the middle by a service
+ *             alley along their long side, street to street: each half the block's segment (the second's id `.b`), its
+ *             side on it `alley`, the block it was its `whole`
  *   storeys   the field's median at the block's middle inside its ring's rail, a block on an arterial its frontage's;
  *             a tower block's towers past it (the core's tail) and its podium
  *   ground    its segment's shares of its area, every square metre once
  *
  *   blocksOf(d) → { <region id>: { streets: [{ id, axis, at, w, rank, runs }], blocks: [block], park: rect | null,
+ *                   alleys?: [{ id, axis, at, lo, hi, w, ends: [kind, kind] }],
  *                   ledger: { area, streets, blocks, park, surfaces } } }
- *   block: { id, rect, area, kind, ring, sides: { n, e, s, w: { kind, rank? } }, storeys: { median, rail }, podium?,
+ *   block: { id, rect, area, kind, ring, sides: { n, e, s, w: { kind, rank? } }, storeys: { median, rail }, podium?, faith?, urban?,
  *            towers?: [{ rect, storeys }], surfaces: { <surface>: m² } }
  *
  * Pure: a neighbourhood's dice are its own (`${seed}|blocks-v1|<id>:<layer>`), so a change to one moves no other.
@@ -41,6 +49,10 @@ const JITTER = 0.15;
 const LEAST = 0.6;
 
 /** A weighted pick on a stream. */
+// (the blocks an inner city's place of worship may take a lot in: its built fabric, never a tower's or its square)
+const URBAN_HOSTS = Object.freeze(['podium', 'midrise', 'main-street', 'lowrise', 'apartments', 'slab']);
+// (the blocks an alley may cut: the inner city's built fabric, never a tower's, its square or a slab on its lawn)
+const ALLEY_HOSTS = Object.freeze(['podium', 'midrise', 'main-street', 'lowrise', 'apartments']);
 const pick = (R, weights) => { const es = Object.entries(weights).filter(([, w]) => w > 0), t = es.reduce((s, [, w]) => s + w, 0); let u = R() * t; for (const [k, w] of es) { if ((u -= w) < 0) return k; } return es[es.length - 1][0]; };
 
 /** Locals between fixed lines along one axis: each gap cut into whole blocks of `size`, `w` the local street. */
@@ -140,23 +152,91 @@ export function blocksOf(d) {
         // (industry: a warehouse's long side on an arterial, its docks off it; the rest by the metro's weights)
         : ind ? (onLong(c, 'arterial') && (mix.warehouse ?? 0) > 0 && Rs() < 0.45 ? 'warehouse' : pick(Rs, mix))
         : ring === 'core' ? pick(Rs, mix)
-          : ring === 'frame' ? (onLong(c, 'arterial') ? 'midrise' : pick(Rs, mix))
+          // (the frame's arterial frontage a midrise, or a main street where its mix names one, by their weights: dice only
+          // then, so a mix without main streets draws as it did)
+          : ring === 'frame' ? (onLong(c, 'arterial') ? ((mix['main-street'] ?? 0) > 0 && Rs() < mix['main-street'] / (mix['main-street'] + (mix.midrise ?? 0)) ? 'main-street' : 'midrise') : pick(Rs, mix))
             : onLong(c, 'arterial') ? 'edge' : onLong(c, 'collector') ? 'main-street' : pick(Rs, mix);
       // the city changing: a share of the blocks (off the civic one) a site, a lot, a vacant lot, on its own dice
       const Rl = streamOf(d.seed, 'blocks', `${r.id}.${c.i}.${c.j}:lively`), u = Rl(), L = M.lively[ring];
       const lively = c === civicAt ? null : u < L.construction ? 'construction' : u < L.construction + L.parking ? 'parking' : u < L.construction + L.parking + L.vacant ? 'vacant' : null;
       return { c, kind: lively ?? kind, ...(lively === 'construction' ? { becomes: kind } : {}) };
     });
+    // THE PLACES IT KEEPS (the metro's `civic`, segments.js `worship` and `cemetery`): on their own dice, a share of
+    // neighbourhoods give a calm block to a place of worship, its faith by the metro's weights, and their largest to a
+    // cemetery; the blocks they take are their own, so no other block moves
+    if (!ind && M.civic) {
+      const Rc = streamOf(d.seed, 'blocks', `${r.id}:civic`), Cv = M.civic, free = (x) => x.c !== civicAt && !['construction', 'park'].includes(x.kind);
+      const fits = (x, most) => { const a = area(x.c.rect); return a >= Cv.block[0] && a <= Math.min(Cv.block[1], most); };
+      if (Rc() < (Cv.worship[ring] ?? 0)) {
+        const faith = pick(Rc, Cv.faiths);
+        if (ring === 'outskirts') {
+          // (the outskirts': a calm block of its own, on its lawn)
+          const w = calm.map((c) => blocks.find((x) => x.c === c)).find((x) => x && free(x) && fits(x, 9000));
+          if (w) { Object.assign(w, { kind: 'worship', faith }); delete w.becomes; }
+        } else {
+          // (the inner city's: a LOT in a built block, a slice at its end on a street corner, built to its walk among its
+          // neighbours, the block's rest built as it was against its party wall)
+          const SL = Cv.lot, onStreet = (v) => v?.kind === 'street' || v?.kind === 'arterial';
+          const host = calm.map((c) => blocks.find((x) => x.c === c)).find((x) => {
+            if (!x || !free(x) || !URBAN_HOSTS.includes(x.kind)) return false;
+            const [a, b] = [x.c.rect[2] - x.c.rect[0], x.c.rect[3] - x.c.rect[1]];
+            return Math.max(a, b) >= SL[0] + 26 && Math.min(a, b) >= 30;
+          });
+          if (host) {
+            const c = host.c, [x0, y0, x1, y1] = c.rect, longX = x1 - x0 >= y1 - y0, L = longX ? x1 - x0 : y1 - y0;
+            // (its end the one on a street, an arterial's first)
+            const [lo, hi] = longX ? ['w', 'e'] : ['s', 'n'], end = c.sides[lo]?.kind === 'arterial' || (onStreet(c.sides[lo]) && c.sides[hi]?.kind !== 'arterial') ? lo : hi;
+            const sw = r3(Math.min(SL[1], Math.max(SL[0], L * 0.42))), cut = end === lo ? (longX ? x0 + sw : y0 + sw) : (longX ? x1 - sw : y1 - sw);
+            const [pr, rr] = longX ? (end === lo ? [[x0, y0, cut, y1], [cut, y0, x1, y1]] : [[cut, y0, x1, y1], [x0, y0, cut, y1]]) : (end === lo ? [[x0, y0, x1, cut], [x0, cut, x1, y1]] : [[x0, cut, x1, y1], [x0, y0, x1, cut]]);
+            const other = end === lo ? hi : lo, party = { kind: 'party' };
+            const lot = { ...c, rect: pr.map(r3), sides: { ...c.sides, [other]: party }, tag: 'p' }, rest = { ...c, rect: rr.map(r3), sides: { ...c.sides, [end]: party } };
+            blocks.splice(blocks.indexOf(host), 1, { c: lot, kind: 'worship', faith, urban: true }, { ...host, c: rest });
+          } else {
+            // (a block too short to share: a small one of the built fabric taken whole, built to its walk on all sides)
+            const whole = calm.map((c) => blocks.find((x) => x.c === c)).find((x) => x && free(x) && URBAN_HOSTS.includes(x.kind) && Math.min(x.c.rect[2] - x.c.rect[0], x.c.rect[3] - x.c.rect[1]) >= 30);
+            if (whole) { Object.assign(whole, { kind: 'worship', faith, urban: true }); delete whole.becomes; }
+          }
+        }
+      }
+      if (Rc() < (Cv.cemetery[ring] ?? 0)) {
+        const big = blocks.filter((x) => free(x) && x.kind !== 'worship' && fits(x, Infinity) && area(x.c.rect) >= 4000).sort((p, q) => area(q.c.rect) - area(p.c.rect))[0];
+        if (big) { big.kind = 'cemetery'; delete big.becomes; }
+      }
+    }
+
+    // ITS ALLEYS (the metro's `alleys`): in the core and the frame, each on its own dice, a share of its built blocks cut
+    // down the middle by a service alley along their long side, street to street; each half the block's segment, its side
+    // on the alley an `alley`, the block it was its `whole`
+    const alleys = [];
+    if (!ind && M.alleys && (M.alleys[ring] ?? 0) > 0) {
+      const AL = M.alleys, A = AL.w;
+      for (const x of blocks.slice()) {
+        const c = x.c;
+        // (a downtown walked into below, the metro's `under`: its podiums whole, their concourses joined under its streets)
+        if (!ALLEY_HOSTS.includes(x.kind) || (x.kind === 'podium' && d.spec?.under) || c === civicAt || x.urban || Object.values(c.sides).some((v) => v.kind === 'party')) continue;
+        if (streamOf(d.seed, 'blocks', `${r.id}.${c.i}.${c.j}:alley`)() >= AL[ring]) continue;
+        const [x0, y0, x1, y1] = c.rect, longX = x1 - x0 >= y1 - y0, deep = longX ? y1 - y0 : x1 - x0;
+        if ((deep - A) / 2 < AL.least) continue;
+        const m = longX ? (y0 + y1) / 2 : (x0 + x1) / 2, al = { kind: 'alley' };
+        const [ra, rb] = longX ? [[x0, y0, x1, m - A / 2], [x0, m + A / 2, x1, y1]] : [[x0, y0, m - A / 2, y1], [m + A / 2, y0, x1, y1]];
+        const [sa, sb] = longX ? ['n', 's'] : ['e', 'w'];
+        const ca = { ...c, rect: ra.map(r3), sides: { ...c.sides, [sa]: al }, whole: c.rect }, cb = { ...c, rect: rb.map(r3), sides: { ...c.sides, [sb]: al }, whole: c.rect, tag: 'b' };
+        blocks.splice(blocks.indexOf(x), 1, { ...x, c: ca }, { ...x, c: cb });
+        // (its run, its ends: what each end meets, a street, an arterial, the neighbourhood's edge)
+        const [e0, e1] = longX ? ['w', 'e'] : ['s', 'n'];
+        alleys.push({ id: `${r.id}.${c.i}.${c.j}:alley`, axis: longX ? 'ew' : 'ns', at: r3(m), lo: r3(longX ? x0 : y0), hi: r3(longX ? x1 : y1), w: A, ends: [c.sides[e0]?.kind ?? 'beyond', c.sides[e1]?.kind ?? 'beyond'] });
+      }
+    }
 
     // storeys, towers and ground
     const H = M.heights;
-    const built = blocks.map(({ c, kind, becomes }, k) => {
-      const rect = c.rect, a = r3(area(rect)), id = `${r.id}.${c.i}.${c.j}`, Rb = streamOf(d.seed, 'blocks', `${id}:build`);
+    const built = blocks.map(({ c, kind, becomes, faith, urban }, k) => {
+      const rect = c.rect, a = r3(area(rect)), id = `${r.id}.${c.i}.${c.j}${c.tag ? `.${c.tag}` : ''}`, Rb = streamOf(d.seed, 'blocks', `${id}:build`);
       const rail = [...H[ring].rail], m0 = d.heights.storeysAt((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2).median;
       let median = Math.min(rail[1], Math.max(rail[0], m0));
       for (const [s, v] of Object.entries(c.sides)) if (v.kind === 'arterial' && r.frontage[s]) { median = Math.max(median, r.frontage[s].median); rail[1] = Math.max(rail[1], r.frontage[s].rail[1]); }
       if (CARDS[kind]?.storeys) { rail[0] = CARDS[kind].storeys[0]; rail[1] = CARDS[kind].storeys[1]; median = rail[0]; }
-      const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail } };
+      const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail }, ...(faith ? { faith } : {}), ...(urban ? { urban: true } : {}), ...(c.whole ? { whole: c.whole } : {}) };
       // a building going up: what it becomes, and how far it has risen
       if (kind === 'construction') { const P0 = CARDS.construction.progress; b.becomes = becomes; b.progress = r3(P0[0] + (P0[1] - P0[0]) * Rb()); }
       if (kind === 'tower') {
@@ -185,7 +265,7 @@ export function blocksOf(d) {
     const blocksArea = built.filter((b) => b.kind !== 'park').reduce((s, b) => s + b.area, 0), parkArea = pk ? area(pk) : 0;
     const surfaces = {};
     for (const b of built) for (const [s, v] of Object.entries(b.surfaces)) surfaces[s] = r3((surfaces[s] ?? 0) + v);
-    out[r.id] = { streets, blocks: built, park: pk, ledger: { area: r.area, streets: r3(r.area - blocksArea - parkArea), blocks: r3(blocksArea), park: r3(parkArea), surfaces } };
+    out[r.id] = { streets, blocks: built, park: pk, ...(alleys.length ? { alleys } : {}), ledger: { area: r.area, streets: r3(r.area - blocksArea - parkArea), blocks: r3(blocksArea), park: r3(parkArea), surfaces } };
   }
   return out;
 }

@@ -15,6 +15,9 @@
  * as sketch.title || manifest.title || descriptor.title.
  */
 
+import { jobStopsOf } from '../scene/channels/job-stops.js';
+import { fixSitesOf } from '../scene/channels/fix-sites.js';
+import { operateOf } from '../scene/channels/operate.js';
 import { posedCoatClips } from '../polygonizer/coat-poses.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity, CITY_METERS_PER_UNIT } from '@/lib/graph/city/fractal-city';
@@ -225,6 +228,10 @@ import { phoneUi } from '@/lib/graph/gameworld/phone-ui.js';
 
 // where a played level's driven cars stand (gameworld/cars.js: entities with a cab): the scene draws no parked car there
 const pooledOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).map((e) => e?.mount?.pool?.model).filter((x) => typeof x === 'string'))];
+// (the models of cabs whose bodies move their parts, `mount.pool.gate`: a driving job's garbage truck, gameworld/cars.js)
+const gatedOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).filter((e) => e?.mount?.pool?.gate).map((e) => e.mount.pool.model))];
+// (the building sites whose excavator a level operates, a dig job's: the scene stages none there, scene/channels/operate.js)
+const operatedSites = (m) => (m.game?.mechanics ?? []).filter((x) => x?.kind === 'shift' && x.mode === 'dig' && x.site).map((x) => x.site);
 const drivenOf = (m) => (Array.isArray(m.entities) ? m.entities.filter((e) => e?.mount?.cab && Array.isArray(e.transform?.pos)).map((e) => e.transform.pos) : []);
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
@@ -316,14 +323,17 @@ function walkerRigVariants() {
   }
   return _walkerRigs;
 }
-async function attachCityWalkers(scene, people = null) {
+async function attachCityWalkers(scene, people = null, nearOf = null) {
   const loops = scene && scene.walkerLoops;
   if (!Array.isArray(loops) || !loops.length) return scene;
   // (a played district's people, gameworld/people.js: the level's own rolled persons, `people` their figure names. Each
   // walker wears one in turn at a height of its own, real-size; the level's figures carry their bakes, none is added here)
   if (Array.isArray(people) && people.length) {
     const tall = (i) => 1 + ((((i * 2654435761) >>> 0) % 1000) / 1000 - 0.5) * 0.12;
-    scene.walkers = loops.map((L, i) => ({ figure: people[i % people.length], blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
+    // (a walker of a six wears its six's person, geocity/crowd.js `person`; any other the people in turn)
+    // (a realistic person's near figure, worlds/world-scene.js: drawn within its near reach, scene/channels/walkers.js)
+    const who = (L, i) => people[(Number.isInteger(L.person) ? L.person : i) % people.length], near = (n) => (nearOf ? nearOf(n) : null);
+    scene.walkers = loops.map((L, i) => ({ figure: who(L, i), ...(near(who(L, i)) ? { near: near(who(L, i)), lit: true } : {}), blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
     delete scene.walkerLoops;
     return scene;
   }
@@ -634,7 +644,7 @@ export const WORLD_KINDS = {
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
       // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k)), (k) => (m.figures?.[k]?.crowd === 'real' ? `${k}:near` : null)).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null, stops = jobStopsOf(m), op = operateOf(m), fix = fixSitesOf(m); return { ...q, ...(fix ? { fixSites: fix } : {}), ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}), ...(stops ? { jobStops: stops } : {}), ...(op ? { operate: op } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m), ...(gatedOf(m).length ? { gated: gatedOf(m) } : {}) } : {}), ...(operatedSites(m).length ? { operated: operatedSites(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       // (a played land, a frame's field: assault-frame/field.js: the level's pilot, camera and game layered over it by the
       // page, the scene reading its own words only)
       const own = m.show === 'land' && (m.entities !== undefined || m.game !== undefined) ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCUBE_KEYS.includes(k))) : m;

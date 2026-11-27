@@ -166,7 +166,9 @@ export function bodyField(R, build, { extra = [] } = {}) {
   } : bend;
   // THE FAT (a physique's `fat`, W): one layer over the whole skin, eased out up the neck to none at the head's base,
   // where the head meets it
-  const J = R.joints, nz0 = J.neckHub?.[2], nz1 = J.headBase?.[2], between = crotchEase(R, W);
+  // (realistic laws 21, a build's `neckFat`: the fade moved down that share of the neck's length, so the fat is gone by its
+  // middle and a heavy neck is thick at its root, not under the jaw)
+  const J = R.joints, sh = B.neckFat && J.neckHub && J.headBase ? B.neckFat * (J.headBase[2] - J.neckHub[2]) : 0, nz0 = J.neckHub?.[2] - sh, nz1 = J.headBase?.[2] - sh, between = crotchEase(R, W);
   const fatAt = !B.fat ? () => 0 : nz1 > nz0 ? (q) => { const x = Math.max(0, Math.min(1, (nz1 - q[2]) / (nz1 - nz0))); return B.fat * W * x * x * (3 - 2 * x) * between(q); } : (q) => B.fat * W * between(q);
   const bufM = new Array(soft.length + 1), buf2 = [0, 0];
   const sd0 = (q0) => {

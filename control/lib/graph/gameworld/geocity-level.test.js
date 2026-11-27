@@ -387,3 +387,18 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(G.loop).toBe(5);
   });
 });
+
+describe('a downtown\'s shopfronts as its places (a district with shops and none walked into: its core\'s towers and podiums)', () => {
+  const DOWN = { ...CITY, at: 'core' };
+  const E2 = stageEnds(gameStages(readGameworld({ ...WORLD, id: 'downtown-walk', levels: { district: { name: 'Downtown', geocity: DOWN } } }))[0].manifest);
+  it('each shop bay\'s kerb a place a job may send its hero, its tenant named; none a till', () => {
+    expect(E2.tills).toEqual([]);
+    expect(E2.places.length).toBeGreaterThan(10);
+    for (const p of E2.places.slice(0, 20)) { expect(typeof p.card).toBe('string'); expect(Math.hypot(p.N[0], p.N[1])).toBeCloseTo(1, 3); expect(p.at).toHaveLength(3); }
+    expect(new Set(E2.places.map((p) => p.id)).size).toBe(E2.places.length);
+  });
+  it('a district with a shop walked into keeps its own shops as its places', () => {
+    expect(E.places.length).toBeGreaterThan(4);
+    expect(E.places.every((p) => !p.id.startsWith('front-'))).toBe(true);
+  });
+});

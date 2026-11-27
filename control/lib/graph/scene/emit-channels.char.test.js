@@ -1,3 +1,6 @@
+// Re-pinned 2026-11-26 (the chase eased through a turn): every fixture that embeds the controllable runtime. The follow
+// rule gained `lookEase` (rules-basic.js: the look ahead swings to a new heading at an eased rate, not at once), taken
+// only by a camera that names it (the cab's, gameworld/cars.js; no fixture's does): their worlds step as before.
 // Re-pinned 2026-11-23 (the jump's missing moves): every fixture that embeds the controllable runtime. The platform rule
 // gained `hang`, `landLag` and `pound` (rules-platform.js: the apex held, the landing's lag, the stomp attack), each
 // taken only by a rule that names it (no fixture's does). Checked: each moved hash is the old emission with only the
@@ -647,6 +650,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // (`game-shown`, two frames after ready) and when its end card is read (`game-card-done`: its time, a press after its
 // first moment, or at once with no card), so the play shell's flow goes on by events. Additions only: 14 lines each,
 // none removed.
+// Re-pinned 2026-11-26 (1124-geocity-refinement: a level warm before its veil lifts): `game`, `kitchen-sink` and
+// `kitchen-sink-capture`, the fixtures that embed the game channel. A hosted level says it is shown once its frames are
+// steady (game.js GAME_WARM, its warm watch inlined), no longer two frames on, and tells the shell it is warming up from
+// its first frame (`game-loading`). The two-frame line is replaced by the watch; nothing else moves.
 // Re-pinned 2026-11-09 (1109-flow-runner, phase 3: the stage): `game`, `kitchen-sink` and `kitchen-sink-capture`, the
 // fixtures that embed the game channel. Hosted, a level's scenes wait for the shell's params (`__mojWaitInit`, set as it
 // says ready, cleared as it starts), and a stage the shell's flow asks for (`params.__stage`) is handed to the scene

@@ -18,6 +18,11 @@
  *              body, the grain tank on top and its flared extensions, the engine deck, the rotary screen, the straw
  *              spreader at its tail; big drive wheels ahead, small steering wheels behind. `corn` (maize) fits a corn head,
  *              its row dividers' snouts; `unloading` swings the unloading auger out from its rest along the left side
+ *   mower      the grounds' ride-on mower (a lawn tractor, the tractor's small kin): its low bonnet over the engine ahead,
+ *              its grille and lamps; the steering column and wheel off its dash; the footboards either side; the seat
+ *              over the rear axle, its high back, between the rear fenders; the cutting deck slung under between the
+ *              axles, its discharge chute out on the right; small turf fronts, broad turf rears. Kept on a lawn, not a
+ *              field: no lugs, a turf tyre's shallow tread
  *   sprayer    the self-propelled sprayer: a high-clearance frame on four tall legs, the cab ahead, the poly tank in its
  *              middle, the engine behind; its booms folded forward along both sides on their rests. `spraying` swings the
  *              booms out behind it to their full width, low over the crop, their nozzles down
@@ -36,16 +41,18 @@ import { VEHICLES } from '../roads/vehicles.js';
 import { plate, tube, face, slab } from './mil-hull.js';
 import { FC, glassCab, truss, louvres, hitch, own, M, paint, dark, alu, rect, xs, X, Y, Z, neg, lamp, guard, C, black } from './farm-kit.js';
 
-export const FARM_CLASSES = Object.freeze({ farmTractor: 'tractor', combineHarvester: 'combine', cropSprayer: 'sprayer' });
+export const FARM_CLASSES = Object.freeze({ farmTractor: 'tractor', combineHarvester: 'combine', cropSprayer: 'sprayer', rideOnMower: 'mower' });
 
 // each kind's wheels, front axle first: its radius, its tyre's width, its lugs round the tread
 const WHEELS = Object.freeze({
   tractor: Object.freeze([{ r: 0.68, w: 0.42, lugs: 20 }, { r: 0.93, w: 0.52, lugs: 23 }]),
   combine: Object.freeze([{ r: 0.98, w: 0.82, lugs: 24 }, { r: 0.7, w: 0.6, lugs: 20 }]),
   sprayer: Object.freeze([{ r: 0.92, w: 0.38, lugs: 24 }, { r: 0.92, w: 0.38, lugs: 24 }]),
+  // (a lawn tractor's turf tyres: 15 × 6 fronts, smooth ribs; 20 × 10 rears, a fine shallow tread)
+  mower: Object.freeze([{ r: 0.19, w: 0.15, lugs: 0 }, { r: 0.26, w: 0.25, lugs: 34 }]),
 });
 // (the front axle's station behind the nose)
-const AHEAD = Object.freeze({ tractor: 1.15, combine: 3.6, sprayer: 2.0 });
+const AHEAD = Object.freeze({ tractor: 1.15, combine: 3.6, sprayer: 2.0, mower: 0.32 });
 
 /** Where each axle stands (+y forward), the front first. */
 export function farmAxles(cls) {
@@ -75,7 +82,9 @@ export function loaderReach(words = [], pose = {}) {
 }
 
 const cream = (part) => M(part, 'plate', FC.rim);
-const wheelSetOf = (kind) => WHEELS[kind].map((w) => ({ ...w, rim: FC.rim }));
+// (a mower's rims a plain grey, in no maker's colours, not the farm's cream)
+const RIMS = Object.freeze({ mower: '#a9adb1' });
+const wheelSetOf = (kind) => WHEELS[kind].map((w) => ({ ...w, rim: RIMS[kind] ?? FC.rim }));
 
 // ── the tractor ─────────────────────────────────────────────────────────────────
 function tractor(cls, { words = [], pose = {} } = {}) {
@@ -283,14 +292,75 @@ function sprayer(cls, { words = [] } = {}) {
   return { faces: out.filter(Boolean), anchors, zones: { floor: 1.0, tub: { x: tw + F.w / 2, y: [yT, yN], z: [0.3, 1.4] } }, wheelSet: wheelSetOf('sprayer') };
 }
 
-export const FARM_BODIES = Object.freeze({ tractor, combine, sprayer });
+// ── the ride-on mower ───────────────────────────────────────────────────────────
+function mower(cls) {
+  const v = VEHICLES[cls], [F, R] = WHEELS.mower, [yf, yr] = farmAxles(cls), yN = v.L / 2, yT = -v.L / 2, tw = v.track / 2, out = [];
+  const P = (o) => out.push(...plate(o));
+  // the frame: two rails low from the nose to the tail, the front axle on its pivot under the bonnet
+  for (const s of [-1, 1]) P({ axis: 'x', profile: rect(yT + 0.08, yN - 0.06, 0.2, 0.3), from: s * 0.2 - 0.02, to: s * 0.2 + 0.02, r: 0.005, seg: 1, look: dark('frame') });
+  out.push(...tube([[-tw + 0.08, yf, F.r], [tw - 0.08, yf, F.r]], 0.035, { sides: 8, look: dark('axle.front') }));
+  out.push(...tube([[0, yf - 0.06, F.r + 0.02], [0, yf + 0.06, F.r + 0.02]], 0.05, { sides: 10, look: dark('axle.pivot') }));
+  // the bonnet over the engine: low at its nose, rising back to the dash, its grille and its lamps in the nose
+  const yD = yf - 0.5, yG = yN - 0.02, zB0 = 0.3, zBn = 0.5, zBd = 0.64, hb = 0.26;
+  out.push(...slab({
+    side: [[yD, zB0], [yG, zB0], [yG, zBn - 0.06], [yG - 0.08, zBn], [yD, zBd]],
+    front: [[-hb, zB0], [hb, zB0], [hb, zBd - 0.06], [hb - 0.06, zBd], [-hb + 0.06, zBd], [-hb, zBd - 0.06]],
+    plan: [[-hb + 0.06, yG], [hb - 0.06, yG], [hb, yG - 0.18], [hb, yD], [-hb, yD], [-hb, yG - 0.18]],
+    chamfer: 0.03, crease: 10, look: () => paint('hood'),
+  }));
+  P({ axis: 'y', profile: rect(-hb + 0.1, hb - 0.1, zB0 + 0.04, zBn - 0.1), from: yG - 0.005, to: yG + 0.008, look: black('grille') });
+  for (const s of [-1, 1]) out.push(...lamp([s * (hb - 0.13), yG - 0.06, zBn - 0.04], Y, 0.09, 0.04, 'lamp', 'headlamp'));
+  for (const s of [-1, 1]) louvres(out, { s, x: s * hb, y0: yD + 0.12, y1: yD + 0.42, z0: zB0 + 0.08, z1: zBd - 0.12, pitch: 0.05 });
+  // the bumper across the nose
+  out.push(...tube([[-hb, yN - 0.035, 0.26], [hb, yN - 0.035, 0.26]], 0.022, { sides: 8, look: dark('bumper') }));
+  // the dash, the steering column up and back from it, the wheel on its top
+  P({ axis: 'y', profile: rect(-0.2, 0.2, zB0, zBd + 0.08), from: yD - 0.06, to: yD + 0.01, r: 0.02, seg: 1, look: paint('dash') });
+  const col0 = [0, yD - 0.02, zBd + 0.02], col1 = [0, yD - 0.13, 0.88];
+  out.push(...tube([col0, col1], 0.025, { sides: 8, look: black('column') }));
+  const ring = [], rW = 0.14, tilt = 0.55;
+  for (let k = 0; k <= 16; k++) { const a = (2 * Math.PI * k) / 16; ring.push([rW * Math.cos(a), col1[1] - rW * Math.sin(a) * Math.sin(tilt), col1[2] + rW * Math.sin(a) * Math.cos(tilt)]); }
+  out.push(...tube(ring, 0.014, { sides: 6, caps: false, look: black('steering.wheel') }));
+  for (const a of [0, Math.PI]) out.push(...tube([col1, [rW * Math.cos(a), col1[1], col1[2]]], 0.01, { sides: 5, look: black('steering.spoke') }));
+  // the footboards either side, from the dash back to the rear fenders
+  const yRF = yr + R.r + 0.1;
+  for (const s of [-1, 1]) P({ axis: 'z', profile: rect(...xs(s, 0.16, 0.42), yRF, yD), from: 0.28, to: 0.31, r: 0.01, seg: 1, look: M('footboard', 'carbon', C.black) });
+  // the rear body: its pan over the transaxle, the fenders over the broad rears, the tail and its hitch plate
+  const zP = 0.62, hw = 0.53;
+  P({ axis: 'z', profile: rect(-hw + 0.02, hw - 0.02, yT + 0.05, yRF), from: zP - 0.03, to: zP, r: 0.06, seg: 2, look: paint('pan') });
+  P({ axis: 'x', profile: [[yT + 0.05, 0.3], [yRF, 0.3], [yRF, zP], [yT + 0.05, zP]], from: -0.26, to: 0.26, r: 0.02, seg: 1, look: dark('transaxle') });
+  for (const s of [-1, 1]) out.push(...guard(yr, R.r, R.r + 0.05, -0.15, Math.PI + 0.15, ...xs(s, tw - R.w / 2 - 0.02, hw), paint('fender.rear')));
+  P({ axis: 'y', profile: rect(-0.32, 0.32, 0.3, zP), from: yT + 0.02, to: yT + 0.06, r: 0.02, seg: 1, look: paint('tail') });
+  P({ axis: 'z', profile: rect(-0.08, 0.08, yT, yT + 0.1), from: 0.26, to: 0.29, look: dark('hitch.plate') });
+  for (const s of [-1, 1]) out.push(...lamp([s * 0.24, yT + 0.015, zP - 0.08], neg(Y), 0.06, 0.035, 'tail', 'taillamp'));
+  // the seat over the rear axle: its cushion, its high back, its springs' pedestal
+  const yS0 = yr + 0.12, yS1 = yr - 0.3, hs = 0.24, zS = 0.74;
+  P({ axis: 'z', profile: rect(-0.12, 0.12, yS1 + 0.06, yS0 - 0.06), from: zP, to: zS - 0.06, r: 0.01, seg: 1, look: dark('seat.pedestal') });
+  P({ axis: 'z', profile: rect(-hs, hs, yS1, yS0), from: zS - 0.06, to: zS, r: 0.03, seg: 2, look: own('seat', FC.seat, 'plate') });
+  P({ axis: 'x', profile: [[yS1, zS - 0.04], [yS1 + 0.08, zS - 0.04], [yS1 - 0.02, v.H], [yS1 - 0.1, v.H - 0.02]], from: -hs + 0.02, to: hs - 0.02, r: 0.03, seg: 2, look: own('seat.back', FC.seat, 'plate') });
+  // its levers by the seat: the deck's lift on the left fender, the throttle on the right; the fuel cap behind
+  out.push(...tube([[-hs - 0.06, yS0 - 0.02, zP], [-hs - 0.08, yS0 + 0.06, zP + 0.2]], 0.012, { sides: 6, look: black('lift.lever') }));
+  out.push(...tube([[hs + 0.06, yS0 - 0.04, zP], [hs + 0.06, yS0 + 0.02, zP + 0.12]], 0.01, { sides: 6, look: black('throttle') }));
+  out.push(...tube([[-0.3, yT + 0.2, zP], [-0.3, yT + 0.2, zP + 0.03]], 0.035, { sides: 10, look: black('fuel.cap') }));
+  // the cutting deck slung under between the axles: its shell, its rim, its spindles' covers; the chute out on the right
+  const yK0 = yf - 0.26, yK1 = yr + R.r - 0.02, hk = 0.535, zK0 = 0.07, zK1 = 0.19;
+  P({ axis: 'z', profile: [[-hk + 0.1, yK0], [hk - 0.1, yK0], [hk, yK0 - 0.12], [hk, yK1 + 0.1], [hk - 0.12, yK1], [-hk + 0.12, yK1], [-hk, yK1 + 0.1], [-hk, yK0 - 0.12]], from: zK0, to: zK1, r: 0.03, seg: 2, look: paint('deck') });
+  P({ axis: 'z', profile: rect(-hk + 0.06, hk - 0.06, yK1 + 0.08, yK0 - 0.06), from: zK1, to: zK1 + 0.025, r: 0.04, seg: 1, look: paint('deck.top') });
+  for (const x of [-0.25, 0.25]) out.push(...tube([[x, (yK0 + yK1) / 2, zK1], [x, (yK0 + yK1) / 2, zK1 + 0.05]], 0.07, { sides: 12, look: dark('deck.spindle') }));
+  for (const s of [-1, 1]) out.push(...tube([[s * hk, yK0 - 0.05, zK0 + 0.03], [s * (hk + 0.03), yK0 - 0.05, zK0 + 0.03]], 0.035, { sides: 8, look: black('deck.roller') }));
+  out.push(...slab({ side: [[yK1 + 0.08, zK0 + 0.01], [yK1 + 0.46, zK0 + 0.01], [yK1 + 0.4, zK1 + 0.06], [yK1 + 0.14, zK1 + 0.06]], front: [[hk - 0.04, zK0 + 0.01], [hk + 0.3, zK0 + 0.01], [hk + 0.3, zK1 - 0.04], [hk - 0.04, zK1 + 0.06]], chamfer: 0.015, look: () => black('deck.chute') }));
+  // its fleet number on the bonnet's flanks
+  const anchors = [-1, 1].map((s) => ({ id: `mark.${s < 0 ? 'L' : 'R'}`, kind: 'mark', role: 'number', at: [s * (hb + 0.004), yD + 0.22, zBd - 0.2], out: s < 0 ? neg(X) : X, up: Z, h: 0.06 }));
+  return { faces: out.filter(Boolean), anchors, zones: { floor: 0.3, tub: { x: hw, y: [yT, yN], z: [0.25, 0.65] } }, wheelSet: wheelSetOf('mower') };
+}
+
+export const FARM_BODIES = Object.freeze({ tractor, combine, sprayer, mower });
 
 const MIRRORS = [['post.L', 'mirror'], ['post.R', 'mirror']];
 /** Each farm machine's kit (mil-fittings.js cards on its anchors). */
-export const FARM_KITS = Object.freeze({ tractor: Object.freeze([...MIRRORS]), combine: Object.freeze([...MIRRORS]), sprayer: Object.freeze([...MIRRORS]) });
+export const FARM_KITS = Object.freeze({ tractor: Object.freeze([...MIRRORS]), combine: Object.freeze([...MIRRORS]), sprayer: Object.freeze([...MIRRORS]), mower: Object.freeze([]) });
 
 const mono = (c) => Object.freeze({ pattern: 'mono', colours: Object.freeze([c]), marks: Object.freeze({ emblem: false }) });
 /** Each farm machine's plain livery: one paint, no badge (its rims cream, its tank poly, its frame dark: its own). */
-export const FARM_LIVERY = Object.freeze({ tractor: mono('#2f6a3c'), combine: mono('#a3271f'), sprayer: mono('#2f6a3c') });
+export const FARM_LIVERY = Object.freeze({ tractor: mono('#2f6a3c'), combine: mono('#a3271f'), sprayer: mono('#2f6a3c'), mower: mono('#3f7f3a') });
 
 export { louvres, truss, black, C };

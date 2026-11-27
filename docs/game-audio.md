@@ -84,6 +84,13 @@ each as a step of the score's chapter (`cue-victory`, `cue-defeat`, at `<ref>-cu
 browser lets it start only once the player has pressed something, so the first title is silent until then. The
 credits' and the cinematics' cues are on the sheet and not yet played.
 
+**A played city's score.** A district or a town walked is scored as a city (`cityScore`): lo-fi beats (`chill`) under
+its streets and, where its law or its crews can come for the player, a chase (`drive`) the level changes to as the
+tension rises. A game that names the level's cue walks to that instead, the chase still over it: Hijack City's streets
+are `shady` and its screens `vibrant`, the club's two city moods, one the other's mirror (`twin`: the same dice, so the
+same tempo, chart place and melody rhythm, in the parallel major). A scene's words reach them too: an alley, a gang, a
+heist or noir the shady one, a boulevard, a street fair or a bustle the vibrant one. `false` silences the level.
+
 **A level is heard on the keys.** A level's sound starts on the player's first press: a click on the page, a key, or
 the game shell's word that sound is on (the shell's frame delegates autoplay, so a key pressed on the title is enough).
 A game played on the keys in the shell was silent before.

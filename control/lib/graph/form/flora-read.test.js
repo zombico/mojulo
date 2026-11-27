@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC, PUFF, REALISTIC_HABITS, habitOf } from './flora-read.js';
+import { readFlock, flockLeaf, flockLeafOf, FLOCK } from './flora-read.js';
+import { BUSH_HABITS } from './bush-form.js';
+import { FLOCK_TABLE } from '../scene/channels/form-flock.js';
+import { ARCHITECTURES } from '../vegetation/grow.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { SPECIES } from '../vegetation/species.js';
 import { needleHabit } from '../vegetation/sprays.js';
@@ -201,4 +205,96 @@ describe('trees apart (`crowns`)', () => {
     // (a plain crown's trees stand as placed)
     expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).n).toBe(4);
   }, 180000);
+});
+
+describe('a realistic crown as flock (`crowns: realistic`, its `flock`)', () => {
+  it('reads its setting: on by default, off by false, its leaves and its shadow', () => {
+    expect(readFlock()).toEqual({ leaves: FLOCK.leaves, shadow: FLOCK.shadow });
+    expect(readFlock(true)).toEqual(readFlock());
+    expect(readFlock(false)).toBeNull();
+    expect(readFlock({ shadow: 'none' })).toEqual({ leaves: FLOCK.leaves, shadow: 'none' });
+    expect(readFlock({ leaves: false })).toMatchObject({ leaves: false });
+    expect(() => readFlock({ shadow: 'dappled' })).toThrow(/flock.shadow/);
+    expect(() => readFlock({ holes: 3 })).toThrow(/not a setting/);
+    expect(() => readFlock('yes')).toThrow(/flock is/);
+  });
+
+  it('carries its species\' own leaf at the grower\'s length, never its stylized scale, its outline a table; a needled tree none', () => {
+    const broad = speciesFor({ cluster: 0 }, { form: 'spray' });
+    const L = flockLeaf(broad), A = ARCHITECTURES[SPECIES[broad].arch];
+    expect(L.length).toBe(A.leafSize);
+    expect(L.w.length).toBe(FLOCK_TABLE);
+    expect(Math.max(...L.w)).toBeGreaterThan(0.1);
+    expect(L.w[0]).toBeLessThan(Math.max(...L.w));
+    expect(flockLeaf(broad)).toEqual(L);
+    expect(flockLeaf('pine')).toBeNull();
+  });
+
+  it('gives each realistic template its leaf and the page its setting; none without it, or on any other crown', () => {
+    const beech = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0)], bushes: [], shrubs: [] };
+    const read = (p) => floraRead(p, { kinds: beech.kinds, colours, bases });
+    const on = read({ ...beech, crowns: 'realistic', flock: readFlock() }), real = on.templates.find((t) => t.far);
+    expect(on.flock).toEqual(readFlock());
+    expect(real.flock.leaf).toEqual(flockLeaf(real.name));
+    expect(read({ ...beech, crowns: 'realistic', flock: readFlock({ leaves: false }) }).templates.find((t) => t.far).flock.leaf).toBeNull();
+    // (absent, nothing of it: the realistic page as it was, and a hybrid crown ignores it)
+    const off = read({ ...beech, crowns: 'realistic' });
+    expect(off.flock).toBeUndefined();
+    expect(off.templates.some((t) => t.flock)).toBe(false);
+    expect(JSON.stringify(read({ ...beech, crowns: 'hybrid', flock: readFlock() }))).toBe(JSON.stringify(read({ ...beech, crowns: 'hybrid' })));
+  }, 300000);
+
+  it('stands a leafy bush as flock too: its puffs, its own leaf, its sponge finer; its clumps none; as it was without', () => {
+    const shrub = { form: 'blob', kinds: null, bushKinds: null, trees: [], bushes: [], shrubs: [{ x: 3, y: 3, z: 0, h: 1.2 }] };
+    const read = (p) => floraRead(p, { colours, bases });
+    const B = read({ ...shrub, crowns: 'realistic', flock: readFlock() }).templates[0], H = BUSH_HABITS.spray;
+    expect(B.kind).toBe('bush');
+    expect(B.nBlobs).toBeGreaterThan(3);
+    expect(B.nClumps).toBe(0);
+    expect(B.flock).toEqual({ leaf: flockLeafOf(H.leaf), grain: H.flock.grain });
+    expect(B.flockLeaf).toBeUndefined();
+    expect(flockLeafOf(H.leaf).length).toBe(H.leaf.leafSize);
+    const off = read({ ...shrub, crowns: 'realistic' });
+    expect(off.templates[0].nBlobs).toBeUndefined();
+    expect(off.templates[0].nClumps).toBeGreaterThan(0);
+  });
+
+  it('sheds each flock tree in the fall by its own turn, never past FLOCK.shed; none outside the fall', () => {
+    const grove = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0), tree(20, 3, 9, 0), tree(7, 31, 9, 0), tree(33, 27, 9, 0)], bushes: [], shrubs: [], crowns: 'realistic', flock: readFlock() };
+    const F = floraRead(grove, { kinds: grove.kinds, colours, bases, autumn: 0.9 }), B = unpack(F.bare);
+    expect(B.length).toBe(F.n);
+    for (const v of B) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThanOrEqual(FLOCK.shed + 1e-6); }
+    expect(new Set([...B].map((v) => v.toFixed(3))).size).toBeGreaterThan(1);
+    expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).bare).toBeUndefined();
+    expect(floraRead({ ...grove, flock: undefined }, { kinds: grove.kinds, colours, bases, autumn: 0.9 }).bare).toBeUndefined();
+  }, 300000);
+
+  it('grows a tree its scene gives a way one way: its reach ahead past its reach behind, turned to face it, at its scene\'s height', () => {
+    const sp = 'cherry', at = (x, y, h, toward) => ({ x, y, z: 0, h, kind: -1, cluster: 0, species: sp, ...(toward !== undefined ? { toward } : {}) });
+    const street = { form: 'blob', kinds: null, bushKinds: null, trees: [at(0, 0, 9, 1.2), at(30, 0, 9)], bushes: [], shrubs: [], crowns: 'realistic', apart: false };
+    const F = floraRead(street, { colours, bases }), P = unpack(F.trees), Ts = [0, 1].map((i) => F.templates[P[i * FLORA_STRIDE + 11]]);
+    expect(Ts[0].lean).toBe(true);
+    expect(Ts[0].reach.front).toBeGreaterThan(Ts[0].reach.back);
+    expect(Ts[1].lean).toBeUndefined();
+    // (turned to face its way: the template's +x along `toward`)
+    expect(P[4]).toBeCloseTo(1.2, 4);
+    // (the scene's own height, raised only to its headroom; its room behind it, less than its crown's reach)
+    const Z = treeSizes(street);
+    expect(Z[0].back).toBeLessThan(Z[0].r);
+    expect(Z[1].back).toBeUndefined();
+    for (const [i, t] of street.trees.entries()) expect(Z[i].h).toBeGreaterThanOrEqual(t.h - 1e-6);
+    // (no realistic crowns: no way grown, the way ignored)
+    expect(floraRead({ ...street, crowns: undefined, apart: undefined }, { colours, bases }).templates.some((t) => t.lean)).toBe(false);
+  }, 300000);
+
+  it('draws a young tree its scene plants in the plain crown, airy as a sapling\'s, never grown one way', () => {
+    const at = (x, young) => ({ x, y: 0, z: 0, h: 6, kind: -1, cluster: 0, species: 'cherry', toward: 0.5, ...(young ? { young: true } : {}) });
+    const street = { form: 'blob', kinds: null, bushKinds: null, trees: [at(0, true), at(30, false)], bushes: [], shrubs: [], crowns: 'realistic', flock: readFlock(), apart: false };
+    const F = floraRead(street, { colours, bases }), P = unpack(F.trees), [Y, O] = [0, 1].map((i) => F.templates[P[i * FLORA_STRIDE + 11]]);
+    expect(Y.far).toBeUndefined();
+    expect(Y.flock).toBeUndefined();
+    expect(Y.lean).toBeUndefined();
+    expect(O.far).toBeTruthy();
+    expect(O.lean).toBe(true);
+  }, 300000);
 });

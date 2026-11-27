@@ -55,12 +55,67 @@ kit and the cloth are made by the rules in [garment-principles.md](garment-princ
   first are one ring at the joint's plane, the same points, so the two shells are one surface and the shading welds
   across it (`formSlice` `stitch`). Before laws 4 the two overlapped across the plane, the upper's skin tucked inside
   past it.
-- **Kept authored:** the head, the hands. Under a physique with bulk the hands and their joints are scaled
-  about the wrist (`build.hands`).
+- **Kept authored:** the head, the hands. Under realistic laws 18 the hands and their joints are sized to the body about
+  the wrist (`build.handsTo`, `body-relational-builds.js` `HAND_SIZE`): the hand's length, the wrist to the middle
+  finger's tip, 0.11 of the stature (the head's top over the soles), and its breadth across the knuckles a man's 0.0507
+  or a woman's 0.0473 of it, each by its own factor; a physique's bulk over both (`build.hands`). Before laws 18 the
+  authored hand stood at about 0.087 of the stature, narrow, and only bulk scaled it.
 - **Rig additions:** joints `scapulaAcr<S>`, `scapulaSup<S>`, `scapulaInf<S>`, bone `scapula<S>`; the folds
   `shoulderFold<S>`, `kneeCrease<S>`, `elbowCrease<S>` with their bones; `foreArm<S>` gains `parent: 'upperArm<S>'`.
   At most four influences a vertex, as everywhere.
 - **Dials:** the authored dials' station blends extended to the new stations by `u`.
+
+## A face of its own (realistic laws 19)
+
+A hero minted under realistic laws 19 wears its face's own colours and a woman's face reads as a woman's:
+
+- **Its colours dressed.** A dressed hero's palette is rebuilt from its plan's, which carried the default hair; the colours
+  the face's layers wear (the hair, the brows, the lashes, a beard: `faceTones`) are laid back over it, the operator's own
+  palette over all. Before, every hero in an outfit had the same dark brown hair and brows.
+- **Its eyes.** The iris is its ancestry's: a colour word off the ancestry's eye list (`egocube/ancestry.js` `eyes`, on a
+  stream of its own: `epidermis/dermal-looks.js` `ancestryIris`, `IRIS_HEX`), where every realistic face had one blue-grey.
+- **Its skin's seams joined.** A face of the head's skin across two islands of its atlas (the lips' cut, the nostrils'),
+  or with a corner the chart has no sample for, is painted as the skin beside it (`dermal-texture.js` `faceUVs` `joined`,
+  the recipe's `hairClip.seams`), where it took the page's white texel. The head's `hairClip` now reaches a dressed hero
+  too. (A grey stipple under the lower lip, which reads as stubble on a woman, is NOT this: it is neither the skin's paint
+  nor the mouth's cup, and is still open.)
+- **A woman's face.** `face-compose.js` `POLE_19`: the female pole's eyes larger (wider; their opening kept, a taller one stretched the blink), the nose smaller and finer,
+  the jaw narrower with its corner higher, the chin smaller and softer, the lower face shorter, the brow ridge flatter, the
+  lips fuller; `FACE_SEX_WEIGHTS_19`, her bold shapes rarer (a square outline, a strong chin, deep-set eyes, a heavy brow, a
+  classical nose) and her refined ones likelier; `FACE_SEX_LEAN`, her character rolled leaning soft and delicate, the
+  whole plane still reached. `composeFace({ laws })` reads them; a hero minted before composes as it did.
+
+## Her abdomen (realistic laws 20)
+
+Under realistic laws 20 a woman's belly is flat and carries a navel (`body-relational-builds.js` `FLAT_BELLY`, applied by
+the door to her build after its physique, so a heavier woman keeps her belly): the belly's mass shallower front to back;
+the rectus's three segments a third as proud (a toned front, not a six-pack) and its lower sheet nearly flush; the seat's
+taper (the heart's point under the navel) set back and flatter, and the seat's lobes trimmed at their front alone (their
+back edge, the seat behind, where it was); the navel a dimple of about 8 mm radius on her frame, which the skin's rings,
+a centimetre apart, carry (the 2.5 mm dimple before fell between them). A woman minted under laws 1 to 19 keeps her body.
+
+## A head and a neck of one's own (realistic laws 21)
+
+Under realistic laws 21 a person's head and neck are their own (`body-relational-builds.js` `HEAD_NECK`, `fitNeck`;
+`layered.js` `headNeckOf`): the head's size (±4 %, the mean of two dice) and the neck's length (±8 %) rolled off the face's
+seed on their own dice and laid on the build's tune (`head`, `neck`), so two people of one stature no longer share one
+head; the neck's width scaled with the head's (its masses × the head's scale × the face's skull breadth over its sex's
+pole's), so a broad head stands on a broader neck; a physique's growth of the neck held to 1.1 of its own and the fat
+layer faded out by the neck's middle (`neckFat`), so a heavyset neck is thick at its root, about 0.85 of the head's width
+under the jaw, where laws 1 to 20 stood it wider than the head (45 cm round a woman's, 50 a man's). The head's height is
+still fitted to the authored head's (hero-relational-head.js `fitOf`), which the tune now sizes per person.
+
+Open: a blink's worst-stretched lid edge (hero-lid-roll.test.js, a line of 4) is sensitive to the face and to the
+skin's net (a fixed cell over a head of another size). Laws 19 raised the count of edges stretched past twice on some
+faces (75 to 83 against about 40), and under laws 21 the test's own face reads 4.5 at its worst edge (laws 20: 3.6). The
+test holds the laws it was written under; the blink on a face of today's laws is not yet held to it.
+
+On the head as it stands, the laws-20 woman's blink has a pinch about a millimetre across at the lower lid's margin: two
+short edges (0.35 and 0.64 mm) stretched 7.5 and 4.1 times. The skin between the two margins is shared between the lids
+(`hero-relational-head.js` `oneSkinFollow`), and there two points that near take shares of the upper lid's turn 2.5 mm
+apart. The number is the net's, not the face's: it reads 3.6 to 7.5 as unrelated words of the head change (the nose, the
+forehead), and 4.7 at the base face's eye width. Her case is held to the band of edges past twice and to an unswung inner
+corner until that share is smooth across the margin; the laws-18 hero is still held to the worst edge as well.
 
 ## The correctives
 

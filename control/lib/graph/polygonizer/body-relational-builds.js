@@ -243,6 +243,15 @@ const SHALLA = {
   },
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
+/** THE HAND SIZED TO THE BODY (realistic laws 18): the hand's length, the wrist to the middle finger's tip, and its breadth
+ * across the knuckles, as shares of the stature (the anthropometric adult's: a man's hand about 19.4 cm long and 8.9 cm
+ * broad at 175.6 cm, a woman's 18.0 and 7.7 at 162.9). The authored hand (the hero's, kept by the slice) is sized to them
+ * about the wrist, its length and its breadth each by its own factor (body-relational.js `handsTo`); before laws 18 the
+ * authored hand stood at about four fifths of that length on the form field's taller body. */
+export const HAND_SIZE = Object.freeze({
+  norrin: Object.freeze({ length: 0.11, breadth: 0.0507 }),
+  shalla: Object.freeze({ length: 0.11, breadth: 0.0473 }),
+});
 
 /**
  * THE CERVICAL NECK (realistic laws 3): the neck's column leaning forward up to the skull, as the cervical spine does
@@ -276,6 +285,47 @@ export const THROAT_LINE = Object.freeze({
   norrin: Object.freeze({ top: 0.49, chest: 0.62, x0: 0.14, x1: 0.2, k: 0.03 }),
 });
 export const throatLine = (build, name) => ({ ...build, throat: THROAT_LINE[name] });
+/** HER ABDOMEN FLAT, WITH A NAVEL (realistic laws 20, the operator's eyes 2026-11-25: the lower belly a pouch under a crease,
+ * the six segments read as a man's, the navel lost): on her build the belly's mass shallower front to back, the rectus's
+ * three segments a third as proud (a toned front, not a six-pack) and its lower sheet nearly flush; the navel a dimple the
+ * skin's rings can carry (its radius ~8 mm on her frame, where 2.5 mm fell between rings a centimetre apart). Relative to
+ * the build as its physique left it, so a heavier woman's belly is still hers. */
+/** THE HEAD AND THE NECK A PERSON'S OWN (realistic laws 21, the operator's eyes 2026-11-25: every head of a sex one size,
+ * the neck the build's whatever head sat on it, a heavy neck wider than the head): `HEAD_NECK` the reach of a person's own
+ * head size (± `head`, the mean of two dice: an adult's head varies about this much at one stature) and neck length
+ * (± `length`), rolled off the face's seed; the neck's width with the head's breadth (its masses × the head's scale × its
+ * breadth over its sex's pole's); a physique's growth of the neck held to `heavy` of its own, and its fat faded out by
+ * the neck's middle (`neckFat`), so a heavyset neck is thick at its root and never wider than the head. */
+export const HEAD_NECK = Object.freeze({ head: 0.04, length: 0.08, heavy: 1.1, neckFat: 0.3 });
+export const fitNeck = (build, { head = 1, breadth = 1, grown = 1 } = {}) => {
+  const k = head * breadth, held = grown > HEAD_NECK.heavy ? HEAD_NECK.heavy / grown : 1;
+  const scaleR = (m, f) => ({ ...m, r: m.r.map((x) => x * f) });
+  return {
+    ...build,
+    neckFat: HEAD_NECK.neckFat,
+    base: build.base.map((m) => (m.id === 'neck' ? scaleR(m, k * held) : m)),
+    muscles: build.muscles.map((m) => (m.id === 'sternocleidomastoid' ? scaleR(m, k * held) : m)),
+  };
+};
+export const FLAT_BELLY = Object.freeze({ abdomenDepth: 0.8, rectus: 0.35, lowerSheet: 0.25, navel: Object.freeze({ r: 0.05, k: 0.03 }),
+  // (the seat's taper, the heart's point under the navel, set back and flatter front to back: it stood as a pad over the
+  // lower belly, wider than the waist, a crease at the navel over it)
+  taper: Object.freeze({ back: 0.05, squash: 0.8 }),
+  // (and the seat's lobes trimmed at their front alone, their back edge where it was: wrapped round to the thighs' tops
+  // they stood as two mounds at the front of her hips)
+  lobeFront: 0.04 });
+export const flatBelly = (build, name) => {
+  if (name !== 'shalla') return build;
+  const F = FLAT_BELLY;
+  return {
+    ...build,
+    base: build.base.map((m) => (m.id === 'abdomen' ? { ...m, r: [m.r[0], m.r[1] * F.abdomenDepth, m.r[2]] }
+      : m.id === 'seatTaper' ? { ...m, cone: m.cone.map(([x, y, z]) => [x, y - F.taper.back, z]), squash: (m.squash ?? 1) * F.taper.squash }
+      : m.id === 'seatLobe' ? { ...m, egg: [m.egg[0], m.egg[1] - F.lobeFront / 2, m.egg[2]], r: [m.r[0], m.r[1] - F.lobeFront / 2, m.r[2]] } : m)),
+    muscles: build.muscles.map((m) => (/^rectus[123]$/.test(m.id) && m.proud !== undefined ? { ...m, proud: m.proud * F.rectus } : m.id === 'rectus4' && m.proud !== undefined ? { ...m, proud: m.proud * F.lowerSheet } : m)),
+    dimples: (build.dimples || []).map((d) => (d.id === 'navel' ? { ...d, ...F.navel } : d)),
+  };
+};
 
 /** THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the build as authored (the athletic base). `bulk` the muscles'
  * mass (their bellies across, how proud they stand; the bones and the joints as they are; on the plus side the arms set
