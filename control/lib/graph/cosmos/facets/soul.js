@@ -18,8 +18,9 @@ const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a p
 const LEVELS = 'lib/graph/gameworld/levels.js';
 // what a pilot per seat runs (worlds/controllable/core.js spec.seats): each seat its own body, its own input, each tick
 const PILOT_PER_SEAT = 'a pilot per seat in the action runtime (worlds/controllable/core.js spec.seats), laid by a gameworld\'s hero stages (levels.js seatPart); web only';
-// the seats kernel's own gaps (a lobby beyond the versus fighter)
-const SEATS = { pkg: 'seats', effort: 'M' };
+// (11-26, couch closeout) the seat values still to build, one package: each couch probe asks for two or three of them
+// at once, so none makes a world alone (cosmos/packages.js `couch`); split is its own, a view a seat
+const COUCH = { pkg: 'couch', effort: 'L' };
 const TWO = ['soul.seats=two'];
 // the settings below `seats` mean something only for a game that seats more than one: rolled and nudged only then
 const GIVEN = Object.freeze({ seats: ['two', 'four'] });
@@ -145,16 +146,16 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         'co-op': { status: 'built', lowers: LEVELS, note: `${PILOT_PER_SEAT}: every seat on the hero's side, an empty seat's hero following the hero`, requires: TWO },
-        versus: { status: 'partial', effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
-        teams: { ...NOT_YET, effort: 'S', requires: ['soul.seats=four'] },
-        'free-for-all': { ...NOT_YET, effort: 'S', requires: TWO },
+        versus: { status: 'partial', ...COUCH, lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
+        teams: { ...NOT_YET, ...COUCH, requires: ['soul.seats=four'] },
+        'free-for-all': { ...NOT_YET, ...COUCH, requires: TWO },
       },
     },
     dependence: {
       given: GIVEN,
       values: {
         parallel: { status: 'built', lowers: LEVELS, note: PILOT_PER_SEAT, requires: TWO },
-        roles: { ...NOT_YET, effort: 'M', requires: TWO },
+        roles: { ...NOT_YET, ...COUCH, requires: TWO },
         // built 11-18 (1118-coop-cooking-spike): the work shift's kitchen for cooks, its sides sealed and what crosses on a pass
         handoff: { status: 'built', since: '2026-11-18', lowers: 'lib/graph/worksim/kitchen.js', note: 'a work shift\'s kitchen for two or four cooks (gameworld/kitchen-level.js, quick.cooks): its sides sealed by a counter, prep on one and assembly and the hand-in on the other, everything an order needs crossing on a pass set in the counter (put from one side, taken from the other); each seat its own hands (work-mechanics.js), the kitchen\'s laws measuring that every order crosses; the work mechanic only', requires: [...TWO, 'power.mechanics=work'] },
       },
@@ -176,8 +177,8 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         'real-time': { status: 'built', lowers: LEVELS, note: `${PILOT_PER_SEAT}; the versus fighter too`, requires: TWO },
-        window: { ...NOT_YET, effort: 'M', requires: TWO },
-        turns: { ...NOT_YET, effort: 'S', requires: TWO },
+        window: { ...NOT_YET, ...COUCH, requires: TWO },
+        turns: { ...NOT_YET, ...COUCH, requires: TWO },
       },
     },
     pool: {
@@ -190,7 +191,7 @@ export const SOUL = Object.freeze({
     join: {
       given: GIVEN,
       values: {
-        lobby: { status: 'partial', ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen (mana-ui\'s fighter select) seats its two players before a fight; no other kind has a lobby' },
+        lobby: { status: 'partial', ...COUCH, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen (mana-ui\'s fighter select) seats its two players before a fight; no other kind has a lobby' },
         'drop-in': { status: 'built', lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time on their own controller (seats-kernel.js): start or light in the versus fighter, any press on a gameworld\'s level' },
       },
     },
