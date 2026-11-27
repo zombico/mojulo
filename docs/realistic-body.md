@@ -110,6 +110,13 @@ skin's net (a fixed cell over a head of another size). Laws 19 raised the count 
 faces (75 to 83 against about 40), and under laws 21 the test's own face reads 4.5 at its worst edge (laws 20: 3.6). The
 test holds the laws it was written under; the blink on a face of today's laws is not yet held to it.
 
+On the head as it stands, the laws-20 woman's blink has a pinch about a millimetre across at the lower lid's margin: two
+short edges (0.35 and 0.64 mm) stretched 7.5 and 4.1 times. The skin between the two margins is shared between the lids
+(`hero-relational-head.js` `oneSkinFollow`), and there two points that near take shares of the upper lid's turn 2.5 mm
+apart. The number is the net's, not the face's: it reads 3.6 to 7.5 as unrelated words of the head change (the nose, the
+forehead), and 4.7 at the base face's eye width. Her case is held to the band of edges past twice and to an unswung inner
+corner until that share is smooth across the margin; the laws-18 hero is still held to the worst edge as well.
+
 ## The correctives
 
 `recipe.correctives`: a list of `{ id, driver: { joint, to, from, full }, d }`.
