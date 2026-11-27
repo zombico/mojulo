@@ -1873,6 +1873,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = await beastBossFigure(rawSpec.beastBoss);
           continue;
         }
+        // A DRAGON (boss/dragons.js, gameworld/beast-boss.js): a figures-map entry `dragon: { id, form }`, its 'primary' form
+        // on four legs or its 'risen' one it rises into, built here, never stored. Absent ⇒ none
+        if (rawSpec.dragon && typeof rawSpec.dragon === 'object') {
+          const { dragonFormFigure } = await import('@/lib/graph/gameworld/beast-boss.js');
+          payload.figures[name] = await dragonFormFigure(rawSpec.dragon.id, rawSpec.dragon.form);
+          continue;
+        }
         // A CASTLE'S BELL (gameworld/metroidvania/bell.js: a boss no door makes): a figures-map entry `bell: { card }`,
         // delivered as its rig (its chains the root, the bell on its axle, the clapper), its moves its clips. Absent ⇒ none
         if (rawSpec.bell && typeof rawSpec.bell === 'object') {

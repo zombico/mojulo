@@ -12,7 +12,8 @@
  *                              (foes/attacks.js SECOND_CARDS), how many to a fight), met
  *                              from the second level on (on a world map, one kind to each fight past the opening, in
  *                              order); `boss` its boss fight (`vehicle`: a boss of the boss shelf drawn as a beast, the
- *                              hydra, fought by the director in its boss's place); all written into the cast
+ *                              hydra; or `dragon`: one of boss/dragons.js, on four legs and then risen; fought by the
+ *                              director in its boss's place); all written into the cast
  *                              (foe-casting.js)
  *   familyOf(G)              → the row (with its rail's id) a gameworld's foes are cast from, or null: the rail its feel's
  *                              template is (rails.js railOfPole)

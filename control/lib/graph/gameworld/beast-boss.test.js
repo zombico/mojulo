@@ -2,7 +2,7 @@
 // head hangs inside its part's box through its turn's opening (where a blow is judged), and every bone a part hides
 // once it is severed is the figure's.
 import { describe, it, expect } from 'vitest';
-import { beastBossFigure, dragonPrimaryFigure } from './beast-boss.js';
+import { beastBossFigure, dragonPrimaryFigure, dragonFormFigure } from './beast-boss.js';
 import { VEHICLES, VEHICLE_IDS, turnTimes } from '../boss/vehicles.js';
 import { DRAGONS, DRAGON_IDS } from '../boss/dragons.js';
 
@@ -41,5 +41,12 @@ describe('a dragon\'s primary form', () => {
     expect(ridge).toBe(true);
     expect(F.clips.walk.b.length).toBe(F.clips.walk.k * F.bones.length * 7);
     expect(F.figH).toBeGreaterThan(2);
+  });
+  it('its risen form wears the same head and wings at the same size, standing taller than the beast', async () => {
+    const id = DRAGON_IDS[0], P = await dragonFormFigure(id, 'primary'), R = await dragonFormFigure(id, 'risen');
+    const len = (F, k) => { const b = F.bones.find((x) => x.id === k); return Math.hypot(...b.tail.map((v, i) => v - b.head[i])); };
+    for (const k of ['head', 'jaw', 'wingBoneR']) expect(len(R, k), k).toBeCloseTo(len(P, k), 3);
+    expect(R.figH).toBeGreaterThan(P.figH * 1.5);
+    await expect(dragonFormFigure(id, 'crawling')).rejects.toThrow(/primary/);
   });
 });

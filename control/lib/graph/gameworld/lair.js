@@ -1,6 +1,6 @@
 /**
  * A BOSS'S LAIR — the level of its own a boss of the boss shelf is fought in (a bestiary entry that stands as one,
- * gameworld/foes.js isDirected: Artesia's hydra). A world map whose climax beat calls such a boss has it taken off the
+ * gameworld/foes.js isDirected: Artesia's hydra, a dragon). A world map whose climax beat calls such a boss has it taken off the
  * climax (the castle heights end on their keep's door) and laid one page more after its last: a CAVE CHAMBER (the
  * dungeon kind, architecture/dungeon-designer.js), its rock cold and mid-dark under one live fire so the beast stands off
  * it, the hero come in at its mouth and the boss coiled toward its back wall, the chase held low behind the hero on the
@@ -10,11 +10,14 @@
  *   lairBossOf(G, glyphs)       → { kind, beat } the climax beat's boss where it stands as a boss of the shelf, else null
  *   withoutLairBoss(glyphs, b)  → the glyphs with that beat's foes taken off it (the climax then holds nothing)
  *   lairStage(level, index, b, G) → the lair's stage (levels.js gameStages)
+ *   lairArena()                 → the arena words a boss's phase event reads (its floor's centre and reach: a dragon's
+ *                                 rise sets its rim burning)
  *
  * Pure.
  */
 import { bestiaryOf, isDirected } from './foes.js';
 import { VEHICLES } from '../boss/vehicles.js';
+import { DRAGONS } from '../boss/dragons.js';
 
 export const LAIR = Object.freeze({
   chamber: Object.freeze({ id: 'lair', at: Object.freeze([0, 0]), radius: 28, height: 22 }),
@@ -47,7 +50,9 @@ export function withoutLairBoss(glyphs, boss) {
 }
 
 export function lairStage(level, index, boss, G) {
-  const row = VEHICLES[bestiaryOf(G)[boss.kind].vehicle];
-  return { level, node: 'lair', section: 'lair', index, boss: boss.kind, label: `${row.name.replace(/^The /, 'The ')}'s lair`,
+  const E = bestiaryOf(G)[boss.kind], row = E.dragon ? DRAGONS[E.dragon] : VEHICLES[E.vehicle];
+  return { level, node: 'lair', section: 'lair', index, boss: boss.kind, label: `${row.name}'s lair`,
     manifest: { kind: 'dungeon', chambers: [{ ...LAIR.chamber, at: [...LAIR.chamber.at] }], style: structuredClone(LAIR.style), lighting: structuredClone(LAIR.lighting), fire: true } };
 }
+
+export const lairArena = () => ({ center: [...LAIR.chamber.at], r: LAIR.chamber.radius, z: 0 });

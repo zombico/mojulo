@@ -112,7 +112,7 @@ import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './
 import { chestsPer, CHEST_SLICE } from './chests.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
 import { standFoe, foePlacements, readLevelFoes, bestiaryOf, stompOf, targetRimOf } from './foes.js';
-import { LAIR, lairBossOf, withoutLairBoss, lairStage } from './lair.js';
+import { LAIR, lairBossOf, withoutLairBoss, lairStage, lairArena } from './lair.js';
 import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
@@ -2447,7 +2447,7 @@ function lairLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature 
   const spawn = [L.hero[0], L.hero[1], L.drop], heading = Math.atan2(L.boss[1] - L.hero[1], L.boss[0] - L.hero[0]);
   // the boss, as the director stands it (its figure built on the page from its row)
   const part = { figures: {}, entities: [] };
-  const boss = standFoe(G, part, { id: 'foe-boss-1', eid: stage.boss, entry: B[stage.boss], at: [...L.boss], heading: Math.atan2(L.hero[1] - L.boss[1], L.hero[0] - L.boss[0]) });
+  const boss = standFoe(G, part, { id: 'foe-boss-1', eid: stage.boss, entry: B[stage.boss], at: [...L.boss], heading: Math.atan2(L.hero[1] - L.boss[1], L.hero[0] - L.boss[0]) }, { more: { arena: lairArena() } });
   // the hero: the world's own pilot, armed as on a trail (an action hero's orbit and blow)
   const moves = heroMoves(G), cam = G.camera ?? null, actionOrbit = cam === 'orbit' && carriesStrike(G);
   const controls = `${walkRun(pilot, '')} · A / D  turn · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}`;

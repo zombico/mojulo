@@ -309,9 +309,10 @@ export function castingCall(world) {
     }
   }
   const variantsOf = (role) => variants.filter((v) => v.of === role).map((v) => v.id);
-  // a routed rail's family's BOSS FIGHT (foe-families.js `boss`: Artesia's hydra): its boss stands as a boss of the boss
-  // shelf, fought by its director, its cast class and skin kept for what reads it
+  // a routed rail's family's BOSS FIGHT (foe-families.js `boss`: Artesia's hydra, or a dragon): its boss stands as a boss
+  // of the boss shelf, fought by its director, its cast class and skin kept for what reads it
   if (family?.boss?.vehicle && foes.boss) foes.boss = { ...foes.boss, vehicle: family.boss.vehicle };
+  else if (family?.boss?.dragon && foes.boss) foes.boss = { ...foes.boss, dragon: family.boss.dragon };
   // a routed rail's family's OWN FOES beside the roles (foe-families.js `extras`: Artesia's monsters of the wilds),
   // each its card at its zone, met from the second level on as the variants are; one that does not stand, left off
   const extras = [];

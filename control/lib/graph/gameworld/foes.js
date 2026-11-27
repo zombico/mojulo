@@ -51,7 +51,8 @@
  *
  * Pure and deterministic: no dice (a foe's place is its beat's).
  */
-import { vehicleEntity } from '../boss/stand.js';
+import { vehicleEntity, bossRule, bossMind } from '../boss/stand.js';
+import { DRAGONS, DRAGON_RISE, dragonBoss } from '../boss/dragons.js';
 import { VEHICLES } from '../boss/vehicles.js';
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
@@ -85,14 +86,19 @@ import { settingOfGame } from './cast-setting.js';
 import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'also', 'vanish', 'states', 'summons', 'pair', 'becomes', 'vehicle'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'also', 'vanish', 'states', 'summons', 'pair', 'becomes', 'vehicle', 'dragon'];
 // the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's; a
 // boss of the boss shelf it stands as, its own)
-const specOf = ({ vanish, states, summons, pair, becomes, vehicle, ...spec }) => spec;
-/** A foe that stands as a BOSS OF THE BOSS SHELF (`vehicle`: a row of boss/vehicles.js drawn as a beast, the hydra): the
- * director fights it (worlds/controllable/boss.js), its figure built by the page (gameworld/beast-boss.js), its own class
- * and skin only what the cast says it is. */
-export const isDirected = (entry) => typeof entry?.vehicle === 'string';
+const specOf = ({ vanish, states, summons, pair, becomes, vehicle, dragon, ...spec }) => spec;
+/** A foe that stands as a BOSS OF THE BOSS SHELF (`vehicle`: a row of boss/vehicles.js drawn as a beast, the hydra; or
+ * `dragon`: one of boss/dragons.js, its fight on four legs and then risen): the director fights it
+ * (worlds/controllable/boss.js), its figure built by the page (gameworld/beast-boss.js), its own class and skin only what
+ * the cast says it is. */
+export const isDirected = (entry) => typeof entry?.vehicle === 'string' || typeof entry?.dragon === 'string';
+/** A dragon's body as it stands: its hit egg round its four-legged length and its risen height, its collider, the height
+ * its ground is found from over its feet (a step's: it walks over a rise, never up onto a brazier or what burns on it),
+ * the distance it closes to between its moves (inside its idioms' reach). */
+export const DRAGON_BODY = Object.freeze({ radius: 2.2, height: 1.2, standoff: 5, egg: Object.freeze({ a: 2.6, c: 2.4, cz: 2.4 }) });
 /** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
  * calls, the hero's distance that starts them, how far round it they arrive (m) and the transit they arrive by. */
 export const SUMMON = Object.freeze({ count: 3, at: 2, every: 4, radius: 14, ring: 1.8, with: 'smoke' });
@@ -172,7 +178,9 @@ export function readBestiary(F) {
     const vanish = e.vanish !== undefined ? readVanish(e.vanish, `${at}.vanish`) : undefined;
     const states = e.states !== undefined ? readStates(e.states, `${at}.states`) : undefined;
     if (e.vehicle !== undefined && !(VEHICLES[e.vehicle] && VEHICLES[e.vehicle].figure)) throw new Error(`${at}.vehicle is a boss of the boss shelf drawn as a beast (${Object.keys(VEHICLES).filter((k) => VEHICLES[k].figure).join(', ')})`);
-    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(e.also !== undefined ? { also: e.also } : {}), ...(e.vehicle !== undefined ? { vehicle: e.vehicle } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
+    if (e.dragon !== undefined && !DRAGONS[e.dragon]) throw new Error(`${at}.dragon is one of the dragons (${Object.keys(DRAGONS).join(', ')})`);
+    if (e.dragon !== undefined && e.vehicle !== undefined) throw new Error(`${at}: a boss of the shelf is a vehicle or a dragon, not both`);
+    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(e.also !== undefined ? { also: e.also } : {}), ...(e.vehicle !== undefined ? { vehicle: e.vehicle } : {}), ...(e.dragon !== undefined ? { dragon: e.dragon } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
   }
   // (what a summoner calls: read once every entry is known)
   for (const [id, e] of Object.entries(F)) {
@@ -419,6 +427,24 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   // A BOSS OF THE BOSS SHELF (`vehicle`, the hydra): stood as the director stands it (boss/stand.js vehicleEntity), under
   // this foe's own id (so a page won by its foes down counts it), on the foes' team, its health its rank's, its figure the
   // beast its row is drawn as, built on the page (`beastBoss`, world-scene.js)
+  // A DRAGON (`dragon`): a human boss of the director's, its fight boss/dragons.js's, its body on four legs its primary
+  // form and its rise the risen form's figure swapped onto it (both built on the page, `dragon`, world-scene.js); its
+  // class's rule moving it between its moves but never its class's weapon (its idioms are all it does: a dragon swings
+  // no sword); `more.arena` ({ center, r }) the ground its rise's event burns
+  if (typeof p.entry.dragon === 'string') {
+    const id = p.entry.dragon, fig = p.eid ? `foe-${p.eid}` : p.id, risen = `${fig}-risen`, row = dragonBoss(id), T = tune ?? {};
+    part.figures[fig] = { dragon: { id, form: 'primary' } };
+    part.figures[risen] = { dragon: { id, form: 'risen' } };
+    const { loadout: _lo, meleeCombo: _mc, meleeSeek: _ms, ...moving } = f.entity.rule;
+    const e = {
+      id: p.id, team: T.team ?? 'foes',
+      rule: { ...moving, standoff: DRAGON_BODY.standoff, collideHeight: DRAGON_BODY.height, collideRadius: DRAGON_BODY.radius, boss: bossRule(row, { seed: 1, first: 2.5, figures: { [DRAGON_RISE.look]: risen }, ...(more.arena ? { arena: { ...more.arena } } : {}) }), mind: { ...(f.entity.rule.mind ?? {}), ...bossMind(row), rank: 'boss' } },
+      body: { type: 'figure-rig', figure: fig, hittable: true, hp: f.toll.hp, poise: 2, radius: DRAGON_BODY.radius, egg: { ...DRAGON_BODY.egg }, hpBar: 'none' },
+      transform: { pos: p.at, heading: p.heading ?? 0 },
+    };
+    part.entities.push(e);
+    return e;
+  }
   if (isDirected(p.entry)) {
     const fig = p.eid ? `foe-${p.eid}` : p.id;
     part.figures[fig] = { beastBoss: p.entry.vehicle };

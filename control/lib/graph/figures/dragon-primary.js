@@ -15,6 +15,8 @@
  *   scalePack, girthPack, spreadPack, tintPack, ridgePack   a pack grown about its origin; swollen about its bones; bones turned out
  *                                about the forward axis; its corners' hues drawn toward a colour; a
  *                                ridge of spines down its back
+ *   dragonRisen(form) → the two-legged form at the primary's scale (the same head, the same wings): what it rises into
+ *   growBones(F, k)   bones' corners grown about their heads
  *   PRIMARY   the beast it is grown from and how much each piece is grown
  *
  * Pure and deterministic.
@@ -141,4 +143,28 @@ export function dragonPrimary(form, beast, { scales, horns } = {}) {
   const winged = taurFigure(spread, headed, { cut: [], drop: form.bones.map((b) => b.id).filter((id) => !WINGS.has(id)), waist: 'wingBoneR', anchor: back.id, at, scale: PRIMARY.wings });
   const tops = winged.bones.map((b) => Math.max(b.head[2], b.tail[2]));
   return { ...(beast.rig !== undefined ? { rig: beast.rig } : {}), ...(beast.layered !== undefined ? { layered: beast.layered } : {}), ...winged, figH: r5(Math.max(...tops)) };
+}
+
+/** Bones' corners grown `k[id]` times about each one's head (its clips turn it there, so they hold), its tail with it. */
+export function growBones(F, k) {
+  const f = F.bones.map((b) => k[b.id] ?? 1);
+  const parts = F.parts.map((P) => {
+    if (!P || typeof P.pos !== 'string') return P;
+    const V = dec(P.pos, Float32Array), J = dec(P.jnt, Uint8Array), W = dec(P.wgt, Float32Array);
+    for (let v = 0; v < V.length / 3; v++) {
+      let top = 0; for (let q = 1; q < 4; q++) if (W[v * 4 + q] > W[v * 4 + top]) top = q;
+      const j = J[v * 4 + top]; if (f[j] === 1) continue;
+      const o = F.bones[j].head; for (let q = 0; q < 3; q++) V[v * 3 + q] = o[q] + (V[v * 3 + q] - o[q]) * f[j];
+    }
+    return { ...P, pos: enc(V) };
+  });
+  return { ...F, parts, bones: F.bones.map((b, j) => (f[j] === 1 ? b : { ...b, tail: b.tail.map((x, q) => r5(b.head[q] + (x - b.head[q]) * f[j])) })) };
+}
+
+/** THE RISEN FORM as it stands beside its primary: the two-legged form grown as the primary's head was (the same head),
+ * its wings grown on to the primary's (the same wings): what it rises into. */
+export function dragonRisen(form) {
+  if (!form?.bones) throw new Error('dragon risen: its two-legged form, packed');
+  const g = PRIMARY.wings / PRIMARY.head;
+  return growBones(scalePack(form, PRIMARY.head), { wingBoneR: g, wingBoneL: g });
 }

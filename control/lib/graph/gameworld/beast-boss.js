@@ -9,6 +9,8 @@
  *   dragonPrimaryFigure(id) → a dragon's primary form (boss/dragons.js): the beast on four legs its two-legged form
  *                       (dragonFigure) rises from, wearing that form's head, wings and ridge in its colours
  *                       (figures/dragon-primary.js)
+ *   dragonFormFigure(id, form) → its 'primary' form, or its 'risen' (the two-legged form grown to stand beside it: the
+ *                       same head, the same wings), the figure its rise swaps onto its body (boss/dragons.js)
  *
  * The serpent's rig is the slow part (animalFigure keeps it). Pure but for that.
  */
@@ -16,7 +18,7 @@ import { readVehicle, turnTimes } from '../boss/vehicles.js';
 import { animalFigure } from '../worlds/fauna-units.js';
 import { hydraFigure } from '../figures/hydra.js';
 import { DRAGONS, dragonFigure } from '../boss/dragons.js';
-import { dragonPrimary, PRIMARY } from '../figures/dragon-primary.js';
+import { dragonPrimary, dragonRisen, PRIMARY } from '../figures/dragon-primary.js';
 import { beastWords } from '../beast/tiered.js';
 import { withDefaultForm } from '../polygonizer/motion-stamp.js';
 
@@ -32,11 +34,20 @@ export async function beastBossFigure(id) {
   return hydraFigure(await animalFigure(M), { heads, colours, turns: times, ...(V.body ? { body: V.body } : {}) });
 }
 
-export async function dragonPrimaryFigure(id) {
-  const D = DRAGONS[id];
-  if (!D) throw new Error(`beast boss: no dragon '${id}' (${Object.keys(DRAGONS).join(', ')})`);
+const risenOf = async (id) => {
   // (the hero door, loaded when asked: the page that stands a beast boss is that door's own)
   const { heroFigure } = await import('../worlds/world-scene.js');
-  const form = await heroFigure(id, { hero: beastWords(withDefaultForm({ form: 'tiered', ...dragonFigure(id) })) }, {});
-  return dragonPrimary(form, await animalFigure({ species: PRIMARY.species, gait: PRIMARY.gait }), { scales: D.scales, horns: D.horns });
+  return heroFigure(id, { hero: beastWords(withDefaultForm({ form: 'tiered', ...dragonFigure(id) })) }, {});
+};
+const dragonOf = (id) => { const D = DRAGONS[id]; if (!D) throw new Error(`beast boss: no dragon '${id}' (${Object.keys(DRAGONS).join(', ')})`); return D; };
+
+export async function dragonPrimaryFigure(id) {
+  const D = dragonOf(id);
+  return dragonPrimary(await risenOf(id), await animalFigure({ species: PRIMARY.species, gait: PRIMARY.gait }), { scales: D.scales, horns: D.horns });
+}
+
+export async function dragonFormFigure(id, form) {
+  if (form === 'primary') return dragonPrimaryFigure(id);
+  if (form === 'risen') { dragonOf(id); return dragonRisen(await risenOf(id)); }
+  throw new Error(`beast boss: a dragon's form is 'primary' or 'risen', not '${form}'`);
 }
