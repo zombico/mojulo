@@ -68,7 +68,8 @@ const COLOR = WORK_COLORS;
 const TICKETS = ['#e05a5a', '#5a9be0', '#e0c25a', '#a05ae0', '#5ae0b4', '#e07f5a'];
 // (seated: each seat's corner of the screen, its own state there in its colour; seat 1's is the bottom left, as it was)
 // (the top's middle is the order rail's, the shared state in one place: work's `rail`)
-const CORNER = [null, 'bottom-left', 'bottom-right', 'top-right', 'bottom'];
+export const SEAT_CORNERS = Object.freeze([null, 'bottom-left', 'bottom-right', 'top-right', 'bottom']);
+const CORNER = SEAT_CORNERS;
 
 // one guard after another (the bus's `if` takes one predicate): `on` → … → `ok` when every guard holds; the first that
 // fails emits `no` (at most one: a later guard is asked only when the earlier held)

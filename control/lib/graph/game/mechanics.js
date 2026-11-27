@@ -27,7 +27,10 @@ import { lowerObjectives } from './objectives.js';
 import { lowerGrade } from './grade.js';
 import { lowerWake } from './wake.js';
 import { lowerSortie } from './sortie.js';
-import { lowerWork } from './work-mechanics.js';
+import { lowerWork, SEAT_CORNERS } from './work-mechanics.js';
+import { SEATS as SEATS_KERNEL } from '../controls/seats-kernel.js';
+
+const { SEAT_COLORS, SEAT_LABELS } = SEATS_KERNEL;
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -61,7 +64,33 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // role: terminal | emitter | gate ; ends (terminals only): which results it can end in.
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
 // ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
-// a mechanic a seat works lowers a hand a seat, the work shift's) }.
+// a mechanic a seat works lowers a hand a seat, the work shift's), seatLives? (true: the seats count lives, so a seat's
+// hp spent is a seat down, rules-basic.js seat-falls, never the level lost) }.
+// FAIL-ON-DEATH WITH SEATS (a level with seats whose hits are counted, docs/local-multiplayer-principles.md principle 4):
+// every seat its own hp, seat 1's the level's `hp` as it was, seat n's `hp:<n>`, each taken by the hits on its own body
+// and shown in its own corner in its colour. A seat's spent is a seat down: its hp whole again and its body felled (the
+// cast's `kill`), which the world takes as a fall (rules-basic.js seat-falls: a life where lives are counted, up beside
+// the others, or out). Seat 1's spent is the level lost, as before, unless the seats count lives (ctx.seatLives): then it
+// is a seat down like the others, and the level is lost when no seat is left.
+function seatedDeath(p, ctx, hits) {
+  const start = Number.isFinite(p.startHp) ? p.startHp : 100;
+  const row = (v, n) => (p.bar === true ? { var: v, label: n === 1 ? 'Health' : SEAT_LABELS[n - 1], as: 'bar', max: start, color: n === 1 ? 'harm' : SEAT_COLORS[n - 1] } : { var: v, label: n === 1 ? 'HP' : `${SEAT_LABELS[n - 1]} HP`, ...(n === 1 ? {} : { color: SEAT_COLORS[n - 1] }) });
+  const seats = [...(ctx.seatLives ? [{ n: 1, v: 'hp', ent: ctx.player }] : []), ...ctx.seats.slice(0, 3).map((ent, k) => ({ n: k + 2, v: `hp:${k + 2}`, ent }))];
+  const vars = { hp: start }, watches = [], reactions = [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud = [row('hp', 1)];
+  if (!ctx.seatLives) watches.push({ type: 'dead', when: { var: 'hp', lte: 0 } });
+  for (const S of seats) {
+    const down = `seat-down:${S.n}`;
+    if (S.n > 1) {
+      vars[S.v] = start;
+      reactions.push({ on: `hit:${S.ent}`, do: 'inc', var: S.v, by: -hits, min: 0 });
+      hud.push({ ...row(S.v, S.n), slot: SEAT_CORNERS[S.n] });
+    }
+    watches.push({ type: down, when: { var: S.v, lte: 0 } });
+    reactions.push({ on: down, do: 'set', var: S.v, to: start }, { on: down, do: 'ctrl', op: 'kill', who: S.ent });
+  }
+  return { world: { vars, watches, reactions, hud }, on: { dead: { end: 'fail' } } };
+}
+
 const MECHANICS = {
   // reach a goal zone → success. The walkability audit IS its completability check.
   'reach-exit': {
@@ -319,8 +348,11 @@ const MECHANICS = {
       // whatever hurts it: a blow, a beam, a foe's touch, a hazard); no level hp, no readout of its own
       if (ofBody(p, ctx, 'fail-on-death')) {
         if (p.startHp !== undefined || p.hits !== undefined) throw new Error(`fail-on-death[${ctx.i}]: of: 'body' takes no startHp or hits: the body's hp is its own, and each hit takes what its source deals`);
+        // (seats counting lives: seat 1's body down is a seat down like the others', the level lost when no seat is left)
+        if (ctx.seatLives) return { world: {}, on: { dead: { end: 'fail' } } };
         return { world: { reactions: [{ on: 'down', match: { entity: ctx.player }, do: 'emit', type: 'dead' }] }, on: { dead: { end: 'fail' } } };
       }
+      if (hits && Array.isArray(ctx.seats) && ctx.seats.length) return seatedDeath(p, ctx, hits);
       return {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
@@ -1580,6 +1612,7 @@ export function lowerMechanic(kind, params, ctx) {
     storeSchema: ctx && ctx.storeSchema,
     hints: (ctx && ctx.hints) || {},
     ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
+    ...(ctx && ctx.seatLives === true ? { seatLives: true } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1637,7 +1670,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}) }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}), ...(ctx.seatLives === true ? { seatLives: true } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));

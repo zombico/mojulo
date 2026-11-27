@@ -16,3 +16,9 @@
   health, or are out when none is left. The first player's knock-down still ends the level, as before.
 - Each extra player's chip at the top of the screen shows a small bar of their own health, which follows it as they
   are hit. The first player's health stays on the level's own HUD.
+- In a level that counts hits, every player now has their own health. Player 1 keeps the level's, and players 2–4 each
+  get one shown in their own corner of the screen, in their colour. A player hit to nothing goes down, then a life is
+  spent and they get up beside the others, or they are out.
+- When the players count lives, player 1 is a player like the others: running out of health costs a life rather than
+  ending the level, and the level is lost only when no player is left. Without lives, player 1's health running out
+  ends the level, as before.

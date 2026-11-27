@@ -1202,3 +1202,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // 'seat-falls' world pass also takes a seated body (seats 2 to 4) whose hp is spent once its collapse has played: a life,
 // then up beside the others with its hp whole, or out (rules-basic.js: the pass's head and tail, one constant). A world
 // without seats steps as before; no fixture seats a second player.
+// Re-pinned 2026-11-27 (1126-couch-closeout: a seat's hp spent): every fixture that embeds the controllable runtime. The
+// 'seat-falls' pass takes seat 1 downed too when the seats count lives, and a seat it brings up lets go of the cast's
+// fell (`castDown`) as well (rules-basic.js: one condition, one assignment, the comment). No fixture seats a second player.

@@ -184,8 +184,8 @@ export const SOUL = Object.freeze({
     pool: {
       given: GIVEN,
       values: {
-        shared: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one, and a seat 2 to 4 downed (its hp spent) one, up again beside the others; at none the level is lost (rules-basic.js seat-falls); seat 1\'s hp is still the level\'s, seats 2 to 4 a bar of their body\'s hp in their chip; web only', requires: TWO },
-        own: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one, and a seat 2 to 4 downed (its hp spent) one, up again beside the others; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls); seat 1\'s hp is still the level\'s, seats 2 to 4 a bar of their body\'s hp in their chip, and scores stay one count; web only', requires: TWO },
+        shared: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one, and a seat downed (its hp spent: its body\'s, or its own level hp where hits are counted, mechanics.js seatedDeath) one, up again beside the others; at none the level is lost (rules-basic.js seat-falls). Every seat its own hp, in its corner in its colour; scores stay one count; web only', requires: TWO },
+        own: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one, and a seat downed (its hp spent: its body\'s, or its own level hp where hits are counted, mechanics.js seatedDeath) one, up again beside the others; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls). Every seat its own hp, in its corner in its colour; scores stay one count; web only', requires: TWO },
       },
     },
     join: {
