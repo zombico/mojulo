@@ -79,6 +79,17 @@ pivoting on its ball, the off hand countering. And the hit is the weapon's (`gam
 weapon tip is read across its contact window (`figures/clip-reach.js`), and the blow's reach and cone are set from that
 path at the body's scale, so it lands where the weapon passes and a player reads the reach off the weapon itself.
 
+### A taur: a people on a beast's body
+
+A people's skin may name a four-legged species it stands on, `taur` (a centaur's: `{ people: 'sylvan', taur: 'horse' }`).
+Its figure is two made into one (`figures/taur.js`): the beast's body without its neck and head, the people's from the
+waist up stood on the beast's withers (`taurFit` reads the cut, the anchor and the size off the two skeletons), one
+skeleton and one skin. Every pose is both: the beast's clip as it is, the people's moving on the withers as on its own
+hips, so a moving state walks on the beast's gait with the people held at its rest over it, and a swing or a throw is
+the people's own over the beast's stand. It fights as its people (its cards, its swings' hit off its weapon) and stands
+taller than its people (`TAUR_STANDS`), so its zone is from above. The beast is made by a step of its own beside the
+people's (`<ref>-taur`).
+
 ### A second attack: a spit, a breath
 
 A beast that strikes can carry a second attack beside its blow, an entry's `also` (`foes/attacks.js` SECOND_CARDS):

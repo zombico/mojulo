@@ -1620,7 +1620,20 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a party battle's fighter holding a weapon, its moves naming the held swings, egocube/moves.js ARMED_ATTACKS: the
           // swings baked on its own rig at a blow's window, no rule armed with them)
           const battleSwings = !(wielder || mover) && rawSpec.moves && typeof rawSpec.moves === 'object' && Object.values(rawSpec.moves).some((c) => typeof c === 'string' && c.startsWith('swing_')) ? { swings: { contact: BATTLE_SWING_CONTACT } } : {};
-          const fig = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...battleSwings, ...(cardSlot ? { swings: { contact: cardSlot.strikeContact, word: cardSlot.swing, body: true, ...(cardSlot.art ? { style: cardSlot.art } : {}), ...(cardSlot.words ? { words: cardSlot.words } : {}), ...(cardSlot.aim ? { aim: cardSlot.aim } : {}) } } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
+          const heroOpts = { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...battleSwings, ...(cardSlot ? { swings: { contact: cardSlot.strikeContact, word: cardSlot.swing, body: true, ...(cardSlot.art ? { style: cardSlot.art } : {}), ...(cardSlot.words ? { words: cardSlot.words } : {}), ...(cardSlot.aim ? { aim: cardSlot.aim } : {}) } } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) };
+          const fig0 = await heroFigure(name, rawSpec, heroOpts);
+          // A TAUR (`taur`: a lower body's own figure spec, a beast's, figures/taur.js): this hero's torso, arms and head
+          // stood on that body's withers, one skeleton and one skin, its swings on the beast's gaits. Absent, as it was
+          const fig = rawSpec.taur && typeof rawSpec.taur === 'object' ? await (async () => {
+            const { taurFigure, taurFit } = await import('@/lib/graph/figures/taur.js');
+            const { held: _h, ...lower } = await heroFigure(`${name}@taur`, rawSpec.taur, { ...(castFig ? { lit: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}) });
+            const T = taurFit(fig0, lower), W = fig0.bones.find((b) => b.id === T.waist).head;
+            // (a swing AIMED at a height, a foe's zone: the height on the body as it stands on the withers, the upper's own
+            // waist lifted to `at` and grown `scale`, so its swing is aimed again on its own rig at the height that lands there)
+            const A = heroOpts.swings?.aim;
+            const up = A && Number.isFinite(A.height) ? await heroFigure(name, rawSpec, { ...heroOpts, swings: { ...heroOpts.swings, aim: { ...A, height: W[2] + (A.height - T.at[2]) / T.scale } } }) : fig0;
+            return taurFigure(up, lower, { ...T, rest: 'idle' });
+          })() : fig0;
           const { held, ...figure } = fig;
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');

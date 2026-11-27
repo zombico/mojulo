@@ -75,7 +75,7 @@ import { readVanish, vanishOf } from './vanish.js';
 import { readStates, stateBirth } from '../foes/states.js';
 import { trailContext } from './juice.js';
 import { resolveTrailColor } from '../scene/juice-style.js';
-import { peopleRoll, peopleSeed, peopleStands } from '../foes/people.js';
+import { peopleRoll, peopleSeed, peopleStands, TAUR_STANDS } from '../foes/people.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
@@ -370,8 +370,11 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
     // body, over the library's; a people of the operator's own below the hero door on its creature clips), drawn from
     // the sheet the run made it from
     const sheet = C.sheets[eid] ?? (C.sheets[eid] = rollEgocube(peopleRollOf(G, eid, entry)));
-    part.figures[id] = had ?? walked(fieldFigure(ref, fieldOf({ body: 'person', sheet })));
-    return peopleBody(statureOf({ body: 'person', sheet }) * peopleStands(entry.skin), f.scale);
+    // (a TAUR, its skin's `taur`: its torso stood on that beast's body, the beast's own sketch beside its own (`<ref>-taur`,
+    // the runner's step), walking on its gaits: figures/taur.js, world-scene.js)
+    const taur = entry.skin?.taur ? { taur: foeFigure(`${ref}-taur`, { species: entry.skin.taur, gait: { fly: false } }) } : {};
+    part.figures[id] = had ?? { ...walked(fieldFigure(ref, fieldOf({ body: 'person', sheet }))), ...taur };
+    return peopleBody(statureOf({ body: 'person', sheet }) * peopleStands(entry.skin) * (entry.skin?.taur ? TAUR_STANDS : 1), f.scale);
   }
   part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}), ...(f.attack.also ? { also: { way: f.attack.also.way, timing: f.attack.also.timing } } : {}), ...(gait ? { gait } : {}) });
   return beastBody(f.measured, f.scale);

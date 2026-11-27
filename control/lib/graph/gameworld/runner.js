@@ -820,7 +820,10 @@ const foeSteps = (G, ref, ready, ids = null) => {
     const thrown = foeThrowOf(entry), motion = gaits || thrown ? { ...(gaits ? FOE_GAITS : {}), ...(thrown ? { [thrown]: true } : {}) } : null;
     const words = body || gear || kin || motion ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}), ...(motion ? { motion } : {}) } : null;
     const bare = kinBare(entry.skin, kinSheet) ? { dress: 'kit' } : {}, adorned = entry.skin && entry.skin.adorned ? { adorned: true } : {};
+    // (a TAUR's beast, its skin's `taur`: the body its torso stands on, made as a routed beast is, beside it: figures/taur.js)
+    const taur = entry.skin && entry.skin.taur ? [{ ...beastStep(`foes-${id}-taur`, `${childRef(ref, `foes-${id}`)}-taur`, { species: entry.skin.taur, setting, ...coat, gait: { fly: false } }, `${title} (body)`), ...ready }] : [];
     return [
+      ...taur,
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
       { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title, ...(words ? { spec: words } : {}), ...bare }, print: fingerprint({ roll, moves: true, ...(words ? { spec: words } : {}), ...adorned }) },
     ];

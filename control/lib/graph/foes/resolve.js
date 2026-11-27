@@ -30,7 +30,7 @@
  */
 import { PACES, MOVES, ATTACKS, FOE_RANKS, HERO } from './vocab.js';
 import { foeClass, classStatus } from './index.js';
-import { checkFit, checkFitPeople, checkFitModel } from './fit.js';
+import { checkFit, checkFitPeople, checkFitModel, bodyOf } from './fit.js';
 import { cardFor, cardAttack, isThrow, alsoFor } from './attacks.js';
 import { OOZES } from '../mutagen/oozes/index.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
@@ -95,6 +95,8 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   const model = isModelSkin(spec.skin) ? readModelSkin(spec.skin) : null;
   const people = model ?? (spec.skin?.people !== undefined ? readPeopleSkin(spec.skin) : null);
   if (spec.skin !== undefined && !people) for (const k of Object.keys(spec.skin)) if (!SKIN_KEYS.includes(k)) throw new Error(`foe: .skin has no key '${k}' (a beast's: ${SKIN_KEYS.join(', ')}; a people's: people, facets; a model's: meshRef, height)`);
+  // (a taur's body, its skin's `taur`: a species on four legs with a neck its torso stands in place of)
+  if (people?.taur) { let B; try { B = bodyOf(people.taur); } catch { B = null; } if (!B || B.support !== 'four') throw new Error(`foe: .skin.taur: '${people.taur}' is not a four-legged species a torso stands on (a centaur's: 'horse')`); }
   const species = people ? null : spec.skin?.species ?? c.standIn;
   const grown = people ? {} : { ...(spec.skin?.ooze !== undefined ? { ooze: spec.skin.ooze } : {}), ...(spec.skin?.stylism !== undefined ? { stylism: spec.skin.stylism } : {}) };
   const errs = people ? [] : mutagenErrors(grown.ooze, undefined, grown.stylism);

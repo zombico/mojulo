@@ -89,6 +89,14 @@ describe('the foe families: the rails whose foes walk as their bodies do', () =>
       expect(X.skin.people !== undefined || (Array.isArray(X.skin.ooze) ? X.skin.ooze.length : !!X.skin.ooze), X.id).toBeTruthy();
       expect(() => resolveFoe({ class: X.class, skin: { ...X.skin } }), X.id).not.toThrow();
     }
+    // (a taur stands its people on a four-legged body, taller than its people; never on one without four legs)
+    const T = Object.values(FOE_FAMILIES).flatMap((F) => F.extras ?? []).find((x) => x.skin.taur);
+    if (T) {
+      const f = resolveFoe({ class: T.class, skin: { ...T.skin } }), plain = resolveFoe({ class: T.class, skin: { people: T.skin.people } });
+      expect(f.measured.support).toBe('four');
+      expect(f.measured.height).toBeGreaterThan(plain.measured.height);
+      expect(() => resolveFoe({ class: T.class, skin: { people: T.skin.people, taur: 'snake' } })).toThrow(/four-legged/);
+    }
   });
 
   it('a people among them carries the arm it names, into its cast', async () => {

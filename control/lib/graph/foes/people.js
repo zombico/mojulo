@@ -38,7 +38,7 @@ import { validateGear } from '../polygonizer/hero-gear.js';
 import { readPack, readKinBody, WILD_SIZES, isKin } from './packs.js';
 
 export const PEOPLE = Object.freeze(['human', ...Object.keys(LINEAGES)]);
-const SKIN_KEYS = ['people', 'facets', 'dress', 'gear', 'pack', 'body', 'adorned'];
+const SKIN_KEYS = ['people', 'facets', 'dress', 'gear', 'pack', 'body', 'adorned', 'taur'];
 // (the facets a skin may name: the egocube's own, its frame's build beside them)
 const FACET_KEYS = [...Object.keys(FACETS).filter((k) => k !== 'frame'), 'build', 'pole'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -60,6 +60,9 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
     if (stray.length) throw new Error(`${at}.facets: a dressed person's build and age are its dress's; it names only its pole (not ${stray.join(', ')})`);
   }
   if (skin.gear !== undefined) { const errs = validateGear(skin.gear); if (errs.length) throw new Error(`${at}.gear: ${errs.join('; ')}`); }
+  // (a TAUR, `taur: <species>`: its torso, arms and head stood on a four-legged beast's body in place of its legs, a
+  // centaur's; the species checked as the body it stands on where it is resolved, foes/resolve.js)
+  if (skin.taur !== undefined && (typeof skin.taur !== 'string' || !skin.taur)) throw new Error(`${at}.taur: a four-legged species its torso stands on (a centaur's: 'horse')`);
   // (a kin dressed as its pack and sized as its own: ./packs.js)
   const pack = skin.pack !== undefined ? readPack(skin.pack, skin.people, `${at}.pack`) : undefined, body = skin.body !== undefined ? readKinBody(skin.body, skin.people, `${at}.body`) : undefined;
   // (a kin ADORNED by the frame-adorned principles, each by its own role and standing: ./packs.js; a pack is adorned alike)
@@ -69,11 +72,13 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
     if (skin.pack !== undefined) throw new Error(`${at}.adorned: a pack is adorned alike already; name one or the other`);
   }
   return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}), ...(skin.gear !== undefined ? { gear: structuredClone(skin.gear) } : {}),
-    ...(pack ? { pack } : {}), ...(body ? { body } : {}), ...(skin.adorned ? { adorned: true } : {}) };
+    ...(pack ? { pack } : {}), ...(body ? { body } : {}), ...(skin.adorned ? { adorned: true } : {}), ...(skin.taur ? { taur: skin.taur } : {}) };
 }
 
 /** How tall a people stands against its sheet's person: a kin's share of it (beast/cards.js `stands`: short legs under a
  * hunched back) times its body's size (./packs.js WILD_SIZES); 1 for a person. */
+/** how tall a taur stands against its people (its torso on a beast's withers: figures/taur.js TAUR_SHARE) */
+export const TAUR_STANDS = 1.3;
 export const peopleStands = (skin) => r3((BEAST_KINS[skin?.people]?.stands ?? 1) * (WILD_SIZES[skin?.body?.size]?.stature ?? 1));
 
 export function peopleBody(skin) {
@@ -82,6 +87,8 @@ export function peopleBody(skin) {
   // (and a lineage of one build stands at it where its skin names none: its roll can be no other)
   const only = LINEAGES[S.people]?.builds?.length === 1 ? LINEAGES[S.people].builds[0] : null;
   const h = r3((HEIGHT[f.build ?? only] ?? HEIGHT.canonical) * (AGE_SCALE[f.age] ?? AGE_SCALE.adult) * peopleStands(S));
+  // (a taur stands taller and longer than its people, on four legs: TAUR_STANDS of its height, its body as long)
+  if (S.taur) { const H = r3(h * TAUR_STANDS); return { support: 'four', wings: false, swimmer: false, size: classOfExtent(H, H), extent: H, height: H, scale: 1, gaits: ['walk', 'trot', 'gallop'], people: S.people, taur: S.taur }; }
   return { support: 'two', wings: false, swimmer: false, size: classOfExtent(h, h), extent: h, height: h, scale: 1, gaits: ['walk', 'jog', 'run'], people: S.people };
 }
 

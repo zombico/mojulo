@@ -20,6 +20,11 @@
   it braces (`worlds/controllable/foe.js`), where it braced on the ground and its dive ended where it began; a routed
   flier hovers on its wings at rest. The foe audit reads the states a posed move and a thrown weapon play (`brace`,
   `dive`, `throw`), where it asked for a wind-up and a gun's fire they never play.
+- **A taur: a people on a beast's body** (a people skin's `taur: <species>`, `figures/taur.js`): its torso, arms and head
+  stood on a four-legged beast's withers in place of its legs, the beast's neck and head gone, one skeleton and one
+  skin; it walks, trots and gallops on the beast's gaits and swings on its own, its swing's hit measured off its weapon
+  as any; taller than its people, so it strikes from above. Artesia's centaur, the forest folk on a horse with a
+  longsword, rides you down and cuts from above.
 - **A second attack: a spit, a breath** (an entry's `also`, `foes/attacks.js` SECOND_CARDS): a beast that strikes
   spits a slow ball that bursts where it lands from a few metres out, or pours a jet of fire over the ground before it
   at close range, coming on while it throws and biting once in reach; its round its body's element (fire, venom, shadow,
