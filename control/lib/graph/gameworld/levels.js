@@ -1123,6 +1123,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     const OB = game.mechanics.find((m) => m && m.kind === 'objectives');
     const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, ...(t.kind === 'scan' ? { ring: true } : {}), when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
     // (its script, gameworld/script.js: each line raised on the bus at its moment, shown on the page as comms)
+    // (its finds, a scan's specimen revealed as it is met: scene/channels/find-reveal.js)
+    if (X0?.finds?.length) pilotPart = { ...pilotPart, finds: X0.finds };
     if (X0?.script) pilotPart = { ...pilotPart, events: { ...pilotPart.events, sequences: [...(pilotPart.events.sequences ?? []), ...scriptSequences(X0.script.lines)] }, comms: commsData(X0.script) };
     // (a frame level that teaches: each lesson waits for the pilot to do it, no count shown; and the keys' legend along
     // the bottom left off, the lessons saying each key as it comes: the screen is the game's)

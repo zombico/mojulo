@@ -280,11 +280,11 @@ export const GROUND_UNITS = Object.freeze({
   // black space and grey ground; it orbits and strafes, a small thing hard to hold in a lock
   gnat: Object.freeze({
     label: 'gnat drone', reads: 'a white lens drawn forward into a red-eyed nose, on a horseshoe of plasma open at the front, fins aft: one of a swarm',
-    size: 1.7, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
+    size: 2.3, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
     livery: Object.freeze({ hull: '#e9e4d6', hull2: '#e2632d', accent: '#23343a' }),
-    // (some 9 m nose to tail as drawn: a thing a frame swats, not one it duels, and sees coming and which way it faces)
+    // (some 12 m nose to tail as drawn: a thing a frame swats, not one it duels, and sees coming and which way it faces)
     parts: () => {
-      const k = 1.2, S = (v) => v.map((x) => x * k), R = 1.45 * k, n = 18, seg = ((2 * Math.PI * R) / n) * 1.04;
+      const k = 1.6, S = (v) => v.map((x) => x * k), R = 1.45 * k, n = 18, seg = ((2 * Math.PI * R) / n) * 1.04;
       const spin = (faces, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] * Math.cos(a) - c[1] * Math.sin(a), c[0] * Math.sin(a) + c[1] * Math.cos(a), c[2]]) }));
       // (the ring's segments round from the right of the nose to its left, the back way: none across the front)
       const ring = Array.from({ length: n }, (_, i) => i).filter((i) => { const a = (2 * Math.PI * i) / n; return Math.cos(a) < 0.72; });

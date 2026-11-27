@@ -19,6 +19,8 @@
  *              { learn: <FRAME_LESSONS word>, text? } a control shown and met only as it is done; { act: <bus event>,
  *              text? } met as the level says it (a scene's end: `scene-end:<id>`)
  *     marks    { <name>: [x, y] } named places on the field, each a spot of its name for the level's scenes
+ *     a scan's `specimen` (prospect/specimens.js) and `amount` + `unit`: what it finds, revealed as it is met (the game
+ *     stopped for it, the specimen in wireframe, its yield: scene/channels/find-reveal.js)
  *     a group's `wary: true`: a unit that holds its fire until it is hit (a survey drone spotted, pointed out, engaged)
  *     a group's `comes: <task number>`: it stands dormant till that task begins and comes then, not that task's to down
  *     (a frame that comes with the one fought, to be led off by an ally in a split)
@@ -41,6 +43,7 @@
  *
  * Pure: the dice are the field's, seeded by the group's id.
  */
+import { SPECIMENS, readSpecimen, specimenWire } from '../prospect/specimens.js';
 import { unitRadius, GROUND_UNITS } from '../groundforce/index.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
@@ -80,7 +83,7 @@ export const OPERATION = Object.freeze({
     // `spin` turns a second; its hit and aim at its hull, `hitAt` m up, not up among its rotors)
     thunderhead: Object.freeze({ hp: 64000, damage: 60, rof: 10, range: 820, speed: 560, air: 115, turn: 0.9, floor: 60, boss: 'Thunderhead', hitAt: 2.2, flight: Object.freeze({ mode: 'orbit', radius: 260, alt: 115, speed: 44, turn: 0.7, under: 55, spin: 3.2 }), missiles: Object.freeze({ count: 80, lockTime: 2.4, cone: 40, range: 850, speed: 150, turn: 0.3, damage: 1500, splash: 16, prox: 5, fuse: 8, cooldown: 5, impact: 0.5 }) }),
     harrow: Object.freeze({ hp: 32000, damage: 90, rof: 7, range: 520, speed: 520, air: 45, turn: 1.4, floor: 18, boss: 'Harrow', flight: Object.freeze({ mode: 'circuit', radius: 170, alt: 42, speed: 26, hover: Object.freeze([3.5, 11]), turn: 1.2 }), missiles: Object.freeze({ count: 120, lockTime: 1.2, cone: 60, range: 650, speed: 115, turn: 1.3, damage: 480, splash: 9, prox: 4, fuse: 9, cooldown: 1.4, impact: 0.1 }) }),
-    gnat: Object.freeze({ hp: 700, damage: 32, rof: 4, range: 260, speed: 170, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
+    gnat: Object.freeze({ hp: 1400, damage: 32, rof: 4, range: 260, speed: 170, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
   }),
   reach: 60,
   // (a scan's ring and how long it takes inside it)
@@ -145,7 +148,11 @@ export function readOperation(v, at = 'goal.operation') {
       if (!(Array.isArray(t.scan) && t.scan.length === 2 && t.scan.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${tat}.scan is [x, y], each −1..1: the place scanned`);
       if (t.seconds !== undefined && !(Number.isFinite(t.seconds) && t.seconds > 0 && t.seconds <= 60)) throw new Error(`${tat}.seconds is how long the scan takes, 0 to 60`);
       if (t.found !== undefined && !(typeof t.found === 'string' && t.found && t.found.length <= 120)) throw new Error(`${tat}.found is what the scan found, in words (up to 120 letters)`);
-      return { scan: t.scan.slice(), radius: t.radius ?? OPERATION.scan.radius, seconds: t.seconds ?? OPERATION.scan.seconds, ...(t.found ? { found: t.found } : {}), ...(t.text ? { text: t.text } : {}) };
+      // (what it finds, revealed as it is met: a specimen off the shelf, prospect/specimens.js, and the yield reckoned)
+      if (t.specimen !== undefined) readSpecimen(t.specimen, `${tat}.specimen`);
+      if (t.amount !== undefined && !(Number.isFinite(t.amount) && t.amount > 0 && typeof t.unit === 'string' && t.unit && t.unit.length <= 8)) throw new Error(`${tat}.amount is the yield reckoned, a number above 0, with its unit ('t', 'kt', 'Mt')`);
+      if (t.amount !== undefined && t.specimen === undefined) throw new Error(`${tat}.amount is a specimen's yield: name its specimen`);
+      return { scan: t.scan.slice(), radius: t.radius ?? OPERATION.scan.radius, seconds: t.seconds ?? OPERATION.scan.seconds, ...(t.found ? { found: t.found } : {}), ...(t.specimen ? { specimen: t.specimen } : {}), ...(t.amount ? { amount: t.amount, unit: t.unit } : {}), ...(t.text ? { text: t.text } : {}) };
     }
     if (t.learn !== undefined) {
       // (a control learnt: the pilot shown its keys and told what it does, and the task met only as it is done, the
@@ -470,5 +477,7 @@ export function operationCast(op, ends) {
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
   const scenes = [...intros, ...splits];
-  return { entities, figures, ...(op.props || op.marks || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
+  // (each scan's find, revealed as it is met: find-reveal.js; a scan with no specimen is found in words alone)
+  const finds = op.tasks.map((t, i) => (t.specimen ? (() => { const S = SPECIMENS[t.specimen]; return { task: `t${i + 1}`, name: S.name, grade: S.grade, about: S.about, ...(t.amount ? { amount: { approx: t.amount, unit: t.unit } } : {}), wire: specimenWire(t.specimen) }; })() : null)).filter(Boolean);
+  return { entities, figures, ...(finds.length ? { finds } : {}), ...(op.props || op.marks || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }
