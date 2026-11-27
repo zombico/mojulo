@@ -22,5 +22,5 @@ export async function beastBossFigure(id) {
   const turns = Object.entries(V.states).filter(([, s]) => s.head), heads = turns.map(([st]) => st);
   const colours = Object.fromEntries(turns.map(([st, s]) => [st, V.parts[s.head].colour]).filter(([, c]) => c));
   const times = Object.fromEntries(heads.map((st) => [st, turnTimes(V, st)]));
-  return hydraFigure(await animalFigure(M), { heads, colours, turns: times });
+  return hydraFigure(await animalFigure(M), { heads, colours, turns: times, ...(V.body ? { body: V.body } : {}) });
 }

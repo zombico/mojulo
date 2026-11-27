@@ -174,6 +174,17 @@ export function buildRulesBasic(E) {
       }
       h = e.camYaw;
     } else h = tgt.transform.heading + Math.PI * e.flipMix;
+    // A FACED FOE (opt-in `face`: an entity's id, a boss arena's): while it stands, the chase is held behind the target on
+    // the line from it, its yaw eased to look from the target at it (`faceRate`/s), and its look lifted toward it below
+    // (`faceMix` of the way, `faceH` m over its feet): the foe looms over the target, whichever way the target turns.
+    // Absent, or the foe down: the chase as it was.
+    const fc = r.face ? world.byId[r.face] : null, faced = !!(fc && !fc.gone && !fc.downed);
+    if (faced) {
+      const want = Math.atan2(fc.transform.pos[1] - tgt.transform.pos[1], fc.transform.pos[0] - tgt.transform.pos[0]);
+      if (e.faceYaw == null) e.faceYaw = want;
+      e.faceYaw += Math.atan2(Math.sin(want - e.faceYaw), Math.cos(want - e.faceYaw)) * smooth(r.faceRate ?? 3, dt);
+      h = e.faceYaw;
+    }
     const f = fwdXY(h), rt = rightXY(h);
     // the height followed: the target's, or under a steered chase its ground's through a jump (the deadzone)
     let tz = tgt.transform.pos[2];
@@ -211,6 +222,7 @@ export function buildRulesBasic(E) {
     // ROLL (skyscape, opt-in `rollFollow` 0..1): the chase banks with a target that rolls (the fly rule's tilt.roll),
     // eased on the same lerp, so a turn reads as a bank and the horizon tilts. Absent, `e.roll` is never set.
     if (r.rollFollow) { const want = ((tgt.tilt && tgt.tilt.roll) || 0) * r.rollFollow; e.roll = (e.roll || 0) + (want - (e.roll || 0)) * k; }
+    if (faced) { const m = r.faceMix ?? 0.5, q = fc.transform.pos; e.lookAt = [e.lookAt[0] + (q[0] - e.lookAt[0]) * m, e.lookAt[1] + (q[1] - e.lookAt[1]) * m, e.lookAt[2] + (q[2] + (r.faceH ?? 4) - e.lookAt[2]) * m]; }
     if (lkMix) {   // blend the look point toward the locked target (its own lookH above its pos)
       const m = e._lkLook * lkMix, tp = lkTgt.transform.pos;
       e.lookAt = [e.lookAt[0] + (tp[0] - e.lookAt[0]) * m, e.lookAt[1] + (tp[1] - e.lookAt[1]) * m, e.lookAt[2] + (tp[2] + lookH - e.lookAt[2]) * m];

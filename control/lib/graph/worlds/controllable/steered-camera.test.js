@@ -85,3 +85,18 @@ describe('a gameworld\'s 3D platformer cameras', () => {
     expect(T.entities[0].rule.move).toBeUndefined();
   });
 });
+
+describe('a faced foe (`face`): the chase held behind the target on the line from the foe, looking up at it', () => {
+  const mkF = (face) => createWorld({ entities: [{ id: 'h', pilotable: true, rule: { type: 'platform', eye: 0, speed: 6 }, transform: { pos: [0, 0, 0], heading: 0 } },
+    { id: 'b', rule: { type: 'ai' }, body: { type: 'none', hittable: true, hp: 10 }, transform: { pos: [0, 20, 0], heading: 0 } }],
+  camera: { rule: 'follow', target: 'h', dist: 5, height: 1, lookH: 1, ...(face ? { face: 'b', faceH: 6 } : {}) } });
+  it('whichever way the hero faces, the camera stands opposite the foe and looks up toward it; absent, the plain chase', () => {
+    const w = steps(mkF(true), () => ({}), 120);
+    const c = w.camera.transform.pos, L = w.camera.lookAt;
+    expect(c[1]).toBeLessThan(-3);                         // (behind the hero, the foe at +y)
+    expect(Math.abs(c[0])).toBeLessThan(0.5);
+    expect(L[2]).toBeGreaterThan(2);                        // (looking up toward it)
+    const p = steps(mkF(false), () => ({}), 120).camera.transform.pos;
+    expect(p[0]).toBeLessThan(-3);                         // (the plain chase: behind the heading, +x)
+  });
+});

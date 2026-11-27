@@ -22,4 +22,10 @@
   as a boss of the boss shelf (`vehicle`, `gameworld/foes.js` isDirected), fought by its director under the foe's own id
   (so a page won by its foes down counts it), its figure built on the page from its row (`{ beastBoss }`,
   `worlds/world-scene.js`), no figure minted for it. Its lair, a level of its own after the castle heights, is next.
+- **The hydra taller and set off its ground**: its necks rise 6.5 m, its heads hanging 8.7 m out in their openings (the
+  boxes with them); its coils and lower necks drawn toward its own `body` colour (`hydraFigure` `body`, the row's: a warm
+  bronze), so it stands off a cold cave's rock.
+- **A faced foe on the chase camera** (`worlds/controllable/rules-basic.js` follow `face`, with `faceRate`, `faceMix`,
+  `faceH`): the chase held behind its target on the line from a foe, its look lifted toward it, so a boss looms over the
+  hero whichever way she turns (a boss arena's). Absent, the chase as it was.
 

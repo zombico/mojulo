@@ -1198,3 +1198,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-25 (1124-mech-battle-kai-rail: an operation's briefing): `briefing` only. The table's roster is
 // headed in the design's word, a binding (`rosterTitle`: a squadron's Flight groups, an operation's Forces), where it
 // was the literal; a space mission's briefing says Flight groups as it did, so what it shows is as it was.
+// Re-pinned 2026-11-27 (1126-beastiary-update: a faced foe): the pages of the controllable channel carry the follow
+// camera's opt-in `face` (rules-basic.js: the chase held behind its target on the line from a foe, its look lifted toward
+// it: a boss arena's). Absent, the chase as it was; what every page shows is unchanged.

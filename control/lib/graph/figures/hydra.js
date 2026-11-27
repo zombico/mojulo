@@ -7,13 +7,14 @@
  *     BODY, kept once, set so the root stands at the figure's origin on the water, grown `k` so a neck rises `height`;
  *   every bone from the root to the head is a NECK, copied once a head (`<bone>_<head>`), each turned about the upright
  *     to its place in the FAN (`fan` degrees apart, the middle one ahead, the first to the right) and stood out from the
- *     root `base` metres along it; a head's head and upper neck are tinted toward its colour (`colours`: its element's)
+ *     root `base` metres along it; a head's head and upper neck are tinted toward its colour (`colours`: its element's),
+ *     its coils and lower necks toward its `body` colour (so it stands off the ground it is fought on)
  *   its CLIPS bend each neck about its own sideways axis, the bend shared down the neck from its foot and the head held
  *     looking ahead: `idle` (every neck swaying, each on its own beat), a TURN a head (`turn-<head>`: its neck rises,
  *     rears back, strikes, then hangs LOW and gasping, its head brought down to `low` [ahead, up] metres from its foot,
  *     its opening, and recovers; the others sway), `heart` (every neck thrashing).
  *
- *   hydraFigure(serpent, { heads, fan?, base?, height?, colours?, low?, turns? }) → the figure (`necks`: each head's bones, the
+ *   hydraFigure(serpent, { heads, fan?, base?, height?, colours?, low?, turns?, body? }) → the figure (`necks`: each head's bones, the
  *       boss's parts hide them once severed; `opening`: the share of a turn its head hangs low)
  *   HYDRA   the defaults
  *
@@ -40,11 +41,13 @@ const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const ss = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
 
 export const HYDRA = Object.freeze({
-  heads: Object.freeze(['ember', 'venom', 'rime', 'storm', 'gloom']), fan: 32, base: 1.2, height: 4.4,
+  heads: Object.freeze(['ember', 'venom', 'rime', 'storm', 'gloom']), fan: 32, base: 1.6, height: 6.5,
   // (its head brought this far ahead of its neck's foot and this high in its opening: where a blade reaches it)
   low: Object.freeze([2.4, 1.25]),
   // (a head's tint: how far toward its colour its head and upper neck are drawn; how many bones from the head take it)
   tint: 0.4, tinted: 3,
+  // (its BODY's tint, `body`: how far its coils and lower necks are drawn toward it, so it stands off the ground it is on)
+  bodyTint: 0.5,
   // (a turn: its keys as shares of it and the neck's bend at each, `low` its opening's; the share its head hangs low)
   turn: Object.freeze([[0, 0], [0.12, 0.08], [0.28, -0.38], [0.4, 0.75], [0.5, 'low'], [0.86, 'low'], [1, 0]]),
   opening: Object.freeze([0.5, 0.86]),
@@ -61,7 +64,7 @@ function spineOf(src) {
   return [...spine, ...neck, head];
 }
 
-export function hydraFigure(src, { heads = HYDRA.heads, fan = HYDRA.fan, base = HYDRA.base, height = HYDRA.height, colours = null, low = HYDRA.low, turns = null } = {}) {
+export function hydraFigure(src, { heads = HYDRA.heads, fan = HYDRA.fan, base = HYDRA.base, height = HYDRA.height, colours = null, low = HYDRA.low, turns = null, body = null } = {}) {
   if (!Array.isArray(heads) || heads.length < 2) throw new Error('hydra: two heads or more');
   const chain = spineOf(src), Z = (i) => src.bones[i].head[2];
   // THE ROOT: the last low point of the spine before its front rises to the head
@@ -89,9 +92,9 @@ export function hydraFigure(src, { heads = HYDRA.heads, fan = HYDRA.fan, base = 
     const J = dec(P.jnt, Uint8Array), J2 = new Uint8Array(J.length);
     for (let j = 0; j < J.length; j++) { const s0 = J[j], t = isNeck.has(s0) ? (tag === 'body' ? mid : tag) : 'body'; J2[j] = idx.get(`${t}:${s0}`) ?? 0; }
     let col = P.col;
-    const C = colours && tag !== 'body' && colours[tag], at = neckSrc.indexOf(si);
-    if (C && at >= tintFrom && typeof P.col === 'string') {
-      const c = dec(P.col, Uint8Array), out2 = new Uint8Array(c.length), [cr, cg, cb] = hexRgb(C), w = HYDRA.tint;
+    const at = neckSrc.indexOf(si), C = colours && tag !== 'body' && at >= tintFrom ? colours[tag] : body && (tag === 'body' || at < tintFrom) ? body : null;
+    if (C && typeof P.col === 'string') {
+      const c = dec(P.col, Uint8Array), out2 = new Uint8Array(c.length), [cr, cg, cb] = hexRgb(C), w = C === body ? HYDRA.bodyTint : HYDRA.tint;
       for (let j = 0; j < c.length; j += 3) { out2[j] = Math.round(c[j] * (1 - w) + cr * w); out2[j + 1] = Math.round(c[j + 1] * (1 - w) + cg * w); out2[j + 2] = Math.round(c[j + 2] * (1 - w) + cb * w); }
       col = enc(out2);
     }
