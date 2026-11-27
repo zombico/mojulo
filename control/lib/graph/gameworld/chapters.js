@@ -69,7 +69,7 @@ export const CHAPTERS = Object.freeze([
   // the game's sounds (sound-sheet.js): solved from its weapon, its ground and its foes, each a shelf word, the newest
   // voices first; every level of a game with a `sound` of its own hears it (a quick game's too, with `sfx: 'sheet'`)
   C('sound', 'play', 'The sound', { paths: ['/sound'], cards: ['gameworld-sound'], reads: ['intent', 'feel', 'equipment', 'foes', 'levels', 'audio-direction'] }),
-  C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands', '/factions', '/shops'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
+  C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands', '/factions', '/shops', '/municipal', '/hidden'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   // (a block's play layer: `/levels/<id>/glyphs/play`, a block a unit, `play:<level>/<segment>`)
   C('play-layer', 'level-design', 'The level design', { paths: ['/levels/*/glyphs/play'], parts: ['play:*'], reads: ['levels', 'foes', 'cast', 'motion', 'actions'] }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
