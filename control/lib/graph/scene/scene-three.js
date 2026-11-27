@@ -843,7 +843,8 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   const fightPage = !!(events && events.rpg && typeof events.rpg === 'object');
   // (a frame level's field, bare and fought over: its stones laid once, never swapped as the eye moves, form-land.js STONE_STILL)
   const stillStones = (Array.isArray(entities) ? entities : []).some((e) => e && e.rule && e.rule.type === 'frame');
-  // (a frame's level, played: its page fills the window, as a mission's does)
+  // (a frame's level, played: its page fills the window, as a mission's does: its HUD over the window, its reticle the
+  // window's middle, where a studio's fixed height taller than the window would push the view's middle below it)
   const framePlayed = (Array.isArray(entities) ? entities : []).some((e) => e && e.pilotable && e.rule && e.rule.type === 'frame');
   const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture, ...(fightPage ? { fights: true } : {}), ...(stillStones ? { still: true } : {}) }) : '';
   // (a page without the form render: the view cone and its far structures when the world asks, channels/far-structures.js)
@@ -1307,9 +1308,7 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
      always on screen (an authored studio size taller than a phone would put the plate below the fold) */
   html,body{height:100%}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
 ` : ''}${(mission || framePlayed) && !capture && !screen ? `  /* a MISSION (channels/mission.js) is played, and its HUD and screens are laid over the window: the page fills it, as
-     a toured page does, where its game names no screen of its own (a screen holds its own frame, below); so is a frame's
-     level (its HUD over the window, its reticle the window's middle: a studio's fixed height taller than the window
-     would push the view's middle below it) */
+     a toured page does, where its game names no screen of its own (a screen holds its own frame, below) */
   html,body{height:100%;overflow:hidden}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
 ` : ''}${screen ? `  /* the SCREEN the game is made for (game/screen.js): the page fills its window and #wrap holds the frame inside
      it (screenFit below), bars past its reach; the safe area is the notch's and the home bar's */

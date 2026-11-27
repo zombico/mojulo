@@ -1,3 +1,8 @@
+// Re-pinned 2026-11-27 (a scene's shot on big subjects): every fixture that embeds the controllable runtime. The shot
+// rule (rules-basic.js) sizes its framing by a subject's `big` and `tall`, keeps clear of bodies between it and its
+// subjects, aims under big subjects and, tracking, looks again each second (cast.js resets that check as a shot is
+// set). Each is taken only by a scene's shot (no fixture's has one). Checked: with those two files as they were, every
+// moved hash is back to its pin; their worlds step as before.
 // Re-pinned 2026-11-23 (the jump's missing moves): every fixture that embeds the controllable runtime. The platform rule
 // gained `hang`, `landLag` and `pound` (rules-platform.js: the apex held, the landing's lag, the stomp attack), each
 // taken only by a rule that names it (no fixture's does). Checked: each moved hash is the old emission with only the
