@@ -74,6 +74,9 @@ import { patrolCar, depotCabs, issuedCabs } from './cars.js';
 import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf, MOW_ROUND } from './jobsified.js';
 import { FORGED, PAPERS } from './shops.js';
 import { MUNICIPAL, REQUEST_KINDS, requestSites } from './municipal.js';
+import { hiddenSpots } from './hidden-stars.js';
+// (how near a hidden star is picked up from, m: a step or two, it is looked for)
+const HIDDEN_PICK = 1.6;
 // (the papers a driving or desk job asks for: its row's `papers`, or the licence a `licence` row asks for)
 const paperOf = (S) => (S.papers ? PAPERS[S.papers] : S.licence ? FORGED : null);
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
@@ -1100,7 +1103,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length || !!G.municipal, shops: G.shops ?? null, errands: G.errands ?? null, municipal: G.municipal ?? null }) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length || !!G.municipal || !!G.hidden, shops: G.shops ?? null, errands: G.errands ?? null, municipal: G.municipal ?? null, hidden: G.hidden ?? null, seed: G.seed ?? 1 }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -2165,6 +2168,12 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop
   // front a short walk off that no one stands at and no job sends the player to; the respray at a street's junction a
   // drive off, clear of the cars parked there
+  // THE CITY'S HIDDEN STARS (hidden-stars.js, a world's `hidden`): tucked in its out-of-the-way places, far apart, each
+  // picked up into the bag where it stands; nothing won by them
+  if (city.hidden && cityStage(stage)) {
+    const spots = hiddenSpots(ends, city.hidden, (city.seed ?? 1) * 7919 + (stage.index ?? 0));
+    if (spots.length) mechanics.push({ kind: 'collect', into: 'bag', pickups: spots.map((q) => ({ item: city.hidden.item, at: q.at.slice(), radius: HIDDEN_PICK })) });
+  }
   // THE MUNICIPAL OFFICE'S REQUESTS (municipal.js), before the shops (the forger deals in the papers its tasks ask for):
   // each placed where it is fixed, its material at the works yard, City
   // Hall's door where its work order is made; taken on the 311 app, asking for a city worker's ID where the forger deals
@@ -2261,7 +2270,7 @@ export function gameStore(world, book) {
   const pk = new Set(powerKeys(G).map((p) => p.id));
   if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
   // a world with errands carries what they fetch in the bag (errand.js)
-  else if (G.errands?.length) slices.push({ name: 'bag', kind: 'inventory' });
+  else if (G.errands?.length || G.hidden) slices.push({ name: 'bag', kind: 'inventory' });
   // a level whose goal collects picks up into the bag (its own goal: quick.js levelGoalMechanics)
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   // a sketched map whose scenario finds things picks them up into the bag (level/map-sketch.js scenario `find`)

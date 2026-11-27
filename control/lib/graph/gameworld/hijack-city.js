@@ -98,6 +98,9 @@ export const HIJACK_REQUESTS = Object.freeze([
   Object.freeze({ id: 'park-litter', kind: 'park', from: 'The Residents\' Association (all three of them)' }),
 ]);
 
+/** How many stars are hidden round the district (gameworld/hidden-stars.js): found by looking, kept in the bag. */
+export const HIJACK_HIDDEN = 10;
+
 export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
   Object.freeze({ id: 'heavy-haul', name: 'Heavy vehicle call', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
@@ -198,6 +201,8 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
     // (a forger too: the papers the heavy vehicle call asks for, HIJACK_SHIFTS)
     shops: { respray: true, guns: true, forger: true },
     municipal: { requests: HIJACK_REQUESTS.map((R) => ({ ...R })) },
+    // (stars tucked round the district, found by looking: parks' corners, lots, under the ramps, the dock; hidden-stars.js)
+    hidden: { stars: HIJACK_HIDDEN },
   };
 }
 

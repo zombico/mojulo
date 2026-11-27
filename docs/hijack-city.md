@@ -37,6 +37,7 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
 | `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping, ambulance and fire calls, a courier run, a mail round; an office temp's job on the Placeholder Staffing app | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
 | `municipal` | constituents' infra requests on the CityLine 311 app: a work order at City Hall, the material from the works yard, the fix in place | [municipal.js](../control/lib/graph/gameworld/municipal.js), [request-mechanics.js](../control/lib/graph/game/request-mechanics.js) | [jobsified.js](../control/lib/graph/gameworld/jobsified.js), [temp-agency.js](../control/lib/graph/gameworld/temp-agency.js) |
+| `hidden` | stars tucked round the district (parks' corners, lots, under the ramps, the dock), far apart, picked up into the bag | [hidden-stars.js](../control/lib/graph/gameworld/hidden-stars.js) |
 | `ui`, `sound`, `music` | the look of the menus and HUD (mana-ui), the car's sounds, the score (walking, the chase, tension) | [docs/mana-ui.md](mana-ui.md), [docs/game-audio.md](game-audio.md) |
 
 The game ships with a title screen, a pause, a save and continue (the level's own save: what was done, kept at the

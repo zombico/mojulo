@@ -18,3 +18,6 @@
 - A **zoo** behind a gate with a lit sign and a ticket booth: open to the sky, three wings of pens fenced in mesh,
   The Savanna (zebras, ostriches, a giraffe and an elephant in the big enclosure), Big Cats and Bears (lions, tigers, a
   brown bear and a polar bear) and Around the World (kangaroos hopping, flamingos, penguins, meerkats and camels).
+- **Hidden stars**: ten stars tucked round Hijack City where nobody walks on the way anywhere (a park's far corner,
+  the back of an empty lot or a building site, beside a highway ramp's foot, the corners of the dock and the yards),
+  spread far apart and picked up into the bag. Any world can hide some (`hidden: true | { stars, item }`).

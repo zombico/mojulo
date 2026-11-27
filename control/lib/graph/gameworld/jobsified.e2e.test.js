@@ -181,3 +181,14 @@ describe('the city\'s other jobs, laid', () => {
     expect(P.unload).toBeUndefined();
   });
 });
+
+describe('the city\'s hidden stars, laid', () => {
+  it('tucked round the district as pickups into the bag, far apart, each on its ground, none at the start', async () => {
+    const { HIDDEN } = await import('./hidden-stars.js');
+    const { HIJACK_HIDDEN } = await import('./hijack-city.js');
+    const S = M.filter((m) => m.kind === 'collect').flatMap((m) => m.pickups).filter((p) => p.item === HIDDEN.item);
+    expect(S.length).toBeGreaterThan(HIJACK_HIDDEN / 2);
+    expect(S.length).toBeLessThanOrEqual(HIJACK_HIDDEN);
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) expect(d(S[i].at, S[j].at)).toBeGreaterThanOrEqual(HIDDEN.apart);
+  });
+});
