@@ -159,3 +159,34 @@ describe('a seat downed', () => {
     expect(w.seatLives).toBeUndefined();
   });
 });
+
+// SPLIT (core.js `seats.frame: 'split'`, a view a seat): each seat's body its own camera, the world camera's rule on it,
+// stepped after the world's; the group frame off, each view following its own. Without it, as before.
+describe('a split screen', () => {
+  const mkSplit = (rule, frame) => createWorld({ entities: [hero('p1', 0), hero('p2', 0)], camera: { rule, target: 'p1', dist: 11, height: 1.6 }, seats: { bodies: ['p2'], ...(frame ? { frame } : {}) } });
+  it('a camera a seat, each on its own body, following it as it goes', () => {
+    const w = mkSplit('follow', 'split');
+    expect(Object.keys(w.seatCams)).toEqual(['2']);
+    expect(w.seatCams[2].rule).toMatchObject({ type: 'follow', target: 'p2' });
+    run(w, { forward: 0, seats: { 2: { forward: 1 } } }, 120);
+    const p2 = w.byId.p2.transform.pos, c2 = w.seatCams[2].transform.pos, c1 = w.camera.transform.pos;
+    expect(p2[0]).toBeGreaterThan(5);
+    expect(Math.hypot(c2[0] - p2[0], c2[1] - p2[1])).toBeLessThan(15);     // seat 2's camera went with it
+    expect(Math.hypot(c1[0] - p2[0], c1[1] - p2[1])).toBeGreaterThan(Math.hypot(c2[0] - p2[0], c2[1] - p2[1]));
+  });
+
+  it('first person: each seat\'s eye on its own body', () => {
+    const w = mkSplit('eye', 'split');
+    w.byId.p2.transform.heading = 1.2;
+    run(w, { seats: { 2: {} } }, 2);
+    expect(w.seatCams[2].transform.heading).toBeCloseTo(w.byId.p2.transform.heading, 6);
+    expect(w.camera.transform.heading).toBeCloseTo(w.byId.p1.transform.heading, 6);
+  });
+
+  it('the group frame is off: a side camera follows seat 1 alone, and nobody is held', () => {
+    const split = mkSplit('side', 'split'), shared = mkSplit('side');
+    for (const w of [split, shared]) for (let i = 0; i < 600; i++) stepWorld(w, { forward: 1, seats: { 2: { forward: 0 } } }, DT, FLAT);
+    expect(split.byId.p1.transform.pos[0] - split.byId.p2.transform.pos[0]).toBeGreaterThan(shared.byId.p1.transform.pos[0] - shared.byId.p2.transform.pos[0] + 5);
+    expect(shared.seatCams).toBeUndefined();
+  });
+});

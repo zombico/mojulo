@@ -248,7 +248,7 @@ export function buildRulesBasic(E) {
   // with no seats: null, and the camera frames its target as it always did.
   const playing = (world) => E.pilotsOf(world).filter((p) => !p.downed && !p.gone && p.rule === p.pilotRule);
   function groupFrame(r, world, dist) {
-    if (!world.seatOf) return null;
+    if (!world.seatOf || world.splitView) return null;   // (split: a view a seat, each its own)
     // (one playing seat frames itself only when it is not the camera's own target: seat 1 out, seat 2 still in)
     const P = playing(world);
     if (!P.length || (P.length === 1 && P[0].id === r.target)) return null;
@@ -575,7 +575,7 @@ export function buildRulesBasic(E) {
 
   E.registerWorldPass('group-leash', (state) => {
     const cam = state.camera, r = cam && cam.rule;
-    if (!state.seatOf || !r || !GROUP_DIST[r.type]) return;
+    if (!state.seatOf || state.splitView || !r || !GROUP_DIST[r.type]) return;
     const world = { byId: state.byId, seatOf: state.seatOf, pilotId: state.pilotId };
     const G = groupFrame(r, world, r.dist ?? GROUP_DIST[r.type]);
     if (!G) return;

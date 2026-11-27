@@ -1234,3 +1234,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // them: every fixture that embeds the controllable runtime (a seat downed, a seat's hp spent, a match's own downs), the
 // pages that embed the event bus (a zone watching a list, argmax), and `seat-lobby` written. Every other page is the
 // candidate's, byte for byte.
+// Re-pinned 2026-11-27 (1127-split-screen: a view a seat): every fixture that embeds the controllable runtime. `seats.frame:
+// 'split'` gives each seat's body its own camera (core.js seatCams, stepped after the world's) and the group frame and
+// leash stand aside (rules-basic.js: two conditions). The page's split (__splitViews) is opt-in: no fixture splits.

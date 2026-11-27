@@ -434,6 +434,12 @@ export function buildCore(E) {
         for (const e of entities) if (e.id === pilotId || state.seatOf[e.id]) state.seatHome[e.id] = e.transform.pos.slice();
       }
       spec.seats.bodies.slice(0, 3).forEach((id, k) => { const e = byId[id]; if (e && e.pilotable && e.id !== pilotId) { state.seatOf[id] = k + 2; e.rule = e.pilotRule; } });
+      // SPLIT (opt-in `frame: 'split'`, docs/local-multiplayer-principles.md principle 3: a view a seat): each seat's body
+      // its own camera, the world camera's rule on it (`seatCams[n]`), stepped after the world's; no group frame
+      if (spec.seats.frame === 'split' && camera) {
+        state.splitView = true; state.seatCams = {};
+        for (const id in state.seatOf) state.seatCams[state.seatOf[id]] = normalizeEntity({ id: `__camera-${state.seatOf[id]}`, isCamera: true, transform: JSON.parse(JSON.stringify(camera.transform)), rule: { ...camera.rule, target: id }, body: { type: 'none' } }, entities.length);
+      }
     }
     runStateInits(state, spec);   // opt-in state layers (the match bout + wreck finisher — combat-match.js, S2)
     return state;
@@ -488,7 +494,7 @@ export function buildCore(E) {
     hooks = hooks || {};
     if (hooks.physics) hooks.physics(dt);
     for (const p of PRE_STEPS) { const ov = p.fn(state, input, dt, hooks); if (ov) input = ov; }
-    const world = { byId: state.byId, ground: hooks.ground || null, ...(hooks.surface ? { surface: hooks.surface } : {}), ...(hooks.padAt ? { padAt: hooks.padAt } : {}), colliders: state.colliders || null, ...(state.veils ? { veils: state.veils } : {}), ...(state.seatOf ? { seatOf: state.seatOf } : {}), pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cameraYaw() { return state.camera && state.camera.camYaw != null ? state.camera.camYaw : null; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
+    const world = { byId: state.byId, ground: hooks.ground || null, ...(hooks.surface ? { surface: hooks.surface } : {}), ...(hooks.padAt ? { padAt: hooks.padAt } : {}), colliders: state.colliders || null, ...(state.veils ? { veils: state.veils } : {}), ...(state.seatOf ? { seatOf: state.seatOf } : {}), ...(state.splitView ? { splitView: true } : {}), pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cameraYaw() { return state.camera && state.camera.camYaw != null ? state.camera.camYaw : null; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
     for (const e of state.entities) {
       if (e.isCamera) continue;
       for (const t of ENTITY_TIMERS) t.fn(e, dt, state);
@@ -506,6 +512,7 @@ export function buildCore(E) {
       const fn = RULES[state.camera.rule.type];
       if (fn) fn(state.camera, input, dt, world);
     }
+    if (state.seatCams) for (const n in state.seatCams) { const c = state.seatCams[n], fn = RULES[c.rule.type]; if (fn) fn(c, input, dt, world); }   // (a view a seat)
     state.time += dt;
     return state;
   }

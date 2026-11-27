@@ -175,9 +175,9 @@ const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave
  * does (its AI, or held still), the height below which a seated body is brought back, and the lives its falls cost (each
  * seat's own, or one count shared). Throws, teaching. */
 export function readSeats(seats, entities, pilot = null) {
-  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared', contest?: 'versus' | 'free-for-all' | 'teams', downs?: 'level', crew?: { <seat>: { body: the pilot, as: 'gunner' } } }, the bodies seats 2 to 4 take`);
+  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared', contest?: 'versus' | 'free-for-all' | 'teams', downs?: 'level', crew?: { <seat>: { body: the pilot, as: 'gunner' } }, frame?: 'split' }, the bodies seats 2 to 4 take`);
   if (!seats || typeof seats !== 'object' || Array.isArray(seats)) throw bad('');
-  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool', 'contest', 'downs', 'crew'].includes(k)) throw bad(`.${k} is not a seats key`);
+  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool', 'contest', 'downs', 'crew', 'frame'].includes(k)) throw bad(`.${k} is not a seats key`);
   const list = Array.isArray(entities) ? entities : [], first = pilot ?? list.find((e) => e && e.pilotable)?.id;
   // (crew: a seat that works the pilot's gun, a gunner, with no body of its own: seats.crew { 2: { body, as: 'gunner' } })
   const crew = seats.crew === undefined ? null : seats.crew;
@@ -203,8 +203,9 @@ export function readSeats(seats, entities, pilot = null) {
   if (seats.pool !== undefined && !['own', 'shared'].includes(seats.pool)) throw bad('.pool is own (each seat its lives) or shared (one count for all)');
   if (seats.pool !== undefined && seats.lives === undefined) throw bad('.pool shares or splits lives: give lives');
   if (seats.contest !== undefined && !['versus', 'free-for-all', 'teams'].includes(seats.contest)) throw bad('.contest is versus, free-for-all or teams (the seats against each other; absent, co-op)');
+  if (seats.frame !== undefined && seats.frame !== 'split') throw bad('.frame is split (a view a seat; absent, one shared screen)');
   if (seats.downs !== undefined && seats.downs !== 'level') throw bad('.downs is level (the level\'s mechanics bring a downed seat back, a match\'s frags)');
-  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}), ...(seats.contest ? { contest: seats.contest } : {}), ...(seats.downs ? { downs: seats.downs } : {}), ...(crew ? { crew: JSON.parse(JSON.stringify(crew)) } : {}) };
+  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}), ...(seats.contest ? { contest: seats.contest } : {}), ...(seats.downs ? { downs: seats.downs } : {}), ...(crew ? { crew: JSON.parse(JSON.stringify(crew)) } : {}), ...(seats.frame ? { frame: seats.frame } : {}) };
 }
 
 /** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip, aimClip), and the fighting stances: those

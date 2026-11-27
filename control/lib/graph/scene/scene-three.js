@@ -991,6 +991,8 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
   // a flying lesson's brief over the level as it loads (gameworld/lesson-brief.js): never on a capture run
   const lessonBlock = lesson && !capture ? lessonChannelScript(lesson) : '';
   // a level whose seats join by lobby (channels/seat-lobby.js): who plays, before the level starts; never on a capture run
+  // a split screen (a world's seats.frame: a view a seat, channels/controllable/index.js __splitViews)
+  const splitScreen = !!(seats && seats.frame === 'split' && Array.isArray(entities) && entities.some((e) => e && e.pilotable));
   const seatLobbyBlock = hasControllableSeatsLobby(seats, entities) && !capture ? seatLobbyScript({ max: Math.min(4, seats.max ?? seats.bodies.length + 1 + Object.keys(seats.crew || {}).length, seats.bodies.length + 1 + Object.keys(seats.crew || {}).length) }) : '';
   // a flown craft's speed in the world round it (scene/channels/speed-fx.js): speed lines in the air, dust in space
   const speedfxBlock = speedfx && !capture ? speedFxScript(speedfx) : '';
@@ -2116,7 +2118,7 @@ if (_capture) {
   }
   __mojStep(${shootBlock ? '__shClock(t - __pauseOffset)' : 't - __pauseOffset'});${hasControllable ? `
   const __cB = performance.now();` : ''}
-  updateCutaway(); ${prePass}renderer.render(scene, camera);${hasControllable ? `
+  updateCutaway(); ${splitScreen ? `__splitViews(() => { ${prePass}renderer.render(scene, camera); });   // (a view a seat: channels/controllable/index.js)` : `${prePass}renderer.render(scene, camera);`}${hasControllable ? `
   window.__mojCost.tick(__cB - __cA, performance.now() - __cB);` : ''}${pixelBudget ? `
   __budget(t);` : ''}
 });
