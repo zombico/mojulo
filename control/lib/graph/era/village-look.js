@@ -25,7 +25,11 @@
  *   gableDress(tri, colour) → a gable end's barge boards, tie beam and king post, in the world's frame
  *   villagePaint(V, group)  → a building language's group in the village's palette (a street house's)
  *   VILLAGE_LANGUAGE        the fantasy language a town's street houses are spoken in
- *   villagePlaces(T, open, width, free) → the street's houses' places on a town's path tile
+ *   villagePlaces(T, open, width, free, { seed? }) → the street's houses' places on a town's path tile (with a seed,
+ *                     each its own language, villageVariant: its own door and windows)
+ *   villageVariant(seed)    → the village's language with this house's door, windows and shutters (VILLAGE_DOORS,
+ *                     VILLAGE_WINDOWS, VILLAGE_SHUTTERS)
+ *   VILLAGE_TEXTURE         the village's surfaces' relief, a town dress (town-dress.js dressTownFace)
  *   villageTurret(V, { x, y, z0, top, r? }) → a round turret with a cone roof; turreted(id, seed) whether a house has one
  *
  * Pure and deterministic: the same building, the same village.
@@ -40,8 +44,8 @@ export const VILLAGE_LOOKS = Object.freeze({
 });
 export const VILLAGE_LOOK_IDS = Object.freeze(Object.keys(VILLAGE_LOOKS));
 /** The village's numbers: the groves and the boulders a town's tile keeps (era/isekai.js), how far trees keep off its
- * buildings (m), the dress's sizes (m). */
-export const VILLAGE = Object.freeze({ groves: 1, boulders: 1, clear: 7, barge: 0.24, footing: 0.55, proud: 0.07, post: 0.24, girt: 0.2, stud: 0.16, studEvery: 2.1, shutter: 0.05, jamb: 0.16, rail: 2.6 });
+ * buildings (m), the bare doorstep before a street house's door (m), the dress's sizes (m). */
+export const VILLAGE = Object.freeze({ groves: 1, boulders: 1, clear: 7, doorstep: Object.freeze({ w: 2.6, d: 3 }), barge: 0.24, footing: 0.55, proud: 0.07, post: 0.24, girt: 0.2, stud: 0.16, studEvery: 2.1, shutter: 0.05, jamb: 0.16, rail: 2.6 });
 
 const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -190,9 +194,61 @@ export function gableDress(tri, colour) {
 /** A building-language group's colour in a village's palette (a street house spoken in its language, era/out-anchor-structure.js
  * speak): its plaster the walls', its stone and timber, its tile the roof's, its paint the shutters', its openings dark. */
 const GROUP_OF = Object.freeze({ 'str:plaster': 'wall', 'str:shell': 'wall', 'str:stone': 'stone', 'str:timber': 'timber', 'str:tile': 'roof', 'str:roof': 'roof', 'str:paint': 'shutter', 'str:motif': 'sign', 'str:opening': 'glass', 'str:lens': 'glass' });
-export function villagePaint(V, group) {
-  const k = GROUP_OF[group] ?? 'stone';
-  return k === 'glass' ? '#2c3442' : V[k];
+// (by the part a face is, where its group alone would say less: a door's leaf, its panels and its boards the door's own
+// colour, the boards' joints a shade under it and the raised panels a shade over, as the language's own values have them
+// (era/out-openings.js); a surround, a frame or a fanlight's bars the white trim; a hood, its brackets, steps and
+// pilasters the stone; the bands' paint the shutters')
+const PART_SHADE = Object.freeze({ joint: 0.58, panel: 1.2 });
+const PART_OF = Object.freeze({ door: 'door', panel: 'door', joint: 'door', leaf: 'door', surround: 'frame', transom: 'frame', glazing: 'frame', hood: 'stone', bracket: 'stone', step: 'stone', pilaster: 'stone', entablature: 'stone', spike: 'sign' });
+export function villagePaint(V, group, part = null) {
+  const k = (part && PART_OF[part] && !(PART_OF[part] === 'frame' && group === 'str:stone')) ? PART_OF[part] : GROUP_OF[group] ?? 'stone';
+  if (k === 'glass') return '#2c3442';
+  const t = PART_SHADE[part];
+  return t && k === 'door' ? deeper(V[k], t) : V[k];
+}
+
+/**
+ * THE VILLAGE'S TEXTURE (town-dress.js's dress, clean: little wear, its plaster's render whole): each surface its relief laid
+ * over its own colour as a detail (matte-paint/detail.js), so the palette stays the village's and the material shows: the
+ * plaster a clean stucco, the stone tooled in courses, the footing long blocks, every roof (a street
+ * house's tile, the hall's, a turret's cone) its tiles in lapped courses. Its timber is painted, never boarded (the boards'
+ * tile is gapped: a door's leaf and a frame's member would show the wall through it).
+ */
+const NEUTRAL_STONE = [182, 182, 182], NEUTRAL_MORTAR = [116, 116, 116], WEAR = Object.freeze({ grit: 0.32, spall: 0.32, pit: 0.19 });
+export const VILLAGE_TEXTURE = Object.freeze({
+  // (a storybook stucco: clean, none of it fallen away to the stone, only its own soft unevenness)
+  'str:plaster': Object.freeze({ spec: { gen: 'dressed', cut: 'stucco', stone: [226, 226, 226], mortar: [206, 206, 206], rows: 2, cols: 2, grit: 0.2, spall: 0, pit: 0.04, seed: 23 }, metres: 3 }),
+  'str:stone': Object.freeze({ spec: { gen: 'dressed', stone: NEUTRAL_STONE, mortar: NEUTRAL_MORTAR, rows: 5, cols: 2, tool: 'tooled', ...WEAR, seed: 29 }, metres: 2.4 }),
+  plinth: Object.freeze({ spec: { gen: 'dressed', stone: [168, 168, 168], mortar: NEUTRAL_MORTAR, rows: 2, cols: 2, tool: 'pitched', ...WEAR, seed: 31 }, metres: 1.6 }),
+  'str:tile': Object.freeze({ spec: { gen: 'dressed', cut: 'tile', stone: [196, 196, 196], mortar: [104, 104, 104], rows: 10, cols: 8, ...WEAR, seed: 43 }, metres: 2, roof: true }),
+});
+
+/**
+ * EACH HOUSE ITS OWN DOOR AND WINDOWS (a street house's language varied by its dice, `villageVariant`): its door's form,
+ * leaf, surround and fanlight, its windows' form, glazing, frame and trim (their head a keystone over a round
+ * one), its shutters' form, the rest the village's language. → the language, a street place's `anchor`.
+ */
+export const VILLAGE_DOORS = Object.freeze([
+  Object.freeze({ form: 'arch', leaf: 'boards', surround: 'frame', fanlight: 'none' }),
+  Object.freeze({ form: 'rect', leaf: 'panels', surround: 'hood', fanlight: 'arch' }),
+  Object.freeze({ form: 'arch', leaf: 'glazed', surround: 'frame', fanlight: 'none' }),
+  Object.freeze({ form: 'rect', leaf: 'boards', surround: 'pilasters', fanlight: 'rect' }),
+  Object.freeze({ form: 'rect', leaf: 'panels', surround: 'frame', fanlight: 'rect' }),
+]);
+export const VILLAGE_WINDOWS = Object.freeze([
+  Object.freeze({ form: 'arch', glazing: 'lattice', frame: 0.1, trim: 'str:paint' }),
+  Object.freeze({ form: 'rect', glazing: 'casement', frame: 0.12, trim: 'str:timber' }),
+  Object.freeze({ form: 'arch', glazing: 'casement', frame: 0.12, trim: 'str:stone' }),
+  Object.freeze({ form: 'arch', glazing: 'sash', frame: 0.1, trim: 'str:paint' }),
+  Object.freeze({ form: 'rect', glazing: 'ornamental', frame: 0.14, trim: 'str:paint' }),
+]);
+export const VILLAGE_SHUTTERS = Object.freeze(['boards', 'louvred', 'flat']);
+export function villageVariant(seed) {
+  const d = hash(`variant|${seed}`), E = VILLAGE_LANGUAGE.elements;
+  const D = VILLAGE_DOORS[d % VILLAGE_DOORS.length], W = VILLAGE_WINDOWS[(d >>> 5) % VILLAGE_WINDOWS.length], S = VILLAGE_SHUTTERS[(d >>> 10) % VILLAGE_SHUTTERS.length];
+  return { ...VILLAGE_LANGUAGE, elements: { ...E,
+    door: { ...E.door, ...D }, lights: { ...E.lights, ...W }, lintels: { ...E.lintels, form: W.form === 'rect' ? 'flat' : 'key' },
+    shutters: { ...E.shutters, form: S } } };
 }
 
 /**
@@ -236,13 +292,15 @@ export const VILLAGE_LANGUAGE = Object.freeze({
  * place's building, another way, or the map's edge). → [{ x, y, facing }] in the tile's frame (x east, y north, 0 to T).
  */
 export const VILLAGE_STREET = Object.freeze({ verge: 2.6 });
-/** A town's ways: paved in brick, never narrower than a street. */
-export const VILLAGE_WAY = Object.freeze({ surface: 'brick-paving', width: 3.4 });
-export function villagePlaces(T, open, width, free) {
-  const o = [...(open ?? [])].sort().join(''), off = width / 2 + VILLAGE_STREET.verge, m = T / 2, out = [];
+/** A town's ways: paved in brick, never narrower than a street, its bricks laid at `grit` (each its bevel, its burn and
+ * a little wear: era/trail-dress.js surfaceDress). */
+export const VILLAGE_WAY = Object.freeze({ surface: 'brick-paving', width: 3.4, grit: 0.55 });
+export function villagePlaces(T, open, width, free, { seed = null } = {}) {
+  const o = [...(open ?? [])].sort().join(''), off = width / 2 + VILLAGE_STREET.verge, m = T / 2, out0 = [];
+  const out = { push: (p) => out0.push(seed === null ? p : { ...p, anchor: villageVariant(`${seed}|${out0.length}`) }) };
   if (o === 'ew') { if (free.n) out.push({ x: m, y: m + off, facing: '-y' }); if (free.s) out.push({ x: m, y: m - off, facing: '+y' }); }
   if (o === 'ns') { if (free.e) out.push({ x: m + off, y: m, facing: '-x' }); if (free.w) out.push({ x: m - off, y: m, facing: '+x' }); }
-  return out;
+  return out0;
 }
 
 /**

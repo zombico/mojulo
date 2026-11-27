@@ -41,3 +41,24 @@
   - **Turrets:** a round turret at a front corner of the hall, the tavern and two houses in five, its shaft past the
     eaves, a cone roof in the building's hue, and a gold finial.
   - **Pastel walls:** cream, blush, lavender or butter, by each building's dice.
+- **Its surfaces textured** (`VILLAGE_TEXTURE`, a town dress laid by `era/town-dress.js` `dressTownFace`): each surface
+  carries its relief over its own colour, so the palette stays the village's and the material shows.
+  - **Plaster:** a clean stucco.
+  - **Stone:** tooled in courses.
+  - **Footing:** long pitched blocks.
+  - **Roofs:** every roof (a street house's, the hall's and the tavern's, a turret's cone) its tiles in lapped courses.
+  - **Brick roads:** the herringbone laid at more grit, so each brick stands in relief.
+- **Each house its own door and windows** (`villageVariant`, a street place's `anchor`): a house's dice pick its door
+  from `VILLAGE_DOORS`:
+  - an arched boarded door in a frame;
+  - a panelled one under a hood with a radial fanlight;
+  - an arched glazed one;
+  - a boarded one between pilasters under a square fanlight;
+  - a panelled one in a frame.
+
+  They also pick its windows from `VILLAGE_WINDOWS` (arched lattice, casement or sash; square casement or ornamental),
+  their trim, and its shutters (boarded, louvred or flat). A round window wears a keystone, a square one a flat lintel.
+  - **The door's paint:** its boards' joints a shade under the leaf, its raised panels a shade over, its surround the
+    white trim, its hood and pilasters the stone.
+  - **The doorstep:** kept clear of grass, and the house's socle stops at the door's jambs. Without that it ran the
+    wall's length over the door's foot. This is speak's `doorway` option; absent, a house is byte for byte as it was.

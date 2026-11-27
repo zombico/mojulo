@@ -51,6 +51,9 @@ export const PIECE_KINDS = Object.freeze({
 });
 /** What can stand on what: the grammar's compatibilities, and the depth each piece is spoken at. */
 export const CAPS_FOR = Object.freeze({ block: ['gable', 'hip', 'pyramid', 'flat', 'dome'], drum: ['cone', 'dome', 'flat'], shell: [null] });
+/** With `doorway`, the socle stops this far either side of the door's leaf: its jamb, so the plinth ends at the surround. */
+export const DOORWAY_JAMB = 0.12;
+
 export const DEPTHS = Object.freeze({ mass: 0, cap: 0, annex: 0, tiers: 0, courses: 1, opening: 1, entry: 1, point: 2, chimney: 2, rib: 2, band: 2, socle: 2, cornice: 2, bond: 2, frame: 3, shutters: 3, rim: 3, sill: 3, lintel: 3, quoins: 3 });
 const PITCHED = new Set(['gable', 'hip', 'pyramid']);
 // a solid flat cap's parapet: a wall's thickness (era/solid.js)
@@ -126,9 +129,10 @@ const SCALE_LAWS = ['storey', 'door', 'one-leads', 'value-order', 'eye-spot', 'b
 /**
  * A building: the language spoken on a lot for a use, read at a ring. `depth` defaults from the ring and the use's
  * interest (a focus, a landmark or the accent at 3; near 3, mid 2, far 0). `band` [lo, hi] is the town's heartbeat
- * here: a citizen's storeys inside it (a shell as far as its rise allows). Returns the shape the town places.
+ * here: a citizen's storeys inside it (a shell as far as its rise allows). `doorway` keeps the socle off the front door's
+ * span (it otherwise runs the wall's length, proud of the leaf, over the door's foot). Returns the shape the town places.
  */
-export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null, solid = false } = {}) {
+export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = false, accent = false, crown = 0, over = {}, depth = null, band = null, solid = false, doorway = false } = {}) {
   const U = STRUCTURE_USES[use];
   if (!U) throw new Error(`structures: '${use}' is not a use (${STRUCTURE_USE_IDS.join(', ')})`);
   if (!STRUCTURE_RINGS[ring]) throw new Error(`structures: '${ring}' is not a ring (${STRUCTURE_RING_IDS.join(', ')})`);
@@ -323,6 +327,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     return [[u0, z0], [u1, z0], [u1, z1], [u0, z1]];
   };
   const openings = [], openOn = [];
+  let frontDoor = null; // the door's span on the front wall, where `doorway` keeps the socle off it
   let bays = 0, bay = 0, lights = 0;
   const party = !round && side === 0 ? ['left', 'right'] : [];
   const shut = has('shutters'), DV = VA.ornaments, flatLight = V.opening === 'rect' || V.opening === 'arch';
@@ -386,6 +391,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
       // the door: the anchor's entry, on the lane face
       const W = wallOf(rects[0], 'front'), du = clamp((doorBay + 0.5) * bay, 0.62 + doorW / 2, W.len - 0.62 - doorW / 2);
       const dk = V.entryShape === 'arch' ? 'door-arch' : 'rect', dg = gate('door', doorW, 'tile');
+      if (doorway) frontDoor = [du - doorW / 2 - DOORWAY_JAMB, du + doorW / 2 + DOORWAY_JAMB];
       wallPoly(dg ? faces : tile, W, shape(dk, du, 0, doorW, doorH), 0.03, accent ? 'accent' : 'door', 0.3, dg ? {} : { tile: true });
       // the door built (era/out-openings.js): its leaf, fanlight, surround and steps, where the language says
       if (dg && dressedDoor && at('sill')) doorDress(faces, W, { kind: dk, uc: du, w: doorW, h: doorH, pts: shape(dk, du, 0, doorW, doorH), room: r3(storeyH - doorH - 0.15) }, P.entry,
@@ -437,7 +443,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   const ringBand = (z0, z1, d, part, value, group, geo) => { const k = Lv.lon, out = geo ? faces : tile; for (let j = 0; j < k; j++) { const ta = (2 * Math.PI * j) / k, tb = (2 * Math.PI * (j + 1)) / k, q = [ringAt(ta, z0, d), ringAt(tb, z0, d), ringAt(tb, z1, d), ringAt(ta, z1, d)]; if (q.every(Boolean)) face(out, q, [Math.cos((ta + tb) / 2), Math.sin((ta + tb) / 2), 0], part, value, geo ? { group } : { tile: true, group }); } };
   if (!envelope && P.socle && at('socle')) {
     const sh = r3(P.socle.h), g = gate('socle', sh, 'tile');
-    if (V.mass === 'block') for (const s of sidesOf(true)) { const W = wallOf(rects[0], s); EB.socle(g ? faces : tile, W, 0, W.len, sh, DV.socle.value, DV.socle.group, g); }
+    if (V.mass === 'block') for (const s of sidesOf(true)) { const W = wallOf(rects[0], s), spans = s === 'front' && frontDoor ? [[0, frontDoor[0]], [frontDoor[1], W.len]] : [[0, W.len]]; for (const [a, b] of spans) if (b - a > 0.05) EB.socle(g ? faces : tile, W, a, b, sh, DV.socle.value, DV.socle.group, g); }
     else ringBand(0.01, sh, 0.05, 'socle', DV.socle.value, DV.socle.group, g);
     used.add('socle');
   }

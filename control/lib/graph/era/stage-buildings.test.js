@@ -245,23 +245,46 @@ describe('a building on storeys', () => {
 // A STREET TOWN LAID ON PLACES (`town.places`, a map's town tiles: era/village-look.js): each lot at its given door and
 // facing, its houses and shops alone (the map's own places its hall), in the village's palette where the stage is a
 // village's (`_village`); a place that is not one, refused
-import { VILLAGE_LANGUAGE, villageOf, villagePaint, villageLight } from './village-look.js';
+import { VILLAGE_LANGUAGE, villageOf, villagePaint, villageLight, villageVariant } from './village-look.js';
 describe('a street town laid on places', () => {
-  const pockets = plain.anchors.filter((a) => a.kind === 'beat' && a.beat === 'pocket').slice(0, 2);
+  const pockets = plain.anchors.filter((a) => a.kind === 'beat' && ['pocket', 'rest'].includes(a.beat)).slice(0, 2);
   const places = pockets.map((p) => ({ x: p.at[0], y: p.at[1], facing: '-y' }));
   it('stands a lot on each place, never the town\'s hall, painted in the village\'s palette', () => {
-    if (places.length < 2) return;
+    expect(places).toHaveLength(2);
     const P = assembleStageScene({ ...TRAIL, _village: { look: 'storybook' }, town: { houses: places.length, enter: 0, anchor: VILLAGE_LANGUAGE, places } });
     const houses = P.anchors.filter((a) => a.kind === 'house');
     expect(houses).toHaveLength(places.length);
     for (const h of houses) expect(['hall', 'temple', 'tower', 'keep', 'castle', 'church', 'market']).not.toContain(h.use);
     houses.forEach((h, k) => { expect(h.at[0]).toBeCloseTo(places[k].x, 3); expect(h.at[1]).toBeCloseTo(places[k].y, 3); });
-    // (its walls the village's plaster, lit: no wall of the kit's own paint)
+    // (its walls the village's plaster or its stone, under the village's light: no wall of the kit's own paint)
     const V = villageOf('storybook', { id: 'x', use: 'shop' }), walls = new Set(['#f4ead6', '#f3d9d2', '#e6def0', '#f5ecc6']);
-    const lum = (h) => [1, 3, 5].reduce((a, i, k) => a + parseInt(h.slice(i, i + 2), 16) * [0.2126, 0.7152, 0.0722][k], 0);
-    expect(P.faces.filter((f) => f.group === 'town:wall').every((f) => lum(f.fill) > 0.75 * 200)).toBe(true);
+    const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), lit = (h, c) => rgb(h).every((v, k) => v <= Math.min(255, 1.06 * c[k]) + 1 && v >= 0.8 * c[k] - 1);
+    const wallFaces = P.faces.filter((f) => f.group === 'town:wall');
+    expect(wallFaces.length).toBeGreaterThan(0);
+    for (const f of wallFaces) expect([...walls, V.stone].map(rgb).some((c) => lit(f.fill, c))).toBe(true);
     expect(walls.has(villagePaint(V, 'str:plaster'))).toBe(true);
     expect(villageLight('#ffffff', 1)).toBe('#ffffff');
+  });
+  it('a place\'s `anchor` speaks its lot in its own door and windows; its walls and roofs textured, its door clear to the ground', () => {
+    expect(places).toHaveLength(2);
+    // (one house's door boarded, the other's panelled)
+    const seeds = Array.from({ length: 60 }, (_, k) => `p|${k}`), leafOf = (k) => villageVariant(k).elements.door.leaf;
+    const a = seeds.find((k) => leafOf(k) === 'boards'), b = seeds.find((k) => leafOf(k) === 'panels');
+    const at = places.map((q, i) => ({ ...q, anchor: villageVariant(i ? b : a) }));
+    const P = assembleStageScene({ ...TRAIL, _village: { look: 'storybook' }, town: { houses: at.length, enter: 0, anchor: VILLAGE_LANGUAGE, places: at } });
+    expect(P.faces.some((f) => f.group === 'town:joint')).toBe(true);
+    expect(P.faces.some((f) => f.group === 'town:panel')).toBe(true);
+    expect(P.faces.some((f) => f.group === 'town:roof' && f.texture)).toBe(true);
+    expect(P.faces.some((f) => f.group === 'town:wall' && f.texture)).toBe(true);
+    // (no socle runs across a door: the plinth stops at its jambs)
+    const doors = P.faces.filter((f) => f.group === 'town:door'), socles = P.faces.filter((f) => f.group === 'town:socle');
+    expect(doors.length).toBeGreaterThan(0); expect(socles.length).toBeGreaterThan(0);
+    for (const d of doors) {
+      const xs = d.corners.map((c) => c[0]), ys = d.corners.map((c) => c[1]), z0 = Math.min(...d.corners.map((c) => c[2]));
+      const mid = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+      const over = socles.filter((f) => { const fx = f.corners.map((c) => c[0]), fy = f.corners.map((c) => c[1]), fz = f.corners.map((c) => c[2]); return Math.min(...fx) - 0.06 <= mid[0] && Math.max(...fx) + 0.06 >= mid[0] && Math.min(...fy) - 0.06 <= mid[1] && Math.max(...fy) + 0.06 >= mid[1] && Math.min(...fz) <= z0 + 0.1 && Math.max(...fz) > z0 + 0.1; });
+      expect(over).toEqual([]);
+    }
   });
   it('a place that is no door and facing is refused', () => {
     expect(() => assembleStageScene({ ...TRAIL, town: { houses: 1, enter: 0, places: [{ x: 1, y: 2, facing: 'up' }] } })).toThrow(/places/);

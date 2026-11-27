@@ -542,7 +542,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     // village's language (a street town laid on its places, era/stage-buildings.js town.places), never against a place)
     if (village._village && cell.kind === 'path') {
       const nb = { n: [-1, 0], s: [1, 0], e: [0, 1], w: [0, -1] }, free = Object.fromEntries(Object.entries(nb).map(([k, [dr, dc]]) => { const y = G.at(cell.r + dr, cell.c + dc); return [k, !!y && cell.r + dr >= 0 && cell.c + dc >= 0 && cell.r + dr < G.rows && cell.c + dc < G.cols && y.kind === 'land' && !(MW?.near(y.r, y.c))]; }));
-      const Rw = ranks?.get(`${cell.r},${cell.c}`), places = villagePlaces(T, cell.open, Math.max(VILLAGE_WAY.width, Rw?.width ?? 0), free);
+      const Rw = ranks?.get(`${cell.r},${cell.c}`), places = villagePlaces(T, cell.open, Math.max(VILLAGE_WAY.width, Rw?.width ?? 0), free, { seed: hashTile(seed, cell.r, cell.c) });
       if (places.length) village.town = { houses: places.length, enter: 0, anchor: VILLAGE_LANGUAGE, places };
     }
     const raw = { kind: 'stage', ...village, ...(lv.kit !== undefined ? { kit: lv.kit } : cube ? {} : { kit: 'isekai-meadow' }), seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, ...way, ...(wt ? { water: wt } : {}), solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };

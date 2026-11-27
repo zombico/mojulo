@@ -93,3 +93,40 @@ describe('a village\'s street and its turrets', () => {
     expect(turreted('x', 3)).toBe(turreted('x', 3));
   });
 });
+
+import { villageVariant, VILLAGE_DOORS, VILLAGE_WINDOWS, VILLAGE_TEXTURE } from './village-look.js';
+import { dressTownFace } from './town-dress.js';
+import { speak, DOORWAY_JAMB } from './out-anchor-structure.js';
+describe('each village house its own door and windows; its surfaces textured', () => {
+  it('a house\'s variant is its own (the same seed the same), across the doors and windows on the shelf, and a language the street speaks', () => {
+    expect(villageVariant('a|1')).toEqual(villageVariant('a|1'));
+    const V = Array.from({ length: 40 }, (_, k) => villageVariant(`h|${k}`));
+    expect(new Set(V.map((L) => JSON.stringify(L.elements.door))).size).toBe(VILLAGE_DOORS.length);
+    expect(new Set(V.map((L) => JSON.stringify(L.elements.lights))).size).toBe(VILLAGE_WINDOWS.length);
+    // a round head under a keystone, a square one under a flat lintel
+    for (const L of V) expect(L.elements.lintels.form).toBe(L.elements.lights.form === 'rect' ? 'flat' : 'key');
+    expect(() => townLanguage(structureStyle('isekai-meadow', 1), V[0])).not.toThrow();
+  });
+  it('a door\'s boards\' joints a shade under its leaf, its raised panels a shade over; its surround the trim', () => {
+    const V = villageOf('storybook', { id: 'd', use: 'shop' }), lum = (h) => [1, 3, 5].reduce((a, i) => a + parseInt(h.slice(i, i + 2), 16), 0);
+    expect(villagePaint(V, 'str:timber', 'door')).toBe(V.door);
+    expect(lum(villagePaint(V, 'str:timber', 'joint'))).toBeLessThan(lum(V.door));
+    expect(lum(villagePaint(V, 'str:timber', 'panel'))).toBeGreaterThan(lum(V.door));
+    expect(villagePaint(V, 'str:paint', 'surround')).toBe(V.frame);
+  });
+  it('a roof\'s face gets its tiles in courses, a wall its stucco; a group the texture does not name stays plain', () => {
+    const roof = { corners: [[0, 0, 3], [4, 0, 3], [4, 2, 4.5], [0, 2, 4.5]], normal: [0, -0.6, 0.8], fill: '#3a63b0' };
+    const wall = { corners: [[0, 0, 0], [4, 0, 0], [4, 0, 3], [0, 0, 3]], normal: [0, -1, 0], fill: '#f4ead6' };
+    expect(dressTownFace(roof, 'str:tile', VILLAGE_TEXTURE).texture).toBeTruthy();
+    expect(dressTownFace(wall, 'str:plaster', VILLAGE_TEXTURE).texture).toBeTruthy();
+    expect(dressTownFace(wall, 'str:glass', VILLAGE_TEXTURE)).toBe(wall);
+  });
+  it('with `doorway` the socle stops at the door\'s jambs (else it runs the front over the door\'s foot); without, the house is as it was', () => {
+    const style = structureStyle('isekai-meadow', 1), L = townLanguage(style, villageVariant('s|1'));
+    const socles = (o) => { const s = speak(L, 'shop', { w: 9, d: 12 }, style, 5, o); return [...s.faces, ...s.tile].filter((f) => f.part === 'socle' && f.normal[1] < -0.9); };
+    const plain = socles({}), cut = socles({ doorway: true });
+    expect(cut.length).toBe(plain.length + 1);
+    expect(JSON.stringify(speak(L, 'shop', { w: 9, d: 12 }, style, 5, {}))).toBe(JSON.stringify(speak(L, 'shop', { w: 9, d: 12 }, style, 5, { doorway: false })));
+    expect(DOORWAY_JAMB).toBeGreaterThan(0);
+  });
+});
