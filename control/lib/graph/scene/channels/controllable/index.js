@@ -256,7 +256,8 @@ export function pageFigures(figures) {
 function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const crewN = seats.crew && typeof seats.crew === 'object' ? Object.keys(seats.crew).length : 0;   // (a gunner seat: no body of its own, turret.js)
-  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1 + crewN, bodies.length + 1 + crewN));
+  const room = seats.turns ? 4 : bodies.length + 1 + crewN;   // (turns: the seats take turns at one body, as many as it says)
+  const max = Math.max(1, Math.min(4, seats.max ?? room, room));
   return `// ── SEATS ──
 const __SK = (${buildSeatsKernel.toString()})();
 let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
@@ -303,7 +304,7 @@ function __seatStrip() {
   const L = __world.seatLives, lives = (n) => (L ? (__world.seatPool === 'shared' ? L.shared : L[n]) : null);
   // a seat's own hp (seats 2 to 4, its body's; seat 1's is the level's HUD): a bar in its chip, in tenths
   const hpOf = (n) => { const e = n > 1 && __world.byId[__SEAT_BODY[n - 2]]; return e && Number.isFinite(e.hpMax) && e.hpMax > 0 && !e.gone ? Math.max(0, Math.min(1, e.body.hp / e.hpMax)) : null; };
-  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n) + ':' + (hpOf(x.n) == null ? '' : Math.round(hpOf(x.n) * 10))).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
+  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n) + ':' + (hpOf(x.n) == null ? '' : Math.round(hpOf(x.n) * 10))).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '') + (__world.turnOf ? '>' + __world.turnOf.n : '');
   if (said === __seatSaid) return;
   __seatSaid = said;
   // the shell (game-seats): who sits where, so its pause names the seat that opened it
@@ -313,7 +314,7 @@ function __seatStrip() {
     const x = __SK.seat(__SEATS, n), c = document.createElement('span'), col = __SK.SEAT_COLORS[n - 1];
     c.style.cssText = 'padding:2px 8px;border-radius:10px;border:2px solid ' + col + ';color:' + (x ? '#fff' : col) + ';background:' + (x && !x.away ? col : 'rgba(0,0,0,.45)');
     const out = __world.seatOut && __world.seatOut[n];
-    c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
+    c.textContent = (__world.turnOf && __world.turnOf.n === n && !__world.seatsOver ? '\u25b6 ' : '') + __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
     const hp = x && !out ? hpOf(n) : null;
     if (hp != null) { const b = document.createElement('span'), f = document.createElement('span'); b.style.cssText = 'display:inline-block;vertical-align:middle;margin-left:6px;width:34px;height:5px;border-radius:3px;background:rgba(0,0,0,.5)'; f.style.cssText = 'display:block;height:100%;border-radius:3px;background:#fff;width:' + Math.round(hp * 100) + '%'; b.appendChild(f); c.appendChild(b); }
     __seatEl.appendChild(c);

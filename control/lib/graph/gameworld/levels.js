@@ -1554,6 +1554,8 @@ const SEAT_COUNT = Object.freeze({ two: 2, four: 4 }), SEAT_LIVES = 3;
 function seatPart(G, pilotPart, ends, lane) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
   if (!n) return { pilotPart, seats: null };
+  // (soul.input=turns: the alternating game, the seats taking turns at the hero itself, each its own lives: no bodies)
+  if (soul.input === 'turns') return { pilotPart, seats: { bodies: [], turns: {}, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', lives: SEAT_LIVES, pool: 'own' } };
   const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
   // (soul.contest: co-op, every seat on the hero's side; versus and free-for-all, each seat a side of its own, `seat-<n>`,
   // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`. On a level

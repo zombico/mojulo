@@ -9,3 +9,7 @@
   deathmatch is makeable, and every couch genre probe is now makeable.
 - Not yet: in players 2 to 4's views a third-person camera does not pull in against a wall, the HUD is the whole
   screen's rather than one a view, and post effects show in player 1's view only.
+- Turns, the alternating two-player game: players take turns at one hero. Only the player whose turn it is drives; a
+  fall, or the hero knocked down, spends that player's own life and passes the turn to the next player with lives left,
+  and a game can also pass the turn on a clock. The chip strip marks whose turn it is. A game whose cube asks for turns
+  lays it, and a turns game can open on the lobby. With turns built, every seat value in the hill-climb is built.

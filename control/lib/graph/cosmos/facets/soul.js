@@ -183,7 +183,8 @@ export const SOUL = Object.freeze({
         // built 11-27 (1126-couch-closeout): a contest read over a window of every seat's presses (mechanics.js mash, the bus's
         // argmax, the page's press:<n>)
         window: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/game/mechanics.js', note: 'a contest read over a window of every seat\'s presses, a pure function of them (mechanics.js mash): each seat\'s fresh jump or A counted for its seconds, in its corner in its colour, the most the winner at the horn (the bus\'s argmax; a tie a draw), or a race to a count; the page says each seat\'s press to the bus (press:<n>) where the bus listens. A mash only: no timing or hold-and-release window yet, and no door lays a party round yet', requires: TWO },
-        turns: { ...NOT_YET, effort: 'S', requires: TWO },
+        // built 11-27 (1127-split-screen): the alternating game (core.js turnOf, rules-basic.js seat-falls passTurn)
+        turns: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/worlds/controllable/core.js', note: 'the alternating game (a level\'s seats.turns): one hero, the seats taking turns at it, seat 1\'s first; its turn\'s seat drives it with its own controller, the others wait; a fall or its body downed spends that seat\'s own life and passes the turn to the next with lives left (a seat out passed over; none left, the seats over); `seconds` passes it on a clock too; the chip strip marks whose turn it is. The contest kernel\'s turn sports besides (hot-seat, one pad). Not yet: a score a seat, a turn\'s banner', requires: TWO },
       },
     },
     pool: {

@@ -434,6 +434,13 @@ export function buildCore(E) {
         for (const e of entities) if (e.id === pilotId || state.seatOf[e.id]) state.seatHome[e.id] = e.transform.pos.slice();
       }
       spec.seats.bodies.slice(0, 3).forEach((id, k) => { const e = byId[id]; if (e && e.pilotable && e.id !== pilotId) { state.seatOf[id] = k + 2; e.rule = e.pilotRule; } });
+      // TURNS (opt-in `turns: { seconds? }`, soul.input=turns: the alternating arcade game): one body, the seats taking
+      // turns at it, seat 1's first; the pilot's input is its turn's seat's (seatInput), a fall or a down passes the turn
+      // (rules-basic.js seat-falls), `seconds` on a clock too
+      if (spec.seats.turns && typeof spec.seats.turns === 'object') {
+        const T = spec.seats.turns, max = Number.isInteger(spec.seats.max) ? spec.seats.max : Math.min(4, spec.seats.bodies.length + 1);
+        state.turnOf = { n: 1, t: 0, max: Math.max(2, Math.min(4, max)), seconds: Number.isFinite(T.seconds) && T.seconds > 0 ? T.seconds : null };
+      }
       // SPLIT (opt-in `frame: 'split'`, docs/local-multiplayer-principles.md principle 3: a view a seat): each seat's body
       // its own camera, the world camera's rule on it (`seatCams[n]`), stepped after the world's; no group frame
       if (spec.seats.frame === 'split' && camera) {
@@ -521,7 +528,8 @@ export function buildCore(E) {
   // what a rule's "is this input mine" test adds for them; a seat with no player this frame has its body's rule set by the
   // world's drop (the 'seats' pre-step below). Without seats both read as nothing.
   const seated = (state, e) => !!(state.seatOf && state.seatOf[e.id]);
-  const seatInput = (state, e, input) => (state.seatOf && state.seatOf[e.id] ? readInput(input.seats && input.seats[state.seatOf[e.id]]) : input);
+  const seatInput = (state, e, input) => (state.seatOf && state.seatOf[e.id] ? readInput(input.seats && input.seats[state.seatOf[e.id]])
+    : state.turnOf && e.id === state.pilotId && state.turnOf.n > 1 ? readInput(input.seats && input.seats[state.turnOf.n]) : input);   // (turns: the pilot driven by its turn's seat)
   // the seated pilots, seat 1's first: who the AI hunts and who the camera frames
   const pilotsOf = (world) => {
     const out = world.pilotId && world.byId[world.pilotId] ? [world.byId[world.pilotId]] : [];

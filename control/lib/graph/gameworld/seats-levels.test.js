@@ -169,3 +169,12 @@ describe('a split screen, lowered from the cube', () => {
     expect(m.seats).toBeUndefined();
   }, 60_000);
 });
+
+describe('turns, lowered from the cube', () => {
+  it('soul.input=turns: no seat bodies, the seats taking turns at the hero, each its own lives; the page reads it', () => {
+    const m = level(W({ soul: { seats: 'two', input: 'turns' } }));
+    expect(m.entities.filter((e) => e.pilotable)).toHaveLength(1);
+    expect(m.seats).toEqual({ bodies: [], turns: {}, max: 2, join: 'drop-in', lives: 3, pool: 'own' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+  }, 60_000);
+});
