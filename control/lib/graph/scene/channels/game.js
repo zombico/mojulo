@@ -1,6 +1,7 @@
 import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SAVE as GAME_MSG_SAVE, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
+import { openingScript, resultsScript } from './game-screens.js';
 
 // game channel (game-metacontext.plan.md): the level-contract bridge. Emitted when the payload
 // carries `game` — a LEVEL is a pure function (params, seed, ticks) → outcome envelope, and this
@@ -50,7 +51,7 @@ export function gameChannelScript(game, { shownOnStart = false } = {}) {
 ${ranks ? `${rankOf.toString()}
 const __levelRank = ${levelRank.toString()};
 ` : ''}const __GAME = ${safeJson(game)};
-(function () {
+(function () {${resultsScript()}${game && game.opening ? openingScript() : ''}
   const __CV = ${GAME_CONTRACT_VERSION};
   // the style tokens (hud-widgets.js) a hosting shell sends beside game-init: set as --moj-* vars
   // on the root so the HUD widgets and the result card adopt the game's skin. Hex-only, re-guarded
@@ -113,18 +114,9 @@ ${ranks ? `    // THE RANK (game/rank.js), on a level won: read off the style me
     }
 ` : ''}    if (stats && typeof stats === 'object') { try { st.envelope.stats = JSON.parse(JSON.stringify(stats)); } catch (e) { /* non-serializable stats are dropped, never fatal */ } }
     if (hosted && !capture) { try { window.parent.postMessage({ moj: '${GAME_MSG_OUTCOME}', envelope: st.envelope }, '*'); } catch (e) { console.error('game outcome post', e); } }
-    // the RESULT CARD (game.complete: false hides it; { text } retitles it) — themed by the
-    // --moj-* tokens, the literals are the fallbacks so an un-themed level looks as before.
-    if (!capture && __GAME.complete !== false) {
-      const title = __GAME.complete && typeof __GAME.complete.text === 'string' && __GAME.complete.text ? __GAME.complete.text : ('level ' + (st.envelope.result === 'success' ? 'complete' : st.envelope.result));
-      const o = document.createElement('div');
-      o.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,10,16,.55);z-index:40;pointer-events:none';
-      o.innerHTML = '<div style="background:var(--moj-panel-a,rgba(12,16,26,.92));border:1px solid var(--moj-line,#2a3b58);border-radius:10px;padding:18px 28px;color:var(--moj-ink,#dfe8f8);font:15px var(--moj-font,system-ui);text-align:center"><span class="moj-complete"></span><br><span style="font-size:12px;color:var(--moj-accent,#8fa5c8)">' + st.events.length + ' event' + (st.events.length === 1 ? '' : 's') + ' → store</span></div>';
-      o.querySelector('.moj-complete').textContent = title;${keeps ? `
-      const kp = st.envelope.stats && st.envelope.stats.kept;
-      if (kp) o.querySelector('.moj-complete').textContent = title + ' · ' + kp.map((k) => k.label + ' ' + k.value + (k.unit || '')).join(' · ');` : ''}
-      document.body.appendChild(o);
-    }
+    // the RESULTS (game-screens.js: the end said as a screen, in the level's look; game.complete: false hides it, { text }
+    // retitles it)
+    if (!capture && __GAME.complete !== false) __mojResults(st.envelope, { hosted });
     // the card read: its time (longer with a table to read), or a press after its first moment; none, at once. The shell's
     // flow goes on to its next screen when it hears it
     if (hosted && !capture) {
@@ -368,7 +360,10 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     ${shownOnStart ? 'st.onStart.push(() => ' : ''}requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }))${shownOnStart ? ')' : ''};
     // (the grace is 1.5 s the shell could have answered in, not 1.5 s on the clock: awaitShell below)
     (${awaitShell.toString()})({ started: () => st.started, fallback });
-  } else {
+  } else {${game && game.opening ? `
+    // (a level with an OPENING, played on its own: its title screen loads it, and it starts once the player presses;
+    // its scenes wait for that start)
+    if (!capture && __GAME.opening) { window.__mojWaitInit = true; __mojOpening(fallback); } else` : ''}
     fallback();
   }
 })();`;

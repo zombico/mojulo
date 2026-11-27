@@ -273,30 +273,40 @@ export const GROUND_UNITS = Object.freeze({
       ...[-1, 1].flatMap((s) => P.box([s * 1.25, -4.16, 1.3], [1.0, 0.08, 0.5], 'drive')),
     ],
   }),
-  // a flier, one of a swarm: no fans or rotors: a lens of armour borne up on a ring of plasma round its waist (the drive
-  // lit all the way round, held off the hull on four spokes), a red eye in its rim, one chin gun, two fins aft. Its own
-  // livery (`livery`): bone white under a hazard-orange dome, a dark stripe round its rim, so it stands out against black space and grey
-  // ground; it orbits and strafes, a small thing hard to hold in a lock
+  // a flier, one of a swarm: no fans or rotors, and a front that reads at a glance. A lens of armour drawn forward into a
+  // NOSE (its red eye across the nose's face, the chin gun under it), borne up on a horseshoe of plasma round its waist
+  // and tail, open at the front where the nose goes through it; behind, two swept fins and a drive spine. Its own livery
+  // (`livery`): bone white under a hazard-orange dome and nose cap, a dark stripe round its rim, so it stands out against
+  // black space and grey ground; it orbits and strafes, a small thing hard to hold in a lock
   gnat: Object.freeze({
-    label: 'gnat drone', reads: 'a white lens of armour under an orange dome on a glowing drive ring, a red eye in its rim, a chin gun: one of a swarm',
-    size: 1.4, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
+    label: 'gnat drone', reads: 'a white lens drawn forward into a red-eyed nose, on a horseshoe of plasma open at the front, fins aft: one of a swarm',
+    size: 1.7, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
     livery: Object.freeze({ hull: '#e9e4d6', hull2: '#e2632d', accent: '#23343a' }),
-    // (some 7 m across its ring as drawn: a thing a frame swats, not one it duels, and sees coming)
+    // (some 9 m nose to tail as drawn: a thing a frame swats, not one it duels, and sees coming and which way it faces)
     parts: () => {
-      const R = 1.45, n = 16, seg = ((2 * Math.PI * R) / n) * 1.04;
+      const k = 1.2, S = (v) => v.map((x) => x * k), R = 1.45 * k, n = 18, seg = ((2 * Math.PI * R) / n) * 1.04;
       const spin = (faces, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] * Math.cos(a) - c[1] * Math.sin(a), c[0] * Math.sin(a) + c[1] * Math.cos(a), c[2]]) }));
+      // (the ring's segments round from the right of the nose to its left, the back way: none across the front)
+      const ring = Array.from({ length: n }, (_, i) => i).filter((i) => { const a = (2 * Math.PI * i) / n; return Math.cos(a) < 0.72; });
       return [
-        ...P.prism([0, 0, 0], 0.72, 0.72, 0.26, 0.46, 'dark', 12),
-        ...P.prism([0, 0, 0], 1.0, 1.0, 0.46, 0.8, 'hull', 16),
-        ...P.prism([0, 0, 0], 1.03, 1.03, 0.6, 0.67, 'accent', 16),
-        ...P.dome([0, 0, 0.8], 0.8, 0.8, 0.8, 0.38, 'hull2', 12, 3),
-        ...P.box([0, 1.0, 0.63], [0.5, 0.08, 0.16], 'sensor'),
-        // (the drive: a ring of plasma round its waist, lit all the way round, on four spokes)
-        ...Array.from({ length: n }, (_, i) => spin(P.box([0, R, 0.63], [seg, 0.13, 0.13], 'drive'), (2 * Math.PI * i) / n)).flat(),
-        ...[1, 3, 5, 7].flatMap((i) => spin(P.box([0, 1.22, 0.63], [0.09, 0.5, 0.09], 'dark'), (Math.PI / 4) * i)),
-        ...[-1, 1].flatMap((sd) => P.box([sd * 0.34, -0.55, 1.02], [0.06, 0.55, 0.34], 'accent')),
-        ...P.box([0, 0.5, 0.3], [0.32, 0.42, 0.2], 'dark', { ch: 0.05 }),
-        ...P.pipe([0, 0.62, 0.3], [0, 1.65, 0.3], 0.07, 'dark', 6),
+        ...P.prism(S([0, -0.1, 0]), 0.72 * k, 0.72 * k, 0.26 * k, 0.46 * k, 'dark', 12),
+        ...P.prism(S([0, -0.1, 0]), 1.0 * k, 0.92 * k, 0.46 * k, 0.8 * k, 'hull', 16),
+        ...P.prism(S([0, -0.1, 0]), 1.03 * k, 0.95 * k, 0.6 * k, 0.67 * k, 'accent', 16),
+        ...P.dome(S([0, -0.25, 0.8]), 0.72 * k, 0.66 * k, 0.8 * k, 0.34 * k, 'hull2', 12, 3),
+        // (the nose: the lens drawn forward, tapering, its cap orange, the eye across its face)
+        ...P.box(S([0, 1.15, 0.6]), S([0.9, 1.2, 0.36]), 'hull', { ch: 0.16 * k }),
+        ...P.box(S([0, 1.6, 0.64]), S([0.7, 0.62, 0.44]), 'hull2', { ch: 0.14 * k }),
+        ...P.box(S([0, 1.92, 0.64]), S([0.52, 0.07, 0.14]), 'sensor'),
+        // (the drive: a horseshoe of plasma round its waist and tail, open at the front, on four spokes)
+        ...ring.map((i) => spin(P.box([0, R, 0.63 * k], [seg, 0.13 * k, 0.13 * k], 'drive'), (2 * Math.PI * i) / n - Math.PI / 2 + Math.PI / 2)).flat(),
+        ...[3, 5].flatMap((i) => spin(P.box(S([0, 1.22, 0.63]), S([0.09, 0.5, 0.09]), 'dark'), (Math.PI / 4) * i)),
+        ...[-1, 1].flatMap((sd) => spin(P.box(S([0, 1.22, 0.63]), S([0.09, 0.5, 0.09]), 'dark'), sd * Math.PI / 2)),
+        // (aft: two swept fins and a drive spine, the end it does not lead with)
+        ...[-1, 1].flatMap((sd) => P.box(S([sd * 0.42, -0.95, 1.02]), S([0.06, 0.75, 0.42]), 'accent').map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1] - (c[2] - 1.02 * k) * 0.9, c[2]]) }))),
+        ...P.box(S([0, -1.25, 0.66]), S([0.3, 0.7, 0.22]), 'dark', { ch: 0.05 * k }),
+        ...P.box(S([0, -1.62, 0.66]), S([0.22, 0.05, 0.14]), 'drive'),
+        ...P.box(S([0, 0.75, 0.3]), S([0.32, 0.42, 0.2]), 'dark', { ch: 0.05 * k }),
+        ...P.pipe(S([0, 0.9, 0.3]), S([0, 2.15, 0.3]), 0.07 * k, 'dark', 6),
       ];
     },
   }),

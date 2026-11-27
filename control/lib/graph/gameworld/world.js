@@ -331,7 +331,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -654,6 +654,14 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
+    // (its OPENING, scene/channels/game-screens.js: the title screen that loads it and waits for the player, a chapter's
+    // card into the play)
+    if (L.opening !== undefined) {
+      const O = L.opening, str = (v, n) => typeof v === 'string' && v.length > 0 && v.length <= n;
+      if (!isObj(O) || Object.keys(O).some((k) => !['title', 'kicker', 'chapter', 'press'].includes(k))) throw new Error(`gameworld: ${at}.opening is { title?, kicker?, chapter?: { label?, name? }, press? }: the title screen that loads the level, a chapter's card into it`);
+      for (const k of ['title', 'kicker', 'press']) if (O[k] !== undefined && !str(O[k], 60)) throw new Error(`gameworld: ${at}.opening.${k} is words, up to 60 letters`);
+      if (O.chapter !== undefined && !(isObj(O.chapter) && Object.keys(O.chapter).every((k) => ['label', 'name'].includes(k)) && ['label', 'name'].every((k) => O.chapter[k] === undefined || str(O.chapter[k], 60)))) throw new Error(`gameworld: ${at}.opening.chapter is { label?: 'Chapter 1', name? (the level's own, unsaid) }`);
+    }
     if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made

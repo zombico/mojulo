@@ -919,7 +919,22 @@ export function stageLevelOrder(G, stage, opts = {}) {
   // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
   const S = G.screen ? screenLevel(G.screen, L) : L;
   // a game played in a headset (scene/channels/xr.js): each level's page opens a session that plays it. Absent: no key
-  return G.xr ? { ...S, args: { ...S.args, manifest: { ...S.args.manifest, xr: G.xr } } } : S;
+  const X = G.xr ? { ...S, args: { ...S.args, manifest: { ...S.args.manifest, xr: G.xr } } } : S;
+  return withScreens(G, stage, X);
+}
+// THE GAME'S SCREENS (scene/channels/game-screens.js) on a level's contract: the names its results say (the game's, the
+// level's), its noun (a frame's operation is a Mission), the look they are painted in (the world's interface theme's
+// colours, where it names one), and its opening (a level's `opening`: the title screen that loads it, a chapter's card)
+function withScreens(G, stage, L) {
+  const m = L.args?.manifest;
+  if (!m?.game) return L;
+  const lv = G.levels[stage.level] ?? {}, U = G.ui && typeof G.ui === 'object' ? G.ui : null;
+  const theme = U && U.theme && U.theme !== 'world' ? (() => { try { return readTheme(U.theme); } catch { return null; } })() : null;
+  const look = theme ? Object.fromEntries(['ink', 'panel', 'line', 'accent', 'accent2', 'harm'].filter((k) => typeof theme.tokens?.[k] === 'string').map((k) => [k, theme.tokens[k]])) : null;
+  const name = typeof lv.name === 'string' ? lv.name : typeof m.title === 'string' ? m.title : null;
+  const opening = lv.opening ? { title: lv.opening.title ?? G.name, ...(lv.opening.kicker ? { kicker: lv.opening.kicker } : {}), ...(lv.opening.press ? { press: lv.opening.press } : {}), ...(lv.opening.chapter ? { chapter: { ...(lv.opening.chapter.label ? { label: lv.opening.chapter.label } : {}), name: lv.opening.chapter.name ?? name } } : {}) } : null;
+  const game = { ...m.game, title: G.name, ...(name ? { name } : {}), ...(lv.airspace?.frame ? { noun: 'Mission' } : {}), ...(look && Object.keys(look).length ? { look } : {}), ...(opening ? { opening } : {}) };
+  return { ...L, args: { ...L.args, manifest: { ...m, game } } };
 }
 function withOwnMoves(L, byRef) {
   const m = L.args?.manifest;

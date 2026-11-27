@@ -356,7 +356,8 @@ export function lowerObjectives(p, ctx) {
   if (landed) world.vars[names.sink] = 0;
   // (foes down kept only where a task has foes: a lesson's result says nothing of them)
   const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, ...(woken.size ? [{ var: downs, label: 'Foes down', best: 'high' }] : []), { var: time, label: 'Time', best: 'low', unit: 's' },
-    ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : [])];
+    ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : []),
+    ...(p.retry !== undefined ? [{ var: names.retries, label: 'Retries', best: 'low' }] : [])];
   const fails = T.some((t) => t.kind === 'protect');
   if (fails) world.hud.push({ on: 'objectives:failed', text: 'Failed', as: 'toast', ttl: 2 });
   if (T.some((t) => t.kind === 'gates')) world.hud.push({ on: 'objective:gate', text: 'gate {event.n} of {event.of}', as: 'toast', ttl: 1 });

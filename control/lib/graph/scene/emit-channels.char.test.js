@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-27 (the game's screens): the fixtures that carry the game channel (game, kitchen-sink and its
+// capture). Its result card is now the results screen (game-screens.js resultsScript, drawn as a level ends, never in a
+// capture), and a level with an `opening` carries its title screen (no fixture's does). Checked: with game.js as it was,
+// every moved hash is back to its pin.
 // Re-pinned 2026-11-27 (a wide shot on big subjects far apart): every fixture that embeds the controllable runtime. The
 // shot rule's aim under big subjects is capped at half their height (rules-basic.js), taken only by a scene's shot (no
 // fixture's has one). Checked: with rules-basic.js as it was, every moved hash is back to its pin.
