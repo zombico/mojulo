@@ -112,6 +112,7 @@ import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './
 import { chestsPer, CHEST_SLICE } from './chests.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
 import { standFoe, foePlacements, readLevelFoes, bestiaryOf, stompOf, targetRimOf } from './foes.js';
+import { LAIR, lairBossOf, withoutLairBoss, lairStage } from './lair.js';
 import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
@@ -220,13 +221,16 @@ export function gameStages(world) {
     if (R.glyphs?.zoned) {
       // (`zoned` a list of pages, each the segments walked as one, `[['A', 'B']]`: a segment no page names is a page of
       // its own; a page in the order of its first segment's)
-      const { zoned, ...glyphs } = R.glyphs, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
+      // (a climax whose boss is fought by the boss director, a beast of the boss shelf: taken off the climax, fought in its
+      // own LAIR, a page more after the last, ./lair.js)
+      const { zoned, ...glyphs0 } = R.glyphs, lairBoss = lairBossOf(G, glyphs0), glyphs = lairBoss ? withoutLairBoss(glyphs0, lairBoss) : glyphs0, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
       const groups = Array.isArray(zoned) ? zoned : [], pageOf = (S) => groups.find((g) => g.includes(S)) ?? [S], pages = [];
       for (const S of order) { const g = pageOf(S); if (!pages.includes(g)) pages.push(g); }
       // (a page is titled by its places' names, the plan's key: 'The village', 'The meadow road and the old ruins'; a
       // place the key leaves unnamed, the page's letters as before)
       const named = (g) => { const ns = g.map((S) => (glyphs.grid?.plan?.key ?? P.key)?.[S]?.name); if (!ns.every((x) => typeof x === 'string' && x)) return null; const t = ns.length > 1 ? `${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}` : ns[0]; return t[0].toUpperCase() + t.slice(1); };
       pages.forEach((g, index) => { const zone = g.length > 1 ? g : g[0], label = named(g); out.push({ level, node: g.join('+'), section: 'map', index, zone, ...(label ? { label } : {}), manifest: { kind: 'map', level: { ...glyphs, zone } } }); });
+      if (lairBoss) out.push(lairStage(level, pages.length, lairBoss, G));
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
@@ -979,6 +983,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     return { tool: 'create_sketch', args: { title: manifest.title, manifest: { ...manifest, game: { ...manifest.game, levelRef: ref } } },
       ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
   }
+  if (stage.section === 'lair') return lairLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, audio });
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures, audio: stage.section === 'interior' ? null : audio });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? (stage.frame && stage.manifest.kind === 'geocube' ? frameFieldEnds(stage) : airspaceEnds(stage.manifest)) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
@@ -1047,7 +1052,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null, errands: G.errands ?? null }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
-  const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
+  // (but a zone that goes on into a boss's lair, ./lair.js, gives its goal up: its goal is the way in)
+  const keepsGoal = ways && stage.section === 'map' && (!map.on.length || (!!ends.holdsGoal && !map.on.some((w) => w.zone === undefined)));
   // (a HELD page, map-sketch.js concept `hold`: its ways out wait on its foes' downs, leaving it its graduation; never the
   // way it was come in by)
   const held = ways ? heldWays(G, stage, ends, map, ways.mechanics) : null;
@@ -1770,6 +1776,9 @@ export function mapPlan(G, stages, refs) {
         plan[a].on.push({ to: refs[b], zone: g.to, side: g.side, id: name(a, g.from, g.side) });
         plan[b].on.push({ to: refs[a], zone: g.from, side: OPP_SIDE[g.side], id: name(b, g.to, OPP_SIDE[g.side]) });
       }
+      // (a boss's LAIR, ./lair.js: the walk's last page goes on into it, at its goal, and it back)
+      const lair = ix.find((i) => stages[i].section === 'lair');
+      if (lair !== undefined) { const last = at(P.route[P.route.length - 1]); if (last !== undefined) { plan[last].on.push({ to: refs[lair] }); plan[lair].back.push({ to: refs[last] }); } }
       continue;
     }
     for (let k = 0; k + 1 < ix.length; k++) { plan[ix[k]].on.push({ to: refs[ix[k + 1]] }); plan[ix[k + 1]].back.push({ to: refs[ix[k]] }); }
@@ -2425,6 +2434,36 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
   // (its route to the goal room, through the doorways and up the flights: an escape room's keys lie on it, escape.js)
   Object.defineProperty(ends, 'via', { value: lowered.game.mechanics.at(-1).via ?? null, enumerable: false });
   return ends;
+}
+
+/**
+ * A BOSS'S LAIR (./lair.js), its own page: the cave chamber its stage carries, the hero come in at its mouth with the
+ * world's own fighting pilot (its orbit and its blow, sheathed out of combat as on a trail), the boss of the boss shelf
+ * stood toward its back wall (foes.js standFoe: the director's), the chase held behind the hero on the line from it,
+ * low, its look lifted toward it (`face`); won by bringing the boss down.
+ */
+function lairLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, audio = null } = {}) {
+  const name = title ?? stage.label ?? `${G.name ?? G.id} · ${stage.level}`, L = LAIR, B = bestiaryOf(G);
+  const spawn = [L.hero[0], L.hero[1], L.drop], heading = Math.atan2(L.boss[1] - L.hero[1], L.boss[0] - L.hero[0]);
+  // the boss, as the director stands it (its figure built on the page from its row)
+  const part = { figures: {}, entities: [] };
+  const boss = standFoe(G, part, { id: 'foe-boss-1', eid: stage.boss, entry: B[stage.boss], at: [...L.boss], heading: Math.atan2(L.hero[1] - L.boss[1], L.hero[0] - L.boss[0]) });
+  // the hero: the world's own pilot, armed as on a trail (an action hero's orbit and blow)
+  const moves = heroMoves(G), cam = G.camera ?? null, actionOrbit = cam === 'orbit' && carriesStrike(G);
+  const controls = `${walkRun(pilot, '')} · A / D  turn · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}`;
+  const brule = { ...(actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}), ...(heroStature && !pilot ? { collideHeight: heroStature } : {}) };
+  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
+  const A = armedPilot(G, { ...P.entities[0], transform: { pos: spawn, heading } }, cam);
+  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null;
+  // the chase faced on the boss: behind the hero on the line from it, low, its look lifted toward it
+  const camera = { ...P.camera, ...(actionOrbit ? { steer: 'orbit', ...ACTION_ORBIT } : {}), ...L.camera, face: boss.id };
+  const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
+  const game = { levelRef: ref, mechanics: [{ kind: 'defeat-all', who: 'foe-*', count: 1, label: 'Down' }], fall: { mode: 'respawn' } };
+  let manifest = armLevel(G, { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}), ...(audio ? { audio } : {}),
+    figures: { ...(fighter ? fighter.figures : P.figures), ...part.figures }, entities: [fighter ? fighter.entity : A.entity, ...part.entities], camera, events, ...(actionOrbit ? { lock: true } : {}),
+    game, ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  if (!manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, vitals: vitalsOf(G) }) };
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends: { spawn, heading, exit: spawn.slice() } };
 }
 
 function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null, audio = null } = {}) {

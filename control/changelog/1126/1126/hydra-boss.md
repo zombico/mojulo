@@ -28,4 +28,16 @@
 - **A faced foe on the chase camera** (`worlds/controllable/rules-basic.js` follow `face`, with `faceRate`, `faceMix`,
   `faceH`): the chase held behind its target on the line from a foe, its look lifted toward it, so a boss looms over the
   hero whichever way she turns (a boss arena's). Absent, the chase as it was.
+- **The hydra's lair, a level of its own** (`gameworld/lair.js`, `levels.js` lairLevelOrder): a world map whose climax
+  calls a boss of the boss shelf has it taken off the climax (the castle heights end at their keep's door, which leads
+  on) and fought in a cave chamber after the last page: cold, mid-dark rock under one live fire so the beast stands off
+  it, the hero come in at its mouth with the world's own fighting pilot, the chase held low behind her on the line from
+  the boss, looking up at it; won by bringing it down. A world whose climax boss is a foe like any, as it was.
+- **The hydra's skin read**: a pack's corner colours are linear light, and its tints now are too (they were mixed toward
+  sRGB values, washing the body out flat); each tint moves a corner's hue and keeps its value, so the serpent's dark back
+  and pale belly read its form under any colour. Its necks SEGMENTED: a seam ring every 0.3 m up each neck, standing
+  just off its skin (its girth read off its tube, the fin's spines aside), in the neck's own colour a step down in value.
+- **Its heads come at you**: an awake head swings from its place in the fan onto what the body faces, the hero (the
+  director turns the body on her), as it wakes, and is held on her through its strike and its opening (the parts' boxes
+  moved with them, in front of its breast).
 
