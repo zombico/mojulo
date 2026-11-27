@@ -345,6 +345,8 @@ function __withSeats(inp) {
   __seat1 = s1 ? s1.controller : null;
   const seats = {};
   for (const x of __SEATS.seats) if (x.n > 1 && !x.away) { const snap = __seatSnap(x); if (snap) seats[x.n] = snap; }
+  // (a contest of presses wanted, events.js: each seat's fresh jump said to the bus as press:<n>)
+  if (window.__mojPresses && typeof __inputQueue !== 'undefined') { if (inp.jump === 1 && s1) __inputQueue.push({ type: 'press:1' }); for (const n in seats) if (seats[n].jump === 1) __inputQueue.push({ type: 'press:' + n }); }
   __seatStrip();
   return { ...inp, seats };
 }

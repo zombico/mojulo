@@ -1215,3 +1215,8 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // by lobby: the seats block's lobby lines, controllable/index.js, and the lobby's own block, channels/seat-lobby.js, mana-ui
 // in a scope of its own, the level held until seat 1 starts it). Every other page is byte-identical, and a page whose
 // seats join drop-in, or have none, emits no lobby.
+// Re-pinned 2026-11-27 (1126-couch-closeout: a contest of presses): `events`, `events-hud`, `action-hero`, `shoot-live`,
+// `kitchen-sink`, `kitchen-sink-capture`, the pages that embed the event bus: its `argmax` verb (worlds/event-bus.js: a var
+// set to the place of the highest of a list, 0 for a draw; two RESERVED keys). And `seat-lobby`, the one page with seats:
+// __withSeats says each seat's fresh jump to the bus as press:<n> when the events channel wants them (one line; a page
+// whose bus hears no press:<n> sets no __mojPresses, so it sends none).

@@ -154,5 +154,30 @@ describe('seats on the World page', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 60000);
-});
 
+  it('a contest of presses: each seat\'s fresh A counted on the bus, the most the winner at the horn', async () => {
+    const events = composeMechanics([{ kind: 'mash', seconds: 3 }], { player: 'p1', spawn: [0, 0, 0], fall: 'none', seats: ['p2'] }).events;
+    const html = emitThreeWorld({ faces: [floor], entities: [hero('p1', 0), hero('p2', -2)], camera: { rule: 'side', target: 'p1' }, seats: { bodies: ['p2'] }, events, inline: true });
+    expect(html).toMatch(/__mojPresses = true/);
+    expect(world({ bodies: ['p2'] })).not.toMatch(/__mojPresses = true/);
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html.replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats && window.__mojBus, { timeout: 20000 });
+    const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    const tap = async (i) => { await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: true, value: 1 }; }, i); await frames(3); await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: false, value: 0 }; }, i); await frames(3); };
+    await tap(0); await tap(1);                               // each sits down (the press that seats it is no jump)
+    const v = () => page.evaluate(() => { const x = window.__mojBus.state.vars; return [x['presses:1'], x['presses:2'], x.__mash_winner_0]; });
+    const [a0, b0] = await v();
+    for (let k = 0; k < 3; k++) await tap(0);
+    for (let k = 0; k < 6; k++) await tap(1);
+    const [a1, b1] = await v();
+    expect([a1 - a0, b1 - b0]).toEqual([3, 6]);
+    await page.waitForFunction(() => window.__mojBus.state.vars.__mash_open_0 === 0, { timeout: 10000 });
+    expect((await v())[2]).toBe(2);
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
+});

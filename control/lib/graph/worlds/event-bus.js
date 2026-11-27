@@ -28,7 +28,7 @@ export function buildBus() {
     forward: [0, 1, 0], back: [0, -1, 0],
   };
   // verb/control keys that must NOT be copied into an emitted event's payload.
-  const RESERVED = { do: 1, type: 1, source: 1, scope: 1, on: 1, match: 1, await: 1, target: 1, template: 1, at: 1, to: 1, vector: 1, dir: 1, gain: 1, var: 1, by: 1, if: 1 };
+  const RESERVED = { do: 1, type: 1, source: 1, scope: 1, on: 1, match: 1, await: 1, target: 1, template: 1, at: 1, to: 1, vector: 1, dir: 1, gain: 1, var: 1, by: 1, if: 1, of: 1, least: 1 };
 
   // ── deterministic stringify (sorted keys) — the basis of the content sort key + state hash ──
   function ss(v) {
@@ -144,6 +144,15 @@ export function buildBus() {
     // fall-penalty-respawn case needs `{do:'inc',var:'hp',by:-20,min:1}` so a fall can never reach 0.
     if (verb === 'set') { let v = resolveRef(spec.to, ev); if (typeof v === 'number') v = clampVar(v, spec); state.vars[spec.var] = v; return []; }
     if (verb === 'inc') { const by = Number(resolveRef(spec.by, ev)); state.vars[spec.var] = clampVar((Number(state.vars[spec.var]) || 0) + (Number.isFinite(by) ? by : 1), spec); return []; }
+    // ARGMAX (a contest read off its counts, docs/local-multiplayer-principles.md principle 12): `var` set to the place
+    // (1-based) in `of` (var names) of the highest, 0 when the highest is shared (a draw); `least: true` the lowest
+    if (verb === 'argmax') {
+      const of = Array.isArray(spec.of) ? spec.of : [], sign = spec.least ? -1 : 1;
+      let best = 0, top = -Infinity, shared = false;
+      for (let k = 0; k < of.length; k++) { const v = sign * (Number(state.vars[of[k]]) || 0); if (v > top) { top = v; best = k + 1; shared = false; } else if (v === top) shared = true; }
+      state.vars[spec.var] = shared ? 0 : best;
+      return [];
+    }
 
     const tid = resolveRef(spec.target, ev);
     const target = state.byId[tid];
