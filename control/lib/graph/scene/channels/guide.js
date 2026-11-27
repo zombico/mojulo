@@ -22,9 +22,11 @@ const FRAME_FACTS = new Set(['boost', 'quick-boost', 'climb', 'assault-boost', '
 // one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
 // with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
-/** A scan's ring (a step's `ring`): its edge's width (a share of its radius), its lift off the ground (m), its opacity at
- *  rest and stood in, the pulses in flight at once, each from the edge to `least` of the radius over `period` s. */
-export const GUIDE_RING = Object.freeze({ color: '#ffd36b', edge: 0.025, lift: 0.6, rest: 0.35, held: 0.85, pulses: 3, period: 1.4, least: 0.12 });
+/** A scan's place on the ground (a step's `ring`): a disc laid ON the ground, following it (`rings` × `segs` points, each
+ *  set `lift` m over the ground under it: under a frame's feet, never through its legs, and drawn behind what stands on
+ *  it), its rim (`edge` of its radius wide, at `rim`) marking the place and its surface faintly lit (`rest`); stood in,
+ *  the whole surface glows, breathing over `period` s up to `glow`, brightest at its middle. */
+export const GUIDE_RING = Object.freeze({ color: '#ffd36b', lift: 0.15, rings: 12, segs: 56, edge: 0.06, rim: 0.55, rest: 0.08, glow: 0.42, period: 1.6 });
 
 export function guideScript(guide, { host = false } = {}) {
   // (a scan's ring: emitted only where a step asks for one)
@@ -75,13 +77,26 @@ export function guideScript(guide, { host = false } = {}) {
     if (pillar) { S3.remove(pillar); pillar = null; }${rings ? `
     if (ringOn) { S3.remove(ringOn.g); ringOn = null; }` : ''}
     const s = GD.steps[k]; if (!s || s.fight) return;${rings ? `
-    // (a place held to be read, a scan's, \`ring\`: its ring on the ground, and while it is stood in, rings pulsing in from
-    // it toward its middle, one after another, until its clock is run: GUIDE_RING)
+    // (a place held to be read, a scan's, \`ring\`: a disc laid on the ground, following it, under the frames' feet; its rim
+    // and a faint light at rest, the whole surface glowing while it is stood in: GUIDE_RING)
     if (s.ring) {
-      const g = new T3.Group(), mk = (w, o) => { const m = new T3.Mesh(new T3.RingGeometry(1 - w, 1, 96), new T3.MeshBasicMaterial({ color: GR.color, transparent: true, opacity: o, depthWrite: false, depthTest: false, side: T3.DoubleSide })); m.renderOrder = 3; m.raycast = function () {}; g.add(m); return m; };
-      const edge = mk(GR.edge, GR.rest), pulses = Array.from({ length: GR.pulses }, () => mk(GR.edge * 1.6, 0));
-      g.position.set(s.at[0], s.at[1], s.at[2] + GR.lift); g.scale.setScalar(s.radius); S3.add(g);
-      ringOn = { g, edge, pulses };
+      const R = s.radius, NR = GR.rings, NS = GR.segs, pos = [], rr = [], idx = [];
+      const gz = (x, y) => { try { const g = typeof __ground === 'function' ? __ground([x, y, s.at[2] + 80]) : null; return Number.isFinite(g) ? g : s.at[2]; } catch (e) { return s.at[2]; } };
+      pos.push(s.at[0], s.at[1], gz(s.at[0], s.at[1]) + GR.lift); rr.push(0);
+      for (let i = 1; i <= NR; i++) for (let j = 0; j < NS; j++) {
+        const u = i / NR, a = (2 * Math.PI * j) / NS, x = s.at[0] + Math.cos(a) * R * u, y = s.at[1] + Math.sin(a) * R * u;
+        pos.push(x, y, gz(x, y) + GR.lift); rr.push(u);
+      }
+      for (let j = 0; j < NS; j++) idx.push(0, 1 + j, 1 + ((j + 1) % NS));
+      for (let i = 1; i < NR; i++) for (let j = 0; j < NS; j++) { const a = 1 + (i - 1) * NS + j, b = 1 + (i - 1) * NS + ((j + 1) % NS), c = a + NS, d = b + NS; idx.push(a, c, b, b, c, d); }
+      const geo = new T3.BufferGeometry();
+      geo.setAttribute('position', new T3.Float32BufferAttribute(pos, 3)); geo.setAttribute('r', new T3.Float32BufferAttribute(rr, 1)); geo.setIndex(idx);
+      const mat = new T3.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, side: T3.DoubleSide, blending: T3.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+        uniforms: { uColor: { value: new T3.Color(GR.color) }, uLit: { value: GR.rest }, uRim: { value: GR.rim }, uEdge: { value: GR.edge } },
+        vertexShader: 'attribute float r; varying float vR; void main() { vR = r; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'uniform vec3 uColor; uniform float uLit; uniform float uRim; uniform float uEdge; varying float vR; void main() { float rim = smoothstep(1.0 - uEdge, 1.0 - uEdge * 0.35, vR) * (1.0 - smoothstep(0.985, 1.0, vR)); float fill = uLit * (1.0 - 0.55 * vR * vR); gl_FragColor = vec4(uColor, clamp(fill + rim * uRim, 0.0, 1.0)); }' });
+      const m = new T3.Mesh(geo, mat); m.raycast = function () {}; m.renderOrder = 2; S3.add(m);
+      ringOn = { g: m, mat };
     }` : ''}
     pillar = new T3.Mesh(new T3.CylinderGeometry(0.5, 0.5, 60, 12, 1, true), new T3.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.28, depthWrite: false, side: T3.DoubleSide }));
     pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
@@ -137,11 +152,11 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
       if (pillar) pillar.visible = !gated;` : ''}${rings ? `
       if (ringOn && cur) {
         const shown = ${guide.steps.some((x) => x && x.from) ? '!gated' : 'true'}, inside = shown && p && Math.hypot(cur.at[0] - p.transform.pos[0], cur.at[1] - p.transform.pos[1]) < cur.radius;
-        ringOn.g.visible = shown; ringOn.edge.material.opacity = inside ? GR.held : GR.rest;
-        ringOn.pulses.forEach(function (m, i) {
-          const u = (((now / 1000) / GR.period) + i / GR.pulses) % 1;
-          m.scale.setScalar(1 - (1 - GR.least) * u); m.material.opacity = inside ? GR.held * (1 - u) * Math.min(1, u * 6) : 0;
-        });
+        ringOn.g.visible = shown;
+        // (stood in: the surface breathes up to its glow; else its faint rest)
+        const b = 0.5 - 0.5 * Math.cos((2 * Math.PI * (now / 1000)) / GR.period);
+        ringOn.mat.uniforms.uLit.value = inside ? GR.rest + (GR.glow - GR.rest) * (0.35 + 0.65 * b) : GR.rest;
+        ringOn.inside = inside;
       }` : ''}
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
       if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
