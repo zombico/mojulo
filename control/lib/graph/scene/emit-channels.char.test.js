@@ -1208,3 +1208,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-27 (1126-couch-closeout: the level's zones answer every seat): `events`, `events-hud`, `action-hero`,
 // `shoot-live`, `kitchen-sink`, `kitchen-sink-capture`, the pages that embed the event bus. A zone's `watch` may be a
 // list of body ids, a level's seats (worlds/event-bus.js deriveZoneEvents: one line replaced); a string watches as before.
+// Re-pinned 2026-11-27 (1126-couch-closeout: seats against each other): every fixture that embeds the controllable
+// runtime. `spec.seats.downs: 'level'` (a match's frags owns its fallen) is read into `seatDownsLevel` and the
+// 'seat-falls' pass leaves a downed seat to it (core.js: two lines; rules-basic.js: one condition). No fixture seats two.
