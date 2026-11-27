@@ -42,7 +42,8 @@ export const REALITY = Object.freeze({
         'comic-night': { status: 'absent', effort: 'S', pkg: 'comic-look', requires: ['reality.look=comic-day'], note: 'the comic look by night: the same ink and bands, a city-night palette, rim light on the cast' },
       },
     },
-    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', since: { 'gothic-ashlar': '2026-11-11' } } },
+    // (11-24, the city museum: its gallery wings' kit)
+    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', since: { 'gothic-ashlar': '2026-11-11', 'bay-gallery': '2026-11-24' } } },
     medium: {
       values: {
         '3d': { status: 'built', lowers: 'lib/graph/scene/scene-three.js' },

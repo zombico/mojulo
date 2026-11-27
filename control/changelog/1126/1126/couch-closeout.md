@@ -48,3 +48,6 @@
   deathmatch is still blocked, waiting on split screen. Turns (one player at a time) is the last seat value not built;
   the couch package is retired and turns is priced on its own. Over the branch the sweep went from 75 to 79 makeable
   random worlds and from 340 to 355 near the genre probes, with blocked worlds near the probes down from 49 to 32.
+- The hill-climb registry dates the values the release candidate's newest rails added without a date: the city museum's
+  `bay-gallery` kit (11-24), and the Hijack City activities' `shift`, `forger` and `request` mechanics (11-26). A
+  crewed ride (a driver and a gunner) now opens on the lobby when its game asks for one.

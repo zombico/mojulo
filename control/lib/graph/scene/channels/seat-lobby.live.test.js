@@ -25,6 +25,12 @@ describe('the seat lobby on the World page', () => {
     expect(page('lobby')).toMatch(/__mojLobby/);
   });
 
+  it('a crewed ride (a gunner seat, no body of its own) opens on the lobby too, its two seats', () => {
+    const html = emitThreeWorld({ faces: [floor], entities: [hero('car', 0)], camera: { rule: 'side', target: 'car' }, seats: { bodies: [], crew: { 2: { body: 'car', as: 'gunner' } }, join: 'lobby' }, inline: true });
+    expect(html).toMatch(/__mojLobby/);
+    expect(html).toMatch(/const __slMax = 2;/);
+  });
+
   it('pads sit down while the level is held; seat 1\'s A starts it and closes the seats', async () => {
     if (!browser) return;
     const p = await browser.newPage();
