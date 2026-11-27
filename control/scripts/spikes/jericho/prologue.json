@@ -1,0 +1,416 @@
+{
+  "id": "prologue",
+  "name": "Hidden Jericho",
+  "reads": "The prologue mission, solo: Coral crosses to a fortress on a cliff island off the coast of Maine aboard an autonomous supply boat, is told the objective again by radio, finds a keycard at the bow and is put ashore at the base's sea dock. A test of the base's security: non-lethal rounds only.",
+  "where": "US Atlantic seaboard, 300 km off the coast of Maine: a granite cliff island, the small hours of the night",
+  "rules": {
+    "lethal": false,
+    "loadout": [
+      "dart",
+      "fists",
+      "takedown"
+    ],
+    "why": "non-lethal rounds only: a sleep dart pistol, bare hands, the takedown"
+  },
+  "levels": [
+    {
+      "id": "supply-boat",
+      "name": "The supply boat",
+      "kind": "the movement lessons, before the dungeon",
+      "teaches": [
+        "walk and look",
+        "crouch",
+        "crawl",
+        "over and onto cargo",
+        "the ledge"
+      ],
+      "ends": "the package at the bow taken: the keycard scene"
+    },
+    {
+      "id": "dock",
+      "name": "The hangar dock",
+      "kind": "approach (level-kinds.js)",
+      "teaches": [
+        "read a sight cone",
+        "cover",
+        "the takedown"
+      ],
+      "ends": "up the cliff stair, unseen"
+    },
+    {
+      "id": "fortress",
+      "name": "Hidden Jericho",
+      "kind": "compound, then interior (level-kinds.js)",
+      "ends": "a big circle: in by the yard and down through the research wing to the deepest labs (terminals 1 and 2), back round toward the ship through the engineering lab (terminal 3): the hold-up, the walker raised"
+    }
+  ],
+  "wcd": {
+    "core": "walker-bay",
+    "spaces": {
+      "hangar-dock": {
+        "kind": "outer",
+        "depth": 0,
+        "level": "dock",
+        "look": {
+          "construction": "bunker",
+          "palette": "military"
+        }
+      },
+      "cliff-yard": {
+        "kind": "outer",
+        "depth": 1,
+        "level": "fortress",
+        "look": {
+          "construction": "military",
+          "palette": "military"
+        }
+      },
+      "research-wing": {
+        "kind": "outer",
+        "depth": 2,
+        "level": "fortress",
+        "use": "lab-building",
+        "look": {
+          "construction": "science",
+          "palette": "science"
+        }
+      },
+      "records-vault": {
+        "kind": "inner",
+        "depth": 3,
+        "level": "fortress",
+        "look": {
+          "construction": "bunker",
+          "palette": "science"
+        }
+      },
+      "deep-lab": {
+        "kind": "inner",
+        "depth": 4,
+        "level": "fortress",
+        "look": {
+          "construction": "utility",
+          "palette": "science"
+        }
+      },
+      "engineering-lab": {
+        "kind": "inner",
+        "depth": 5,
+        "level": "fortress",
+        "look": {
+          "construction": "military",
+          "palette": "utility"
+        }
+      },
+      "walker-bay": {
+        "kind": "inner",
+        "depth": 6,
+        "level": "fortress",
+        "look": {
+          "construction": "bunker",
+          "palette": "utility"
+        }
+      }
+    },
+    "doors": [
+      {
+        "from": "hangar-dock",
+        "to": "cliff-yard",
+        "via": "stair",
+        "gate": {
+          "clearance": 1
+        }
+      },
+      {
+        "from": "cliff-yard",
+        "to": "research-wing",
+        "via": "door",
+        "gate": {
+          "clearance": 1
+        }
+      },
+      {
+        "from": "research-wing",
+        "to": "records-vault",
+        "via": "lift",
+        "gate": {
+          "clearance": 1
+        }
+      },
+      {
+        "from": "records-vault",
+        "to": "deep-lab",
+        "via": "door",
+        "gate": {
+          "clearance": 2
+        }
+      },
+      {
+        "from": "deep-lab",
+        "to": "engineering-lab",
+        "via": "door",
+        "gate": {
+          "clearance": 3
+        }
+      },
+      {
+        "from": "engineering-lab",
+        "to": "walker-bay",
+        "via": "lift",
+        "gate": {
+          "power": "three-terminals"
+        }
+      },
+      {
+        "from": "engineering-lab",
+        "to": "hangar-dock",
+        "via": "stair",
+        "oneWay": true
+      }
+    ]
+  },
+  "terminals": {
+    "reads": "the three research terminals the keycard goes into. What Coral is told: a test of the base's security. What they do: together they unlock the walker bay's elevator (the power `three-terminals`), for Krait. Each insert raises the card's clearance by one, the only thing the screen says it does",
+    "card": {
+      "gives": {
+        "clearance": 1
+      },
+      "reads": "the card as found: the base's own pass, clearance 1"
+    },
+    "t1": {
+      "in": "records-vault",
+      "at": "PROPOSED the vault's records terminal",
+      "gives": {
+        "clearance": 2
+      }
+    },
+    "t2": {
+      "in": "deep-lab",
+      "at": "PROPOSED the deep lab's instrument bay, the deepest point on foot",
+      "gives": {
+        "clearance": 3
+      }
+    },
+    "t3": {
+      "in": "engineering-lab",
+      "at": "the ballistics and engineering lab, its observation deck over the walker bay's floor",
+      "gives": {
+        "power": "three-terminals"
+      },
+      "then": "the hold-up"
+    }
+  },
+  "unknown": {
+    "walker-bay": "not in the briefing: no objective, no marker and no radio line names it; never entered: seen from the engineering lab's observation deck as its floor opens and the platform rises",
+    "terminals": "what the three inserts do is never said before the hold-up"
+  },
+  "flow": [
+    {
+      "step": "title",
+      "kind": "screen",
+      "reads": "New game · Continue (the save's level), before anything loads"
+    },
+    {
+      "step": "opening",
+      "kind": "cinematic",
+      "stage": "supply-boat",
+      "keep": true,
+      "reads": "night sea; the camera rounds the boat to the fortress on its cliff, then pushes in on Coral at the stern; the radio's beep; the call"
+    },
+    {
+      "step": "supply-boat",
+      "kind": "level",
+      "reads": "the movement lessons on the deck, the way to the package at the bow"
+    },
+    {
+      "step": "keycard",
+      "kind": "cinematic",
+      "stage": "supply-boat",
+      "reads": "the package opened: the keycard, the orders, Coral pockets it"
+    },
+    {
+      "step": "arrival",
+      "kind": "cinematic",
+      "stage": "dock",
+      "keep": true,
+      "reads": "the boat comes into the hangar dock"
+    },
+    {
+      "step": "dock",
+      "kind": "level",
+      "reads": "sneak past the dock room undetected"
+    },
+    {
+      "step": "fortress",
+      "kind": "level",
+      "reads": "the big circle: the yard, the research wing, the records vault and the deep lab (terminals 1 and 2), back round to the engineering lab"
+    },
+    {
+      "step": "hold-up",
+      "kind": "cinematic",
+      "stage": "fortress",
+      "reads": "the third insert; a pistol at Coral's back, the card demanded slowly; Krait revealed; the fumbled handoff, the card a distraction, Krait's pistol taken; Krait into a service elevator"
+    },
+    {
+      "step": "aftermath",
+      "kind": "cinematic",
+      "stage": "fortress",
+      "reads": "the radio: not pursued (what is past the elevator unknown, a trap); the alarms; from the observation deck the floor opens, the platform rises with the siege walker, Krait at its controls; it walks to the ship; the ship drops its facade, a cargo submarine; the walker goes in and they are gone"
+    },
+    {
+      "step": "end",
+      "kind": "cinematic",
+      "reads": "the prologue ends on the submarine's escape (what follows is the next chapter's)"
+    }
+  ],
+  "cast": {
+    "coral": {
+      "name": "Coral",
+      "role": "the operative, the player: solo",
+      "reads": "a man in his thirties, Caucasian",
+      "spec": {
+        "cast": "male",
+        "form": "realistic",
+        "physique": "athletic",
+        "face": {
+          "ethnicity": "western",
+          "age": 34
+        }
+      },
+      "look": "TO COME: his own silhouette and gear (the template operative's sneaking suit is a starting point, not his)"
+    },
+    "chandler": {
+      "name": "Chandler",
+      "role": "the Liaison, on the radio",
+      "reads": "an older Black military man",
+      "spec": {
+        "cast": "male",
+        "form": "realistic",
+        "physique": "stocky",
+        "face": {
+          "ethnicity": "african",
+          "age": 58
+        }
+      },
+      "look": "PROPOSED: a field officer's uniform, greying close-cropped hair; seen on the call screen"
+    },
+    "krait": {
+      "name": "Commander Krait",
+      "role": "named in the orders; revealed at the hold-up, along on the mission unseen; hijacks the siege walker",
+      "look": "TO COME"
+    }
+  },
+  "scenes": {
+    "opening": [
+      {
+        "id": "op-1",
+        "who": "coral",
+        "text": "... This is Coral."
+      },
+      {
+        "id": "op-2",
+        "who": "chandler",
+        "text": "Just testing the signal. Let's go over the objective one more time."
+      },
+      {
+        "id": "op-3",
+        "who": "coral",
+        "text": "Test the base security by infiltrating it. Non-lethal rounds only."
+      },
+      {
+        "id": "op-4",
+        "who": "chandler",
+        "text": "Small update in the mission params. Orders from high up."
+      },
+      {
+        "id": "op-5",
+        "who": "coral",
+        "text": "We're almost at the approach. What's the situation?"
+      },
+      {
+        "id": "op-6",
+        "who": "chandler",
+        "text": "There's a package in the front of the ship. Instructions will be there."
+      }
+    ],
+    "keycard": [
+      {
+        "id": "kc-1",
+        "who": "coral",
+        "text": "It's a keycard..."
+      },
+      {
+        "id": "kc-2",
+        "who": "chandler",
+        "text": "These are the orders from Commander Krait himself: insert the card in each of three research terminals."
+      },
+      {
+        "id": "kc-3",
+        "beat": "Coral pockets the keycard"
+      }
+    ],
+    "hold-up": [
+      {
+        "id": "hu-1",
+        "beat": "the third card inserted"
+      },
+      {
+        "id": "hu-2",
+        "beat": "a pistol held at Coral's back; the card demanded, slowly",
+        "lines": "TO COME"
+      },
+      {
+        "id": "hu-3",
+        "beat": "Krait revealed: he came along on the mission"
+      },
+      {
+        "id": "hu-4",
+        "beat": "the handoff fumbled on purpose, the card a distraction: Coral ends up with Krait's pistol"
+      },
+      {
+        "id": "hu-5",
+        "beat": "Krait escapes into a service elevator"
+      }
+    ],
+    "aftermath": [
+      {
+        "id": "af-1",
+        "beat": "Coral and Chandler on the radio: not pursued, what is past the elevator unknown, it could be a trap",
+        "lines": "TO COME"
+      },
+      {
+        "id": "af-2",
+        "beat": "alarms blare"
+      },
+      {
+        "id": "af-3",
+        "beat": "from the observation deck: the floor opens, a lower platform rises carrying the siege walker, Krait hijacking it"
+      },
+      {
+        "id": "af-4",
+        "beat": "the floor fully raised, the walker makes for the cargo ship"
+      },
+      {
+        "id": "af-5",
+        "beat": "the ship collapses its facade: a cargo submarine; the walker goes inside and they escape"
+      }
+    ]
+  },
+  "exfil": {
+    "reads": "the mission complete, back to the ship for exfiltration: the engineering lab is on that way, its stair down to the dock one way"
+  },
+  "mood": {
+    "hour": "night, about 3 a.m.",
+    "reads": "a dark that evokes, never one that hides the play: a low moon behind thin cloud, sea haze over the water that softens the island's lights at a distance and closes the view (cheap to draw too), wet granite, sodium floods on the base, the dock's interior lit cold and low",
+    "proposed": true
+  },
+  "circle": {
+    "reads": "the route is a loop: the critical path goes in by the yard and down, its deepest point the deep lab (terminal 2); the way on from there is a service passage that comes back round under the yard to the engineering lab, which stands over the walker bay beside the dock. Depth is the path's order, not the map's: the engineering lab is the fifth door in and a stair's flight from the ship. Its one-way stair down to the dock is the exfiltration"
+  },
+  "alert": {
+    "reads": "being seen is never a fail: it raises the alarm (worlds/controllable/alarm.js: a glimpse, a sure sighting radioed in, the alert, the search), and the way out of it is to break the line and hide until it dies down. The dock's 'undetected' is the ideal, kept as a result's stat (alerts), never a restart"
+  },
+  "radio": {
+    "reads": "a call pauses the game and is skippable: the world held, the call's screen up (Coral and Chandler, their lines in turn), a key passes a line, another ends the call; play resumes where it was. NEW: the comms box (1126) plays over the action; the call screen is to build on mana-ui"
+  }
+}

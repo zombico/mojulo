@@ -17,6 +17,9 @@
  *                 thing climbed by holding the stick into it, the gun put away for it (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
+ *   the ledge     a lip taller than a body, walked or dropped off, is caught by the hands and hung from: the stick
+ *                 shimmies along it, the dive's button pulls up over it, held away lets go (worlds/controllable/ledge.js), in
+ *                 the ledge's own poses (playscape/player.js STUNT_CLIPS), the climb's pull up among them
  *   the crouch    on a press, and up on the next: slower, and out of a guard's sight behind a wall a metre high
  *                 (worlds/controllable/stance.js); held, flat on the ground: slower again, and under a wall half as high
  *   the takedown  the action behind a guard that has not seen the hero puts it down (worlds/controllable/takedown.js)
@@ -31,12 +34,12 @@
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
- *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?, toss?: '<the hero's own clip for each (toss: its throw)>', ride?: '<a transforming walker to ride>', crouch?: { idle, walk }, prone?: { idle, crawl } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
+ *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?, toss?: '<the hero's own clip for each (toss: its throw)>', ride?: '<a transforming walker to ride>', stunt?: true (the made hero carries STUNT_CLIPS), crouch?: { idle, walk }, prone?: { idle, crawl } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
  *   INFILTRATION_LEGEND
  *
  * Pure, no dice. Its page: scripts/spikes/mission/room.mjs (a spike: the room joins the practice door once it is kept).
  */
-import { playerWorld, traversalStates } from '../playscape/player.js';
+import { playerWorld, traversalStates, STUNT_CLIPS, stuntStates } from '../playscape/player.js';
 import { feelRule, readFeel } from './feel/lower.js';
 import { floorOf, dummyFigure } from './practice-room.js';
 import { standFoe } from './foes.js';
@@ -50,7 +53,7 @@ import { armLevel } from './arsenal.js';
 import { BASIC_ARSENAL } from './combos.js';
 
 const HALF = 16;
-export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · C  crouch · C (hold)  lie down, and stand · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife';
+export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · off a ledge, hang: A D  along it, Space  up over it, S  let go · C  crouch · C (hold)  lie down, and stand · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife';
 const START = Object.freeze([0, -13, 0]);
 // (where a machine to ride is parked: to the start's left, facing up the yard)
 const RIDE_AT = Object.freeze([-6, -11]);
@@ -111,7 +114,7 @@ const FISTS = (() => {
 })();
 
 /** The infiltration yard (see the header). */
-export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null, prone = null, toss = null, ride = null } = {}) {
+export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null, prone = null, toss = null, ride = null, stunt = false } = {}) {
   const own = typeof refs.hero === 'string';
   if (G?.feel != null) readFeel(G.feel);
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
@@ -141,6 +144,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     // (the radar reads the yard: 30 m to its rim)
     radarRange: 30,
     freeRun: { on: 'push', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
+    // (a lip the hands take: walked or dropped off something taller than a body, its edge caught and hung from, shimmied
+    // along, pulled up over or let go of: ledge.js)
+    ledge: true,
     ...DIVE, ...(roll ? { dive: { ...DIVE.dive, clip: true } } : {}),
     // (one weapon in hand, or none, from a held menu; a ration to use: carry.js)
     carry: { items: [{ id: 'ration', name: 'ration', count: 3, heal: 40 }] },
@@ -151,8 +157,10 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   // (what plays a vault and a climb: the hero's own vault clip where it has one, `vault` its name (the free-run
   // library's: hero motion `stepVault`, `speedVault`, `hurdle`, `kongVault`), else a state every player plays)
   // (and its own roll under the dive, `roll` (hero motion `rollForward`), its own climb, `climb` (a clip of the hero's))
-  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}), ...(crouch ? { crouch_idle: crouch.idle, crouch_walk: crouch.walk } : {}), ...(prone ? { prone_idle: prone.idle, prone_crawl: prone.crawl } : {}), ...(toss ? { throw: toss } : {}) });
-  const figures = { hero: own ? { ...lib, clips, heroRef: refs.hero } : { ...lib, clips, hero: lowerBody({ cast }, null) } };
+  // (hung from a lip, shimmied along it and pulled up over it in the ledge's own poses, the free run's climb among them: the
+  // stand-in carries them, a made hero where it was minted with them (`stunt`), else its jump's flight and its wind-up)
+  const clips = traversalStates({ ...stuntStates(lib.clips, !own || stunt), ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}), ...(crouch ? { crouch_idle: crouch.idle, crouch_walk: crouch.walk } : {}), ...(prone ? { prone_idle: prone.idle, prone_crawl: prone.crawl } : {}), ...(toss ? { throw: toss } : {}) });
+  const figures = { hero: own ? { ...lib, clips, heroRef: refs.hero } : { ...lib, clips, hero: { ...lowerBody({ cast }, null), clips: { ...STUNT_CLIPS } } } };
   const heroE = { ...P.entities[0], ...(kit ? { weapon: kit[0].weapon } : {}), body: { ...P.entities[0].body, hittable: true, hp: 100, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } }, transform: { pos: START.slice(), heading: Math.PI / 2 } };
   const targets = TARGETS.map((t) => ({ id: t.id, rule: { type: 'walk', speed: 0, eye: 0 }, team: 'targets', transform: { pos: [t.at[0], t.at[1], 0.9], heading: -Math.PI / 2 },
     body: { type: 'mesh', shape: 'box', size: [0.5, 0.3, 1.8], color: 0xb0716a, marker: false, hittable: true, hp: TARGET_HP, radius: 0.5, egg: { ...PERSON, cz: 0 }, respawn: 3 } }));

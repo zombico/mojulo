@@ -158,6 +158,9 @@ export const SPACE = Object.freeze({
       planned: {
         // built 10-19 (phase 2): a body owner beside the climb, read off the level's own boxes
         wall: { status: 'built', lowers: 'lib/graph/worlds/controllable/wall.js', note: 'any box\'s face held (rule.wall), crawled, rounded at its outside corners and mantled off onto its roof; a wall-jump, a charged wall-launch; perched at a roof\'s lip, a dive off it; the climb holds only a placed ladder, rope or net' },
+        // built 11-24 (Lost Nomad's cinematic rail, brought to Steel Serpents' infiltration yard 11-27): the climber's hold,
+        // a lip the hands take from the air, not a face held
+        ledge: { status: 'built', lowers: 'lib/graph/worlds/controllable/ledge.js', note: 'a lip caught from the air at hand height (any box\'s top edge, or a hold laid on a face: rule.ledge), hung from, shimmied along, leapt between up or along, pulled over onto its top, dropped from or kicked off, in the ledge\'s own poses (playscape/player.js STUNT_CLIPS); the stealth operative takes one walked off' },
       },
     },
   },

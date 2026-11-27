@@ -13,7 +13,8 @@
  *   rule.dodge, dodgeDur, dodgeSpeed, dodgeCooldown    the dive itself: how long, how fast at its middle (it covers
  *                                    dodgeSpeed × dodgeDur × 2/π metres), and the seconds before another
  *
- *   input.dive    an edge: the dive, where the rule's dodge would be let (on the ground, off its cooldown, not mid-move)
+ *   input.dive    an edge: the dive, where the rule's dodge would be let (on the ground, off its cooldown, not mid-move);
+ *                 a body hung from a lip (ledge.js) takes it as its jump instead
  *
  * The boost is the dodge's own trigger, so this module owns `input.boost` on such a body: it is the press's one frame
  * and nothing else (a body that dives this way has no boost to hold).
@@ -28,9 +29,11 @@ export function buildDive(E) {
     const p = state.pilotId ? state.byId[state.pilotId] : null, R = p && p.rule && p.rule.dive;
     if (!R || !input) return step(state, input, dt, hooks);
     const edge = !!input.dive && !p.divePrev; p.divePrev = !!input.dive;
-    const go = edge && p.dodgeT == null && !p.fr && !p.downed;
+    // (a body hung from a lip, ledge.js, has the dive's button as its jump: up over the lip, a leap, a kick off)
+    const hung = !!p.ledge, go = edge && !hung && p.dodgeT == null && !p.fr && !p.downed;
     if (go) p.fTapWin = 1;
-    const out = step(state, { ...input, boost: go ? 1 : 0, ...(R.jump === false ? { jump: 0, jumpHeld: 0 } : {}) }, dt, hooks);
+    const held = input.dive ? 1 : 0;
+    const out = step(state, { ...input, boost: go ? 1 : 0, ...(R.jump === false ? (hung ? { jump: held, jumpHeld: held } : { jump: 0, jumpHeld: 0 }) : {}) }, dt, hooks);
     if (R.clip && p.dodgeT != null) {
       if (p.dodgeDir) p.transform.heading = Math.atan2(p.dodgeDir[1], p.dodgeDir[0]);
       p.locomotion = 'dodge_roll'; p.gaitPhase = Math.min(p.dodgeT, 0.999); p.moving = true;
