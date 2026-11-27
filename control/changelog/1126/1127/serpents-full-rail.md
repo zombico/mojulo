@@ -13,3 +13,9 @@
   over it. The yard's stand-in carries them, and the free run's climb now plays the pull up where it played the jump's
   start; a made hero minted with them says so (`stunt: true`), else it hangs on its jump's flight.
 - **The registry**: `space.traversal=ledge` built.
+- **Hidden Jericho, the prologue's model** (`scripts/spikes/jericho/prologue.json`, a spike: no recipe key reads it
+  yet): a solo mission led by the Liaison on the radio, drafted as a walled-core dungeon. The supply boat outside it; a
+  big circle in from the hangar dock by the cliff yard and the research wing to two prototype bays (a walker that only
+  walks, the armed personnel walker), back round to the engineering lab over the hangar; the walker bay its core. The
+  card's three inserts raise its clearance on the screen and unlock the walker bay's elevator for another; the hold-up,
+  the escape and the cargo submarine as shot beats. Every one of the dungeon's laws holds on it.

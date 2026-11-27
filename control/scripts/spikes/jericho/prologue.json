@@ -75,7 +75,7 @@
           "palette": "science"
         }
       },
-      "records-vault": {
+      "prototype-bay-1": {
         "kind": "inner",
         "depth": 3,
         "level": "fortress",
@@ -84,7 +84,7 @@
           "palette": "science"
         }
       },
-      "deep-lab": {
+      "prototype-bay-2": {
         "kind": "inner",
         "depth": 4,
         "level": "fortress",
@@ -131,22 +131,22 @@
       },
       {
         "from": "research-wing",
-        "to": "records-vault",
+        "to": "prototype-bay-1",
         "via": "lift",
         "gate": {
           "clearance": 1
         }
       },
       {
-        "from": "records-vault",
-        "to": "deep-lab",
+        "from": "prototype-bay-1",
+        "to": "prototype-bay-2",
         "via": "door",
         "gate": {
           "clearance": 2
         }
       },
       {
-        "from": "deep-lab",
+        "from": "prototype-bay-2",
         "to": "engineering-lab",
         "via": "door",
         "gate": {
@@ -178,22 +178,22 @@
       "reads": "the card as found: the base's own pass, clearance 1"
     },
     "t1": {
-      "in": "records-vault",
-      "at": "PROPOSED the vault's records terminal",
+      "in": "prototype-bay-1",
+      "at": "the test gantry's control desk",
       "gives": {
         "clearance": 2
       }
     },
     "t2": {
-      "in": "deep-lab",
-      "at": "PROPOSED the deep lab's instrument bay, the deepest point on foot",
+      "in": "prototype-bay-2",
+      "at": "the line's diagnostics terminal, prototype bay 2 the deepest point on foot",
       "gives": {
         "clearance": 3
       }
     },
     "t3": {
       "in": "engineering-lab",
-      "at": "the ballistics and engineering lab, its observation deck over the walker bay's floor",
+      "at": "beside the design boards",
       "gives": {
         "power": "three-terminals"
       },
@@ -243,19 +243,19 @@
     {
       "step": "fortress",
       "kind": "level",
-      "reads": "the big circle: the yard, the research wing, the records vault and the deep lab (terminals 1 and 2), back round to the engineering lab"
+      "reads": "the big circle: the yard, the research wing, prototype bays 1 and 2 (terminals 1 and 2), back round to the engineering lab"
     },
     {
       "step": "hold-up",
       "kind": "cinematic",
       "stage": "fortress",
-      "reads": "the third insert; a pistol at Coral's back, the card demanded slowly; Krait revealed; the fumbled handoff, the card a distraction, Krait's pistol taken; Krait into a service elevator"
+      "reads": "the third insert at the design boards; a downed soldier is up behind Coral: Krait; the card slid between them, the dive, the scuffle, the roll past each other, Krait out of the door with the card, Coral with his pistol firing after him"
     },
     {
       "step": "aftermath",
       "kind": "cinematic",
       "stage": "fortress",
-      "reads": "the radio: not pursued (what is past the elevator unknown, a trap); the alarms; from the observation deck the floor opens, the platform rises with the siege walker, Krait at its controls; it walks to the ship; the ship drops its facade, a cargo submarine; the walker goes in and they are gone"
+      "reads": "the klaxon, the hangar pulsing red; the floor opens and the platform raises the siege walker; it crosses to the dock; the ship sheds its facade: a cargo submarine; the walker goes in and they are gone"
     },
     {
       "step": "end",
@@ -277,7 +277,8 @@
           "age": 34
         }
       },
-      "look": "TO COME: his own silhouette and gear (the template operative's sneaking suit is a starting point, not his)"
+      "look": "PENDING: see the note on likeness",
+      "shares": "one body with Krait"
     },
     "chandler": {
       "name": "Chandler",
@@ -296,8 +297,14 @@
     },
     "krait": {
       "name": "Commander Krait",
-      "role": "named in the orders; revealed at the hold-up, along on the mission unseen; hijacks the siege walker",
-      "look": "TO COME"
+      "role": "the base's commander; along on the mission in a soldier's kit, lying among the downed guards; takes the card and the siege walker",
+      "voice": "an English accent",
+      "reads": "the same body as Coral (one model, one rig, the same motion), the difference in his hair, his kit and his manner; his defining trait aviator sunglasses (worn under a soldier's helmet in the hold-up)",
+      "spec": {
+        "same": "coral",
+        "eyegear": "aviator sunglasses",
+        "outfit": "the base's soldier's kit, a helmet"
+      }
     }
   },
   "scenes": {
@@ -352,47 +359,88 @@
     "hold-up": [
       {
         "id": "hu-1",
-        "beat": "the third card inserted"
+        "beat": "the third card inserted; Coral at the design boards, reading the larger walker"
       },
       {
         "id": "hu-2",
-        "beat": "a pistol held at Coral's back; the card demanded, slowly",
-        "lines": "TO COME"
+        "who": "krait",
+        "text": "Freeze. Hand over the key.",
+        "beat": "a voice behind him, unseen: one of the downed soldiers is up, a pistol at Coral's back",
+        "shot": "close on Coral, the voice off"
       },
       {
         "id": "hu-3",
-        "beat": "Krait revealed: he came along on the mission"
+        "beat": "cut to the soldier: aviator sunglasses under a helmet",
+        "shot": "a low close-up, the lenses catching the lab's light"
       },
       {
         "id": "hu-4",
-        "beat": "the handoff fumbled on purpose, the card a distraction: Coral ends up with Krait's pistol"
+        "who": "coral",
+        "text": "Commander Krait?"
       },
       {
         "id": "hu-5",
-        "beat": "Krait escapes into a service elevator"
+        "who": "krait",
+        "text": "Toss me the key, Coral."
+      },
+      {
+        "id": "hu-6",
+        "who": "coral",
+        "text": "What are you doing here?"
+      },
+      {
+        "id": "hu-7",
+        "who": "krait",
+        "text": "Taking what is rightfully ours. Now hand it over!"
+      },
+      {
+        "id": "hu-8",
+        "beat": "Coral slides the card along the floor, halfway between them",
+        "shot": "on the card as it slides and stops; a pan up to Krait's face"
+      },
+      {
+        "id": "hu-9",
+        "beat": "Krait bends to reach for it; Coral dives at him",
+        "shot": "cut to a side view, both in frame at floor height"
+      },
+      {
+        "id": "hu-10",
+        "beat": "Krait goes for the card, not the shot; the scuffle",
+        "shot": "close and handheld, short cuts"
+      },
+      {
+        "id": "hu-11",
+        "beat": "they roll past each other: Krait comes up with the card, running for the door; Coral comes up with the pistol",
+        "shot": "wide, both rising on opposite sides of the frame"
+      },
+      {
+        "id": "hu-12",
+        "beat": "Coral fires; the rounds glance off the walls round the door; Krait is through it and gone",
+        "shot": "over Coral's shoulder down the pistol, sparks at the door's frame"
       }
     ],
     "aftermath": [
       {
         "id": "af-1",
-        "beat": "Coral and Chandler on the radio: not pursued, what is past the elevator unknown, it could be a trap",
-        "lines": "TO COME"
+        "beat": "an alert klaxon; the hangar pulses red"
       },
       {
         "id": "af-2",
-        "beat": "alarms blare"
+        "beat": "from the observation deck: the hangar floor opens, a lower platform rises carrying the siege walker, Krait at its controls"
       },
       {
         "id": "af-3",
-        "beat": "from the observation deck: the floor opens, a lower platform rises carrying the siege walker, Krait hijacking it"
+        "beat": "the floor fully raised, the walker crosses the hangar; the great door opens onto the dock"
       },
       {
         "id": "af-4",
-        "beat": "the floor fully raised, the walker makes for the cargo ship"
+        "beat": "at the berth the supply ship sheds its facade: a cargo submarine under it. The walker goes in and they are gone"
       },
       {
         "id": "af-5",
-        "beat": "the ship collapses its facade: a cargo submarine; the walker goes inside and they escape"
+        "who": "chandler",
+        "text": "TO COME",
+        "beat": "Coral and Chandler on the radio: not pursued, what is past it unknown, could be a trap (where it sits now: after the escape, or before the klaxon)"
       }
     ]
   },
@@ -405,12 +453,43 @@
     "proposed": true
   },
   "circle": {
-    "reads": "the route is a loop: the critical path goes in by the yard and down, its deepest point the deep lab (terminal 2); the way on from there is a service passage that comes back round under the yard to the engineering lab, which stands over the walker bay beside the dock. Depth is the path's order, not the map's: the engineering lab is the fifth door in and a stair's flight from the ship. Its one-way stair down to the dock is the exfiltration"
+    "reads": "the route is a loop: the critical path goes in by the yard and down, its deepest point prototype bay 2 (terminal 2); the way on from there is a service passage that comes back round under the yard to the engineering lab, which stands over the walker bay beside the dock. Depth is the path's order, not the map's: the engineering lab is the fifth door in and a stair's flight from the ship. Its one-way stair down to the dock is the exfiltration"
   },
   "alert": {
     "reads": "being seen is never a fail: it raises the alarm (worlds/controllable/alarm.js: a glimpse, a sure sighting radioed in, the alert, the search), and the way out of it is to break the line and hide until it dies down. The dock's 'undetected' is the ideal, kept as a result's stat (alerts), never a restart"
   },
   "radio": {
     "reads": "a call pauses the game and is skippable: the world held, the call's screen up (Coral and Chandler, their lines in turn), a key passes a line, another ends the call; play resumes where it was. NEW: the comms box (1126) plays over the action; the call screen is to build on mana-ui"
+  },
+  "bays": {
+    "reads": "the walker's line told in three rooms, each a step up, so the reveal is earned before it is seen: Coral sees what the base builds before he knows what it is for",
+    "prototype-bay-1": {
+      "shows": "a locomotion prototype on a test gantry: legs, a frame, no guns",
+      "vehicle": "all-terrain walker",
+      "terminal": "t1"
+    },
+    "prototype-bay-2": {
+      "shows": "the armed personnel walker, guns mounted, on the line",
+      "vehicle": "field walker",
+      "role": "assault",
+      "terminal": "t2"
+    },
+    "engineering-lab": {
+      "shows": "the designs for a larger one, the siege walker, on the boards and the screens: Coral stops to read them, and that is where Krait gets the drop on him",
+      "vehicle": "siege walker (drawn, not stood)",
+      "terminal": "t3"
+    }
+  },
+  "krait-down": {
+    "reads": "Krait is one of the engineering lab's soldiers, lying as if put down: a body in a soldier's kit, helmet and aviators on, lying where a knocked-out guard lies from the level's start (or where the player left one). It is inert to the drag and the takedown, never on the radar as a threat. After the third insert, he is up",
+    "needs": "NEW: a body that plays a sleeper and is none (a cast word: `feign`)"
+  },
+  "likeness": {
+    "reads": "Two operatives who are one model apart (one body, the same moves, different hair and attitude) is a technique and stays. What makes the pair read as someone else's is the exact combination: a mullet tied behind a bandana on the hero, his double with an English accent who comes for the walker. Change at least the hero's signature so the pair is theirs: the hair, the bandana, or both",
+    "options": [
+      "the hair slicked back and tied in a short low tail, no bandana; his signature a dark neck gaiter he pulls up to sneak",
+      "the bandana kept, the hair close-cropped under it (a buzz cut, a fade)",
+      "a knit watch cap over slicked-back hair; Krait bare-headed with the same hair and the aviators"
+    ]
   }
 }
