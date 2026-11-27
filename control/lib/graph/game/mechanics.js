@@ -1535,17 +1535,17 @@ const MECHANICS = {
   // presses, a pure function of them: for `seconds` (10) each seat's fresh presses (the page's `press:<n>`, its jump or
   // A) are counted, each in its corner in its colour, the window's clock between; at the horn the most wins (kept as
   // `__mash_winner_<i>`: the seat's number, 0 a draw). `to`: a race to that count, the first to it the winner, the
-  // window shut at once. Needs seats: a contest of one is none. No physics, no camera.
+  // window shut at once. Without seats it is the player's alone: a count against the clock, or to break free. No
+  // physics, no camera.
   mash: {
     role: 'terminal', ends: ['success'], requires: [],
     lower(p, ctx) {
       const i = ctx.i;
-      if (!seated(ctx)) throw new Error(`mash[${i}]: a contest of seats: the level needs seats (soul.seats two or four)`);
       const seconds = p.seconds === undefined ? 10 : Number.isInteger(p.seconds) && p.seconds >= 1 ? p.seconds : NaN;
       if (Number.isNaN(seconds)) throw new Error(`mash[${i}]: seconds is the window, a whole number from 1`);
       const to = p.to === undefined ? null : Number.isInteger(p.to) && p.to >= 1 ? p.to : NaN;
       if (Number.isNaN(to)) throw new Error(`mash[${i}]: to is the count a race runs to, a whole number from 1`);
-      const n = 1 + ctx.seats.slice(0, 3).length, ks = Array.from({ length: n }, (_, k) => k + 1), count = (k) => `presses:${k}`;
+      const n = 1 + (seated(ctx) ? ctx.seats.slice(0, 3).length : 0), ks = Array.from({ length: n }, (_, k) => k + 1), count = (k) => `presses:${k}`;
       const open = `__mash_open_${i}`, clock = `__mash_t_${i}`, winner = `__mash_winner_${i}`, horn = `__mash_horn_${i}`, live = { var: open, eq: 1 };
       const world = { vars: { [open]: 1, [clock]: seconds, [winner]: 0 }, reactions: [], watches: [], timers: [], hud: [] };
       for (const k of ks) {

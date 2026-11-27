@@ -19,8 +19,9 @@ const press = (L, counts) => {
 const said = (L, type) => L.bus.log.filter((e) => e && e.type === type).length;
 
 describe('mash, lowered', () => {
-  it('needs seats: a contest of one is no contest', () => {
-    expect(() => lowerMechanic('mash', { seconds: 5 }, { i: 0, player: 'hero' })).toThrow(/seats/);
+  it('without seats it is the player\'s alone: one count, against the clock or to break free', () => {
+    const W = lowerMechanic('mash', { seconds: 5, to: 20 }, { i: 0, player: 'hero' }).world;
+    expect(Object.keys(W.vars).filter((k) => k.startsWith('presses:'))).toEqual(['presses:1']);
   });
 
   it('a count a seat in its corner and colour, the window\'s clock, the winner kept; it listens for each seat\'s presses', () => {

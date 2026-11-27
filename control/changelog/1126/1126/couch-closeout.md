@@ -35,3 +35,8 @@
 - A game can open each level on a lobby. Every player slot shows in its colour and says whether that player has joined;
   each controller joins with a press. The level waits behind the lobby until player 1 presses Start (or Enter on the
   keyboard), then joining closes for that level. A game that lets players drop in at any time is unchanged.
+- A new party round, `mash`: each player's presses are counted over a window, each shown in their corner in their
+  colour, and the most presses at the horn wins (a tie is a draw). It can also be a race to a count. With one player it
+  is a count against the clock, or a mash to break free. Its end rings the goal cue, and it has its vocabulary card.
+- The hill-climb marks the lobby and the time-window contest as built, and party mash is now makeable. Driver and
+  gunner waits on roles, split-screen deathmatch on split screen.

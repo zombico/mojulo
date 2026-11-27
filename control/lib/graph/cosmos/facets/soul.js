@@ -180,7 +180,9 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         'real-time': { status: 'built', lowers: LEVELS, note: `${PILOT_PER_SEAT}; the versus fighter too`, requires: TWO },
-        window: { ...NOT_YET, ...COUCH, requires: TWO },
+        // built 11-27 (1126-couch-closeout): a contest read over a window of every seat's presses (mechanics.js mash, the bus's
+        // argmax, the page's press:<n>)
+        window: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/game/mechanics.js', note: 'a contest read over a window of every seat\'s presses, a pure function of them (mechanics.js mash): each seat\'s fresh jump or A counted for its seconds, in its corner in its colour, the most the winner at the horn (the bus\'s argmax; a tie a draw), or a race to a count; the page says each seat\'s press to the bus (press:<n>) where the bus listens. A mash only: no timing or hold-and-release window yet, and no door lays a party round yet', requires: TWO },
         turns: { ...NOT_YET, ...COUCH, requires: TWO },
       },
     },
@@ -194,7 +196,8 @@ export const SOUL = Object.freeze({
     join: {
       given: GIVEN,
       values: {
-        lobby: { status: 'partial', ...COUCH, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen (mana-ui\'s fighter select) seats its two players before a fight; no other kind has a lobby' },
+        // built 11-27 (1126-couch-closeout): a level whose seats join by lobby opens on it (scene/channels/seat-lobby.js)
+        lobby: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/scene/channels/seat-lobby.js', note: 'a level whose seats join by lobby (its seats.join) opens on the lobby: a row a seat in its colour, saying who has sat down and how (mana-ui over the level, the level held as a menu holds it); each controller sits down with a press, and seat 1\'s fresh Start, A or Enter starts the level and closes the seats (no one joins after). The versus fighter\'s select besides' },
         'drop-in': { status: 'built', lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time on their own controller (seats-kernel.js): start or light in the versus fighter, any press on a gameworld\'s level' },
       },
     },
