@@ -117,6 +117,7 @@ import { standFoe, foePlacements, readLevelFoes, bestiaryOf, stompOf, targetRimO
 import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
+import { readInfiltration, infiltrationStage, infiltrationEnds, infiltrationMechanics, infiltrationCast } from './infiltration-level.js';
 import { missionPlan, missionStage, missionEnds, missionMechanics, missionCast, missionUi, missionBuildingCube, shooterHudUi } from './mission-level.js';
 import { buildingMissionPlan } from './mission-building.js';
 
@@ -257,6 +258,9 @@ export function gameStages(world) {
     }
     // a mission level is one stage: the firing range stretched into sections (mission-level.js), its ground its own; its
     // plan (the composition, the brief, the laws) rides the stage for the order that lays its pilot, cast and tasks
+    // an infiltration level is one stage: its floor, its cover, its guards and its tasks (infiltration-level.js), its
+    // words riding the stage for the order that lays its operative and its guards
+    if (R.infiltration) { const P = readInfiltration(R.infiltration, `${level}.infiltration`); out.push({ level, node: 'infiltration', section: 'infiltration', index: 0, label: G.levels[level]?.name ?? level, manifest: infiltrationStage(G, P), infiltration: P }); continue; }
     if (R.mission) { const P = missionPlan(G, R.mission); out.push({ level, node: 'mission', section: 'mission', index: 0, label: G.levels[level]?.name ?? level, manifest: missionStage(G, P), mission: P }); continue; }
     // a street level is one stage: the street (brawl-cast.js streetLevel), laid again on the game's hero and foes when
     // its level is made (levelOrder)
@@ -1000,7 +1004,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures, audio: stage.section === 'interior' ? null : audio });
-  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? (stage.frame && stage.manifest.kind === 'geocube' ? frameFieldEnds(stage) : airspaceEnds(stage.manifest)) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
+  const ends = stage.section === 'infiltration' ? infiltrationEnds(stage.infiltration) : stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? (stage.frame && stage.manifest.kind === 'geocube' ? frameFieldEnds(stage) : airspaceEnds(stage.manifest)) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);
@@ -1059,7 +1063,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${kitLegend(G) ?? STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${look && X0?.pilot?.rule?.knife ? ' · V  knife' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   // (a mission's own goal is its tasks: the objectives, the level's hp, what lies on its floor)
-  const placed0 = stage.section === 'mission' ? missionMechanics(stage.mission.mission, { lift: heroRef ? 0 : EYE_FALLBACK }) : goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [...(ends.coins ? [{ kind: 'coins', pickups: ends.coins.map((c) => ({ id: c.id, at: c.at, radius: 1.1 })) }, { kind: 'score', var: 'coins', label: 'Coins', best: 'high', points: [] }] : []), { kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
+  // (an infiltration level's own goal is its tasks, the way on its last: infiltration-level.js)
+  const placed0 = stage.section === 'infiltration' ? infiltrationMechanics(stage.infiltration) : stage.section === 'mission' ? missionMechanics(stage.mission.mission, { lift: heroRef ? 0 : EYE_FALLBACK }) : goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [...(ends.coins ? [{ kind: 'coins', pickups: ends.coins.map((c) => ({ id: c.id, at: c.at, radius: 1.1 })) }, { kind: 'score', var: 'coins', label: 'Coins', best: 'high', points: [] }] : []), { kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
@@ -1091,6 +1096,13 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     pilotPart = H
       ? { ...ends.scrollPlay, manaHud: scrollHud({ theme: interfaceLook(G).theme, hp: H.feed.scroll.hp, lives: H.feed.scroll.lives, boss: H.feed.scroll.boss ?? null, stage: name, more: mechanics?.legend ?? '' }), events: {} }
       : { ...ends.scrollPlay, events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `arrows / WASD  fly${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` }).events || {} };
+  } else if (stage.section === 'infiltration') {
+    // AN INFILTRATION LEVEL (infiltration-level.js): the yard's operative at its start, the world's own hero where made,
+    // each guard on its round under the garrison's alarm, the backup asleep; the chase the player turns, the aim held
+    const C = infiltrationCast(G, stage.infiltration, { refs: { ...(heroRef ? { hero: heroRef } : {}), ...(gunnerRef ? { guard: gunnerRef } : {}) } });
+    // (its keys the yard's legend, the operative's: carried by the yard's events)
+    pilotPart = { figures: C.figures, entities: C.entities, camera: C.camera, events: C.events ?? {},
+      fxStyle: C.fxStyle, figureGrade: C.figureGrade, castLight: C.castLight };
   } else if (stage.section === 'airspace' && !ends.airMap && ends.frame) {
     // AN ASSAULT FRAME (airspace.frame, assault-frame/, the frame rule) on its field (a geocube's land,
     // assault-frame/field.js): not a craft at all but a mech stood on the ground: the mouse turns and aims it, it walks,

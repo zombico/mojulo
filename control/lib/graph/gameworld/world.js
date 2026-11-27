@@ -138,6 +138,7 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { readInfiltration } from './infiltration-level.js';
 import { readMission as readSpaceMission } from '../campaign/mission.js';
 import { readStage } from '../campaign/stage.js';
 import { readLessonBrief } from './lesson-brief.js';
@@ -331,7 +332,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment', 'infiltration'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -753,6 +754,12 @@ export function readGameworld(W) {
       try { M = readMission(L.mission ?? true, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
       for (const k of ['map', 'sections']) if (M[k] !== undefined) throw new Error(`gameworld: ${at}.mission.${k}: on an industrial level the yard is the map and its design places the phases; drop ${k}`);
       if (!loadoutOf(W)) throw new Error(`gameworld: ${at}.industrial is fought with the guns the world carries, and this world carries none: a quick shooter's arms, a gun in the hero's right hand (an item that serves 'shoot'), or a feel whose template shoots`);
+    } else if (L.infiltration !== undefined) {
+      // an INFILTRATION level (infiltration-level.js): a stealth action game's level, its ground, its cover, its guards on
+      // their rounds and its tasks its own, the operative the infiltration yard's; being seen raises the alarm, never a loss
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania'].filter((k) => L[k] !== undefined);
+      if (beside.length) throw new Error(`gameworld: ${at}: an infiltration level is its ground, its guards and its tasks alone: no ${beside.join(', ')} beside it`);
+      try { readInfiltration(L.infiltration, 'infiltration'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
     } else if (L.mission !== undefined && L.building === undefined) {
       // a mission level: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's
       // guns; its foes, its tasks and its ground are its own (a mission in a building: the building's branch, below)
@@ -1223,6 +1230,8 @@ export function resolveLevel(world, id) {
   }
   // an industrial level: its yard's words and its mission's, its seed the level's unless the mission names one
   if (L.industrial !== undefined) { const spec = readMission(L.mission ?? true, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, industrial: { I: readIndustrial(L.industrial, `levels.${id}.industrial`), spec, seed: spec.seed ?? (seed >>> 0) } }; }
+  // an infiltration level: its words as read (levels.js lays it: infiltration-level.js)
+  if (L.infiltration !== undefined) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, infiltration: L.infiltration };
   // a mission level: its settings as read, its seed the level's unless it names one (levels.js lays it)
   if (L.mission && !L.building) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)

@@ -19,3 +19,13 @@
   walks, the armed personnel walker), back round to the engineering lab over the hangar; the walker bay its core. The
   card's three inserts raise its clearance on the screen and unlock the walker bay's elevator for another; the hold-up,
   the escape and the cargo submarine as shot beats. Every one of the dungeon's laws holds on it.
+- **A stealth level a designed game lays** (`levels.<id>.infiltration`, `gameworld/infiltration-level.js`; world.js reads
+  it, levels.js lays it as one stage): a level's floor (a walled square, `ground.half`), its cover (boxes, each a
+  collider), its guards (a patrol from `at` to `to` and back, or a post looking toward `facing`; `cone`, `range`,
+  `speed`, a look round at each end), the garrison's `alarm` numbers and its `backup`, and its `tasks` (reach, take, act
+  on a bus event) done in order before its `exit`. The operative is the infiltration yard's, the world's own hero where
+  made; each guard is the yard's guard on its own round. Being seen loses nothing: it raises the alarm, and the way out of
+  it is to hide. Laid as every designed level is, so a level's `opening`, the results, the saves and the objectives reach
+  it. Played in headless Chrome: the opening loads and waits, the operative runs, a guard's sighting raises the alarm, no
+  page error. Not yet: the task's words on the HUD (the count alone), a geocube's land under it (a greybox floor), the
+  cover's look.
