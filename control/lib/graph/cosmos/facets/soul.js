@@ -18,9 +18,7 @@ const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a p
 const LEVELS = 'lib/graph/gameworld/levels.js';
 // what a pilot per seat runs (worlds/controllable/core.js spec.seats): each seat its own body, its own input, each tick
 const PILOT_PER_SEAT = 'a pilot per seat in the action runtime (worlds/controllable/core.js spec.seats), laid by a gameworld\'s hero stages (levels.js seatPart); web only';
-// (11-26, couch closeout) the seat values still to build, one package: each couch probe asks for two or three of them
-// at once, so none makes a world alone (cosmos/packages.js `couch`); split is its own, a view a seat
-const COUCH = { pkg: 'couch', effort: 'L' };   // (11-27: versus, teams and free-for-all built; what is left is the couch's)
+// (11-26 to 11-27, couch closeout: the seat values were one package, `couch`, built as one; turns is left, small, its own)
 const TWO = ['soul.seats=two'];
 // the settings below `seats` mean something only for a game that seats more than one: rolled and nudged only then
 const GIVEN = Object.freeze({ seats: ['two', 'four'] });
@@ -158,7 +156,8 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         parallel: { status: 'built', lowers: LEVELS, note: PILOT_PER_SEAT, requires: TWO },
-        roles: { ...NOT_YET, ...COUCH, requires: TWO },
+        // built 11-27 (1126-couch-closeout): a ride two seats crew, seat 2 its gunner (levels.js crewPart, turret.js)
+        roles: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/worlds/controllable/turret.js', note: 'a ride two seats crew (levels.js crewPart): seat 1 drives it on its rule, seat 2 its gunner with no body of its own, a gun on a stabilized turret on its roof, slewed by the gunner\'s right stick and fired on its trigger (turret.js: seats.crew), the driver\'s stick the drive; nobody in seat 2, the driver\'s hand has the gun. A ride only (a racer is not crewed), one gunner; no gunner\'s reticle yet, and no law yet measures that each job was needed', requires: TWO },
         // built 11-18 (1118-coop-cooking-spike): the work shift's kitchen for cooks, its sides sealed and what crosses on a pass
         handoff: { status: 'built', since: '2026-11-18', lowers: 'lib/graph/worksim/kitchen.js', note: 'a work shift\'s kitchen for two or four cooks (gameworld/kitchen-level.js, quick.cooks): its sides sealed by a counter, prep on one and assembly and the hand-in on the other, everything an order needs crossing on a pass set in the counter (put from one side, taken from the other); each seat its own hands (work-mechanics.js), the kitchen\'s laws measuring that every order crosses; the work mechanic only', requires: [...TWO, 'power.mechanics=work'] },
       },
@@ -183,7 +182,7 @@ export const SOUL = Object.freeze({
         // built 11-27 (1126-couch-closeout): a contest read over a window of every seat's presses (mechanics.js mash, the bus's
         // argmax, the page's press:<n>)
         window: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/game/mechanics.js', note: 'a contest read over a window of every seat\'s presses, a pure function of them (mechanics.js mash): each seat\'s fresh jump or A counted for its seconds, in its corner in its colour, the most the winner at the horn (the bus\'s argmax; a tie a draw), or a race to a count; the page says each seat\'s press to the bus (press:<n>) where the bus listens. A mash only: no timing or hold-and-release window yet, and no door lays a party round yet', requires: TWO },
-        turns: { ...NOT_YET, ...COUCH, requires: TWO },
+        turns: { ...NOT_YET, effort: 'S', requires: TWO },
       },
     },
     pool: {

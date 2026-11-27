@@ -44,3 +44,7 @@
   carries a gun on a stabilized roof turret: player 1 drives, and player 2 turns the turret with the right stick and
   fires with the trigger. With nobody in player 2's seat, the driver works the gun. Players 2–4 on a pad now also have a
   right-stick aim, which the gunner uses.
+- The hill-climb marks roles as built, and driver and gunner is now makeable. Of the couch genres, only split-screen
+  deathmatch is still blocked, waiting on split screen. Turns (one player at a time) is the last seat value not built;
+  the couch package is retired and turns is priced on its own. Over the branch the sweep went from 75 to 79 makeable
+  random worlds and from 340 to 355 near the genre probes, with blocked worlds near the probes down from 49 to 32.
