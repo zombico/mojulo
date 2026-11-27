@@ -1,3 +1,6 @@
+// Re-pinned 2026-11-27 (a wide shot on big subjects far apart): every fixture that embeds the controllable runtime. The
+// shot rule's aim under big subjects is capped at half their height (rules-basic.js), taken only by a scene's shot (no
+// fixture's has one). Checked: with rules-basic.js as it was, every moved hash is back to its pin.
 // Re-pinned 2026-11-27 (a scene's shot on big subjects): every fixture that embeds the controllable runtime. The shot
 // rule (rules-basic.js) sizes its framing by a subject's `big` and `tall`, keeps clear of bodies between it and its
 // subjects, aims under big subjects and, tracking, looks again each second (cast.js resets that check as a shot is

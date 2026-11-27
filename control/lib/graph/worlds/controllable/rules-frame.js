@@ -56,6 +56,8 @@
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
+ *   • HELD: while the pilot's input is held (`input.held`: a scene playing, a menu up, the page's freeze) every mind
+ *     stands down with it, its keys idle (a scene's cast still moves it: a walk, a glide), and takes up again after.
  *   • AN ALLY THAT HOLDS (`mind.hold`): it stands its ground turned to the pilot, fighting only a foe that comes to it,
  *     until the cast's `unhold` op lets it go (a level's task begun: game/objectives.js `ops`), and from then it fights
  *     and keeps by the pilot as any ally does (e.unheld).
@@ -133,7 +135,7 @@ export function buildRulesFrame(E) {
   function mindInput(e, dt, world) {
     const M = e.rule.mind, P0 = world.pilotId && world.byId[world.pilotId];
     const out = { forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 };
-    if (!P0 || P0.gone || P0.downed || world.aiEnabled === false || e.dormant) return out;
+    if (!P0 || P0.gone || P0.downed || world.aiEnabled === false || e.dormant || P0.frHeld) return out;
     // (an ALLY, a wingman on the pilot's side: it fights the nearest foe awake near it; with none, it leads the pilot)
     let P = P0;
     if (M.ally) { const F = allyFoe(e, world, M.engage ?? 500); if (!F) return escortKeys(e, dt, M, P0, out); P = F; }
@@ -223,6 +225,8 @@ export function buildRulesFrame(E) {
   function frame(e, input, dt, world) {
     const r = e.rule, t = e.transform, M = r.move || {}, EN = r.en || {}, C = EN.cost || {};
     const mine = !r.mind;
+    // (the pilot's input held, a scene playing or a menu up: every mind stands down with it, the input's `held`)
+    if (mine) e.frHeld = !!(input && input.held);
     // (reeling: the stagger takes every key from it; it is carried on by what it was doing, and comes down)
     const reeling = e.stagger > 0;
     const inp = reeling ? REEL : mine ? input : mindInput(e, dt, world);

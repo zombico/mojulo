@@ -19,4 +19,14 @@ describe('an ally that holds', () => {
     run(st, 12);
     expect(Math.hypot(C.transform.pos[0], C.transform.pos[1])).toBeLessThan(120);
   });
+
+  it('stands down with every other mind while the pilot\'s input is held (a scene playing), and takes up after', () => {
+    const foe = frameEntity('raptor', { id: 'f', at: [0, 200, 0], heading: -Math.PI / 2, team: 'foes', mind: { range: 60, aggression: 1, dodge: 0 } });
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], heading: Math.PI / 2, pilot: true }), foe], pilot: 'p' });
+    const F = st.byId.f, step = (inp, secs) => { for (let i = 0; i < secs / DT; i++) E.stepWorld(st, inp, DT, flat); };
+    step({ held: 1 }, 4);
+    expect(Math.hypot(F.transform.pos[0], F.transform.pos[1] - 200)).toBeLessThan(2);
+    step({}, 4);
+    expect(F.transform.pos[1]).toBeLessThan(170);
+  });
 });

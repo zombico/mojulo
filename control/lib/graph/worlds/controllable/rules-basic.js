@@ -443,8 +443,9 @@ export function buildRulesBasic(E) {
     if (e._shotCut) { e.transform.pos = e._shotAt.slice(); e._shotCut = false; }
     else e.transform.pos = add(e.transform.pos, scl(sub(e._shotAt, e.transform.pos), smooth(r.lerp ?? 3, dt)));
     e.transform.heading = Math.atan2(cy - e.transform.pos[1], cx - e.transform.pos[0]);
-    // (big subjects ride above a scene's talk box, its lower third: the aim set under them by a share of the distance)
-    e.lookAt = [cx, cy, big > 0 ? cz - dist * 0.12 : cz];
+    // (big subjects ride above a scene's talk box, its lower third: the aim set under them by a share of the distance, never
+    // more than half their height, so a wide shot from far off still looks at them, not at the ground before them)
+    e.lookAt = [cx, cy, big > 0 ? cz - Math.min(dist * 0.12, tall * 0.5) : cz];
   }
 
   // clock — autonomous frame playback: advance the gait/anim phase by time, no input. Turns a

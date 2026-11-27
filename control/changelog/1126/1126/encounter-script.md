@@ -14,3 +14,9 @@
   from there alone, let go of any hold.
 - A task's ops (`game/objectives.js` `ops`): the cast's ops issued as it begins, once, beside a clear's own foes woken:
   what the encounter's words above lower to, and any level's own.
+- A scene holds the field's minds too: while the pilot's input is held (a scene playing, a menu up), every frame's mind
+  stands down with it, its keys idle, and takes up again after (the input's `held`, given on a frame page): a split's
+  foes had walked on the pilot through the scene. A scene's own walks still move them.
+- A wide shot on big subjects far apart still looks at them: the aim under big subjects (so they ride above the talk
+  box) is no more than half their height (`rules-basic.js` shot); it had grown with the distance, and a shot from 200 m
+  looked at the ground before them.

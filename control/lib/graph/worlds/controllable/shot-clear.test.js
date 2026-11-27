@@ -23,6 +23,16 @@ describe('a shot on a big subject', () => {
     expect(look[2]).toBeLessThan(5.5);
   });
 
+  it('a wide shot on big subjects far apart still looks at them: the aim under them no more than half their height', () => {
+    const fr = (id, x) => ({ id, rule: { type: 'static' }, body: { type: 'box', size: [5, 4, 10], radius: 4.2, aimH: 6 }, transform: { pos: [x, 0, 0], heading: 0 } });
+    const st = E.createWorld({ entities: [fr('a', -40), fr('b', 40), { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'a' }, transform: { pos: [0, 50, 5], heading: 0 } }], pilot: 'a', camera: 'cam' });
+    E.castOps(st, [{ op: 'shot', shot: { frame: 'wide', on: ['a', 'b'], move: 'push' } }]);
+    E.stepWorld(st, {}, 1 / 60, flat);
+    const C = st.camera.transform.pos, look = st.camera.lookAt;
+    expect(Math.hypot(C[0], C[1])).toBeGreaterThan(100);                        // (far off, to hold them both)
+    expect(look[2]).toBeGreaterThanOrEqual(6 - 3);                              // (at them: under their look point by half their height at most)
+  });
+
   it('a tracking shot looks again as its subject moves: a ridge come between them is gone round', () => {
     // (a walker on open ground, then past a ridge the line from the shot's first place would cross)
     let ridge = false;

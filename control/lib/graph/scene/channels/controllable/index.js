@@ -3653,7 +3653,7 @@ window.addEventListener('message', (e) => {
 function __readInput() {
   // a menu is up (events channel): the figure takes nothing — not a key held as it opened, not the pad, not the look.
   // The edges read as held, so the key that picked doesn't jump or interact again when the menu goes.
-  if (window.__mojMenuOpen) { __lookDX = 0; __lookDY = 0; __fireDown = false; __prevJump = true; __prevInteract = true; return { ...__CW.ZERO_INPUT }; }
+  if (window.__mojMenuOpen) { __lookDX = 0; __lookDY = 0; __fireDown = false; __prevJump = true; __prevInteract = true; return { ...__CW.ZERO_INPUT${framePilot ? ', held: 1' : ''} }; }
   const __pad = ${xr ? '__xrCtl ? __xrCtl.pad() : ' : ''}__pollPad();   // null when no controller (or prefs turned it off)${xr ? `
   // (in the headset, channels/xr.js: the controllers are the pad, and the read is finished on the body below)` : ''}
   // INTERACT (use / talk) press edge: counted; the events channel sends use-<place> when the figure stands in reach
