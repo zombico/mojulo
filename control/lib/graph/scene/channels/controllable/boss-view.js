@@ -295,12 +295,13 @@ function __bvMechaParts(W, e, B, S, P, t) {
     if (shows) x.box.material.opacity = reach ? (p.weak ? 0.35 + 0.25 * Math.sin(t * 7) : 0.28) : 0.08;
   }
 }
-// (the bone hook, controllable channel: a part shot off a mecha hides its bones; a drone's rotors spun)
+// (the bone hook, controllable channel: a part shot off a mecha hides its bones, a beast's severed head its neck; a drone's
+// rotors spun)
 const __bvQ = new THREE.Quaternion(), __BV_Z = new THREE.Vector3(0, 0, 1);
 window.__bossRigBone = function (e, fig, bi, Q, P, mesh) {
   const id = fig.bones[bi].id;
   if (e.drone) { if (/Rotor/.test(id)) { __bvQ.setFromAxisAngle(__BV_Z, (((__world.time || 0) * 60) % (2 * Math.PI)) * (/F.*-r$|R.*-l$/.test(id) ? 1 : -1)); Q.multiply(__bvQ); } return; }
-  const B = e.rule && e.rule.boss, S = e.bossS; if (!B || !S || !B.frame) return;
+  const B = e.rule && e.rule.boss, S = e.bossS; if (!B || !S || !(B.frame || B.figure)) return;
   const lost = fig.__bvLost || (fig.__bvLost = (() => { const m = {}; for (const [pid, p] of Object.entries(B.parts)) for (const b of p.bones || []) m[b] = pid; return m; })());
   if (lost[id]) mesh.visible = !S.broken[lost[id]];
 };
@@ -460,6 +461,8 @@ function __bvFrame() {
   for (const e of W.entities) {
     const B = e.rule && e.rule.boss;
     if (!B || B.kind !== 'vehicle' || !e.bossS) continue;
+    // (a BEAST drawn as its own figure, the hydra's: no part marks over it; its heads are what a fight reads)
+    if (B.figure) continue;
     let P = __BV.parts.get(e.id);
     if (!P) {
       P = { grp: new THREE.Group(), boxes: {} };

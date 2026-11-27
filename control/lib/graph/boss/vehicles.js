@@ -31,13 +31,14 @@
  *   partHit(v, part, kind, state, broken, { open }) → what a hit of that kind on that part does: { part, counts, weak,
  *                                mult, wrong? } or null
  *   outOfOrder(v, part, broken), nextInOrder(v, broken), turnPast(v, to, broken)   the order and the turns
+ *   turnTimes(v, state)        → { seconds, land, open: [from, to] }   a turn's times, for its figure's clip
  *   vehicleLaws(v, { arms, mines }?) → [{ law, holds, says }]   winnable (a weak spot reached by the arms in hand) ·
  *                                moves-hold · every-state-moves (a state that attacks has moves, each holding; a window
  *                                and a carrier's states are not asked) · mines-enough (a vehicle won by mines is given them)
  *
  * Pure data and readers; the runtime is worlds/controllable/boss.js.
  */
-import { PATTERNS } from './patterns.js';
+import { PATTERNS, layPattern } from './patterns.js';
 import { patternLaws, BODY } from './laws.js';
 
 const no = (msg) => { throw new Error(`vehicle boss: ${msg}`); };
@@ -186,24 +187,23 @@ export const VEHICLES = Object.freeze({
   // heads' colours) and on its bar: a head struck out of its order shrugs the cut off and the hydra RETORTS (`retort`,
   // every head rearing: a ring round its body). All five severed, it rears and its HEART shows: the last stand
   hydra: { name: 'The Hydra', title: 'its heads, in the order of the seals', reads: 'a many-headed serpent rooted in a flooded lair, five necks fanned round its breast, each head its own element',
-    size: [5, 7, 4.6], speed: 0, turn: 0.9, beast: true, look: { tell: '#ffe08a', hazard: '#ff8a5a' },
-    dress: [{ box: [[-2.2, -2, 0], [2.2, 2, 2.4]], fill: '#3c4a3a' }],
+    size: [12, 12, 4.7], speed: 0, turn: 0.9, figure: 'hydra', look: { tell: '#ffe08a', hazard: '#ff8a5a' },
     parts: {
-      'head-ember': { box: [[0.85, -3.38, 0.4], [2.25, -1.98, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 2, shown: 'ember', open: true, element: 'fire', colour: '#ff6a1a', reads: 'the ember head, hung low and gasping after it attacks' },
-      'head-venom': { box: [[1.98, -2.25, 0.4], [3.38, -0.85, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 4, shown: 'venom', open: true, element: 'poison', colour: '#8fe03a', reads: 'the venom head, hung low and gasping after it attacks' },
-      'head-rime': { box: [[2.4, -0.7, 0.4], [3.8, 0.7, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 1, shown: 'rime', open: true, element: 'ice', colour: '#9fe8ff', reads: 'the rime head, hung low and gasping after it attacks' },
-      'head-storm': { box: [[1.98, 0.85, 0.4], [3.38, 2.25, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 5, shown: 'storm', open: true, element: 'thunder', colour: '#fff27a', reads: 'the storm head, hung low and gasping after it attacks' },
-      'head-gloom': { box: [[0.85, 1.98, 0.4], [2.25, 3.38, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 3, shown: 'gloom', open: true, element: 'dark', colour: '#a86bff', reads: 'the gloom head, hung low and gasping after it attacks' },
-      heart: { box: [[1.4, -0.9, 0.8], [2.6, 0.9, 2.4]], takes: ['blow', 'round', 'explosive'], hits: 0, weak: true, mult: 1, shown: 'heart', reads: 'its heart, bare in its breast once its last neck falls' },
+      'head-ember': { box: [[1.83, -6.19, 0.3], [3.43, -4.59, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 2, shown: 'ember', open: true, bones: ['spine19_ember', 'neck0_ember', 'head_ember'], element: 'fire', colour: '#ff6a1a', reads: 'the ember head, hung low and gasping after it attacks' },
+      'head-venom': { box: [[4.29, -3.98, 0.3], [5.89, -2.38, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 4, shown: 'venom', open: true, bones: ['spine19_venom', 'neck0_venom', 'head_venom'], element: 'poison', colour: '#8fe03a', reads: 'the venom head, hung low and gasping after it attacks' },
+      'head-rime': { box: [[5.2, -0.8, 0.3], [6.8, 0.8, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 1, shown: 'rime', open: true, bones: ['spine19_rime', 'neck0_rime', 'head_rime'], element: 'ice', colour: '#9fe8ff', reads: 'the rime head, hung low and gasping after it attacks' },
+      'head-storm': { box: [[4.29, 2.38, 0.3], [5.89, 3.98, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 5, shown: 'storm', open: true, bones: ['spine19_storm', 'neck0_storm', 'head_storm'], element: 'thunder', colour: '#fff27a', reads: 'the storm head, hung low and gasping after it attacks' },
+      'head-gloom': { box: [[1.83, 4.59, 0.3], [3.43, 6.19, 2.1]], takes: ['blow', 'round', 'explosive'], hits: 4, order: 3, shown: 'gloom', open: true, bones: ['spine19_gloom', 'neck0_gloom', 'head_gloom'], element: 'dark', colour: '#a86bff', reads: 'the gloom head, hung low and gasping after it attacks' },
+      heart: { box: [[0.4, -1.2, 0.4], [2.4, 1.2, 2.6]], takes: ['blow', 'round', 'explosive'], hits: 0, weak: true, mult: 1, shown: 'heart', reads: 'its heart, bare in its breast once its last neck falls' },
     },
     retort: 'retort',
     states: {
-      ember: { head: 'head-ember', moves: { 'ember': 1 }, tempo: 2.2, route: false, to: { venom: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the ember head wakes, attacks, and hangs open' },
-      venom: { head: 'head-venom', moves: { 'venom': 1 }, tempo: 2.2, route: false, to: { rime: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the venom head wakes, attacks, and hangs open' },
-      rime: { head: 'head-rime', moves: { 'rime': 1 }, tempo: 2.2, route: false, to: { storm: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the rime head wakes, attacks, and hangs open' },
-      storm: { head: 'head-storm', moves: { 'storm': 1 }, tempo: 2.2, route: false, to: { gloom: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the storm head wakes, attacks, and hangs open' },
-      gloom: { head: 'head-gloom', moves: { 'gloom': 1 }, tempo: 2.2, route: false, to: { ember: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the gloom head wakes, attacks, and hangs open' },
-      heart: { moves: { 'thrash': 2, 'retort': 1 }, tempo: 1.6, route: false, reads: 'headless, it rears and thrashes: its heart is bare' },
+      ember: { head: 'head-ember', clip: 'turn-ember', moves: { 'ember': 1 }, tempo: 2.2, route: false, to: { venom: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the ember head wakes, attacks, and hangs open' },
+      venom: { head: 'head-venom', clip: 'turn-venom', moves: { 'venom': 1 }, tempo: 2.2, route: false, to: { rime: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the venom head wakes, attacks, and hangs open' },
+      rime: { head: 'head-rime', clip: 'turn-rime', moves: { 'rime': 1 }, tempo: 2.2, route: false, to: { storm: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the rime head wakes, attacks, and hangs open' },
+      storm: { head: 'head-storm', clip: 'turn-storm', moves: { 'storm': 1 }, tempo: 2.2, route: false, to: { gloom: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the storm head wakes, attacks, and hangs open' },
+      gloom: { head: 'head-gloom', clip: 'turn-gloom', moves: { 'gloom': 1 }, tempo: 2.2, route: false, to: { ember: { after: 6.5 }, heart: { broken: ['head-ember', 'head-venom', 'head-rime', 'head-storm', 'head-gloom'] } }, reads: 'the gloom head wakes, attacks, and hangs open' },
+      heart: { clip: 'heart', moves: { 'thrash': 2, 'retort': 1 }, tempo: 1.6, route: false, reads: 'headless, it rears and thrashes: its heart is bare' },
     },
     moves: {
       'ember': { pattern: 'sweep', says: 'rears back, its throat glowing; the arc it will breathe glows on the floor', tune: { reach: 8 } },
@@ -235,6 +235,7 @@ export function readVehicle(v, where = 'vehicle') {
   // (an ORDER is a sequence: 1 … n, each place once)
   const ord = Object.values(v.parts).filter((p) => p.order !== undefined).map((p) => p.order).sort((a, b) => a - b);
   if (ord.some((o, i) => o !== i + 1)) no(`${where}: the parts' orders are 1 … ${ord.length}, each once (have ${ord.join(', ')})`);
+  if (v.figure !== undefined && typeof v.figure !== 'string') no(`${where}.figure: the figure maker it is drawn by (a beast's: 'hydra')`);
   if (v.retort !== undefined && !v.moves[v.retort]) no(`${where}.retort: one of its moves (what it does when a part is struck out of its order)`);
   for (const [id, s] of Object.entries(v.states)) {
     for (const m of Object.keys(s.moves || {})) if (!v.moves[m]) no(`${where}.states.${id}: '${m}' is not one of its moves`);
@@ -275,6 +276,18 @@ export function turnPast(v, to, broken = {}) {
     s = after[0];
   }
   return s;
+}
+
+/** A TURN's times (a state that is a part's `head`, its move the state's one, laid `first` seconds into it as the director
+ * lays it): { seconds (the turn's, its way on after), land (its first hazard's landing), open: [from, to] }, in seconds
+ * from the turn's start: what the figure's turn clip plays to (figures/hydra.js `turns`). */
+export function turnTimes(v, state, { first = 1 } = {}) {
+  const V = readVehicle(v), S = V.states[state], [m] = Object.keys(S?.moves || {}), M = m && V.moves[m];
+  if (!M) return null;
+  const P = { ...PATTERNS[M.pattern], ...(M.tune?.reach ? { reach: M.tune.reach } : {}) }, H = layPattern(P, [0, 0], [P.reach * 0.6, 0], first);
+  const end = Math.max(...H.map((h) => h.t1)) - first, at = first + Math.max(P.open.at, end);
+  const after = Object.values(S.to || {}).find((c) => c.after)?.after ?? null;
+  return { seconds: after, land: Math.min(...H.map((h) => h.t0)), open: [at, at + P.open.for] };
 }
 
 /** A vehicle boss's laws (see the header). `arms`: the hit kinds the level gives the body (round, explosive, mine). */

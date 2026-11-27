@@ -44,7 +44,7 @@ export function vehicleRule(id, { route = null, runs = null, packages = null, se
     moves: Object.fromEntries(Object.entries(V.moves).map(([m, x]) => [m, tuned(x)])),
     ...(route ? { route: route.map((q) => [q[0], q[1]]) } : {}), ...(runs ? { runs: runs.map((q) => [q[0], q[1]]) } : {}),
     ...(V.frame ? { frame: V.frame, ...(V.stride ? { stride: { ...V.stride } } : {}) } : {}), ...(V.turn ? { turn: V.turn } : {}),
-    ...(V.retort ? { retort: V.retort } : {}),
+    ...(V.retort ? { retort: V.retort } : {}), ...(V.figure ? { figure: V.figure } : {}),
     ...(V.carrier ? { carrier: { ...JSON.parse(JSON.stringify(V.carrier)), packages: (packages || []).map((k) => ({ id: k.id, at: [k.at[0], k.at[1], k.at[2] ?? 0] })) } } : {}) };
 }
 
@@ -52,7 +52,7 @@ export function vehicleEntity(id, { at, heading = 0, hp = 1000, route = null, ru
   const V = readVehicle(id), [L, W, H] = V.size, R = vehicleRule(id, { route, runs, packages, seed });
   const hit = { hittable: true, hp, radius: Math.max(L, W) / 2, egg: { a: Math.max(L, W) / 2, c: H / 2, cz: H / 2 } };
   return { id, team, rule: { type: 'boss-vehicle', boss: R },
-    body: V.frame ? { type: 'figure-rig', figure: id, ...hit, hpBar: 'none' } : { type: 'mesh', shape: 'box', size: [0.2, 0.2, 0.2], color: 0x3f4640, ...hit },
+    body: V.frame || V.figure ? { type: 'figure-rig', figure: id, ...hit, hpBar: 'none' } : { type: 'mesh', shape: 'box', size: [0.2, 0.2, 0.2], color: 0x3f4640, ...hit },
     transform: { pos: [at[0], at[1], at[2] ?? 0], heading } };
 }
 

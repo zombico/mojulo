@@ -637,7 +637,7 @@ export function buildBoss(E) {
         }
         const p0 = [e.transform.pos[0], e.transform.pos[1]];
         driveVehicle(state, e, S, dt);
-        if (B.frame) playFrame(e, S, B, Math.hypot(e.transform.pos[0] - p0[0], e.transform.pos[1] - p0[1]));
+        if (B.frame || B.figure) playFrame(e, S, B, Math.hypot(e.transform.pos[0] - p0[0], e.transform.pos[1] - p0[1]));
         if (B.carrier) carrier(state, e, S, B, dt, input, hooks);
       }
       // ITS MOVES: the phase's (or the state's) by weight, at its tempo; none while unseen, none mid-shift

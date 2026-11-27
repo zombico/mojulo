@@ -12,3 +12,10 @@
   that lands on a vehicle boss by part, as a round). `outOfOrder`, `nextInOrder`, `turnPast`; the `order-reached` law
   (each part in its place reached in a turn by what is in hand, with a retort). The director says the head to strike
   next (`state.bosses[id].next`), and a way on by parts broken comes before one by seconds.
+- **The hydra drawn as itself** (`figures/hydra.js`, `gameworld/beast-boss.js`): a sea serpent's humped body in the
+  water and five copies of its rising front fanned round its breast, one skeleton, each head tinted toward its element's
+  colour; every neck sways, the awake one rears, strikes as its move lands and hangs its head low and gasping through
+  its move's opening (`boss/vehicles.js` turnTimes: the clip timed to the director's own move), where the head's box
+  is (a test holds the boxes to the figure). A severed head's neck is hidden (the boss view's bone hook, now a beast's
+  too); a vehicle boss with a `figure` stands as a figure-rig and plays its states' clips; no part marks over a beast.
+
