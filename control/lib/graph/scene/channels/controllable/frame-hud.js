@@ -76,7 +76,7 @@ export function frameHudScript() {
     spd.textContent = (P.braced === 'stick' ? 'BRACED  ' : P.braced === 'wind' ? 'RECOVER  ' : P.ab ? 'ASSAULT BOOST  ' : '') + Math.round((P.speed || 0) * 3.6) + ' km/h  ' + Math.round(P.agl || 0) + ' m';
     out.en = Math.round(P.en || 0); out.ap = Math.round(hp);
     stbI.style.width = (100 * (P.stab ?? 1)).toFixed(1) + '%';
-    me.style.display = P.stagger > 0 ? 'block' : 'none';
+    me.style.display = P.stagger > 0 && !P.downed ? 'block' : 'none';
     const S = P.slotState || {};
     for (const s in W) {
       const slot = R.slots && R.slots[s], X = W[s];

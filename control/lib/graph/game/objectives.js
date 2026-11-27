@@ -74,7 +74,7 @@ const ID = /^[a-z][a-z0-9-]{0,31}$/;
 /** A RETRY: the player down while a task is in hand, the screen faded for `after` s, then the player stood up whole
  *  where it fell and the task in hand begun again (its foes up and whole, its own `again` ops), the level going on from
  *  there; `say` shown as it comes back. */
-export const RETRY = Object.freeze({ after: 2, back: 0.5, say: 'Back in the fight' });
+export const RETRY = Object.freeze({ after: 2, back: 0.5, say: 'Restart at Checkpoint' });
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
 export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect', 'scan', 'act']);
 /** The facts a `band` holds (worlds/event-bus.js gauges), in the units the flight HUD shows. */

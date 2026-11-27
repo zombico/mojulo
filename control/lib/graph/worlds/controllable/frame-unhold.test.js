@@ -35,11 +35,13 @@ describe('a frame stood up again', () => {
   it('a downed pilot spawned fresh is whole and walks as before', () => {
     const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], heading: Math.PI / 2, pilot: true })], pilot: 'p' });
     const P = st.byId.p;
-    E.castOps(st, [{ op: 'kill', who: 'p' }]); run(st, 1);
+    E.castOps(st, [{ op: 'kill', who: 'p' }]); P.stagger = 1.2; run(st, 1);
     expect(P.downed).toBe(true);
     E.castOps(st, [{ op: 'spawn', who: 'p', fresh: true }]);
     expect(P.downed).toBe(false);
     expect(P.body.hp).toBe(P.body.hpMax);
+    // (its reel gone with its fall: no STAGGER on a frame stood up again)
+    expect(P.stagger || 0).toBe(0);
     const y0 = P.transform.pos[1];
     for (let i = 0; i < 60; i++) E.stepWorld(st, { forward: 1 }, DT, flat);
     expect(P.transform.pos[1] - y0).toBeGreaterThan(5);

@@ -82,7 +82,17 @@ export function buildRulesFrame(E) {
   const castOps = E.castOps;
   if (castOps) E.castOps = function (state, ops) {
     for (const o of ops || []) if (o && o.op === 'unhold' && state.byId && state.byId[o.who]) state.byId[o.who].unheld = true;
-    return castOps(state, (ops || []).filter((o) => !(o && o.op === 'unhold')));
+    const out = castOps(state, (ops || []).filter((o) => !(o && o.op === 'unhold')));
+    // (a frame spawned fresh, a retry's: up whole, its reel, its brace, its lunge and its way on gone, its stability full)
+    for (const o of ops || []) {
+      const e = o && o.op === 'spawn' && o.fresh && state.byId && state.byId[o.who];
+      if (!e || !(e.rule && e.rule.type === 'frame')) continue;
+      e.stagger = 0; e.staggerT = null; e.reactClip = null; e.reactDur = null; e.brace = null; e.lunge = null; e.ab = false;
+      if (Number.isFinite(e.poiseMax)) e.poise = e.poiseMax;
+      if (Array.isArray(e.v)) e.v = [0, 0, 0];
+      if (Number.isFinite(e.enMax)) e.en = e.enMax;
+    }
+    return out;
   };
 
   // a seeded die per body (its id's hash, stepped): a mind's choices, never the browser's
