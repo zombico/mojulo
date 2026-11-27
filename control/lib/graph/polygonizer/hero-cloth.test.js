@@ -9,7 +9,7 @@ import { locomotionClips } from './hero-motion.js';
 import { REGISTERS, HERO_LAWS_VERSION } from './hero-form.js';
 import { MATERIALS, MATERIAL_NAMES, CLOTH_REGISTERS, materialParams, materialErrors, clothRegisterOf, clothRigidity } from './cloth-law.js';
 import { RIGIDITY_WORDS, rigidityParams } from './rigidity.js';
-import { CLOTH_LAWS, clothFlows, heroClothRig, bakeClothClips, tailoredSkirts, CAPE_SWAY, CAPE_FROM, CAPE_STRINGS } from './hero-cloth.js';
+import { CLOTH_LAWS, clothFlows, heroClothRig, bakeClothClips, tailoredSkirts, CAPE_SWAY, CAPE_FROM, CAPE_STRINGS, CLOTH_SWING } from './hero-cloth.js';
 import { heroRecord, heroPlanOf, planLayered, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { clothClipSeconds, ANIME_CLIP_SECONDS } from './hero-gesture.js';
 
@@ -76,6 +76,15 @@ describe('hero-cloth: the bake', () => {
     expect(JSON.stringify(Array.from({ length: 12 }, (_, k) => bake()(k / 12)))).toBe(JSON.stringify(Array.from({ length: 12 }, (_, k) => walk(k / 12))));
     const { flow, ...pose } = walk(5 / 12); expect(Object.keys(flow).length).toBeGreaterThan(0);
     expect(JSON.stringify(pose)).toBe(JSON.stringify(layeredClip(ROBED.recipe.clips.walk, R)(5 / 12)));
+  });
+  it('a move\'s cloth is calmed: its sway off the drape it settles to kept at the swing\'s share (CLOTH_SWING)', () => {
+    const play = layeredClip(ROBED.recipe.clips.walk, R), as = (move) => Object.assign((u) => play(u), { keys: 12, ...(move ? { move: { family: 'swing' } } : {}) });
+    const B = (fn) => bakeClothClips(H, { c: fn }, R, { seconds: { c: 1 } }).c;
+    const plain = B(as(false)), calm = B(as(true)), rest = B(Object.assign(() => play(0), { keys: 12 }))(0).flow;
+    let off = 0, on = 0;
+    for (let k = 0; k < 12; k++) for (const [q, v] of Object.entries(plain(k / 12).flow)) v.forEach((x, a) => { off += Math.abs(x - rest[q][a]); on += Math.abs(calm(k / 12).flow[q][a] - rest[q][a]); });
+    expect(off).toBeGreaterThan(0);
+    expect(on / off).toBeCloseTo(CLOTH_SWING.share, 3);
   });
   it('through the walk the links hold and no string joint enters the legs or the arms (as far as it lay at rest)', () => {
     const sim = flowSimulation(H), limbs = H.form.map((c, ci) => [c, ci]).filter(([c]) => /^(thigh|shank|upperArm|foreArm)/.test(c.bone));

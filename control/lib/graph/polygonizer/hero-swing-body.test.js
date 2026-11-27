@@ -387,3 +387,19 @@ describe('the sword arts', () => {
     expect(artTiming('normal', 'action')).toBeNull();
   });
 });
+
+// THE FIGHTING STANCE BREATHES (readyClip, READY_BREATH): the stance, a breath drawn in (the head up), the stance, the
+// weight let down (the head down), a loop the page plays on its own clock; its feet the stance's throughout
+import { READY_BREATH } from './hero-swing-body.js';
+describe('the fighting stance breathes', () => {
+  it('its head rises on the breath in and sinks as the weight settles, its feet where they stand', () => {
+    const R = rig('female', 'sword');
+    const ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, layeredClip, rigNodesAt, swingClipKeys };
+    const f = readyClip(ctx), at = (u) => rigNodesAt(R, f(u)).nodes;
+    expect(f.keys).toBe(READY_BREATH.keys);
+    const a = at(0), inhale = at(0.25), settle = at(0.75), head = (n) => n.headTop[2];
+    expect(head(inhale)).toBeGreaterThan(head(a));
+    expect(head(settle)).toBeLessThan(head(a));
+    for (const foot of ['ankleL', 'ankleR', 'toeTipL', 'toeTipR']) for (const k of [0, 1]) expect(Math.abs(settle[foot][k] - a[foot][k]), foot).toBeLessThan(0.01);
+  });
+});

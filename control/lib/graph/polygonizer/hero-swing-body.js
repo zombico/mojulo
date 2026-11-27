@@ -51,8 +51,9 @@ export const SWING_STYLES = Object.freeze({
   //            held before the recovery (zanshin)
   // INSPIRED (realistic-inspired: kenjutsu's and the long sword's chambers, performed for the camera): the blade chambered
   // high (hasso, jodan: the elbow may rise past the shoulder line), the stance deep and long, the hips committed, the arm
-  // and blade one line at the blow, the off hand flung back as a counterweight, the finish held a beat.
-  inspired: Object.freeze({ stance: 2.05, stagger: 0.42, crouch: 0.1, wind: 1.85, after: 1.7, weight: 1.6, off: 2.0, raise: 140, bend: 22, extend: 0.55, gaze: 0.6,
+  // and blade one line at the blow, the off hand flung back as a counterweight (a give at its elbow, `offElbow`, never a
+  // locked rod), the finish held a beat.
+  inspired: Object.freeze({ stance: 2.05, stagger: 0.42, crouch: 0.1, wind: 1.85, after: 1.7, weight: 1.6, off: 2.0, offElbow: 55, raise: 140, bend: 22, extend: 0.55, gaze: 0.6,
     turn: Object.freeze({
       forehand: { ready: { facing: -16, w: 0 }, coil: { facing: -42, w: -0.05 }, cock: { facing: -36, w: -0.08 }, load: { facing: -40, w: -0.09 }, strike: { facing: 36, w: 0.12, heel: 34, pivot: 30 }, follow: { facing: 58, w: 0.14, heel: 42, pivot: 40 }, recover: { facing: 18, w: 0.05, heel: 14, pivot: 12 } },
       backhand: { ready: { facing: -16, w: 0 }, coil: { facing: 16, w: -0.04 }, cock: { facing: 34, w: -0.07 }, load: { facing: 38, w: -0.08 }, strike: { facing: -34, w: 0.1 }, follow: { facing: -52, w: 0.12 }, recover: { facing: -20, w: 0.04 } },
@@ -150,7 +151,9 @@ export function swingBody(word, cls, keys, R, nodesAt, style = null) {
   return keys.map((k, i) => {
     const ph = phases[i] ?? 'recover', B0 = T[ph] ?? T.recover;
     const B = St ? (St.turn[side][ph] ?? St.turn[side].recover) : B0;
-    const off = !ownOff && OFF_HAND[side][ph] ? (St ? wing(OFF_HAND[side][ph], { shL: keys[0].shL, elbowL: keys[0].elbowL }, St.off) : OFF_HAND[side][ph]) : {};
+    const off0 = !ownOff && OFF_HAND[side][ph] ? (St ? wing(OFF_HAND[side][ph], { shL: keys[0].shL, elbowL: keys[0].elbowL }, St.off) : OFF_HAND[side][ph]) : {};
+    // (an art's off arm never locked straight, `offElbow`: the counterbalance held out with a give at the elbow)
+    const off = St?.offElbow && Number.isFinite(off0.elbowL) ? { ...off0, elbowL: Math.max(off0.elbowL, St.offElbow) } : off0;
     // (an art's GAZE: the head turned back against the body's turn by its share, the eyes held on the target while the body
     // coils away from it and spins through past it)
     const gaze = St && St.gaze ? { glance: Math.round(Math.max(-75, Math.min(75, -B.facing * St.gaze)) * 100) / 100 } : {};
@@ -344,12 +347,18 @@ export function moveClip(move, ctx) {
 }
 
 /** THE FIGHTING STANCE (`mv_ready`): the stance a moveset's moves start and end in (the hero's own cut's ready key, the
- * whole body over it), held: the hero's idle in combat, so standing and striking share their feet. */
+ * whole body over it), the hero's idle in combat, so standing and striking share their feet. It BREATHES (READY_BREATH):
+ * the stance, a breath drawn in (the chest up, the knees a little straighter), the stance, the weight let down into the
+ * knees; a loop the page plays on its own clock while the hero stands, every key on the stance's feet. */
+export const READY_BREATH = Object.freeze({ arch: 0.04, rise: 0.012, sink: 0.022, keys: 12 });
 export function readyClip(ctx) {
   const { R, cls, base, grip, own, body, layeredClip, rigNodesAt, swingClipKeys } = ctx;
   const keys0 = swingClipKeys(own, cls, { base, grip }), ready = (body ? swingBody(own, cls, keys0, R, rigNodesAt, ctx.style ?? null) : keys0)[0];
-  const play = layeredClip([ready], R), fn = (u) => play(u);
-  fn.keys = 2;
+  const B = READY_BREATH, c = ready.crouch ?? 0, r4 = (v) => Math.round(v * 1e4) / 1e4;
+  const inhale = { ...ready, crouch: r4(Math.max(0, c - B.rise)), spine: { ...(ready.spine ?? {}), arch: r4((ready.spine?.arch ?? 0) + B.arch) } };
+  const settle = { ...ready, crouch: r4(c + B.sink) };
+  const play = layeredClip([ready, inhale, ready, settle], R), fn = (u) => play(u);
+  fn.keys = B.keys;
   return fn;
 }
 

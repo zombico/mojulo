@@ -36,6 +36,10 @@ const SOLVE = Object.freeze({ substep: 1 / 120, settle: 4 });
 const MAX_BONES = 256;
 /** the World page's seconds for a clip that carries none (the rig preview's period) */
 const PAGE_PERIOD = 3;
+/** A MOVE's cloth (a moveset's swing clip, `fn.move.family` 'swing': the whole body turned through a blow in under half a
+ * second): its sway off the drape it settles to at the move's first pose kept at `share` of what the solver gives, so the
+ * cloth answers the turn without its strings lagging so far behind the body that their corners tear into shards */
+export const CLOTH_SWING = Object.freeze({ share: 0.2 });
 
 /** whether a hero's laws hang its loose cloth on strings */
 export const clothFlows = (hero) => !!hero && (hero.laws ?? 1) >= CLOTH_LAWS;
@@ -168,7 +172,10 @@ export function bakeClothClips(H, clips, R, { seconds = null, speeds = null, key
     // a held pose (a stand, a one-key clip): settled once, every key the same
     const still = poses.every((p) => JSON.stringify(p) === JSON.stringify(poses[0]));
     const sim = still ? simulateClip(H, [poses[0]], s, { ...SOLVE, loop: false, air: () => air }) : simulateClip(H, poses, s, { ...SOLVE, loop: !once, air: () => air });
-    const flowAt = (k) => (still ? sim[0].flow : sim[(k - (k % reg.hold)) * sub].flow);
+    // (a move's swing calmed toward its drape, CLOTH_SWING)
+    const rest = !still && fn.move?.family === 'swing' ? simulateClip(H, [poses[0]], s, { ...SOLVE, loop: false, air: () => air })[0].flow : null;
+    const calm = (f) => (rest ? Object.fromEntries(Object.entries(f).map(([q, v]) => [q, rest[q] ? v.map((x, a) => rest[q][a] + (x - rest[q][a]) * CLOTH_SWING.share) : v])) : f);
+    const flowAt = (k) => (still ? sim[0].flow : calm(sim[(k - (k % reg.hold)) * sub].flow));
     const flows = Array.from({ length: K }, (_, k) => flowAt(k));
     const baked = (phase) => { const k = once ? Math.round(Math.max(0, Math.min(1, phase)) * (K - 1)) : ((Math.round(phase * K) % K) + K) % K, p = fn(phase); return { ...p, flow: p.flow ? { ...p.flow, ...flows[k] } : flows[k] }; };
     out[name] = Object.assign(baked, fn, { keys: K });

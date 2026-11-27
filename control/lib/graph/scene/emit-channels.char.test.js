@@ -1201,3 +1201,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-27 (1126-beastiary-update: a faced foe): the pages of the controllable channel carry the follow
 // camera's opt-in `face` (rules-basic.js: the chase held behind its target on the line from a foe, its look lifted toward
 // it: a boss arena's). Absent, the chase as it was; what every page shows is unchanged.
+// Re-pinned 2026-11-27 (1126-beastiary-update: a body standing breathes): the pages of the controllable channel play a
+// standing body's idle (and a moveset hero's fighting stance) on its own clock, the clip's seconds, where it had been
+// sampled at the gait's phase, which stands still on a body that stands: its breath was frozen at whatever the last step
+// left. A moving body, a held idle and a clip of two keys or fewer play as they did.

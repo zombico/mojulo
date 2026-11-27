@@ -2821,7 +2821,11 @@ ${fires ? `  // (a hold is a clip played once and held: firing, it comes up over
   // clip played over its first half (rest to wound, wound to struck); then the mix eases it back
   const BW = __bossWind(e, fig);
   if (BW) mode = BW.mode;
-  ` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${bossOn ? 'BW ? BW.phase : ' : ''}${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
+  ` : ''}  // A BODY STANDING BREATHES: its idle (or its fighting stance) a loop on its own clock, the clip's seconds (\`s\`, three
+  // where it carries none), never the gait's phase, which stands still on a body that stands; a held idle stays held
+  const SC = !e.moving && (mode === 'idle' || mode === e.idleClip) && fig.clips && fig.clips[mode], standing = !!SC && !SC.held && !SC.once && SC.k > 2;
+  if (standing) rig.standU = ((rig.standU || 0) + (dt || 0) / (SC.s > 0 ? SC.s : 3)) % 1;
+  const mix = __CW.advanceGaitMix(rig.mix, mode, standing ? rig.standU : ${bossOn ? 'BW ? BW.phase : ' : ''}${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no

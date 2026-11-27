@@ -269,7 +269,9 @@ export const BASIC_ARSENAL = Object.freeze({
  *                      strings, the launcher on back + heavy, the juggle and the air strings ending in a slam; its
  *                      sidearm the two pistols; swung freestyle (the anime sword)
  *   fable-of-artesia   the action-adventure (Zelda): the sword and shield, deliberate (a press remembered longer, a string
- *                      that must play further before it chains, a longer rest after the finisher), no launcher, no juggle,
+ *                      that must play further before it chains, each cut blended into the next over a sixth of a second, a
+ *                      longer rest after the finisher; the cuts' strings forking: L L L the cleave, L L H a lunging thrust,
+ *                      L H a rising upcut, L . L L a rising cut from the other side into the cleave), no launcher, no juggle,
  *                      no air strings; back + heavy is the SPIN ATTACK, the blade swept all round the hero, the body turned
  *                      through it, every foe in reach knocked back; swung inspired (real technique, performed)
  * arsenalFor(feel) → { template, arsenal } for a feel (a template's id, or { pole, toward?, t? }: the nearer template that
@@ -277,9 +279,10 @@ export const BASIC_ARSENAL = Object.freeze({
  */
 export const ARTESIA_ARSENAL = Object.freeze({
   art: 'inspired',
-  // (deliberate: a press remembered 14 frames early and chained up to 18 late, a pause string from 18 to 54, a 5-frame blend,
-  // 36 frames of rest after a finisher; the stylish game's 12, 14, 16 to 50, 4, 30)
-  timing: { buffer: 14, late: 18, pause: [18, 54], blend: 5, rest: 36 },
+  // (deliberate: a press remembered 14 frames early and chained up to 18 late, a pause string from 18 to 54, a 9-frame blend
+  // (each cut flowing into the next over a sixth of a second, not snapped to it), 36 frames of rest after a finisher; the
+  // stylish game's 12, 14, 16 to 50, 4, 30)
+  timing: { buffer: 14, late: 18, pause: [18, 54], blend: 9, rest: 36 },
   weapons: [
     { id: 'sword', name: 'Sword', figure: 'drawn',
       moves: {
@@ -287,6 +290,12 @@ export const ARTESIA_ARSENAL = Object.freeze({
         'cut-2': { swing: 'left', role: 'filler', frames: 27, cancel: 18, travel: { kind: 'step', m: 0.25 }, damage: 1 },
         cleave: { swing: 'back', role: 'finisher', frames: 46, travel: { kind: 'lunge', m: 0.5 }, damage: 2, impact: 3, topple: true },
         thrust: { swing: 'forward', role: 'opener', frames: 34, travel: { kind: 'lunge', m: 0.6 }, damage: 1.5, impact: 1.5, cooldown: 40 },
+        // the strings' OTHER ENDINGS: the two cuts finished on the heavy by a lunging thrust driven through; a cut turned
+        // straight up into a rising upcut that throws the foe down; and after a cut and a breath, the rising cut from the
+        // other side, the cleave after it
+        'lunge-thrust': { swing: 'forward', role: 'finisher', frames: 40, travel: { kind: 'lunge', m: 0.7 }, damage: 2, impact: 2.5 },
+        upcut: { swing: 'up', role: 'finisher', frames: 36, contact: [0.34, 0.64], travel: { kind: 'step', m: 0.2 }, damage: 1.5, impact: 3, topple: true },
+        'rising-cut': { swing: 'right', role: 'filler', frames: 28, cancel: 19, travel: { kind: 'step', m: 0.2 }, damage: 1 },
         // the SPIN ATTACK (back + heavy): the blade swept level all round, the body turned once through the blow, every foe
         // in reach struck once and knocked back (not up: there is no juggle here), a long cooldown
         spin: { swing: 'around', role: 'finisher', frames: 44, contact: [0.3, 0.72], arc: 360, spin: 1, damage: 1.5, impact: 3, cooldown: 50 },
@@ -299,6 +308,9 @@ export const ARTESIA_ARSENAL = Object.freeze({
       },
       combos: [
         { id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['cut-1', 'cut-2', 'cleave'] },
+        { id: 'cuts-thrust', name: 'Cuts and thrust', beats: ['L', 'L', 'H'], moves: ['cut-1', 'cut-2', 'lunge-thrust'] },
+        { id: 'upcut', name: 'Cut and upcut', beats: ['L', 'H'], moves: ['cut-1', 'upcut'] },
+        { id: 'turning-cuts', name: 'Turning cuts', beats: ['L', '.', 'L', 'L'], moves: ['cut-1', 'rising-cut', 'cleave'] },
         { id: 'thrust', name: 'Thrust', beats: ['H'], moves: ['thrust'] },
         { id: 'spin', name: 'Spin attack', beats: ['bH'], moves: ['spin'] },
         { id: 'leap-strike', name: 'Leaping strike', beats: ['mL'], moves: ['leap-strike'] },

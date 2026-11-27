@@ -261,3 +261,21 @@ describe('the ground slam', () => {
     }
   });
 });
+
+// ARTESIA'S STRINGS (combos.js ARTESIA_ARSENAL): the cuts' tree forks, every fork a string of its own: L L L the cleave,
+// L L H a lunging thrust, L H a rising upcut, L . L L (a breath after the first cut) a rising cut from the other side into
+// the cleave; each cut blended into the next over a sixth of a second
+import { ARTESIA_ARSENAL } from './combos.js';
+describe('Artesia\'s strings fork', () => {
+  it('the cuts\' tree forks on the third beat, on the heavy and on a pause, each fork ending on a finisher', () => {
+    const M = lowerArsenal(ARTESIA_ARSENAL).find((W) => W.id === 'sword').moveset, T = M.tree;
+    expect(T.L.move).toBe('cut-1');
+    expect(T.L.next.L.next.L.move).toBe('cleave');
+    expect(T.L.next.L.next.H.move).toBe('lunge-thrust');
+    expect(T.L.next.H.move).toBe('upcut');
+    expect(T.L.pause.L.move).toBe('rising-cut');
+    expect(T.L.pause.L.next.L.move).toBe('cleave');
+    for (const end of [T.L.next.L.next.L, T.L.next.L.next.H, T.L.next.H, T.L.pause.L.next.L]) expect(M.moves[end.move].role).toBe('finisher');
+    expect(M.blend).toBeCloseTo(9 / 60, 4);
+  });
+});
