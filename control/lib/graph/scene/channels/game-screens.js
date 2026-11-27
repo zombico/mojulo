@@ -94,7 +94,7 @@ export function openingScript() {
     // program is built and each mesh's buffers are on the card behind this screen: a camera turned onto what the
     // opening's shots never saw, the far ground, the stones, a foe not yet woken, would otherwise build it then)
     function warm() {
-      if (typeof renderer === 'undefined' || typeof scene === 'undefined' || typeof camera === 'undefined') return;
+      if (window.__mojWarm === false || typeof renderer === 'undefined' || typeof scene === 'undefined' || typeof camera === 'undefined') return;
       const kept = [];
       scene.traverse((o) => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite || !o.visible) { kept.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; } });
       try { if (renderer.compile) renderer.compile(scene, camera); renderer.render(scene, camera); } catch (e) { /* (a part that will not draw now draws as it comes) */ }

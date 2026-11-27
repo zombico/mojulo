@@ -14,7 +14,7 @@ async function page(guide) {
   let now = 0, frame = null;
   const P = { id: 'p', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'frame' }, v: [0, 0, 0] };
   const vars = { __obj: 0 }, W = { pilotId: 'p', byId: { p: P }, entities: [P] };
-  new Function('window', 'document', 'performance', 'requestAnimationFrame', 'THREE', 'scene', '__ground', guideScript(guide))({ __mojCtrl: { world: W }, __mojBus: { state: { vars } } }, { createElement: el, head: { appendChild() {} }, body: el() }, { now: () => now }, (f) => { frame = f; }, THREE, scene, groundAt);
+  new Function('window', 'document', 'performance', 'requestAnimationFrame', 'THREE', 'scene', guideScript(guide))({ __mojCtrl: { world: W, groundAt: (x, y, z) => groundAt([x, y, z]) }, __mojBus: { state: { vars } } }, { createElement: el, head: { appendChild() {} }, body: el() }, { now: () => now }, (f) => { frame = f; }, THREE, scene);
   const step = (dt, n) => { for (let i = 0; i < n; i++) { now += dt * 1000; const f = frame; frame = null; f(); } };
   const disc = () => scene.children.find((c) => c.isMesh && c.material.isShaderMaterial);
   return { P, vars, step, disc };

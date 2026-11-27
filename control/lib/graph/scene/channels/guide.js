@@ -81,7 +81,7 @@ export function guideScript(guide, { host = false } = {}) {
     // and a faint light at rest, the whole surface glowing while it is stood in: GUIDE_RING)
     if (s.ring) {
       const R = s.radius, NR = GR.rings, NS = GR.segs, pos = [], rr = [], idx = [];
-      const gz = (x, y) => { try { const g = typeof __ground === 'function' ? __ground([x, y, s.at[2] + 80]) : null; return Number.isFinite(g) ? g : s.at[2]; } catch (e) { return s.at[2]; } };
+      const C = window.__mojCtrl || {}, G = C.groundAt || C.ground || null, gz = (x, y) => { try { const g = G ? G(x, y, s.at[2] + 80) : null; return Number.isFinite(g) ? g : s.at[2]; } catch (e) { return s.at[2]; } };
       pos.push(s.at[0], s.at[1], gz(s.at[0], s.at[1]) + GR.lift); rr.push(0);
       for (let i = 1; i <= NR; i++) for (let j = 0; j < NS; j++) {
         const u = i / NR, a = (2 * Math.PI * j) / NS, x = s.at[0] + Math.cos(a) * R * u, y = s.at[1] + Math.sin(a) * R * u;
