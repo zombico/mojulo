@@ -171,6 +171,16 @@ export const LINEAGES = Object.freeze({
       { at: 0.4, ch: 'ornament', line: 'blunt curved claws', derives: ['pass = ornaments'], plan: { claws: 'blunt' } },
     ],
   },
+  bovine: {
+    reads: 'bovine (bull-kin, the minotaur)', humanity: [0.2, 0.45], builds: ['brute'], cover: { black: '#1e1a18', brown: '#5a3a26', red: '#7a3a22', white: '#e4ded4' },
+    built: 'the bull head (creature-heads/derive.js: the bear skull with a broad flat poll, a long deep muzzle, horns)',
+    cues: [
+      { at: 1, ch: 'frame', line: 'enormous: a massive chest and a hump of muscle behind the neck, heavy arms', derives: ['cast = brute'] },
+      { at: 0.7, ch: 'cover', line: 'a short coat, shaggier at the poll and the shoulders', derives: ['pass = patches'], plan: { cover: { kind: 'fur', where: ['ruff', 'forearm', 'thigh'] }, tail: 'thin' } },
+      { at: 0.6, ch: 'structure', line: 'the bull\'s head: a broad flat poll, a long muzzle, horns sweeping out and forward', derives: ['head = bovine', 'door = creature'] },
+      { at: 0.45, ch: 'frame', line: 'digitigrade legs on hooves', derives: ['legs = digitigrade'] },
+    ],
+  },
   avian: {
     reads: 'avian (bird-kin)', humanity: [0.2, 0.6], cover: { umber: '#5a4632', slate: '#4a5260', snow: '#e8e6e0', crimson: '#9a2a24', iridescent: '#2a4a4a' },
     built: 'the beaked head (creature-heads/derive.js: the wolf muzzle drawn to a point); the feathered wing (docs/examples/wings) on the vulture',

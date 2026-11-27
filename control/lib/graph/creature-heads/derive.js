@@ -111,6 +111,11 @@ const CAT_EAR = { kind: 'sweep', name: 'ear', at: [1.35, 0.85], space: 'local', 
 /** a person's ear, small and close to the head (a dead face keeps its ears; a skull has none) */
 const HUMAN_EAR = { kind: 'sweep', name: 'ear', at: [1.3, 2.7], space: 'local', spine: [[0, 0, -0.008], [0, -0.004, 0.018], [0, -0.008, 0.04]], radii: [0.03, 0.026, 0.012], m: 8, squash: [0.3, 1], group: 'Ears' };
 // a person's skull from the bear's: the face drawn back flat under a tall dome, the eyes brought round to the front
+/** a bull's ear: a broad leaf set sideways, low on the poll under the horn */
+const BULL_EAR = { kind: 'sweep', name: 'ear', at: [1.45, 1.35], space: 'local', spine: [[0, 0, -0.01], [0, -0.008, 0.03], [0, -0.016, 0.062], [0, -0.022, 0.085]], radii: [0.046, 0.036, 0.016], m: 8, squash: [0.32, 1], group: 'Ears' };
+/** a bull's horn: out of the corner of its poll, then forward and up, thick at its root and drawn to a point */
+const BULL_HORN = { kind: 'sweep', name: 'horn', at: [1.15, 0.8], space: 'local', spine: [[0, 0, -0.012], [0, -0.045, 0.03], [0.03, -0.1, 0.05], [0.07, -0.14, 0.085], [0.1, -0.15, 0.13]], radii: [0.036, 0.03, 0.021, 0.011], m: 8, group: 'Horns' };
+
 const HUMAN_SKULL_MOVES = [
   { op: 'length', k: 0.78, about: -0.04 },
   { op: 'skull', pivot: -0.02, width: 0.76, height: 1.0, back: 0.95 },
@@ -184,6 +189,20 @@ export const HEAD_DERIVATIONS = Object.freeze({
       tongue: { at: [0.6, 0.02], to: 3.6, slide: 0.06, width: 0.05, thickness: 0.016, lift: 0, seat: 0.003, groove: 0.35, tip: 'fork', forkDepth: 0.3, forkSpread: 0.36, curlMax: 2.2, swayMax: 0.9, droop: 0.9 } },
     ornaments: { drop: ['ear', 'nose', 'teeth'] },
     palette: { Iris: '#c9b03a', Pupil: '#0e0e0c', Tongue: '#3a1a22' },
+  },
+  bovine: {
+    from: 'bear', reads: 'a bull: a broad flat poll, a long deep muzzle with a wide nose, eyes set to the sides, ears sideways under horns that sweep out and forward',
+    family: 'mammal', head: 'long muzzle', serves: ['bovine'],
+    units: { scale: 0.84 },
+    moves: [
+      { op: 'skull', pivot: -0.02, width: 1.16, height: 0.86, back: 0.94 },
+      { op: 'muzzle', pivot: 0, length: 1.5, width: 1.14, height: 1.18 },
+      { op: 'drop', from: 0.12, z: 0.03 },
+    ],
+    eye: { shift: [-0.25, 0.35], R: 0.022 },
+    regions: { whiskers: null },
+    ornaments: { drop: ['ear', 'ruff', 'cheekRuff'], add: [BULL_EAR, BULL_HORN], set: { nose: { spine: [[0, 0, -0.012], [0, 0, 0.012], [0, 0, 0.022]], radii: [0.05, 0.044], squash: [1.7, 1] } }, teeth: 0.3 },
+    palette: { Horns: '#e8dfcc' },
   },
   mandibled: {
     from: 'bear', reads: 'an insect: a short face pitched down, compound eyes, mandibles where the mouth is, short antennae', family: 'insect', head: 'mandibles', serves: ['insectoid'],

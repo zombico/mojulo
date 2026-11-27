@@ -86,8 +86,8 @@ describe('the beast-kin on the tiered body', () => {
   });
 
   it('its hands\' size: a card that names it carries hands that much bigger, the knuckles further from the wrist; one that names none, a person\'s', () => {
-    // (a kin whose card sizes its hands, and one whose card says nothing, chosen from the cards)
-    const big = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].hands > 1), plain = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].hands === undefined);
+    // (the kin whose card sizes its hands the most, and one whose card says nothing, chosen from the cards)
+    const big = Object.keys(BEAST_KINS).filter((k) => BEAST_KINS[k].hands > 1).reduce((a, k) => (BEAST_KINS[k].hands > BEAST_KINS[a].hands ? k : a)), plain = Object.keys(BEAST_KINS).find((k) => BEAST_KINS[k].hands === undefined);
     expect(beastHandsSize(kin(big))).toBe(BEAST_KINS[big].hands); expect(beastHandsSize(kin(plain))).toBe(1); expect(beastHandsSize(mint({ cast: 'male' }))).toBe(1);
     const reach = (hero) => { const J = heroPlanOf(hero).joints; return Math.hypot(...J.knuckles.map((x, i) => x - J.wrist[i])); };
     // (the same kin, its card's hands against a person's: the same body but for the hands)

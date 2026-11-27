@@ -78,6 +78,13 @@ export const BEAST_KINS = Object.freeze({
     mass: { trunk: 1.18, waist: 1.25, hips: 1.05, neck: 1.6, upperArm: 1.25, foreArm: 1.3, hand: 1.3, thigh: 1.25, shank: 1.2, foot: 1.2 }, hump: 0.5,
     rest: { hunch: 12, crouch: 0.1, arm: { x: 0.22, y: 0.22, z: -0.95 } },
   },
+  bovine: {
+    reads: 'bull-kin, the minotaur: the heavyweight that stands tall, a massive chest and a hump of muscle behind the neck, a neck as thick as the head, heavy arms, a thin tail with a switch',
+    fingers: 4, toes: 3, tail: 'thin', claws: 'none', claw: HORN_CLAW, cover: 'fur',
+    frame: { shoulders: 1.18, depth: 1.2, legs: 1.02, neck: 0.72, waist: 1.02 },
+    mass: { trunk: 1.28, waist: 1.12, hips: 1.05, neck: 1.9, upperArm: 1.4, foreArm: 1.35, hand: 1.3, thigh: 1.32, shank: 1.22, foot: 1.25 }, hump: 0.55, keel: 0.2, hands: 1.15,
+    rest: { hunch: 8, crouch: 0.06, arm: { x: 0.24, y: 0.2, z: -0.95 } }, stands: 1.12,
+  },
   lupine: {
     reads: 'wolf-kin: the brawler, broad shoulders and a deep chest over a narrow waist, a thick neck under its ruff, heavy haunches, the trunk leaning forward',
     fingers: 4, toes: 4, tail: 'brush', claws: 'blunt', claw: MAMMAL_CLAW, cover: 'fur', ruff: 'ruff',
