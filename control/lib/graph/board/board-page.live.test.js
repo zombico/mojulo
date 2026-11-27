@@ -653,8 +653,9 @@ describe('the board on the World page', () => {
     await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');   // Wait (Move, or Wait when it cannot)
     if ((await turn()).mode === 'move') { await page.keyboard.press('Escape'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); }
     await page.keyboard.press('ArrowRight'); await page.keyboard.press('Enter');  // face, and end
-    t = await turn();
-    expect(t.who).not.toBe(who);
+    // (the turn passed on: waited for on the page, the keys read on its frames, never a single read after them: a loaded
+    // runner read it before the end key was taken)
+    await page.waitForFunction((was) => { const b = window.__mojBoard; for (let k = 0; k < 400 && b.mode === 'cpu'; k++) b.run(0.1); const S = b.state(); return !!S.turn && S.turn.who !== was; }, who, { polling: 100, timeout: 15000 });
     await page.close();
   }, 120000);
 });
