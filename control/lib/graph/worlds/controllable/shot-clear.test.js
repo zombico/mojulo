@@ -48,6 +48,21 @@ describe('a shot on a big subject', () => {
     expect(outOfView(false)).toBeLessThan((50 / 2) * (Math.PI / 180));           // (unasked, it stood in the frame)
   });
 
+  it('a pulled shot opens out from its subjects over its time, eased; a pushed one closes in', () => {
+    const W = { id: 'w', rule: { type: 'static' }, body: { type: 'box', size: [5, 4, 10], radius: 4.2 }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const far = (move) => {
+      const st = E.createWorld({ entities: [W, { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'w' }, transform: { pos: [20, 0, 5], heading: Math.PI } }], pilot: 'w', camera: 'cam' });
+      E.castOps(st, [{ op: 'shot', shot: { frame: 'wide', on: ['w'], move, for: 4 } }]);
+      const d = [];
+      for (let i = 0; i <= 240; i++) { E.stepWorld(st, {}, 1 / 60, flat); if (i % 60 === 0) d.push(Math.hypot(...st.camera._shotAt.slice(0, 2))); }
+      return d;
+    };
+    const P = far('pull'), Q = far('push');
+    expect(P[4] / P[0]).toBeGreaterThan(2.2);                                     // (some two and a half times as far)
+    expect(P.every((v, i) => !i || v >= P[i - 1])).toBe(true);
+    expect(Q[4]).toBeLessThan(Q[0]);
+  });
+
   it('a tracking shot looks again as its subject moves: a ridge come between them is gone round', () => {
     // (a walker on open ground, then past a ridge the line from the shot's first place would cross)
     let ridge = false;

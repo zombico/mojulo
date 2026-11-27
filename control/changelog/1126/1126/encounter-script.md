@@ -23,3 +23,6 @@
 - A shot can keep a body out of it (a scene's `shot.away`, `rules-basic.js`): the camera stands past its subjects, well
   off the line from that body to them, so a pilot standing between the lens and a candle being set down is out of the
   frame (it had landed in front of the camera, the candle unseen).
+- A shot can pull out (`shot.move: 'pull'`, `rules-basic.js`): opening out from its subjects over its time, eased, to some
+  two and a half times as far, the place round them coming into the frame (the candles firing and the rock beginning to
+  move under them, as the field shakes).

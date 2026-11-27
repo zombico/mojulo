@@ -90,7 +90,7 @@ export const SHOT_FRAMES = Object.freeze({
   close: 'a face',
   over: 'over one shoulder at the other (the first is framed, the second is the shoulder)',
 });
-export const SHOT_MOVES = Object.freeze({ hold: 'stands where it cut, turning with them', track: 'keeps its place beside them', push: 'closes in over the shot', orbit: 'circles them' });
+export const SHOT_MOVES = Object.freeze({ hold: 'stands where it cut, turning with them', track: 'keeps its place beside them', push: 'closes in over the shot', pull: 'opens out from them over the shot, the place round them coming into the frame', orbit: 'circles them' });
 export const SCENE_BEATS = Object.freeze({
   shot: 'the camera directs: { frame, on: [who], move? }, for? s',
   do: 'the cast and the world, as a cue\'s then',

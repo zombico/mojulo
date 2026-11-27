@@ -1,3 +1,6 @@
+// Re-pinned 2026-11-27 (a shot that pulls out): every fixture that embeds the controllable runtime. The shot rule gained
+// `pull` (rules-basic.js: opening out from its subjects over its time), taken only by a shot that names it (no
+// fixture's does). Checked: with rules-basic.js as it was, every moved hash is back to its pin.
 // Re-pinned 2026-11-27 (a shot's away; the screens' second pass): every fixture that embeds the controllable runtime, for
 // the shot rule's `away` (rules-basic.js: a body kept out of the frame, taken only by a shot that names it, no fixture's
 // does), and the game fixtures (game, kitchen-sink and its capture) for game-screens.js (the results screen no longer says

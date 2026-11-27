@@ -349,7 +349,8 @@ export function buildRulesBasic(E) {
   // front of the one; a lone place is the pilot's
   // view of it, from just behind and above them. The distance opens until the spread and the room fill a `fov`
   // (degrees, 50), and the camera never goes under the ground. `move`: hold (stands where it cut, turning with them),
-  // track (keeps its place beside them), push (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new
+  // track (keeps its place beside them), push (closes in over `for` seconds), pull (opens out from them over `for`
+  // seconds, the place round them coming into the frame), orbit (circles at `rate` rad/s). A new
   // shot cuts; `cut: false` eases in at `lerp`.
   const FRAMES = { wide: [5, 2.2, 0], low: [1.6, -0.8, 0], profile: [1.2, 0.2, 1], corner: [3, 3.5, 0.5], overhead: [2.5, 0, 0], two: [0.8, 0.35, 0], close: [0.35, 0.1, 0.25] };
   // a place as a subject: a point (`at`), on the ground under it when it gives no height
@@ -415,6 +416,9 @@ export function buildRulesBasic(E) {
     if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
     let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));
     if (r.move === 'push') dist *= 1 + 0.35 * (1 - Math.min(1, e._shotT / (r.for ?? 3)));
+    // (pull: opening out from them over `for` seconds, eased, to some two and a half times as far and higher: the place they
+    // stand in coming into the frame round them)
+    if (r.move === 'pull') { const u = Math.min(1, e._shotT / (r.for ?? 6)), k = u * u * (3 - 2 * u); dist *= 1 + 1.5 * k; }
     const place = (y, lift) => {
       const f = fwdXY(y);
       const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise + lift];
