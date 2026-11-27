@@ -112,7 +112,11 @@ describe('the rail\'s cards', () => {
     // screen and the branch's lines read together, 4880 bytes)
     // (2026-11-25, 1124-side-scroll-backgrounds: gameworld-world 5760 → 5888: a side strip's `scenery`, the land behind
     // its lane segment by segment, one style word; 5690 bytes before, 5810 with it)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 6016, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // (2026-11-27, 1124-geocity-refinement merged with 1116-rc: gameworld-world 6016 → 6144: the branch's city lines and the
+    // candidate's side strip `scenery` read together, 6094 bytes)
+    // (the same merge: gameworld-battles 6144 → 6272: the candidate's `wins` and the branch's minigames, mowing and deskwork,
+    // read together, 6155 bytes)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 6144, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6272, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
