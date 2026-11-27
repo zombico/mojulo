@@ -267,21 +267,28 @@
     "coral": {
       "name": "Coral",
       "role": "the operative, the player: solo",
-      "reads": "a man in his thirties, Caucasian",
+      "reads": "a man in his mid thirties, Caucasian, with facial hair",
       "spec": {
-        "cast": "male",
-        "form": "realistic",
-        "physique": "athletic",
+        "from": "scripts/spikes/mission/operative.json",
+        "without": [
+          "headgear: bandana"
+        ],
+        "headgear": "a knit watch cap (NEW: no such card yet)",
         "face": {
           "ethnicity": "western",
-          "age": 34
+          "age": 35,
+          "beard": "stubble or short-boxed"
         }
       },
       "look": {
         "head": "a knit watch cap over slicked-back hair",
-        "reads": "his signature the cap; the rest of his kit TO COME"
+        "body": "the template operative's: sufficient"
       },
-      "shares": "one body with Krait"
+      "shares": "one body with Krait",
+      "outfits": {
+        "reads": "his outfit changes as the game goes on: each chapter names the one he wears (one figure minted a look, the page dressed in the chapter's, as the RPG's wardrobe swaps a member's armour: gameworld/wardrobe.js wearLooks)",
+        "prologue": "the operative's sneaking kit under the watch cap"
+      }
     },
     "chandler": {
       "name": "Chandler",
@@ -523,6 +530,8 @@
     "a lift platform raised in a scene (the walker bay's floor opening, its platform coming up)",
     "the siege walker driven in a scene: steps on a path, a turn, a howitzer shot, the fold to its tank form (its states exist on the boss; a scene playing them does not yet)",
     "the cargo submarine (no submarine on the craft shelf), its facade blown off it as breakable panels, its bay doors, its dive",
-    "a weapon given in a scene (the command pistol into the kit)"
+    "a weapon given in a scene (the command pistol into the kit)",
+    "the knit watch cap (a headgear card)",
+    "a chapter's outfit for the hero (the wardrobe's looks, made for an action game's hero, not only an RPG party's armour)"
   ]
 }
