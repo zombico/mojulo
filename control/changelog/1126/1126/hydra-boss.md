@@ -41,3 +41,9 @@
   director turns the body on her), as it wakes, and is held on her through its strike and its opening (the parts' boxes
   moved with them, in front of its breast).
 
+- **A lair lit by itself** (`color-theorist/cave-rig.js`, a manifest's `castLight: { cave }`): a place with no sky draws
+  its bodies under the cast rig solved from its own light, the fire's warm key thrown high from one side, the rock's
+  cold fill, the floor's bounce, the walls' faint rim (as bright as the place's light, never lifted with a dark body, so a
+  thin wing seen edge-on is not lit white). A boss's lair asks for it, so the hero, the hydra and a dragon (both its
+  forms, built lit: `animalFigure`'s `lit`, `dragonFormFigure`'s) are drawn under the level's light and not each its own
+  baked one: the foe audit's foe-lit holds there.

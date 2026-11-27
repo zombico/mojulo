@@ -18,6 +18,7 @@ import { speciesPlan } from '../fauna/species.js';
 import { withMotion } from '../fauna/rig.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { walkerSkinStretch } from '../scene/channels/walkers.js';
+import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 
 // (a stride's keys: enough for a walk read across a field, a fraction of a hero's)
 const KEYS = 12;
@@ -25,11 +26,14 @@ const FIGURES = new Map();
 
 const REACT_STATES = Object.freeze({ stagger: 'flinch', topple: 'fall', getup: 'rise' });
 
-export async function animalFigure({ species, gait, behaviors = [], reactions = [] }) {
-  const key = JSON.stringify([species, gait, behaviors, reactions]);
+// (`lit`: a body the cast rig lights (color-theorist/cast-rig.js), read as the lit export reads one: its colour under no
+// light, one smooth form, each corner's normal; absent, its light baked as it always was)
+export async function animalFigure({ species, gait, behaviors = [], reactions = [], lit = false }) {
+  const key = JSON.stringify([species, gait, behaviors, reactions, ...(lit ? ['lit'] : [])]);
   if (!FIGURES.has(key)) FIGURES.set(key, (async () => {
     const recipe = expandPlan(withMotion(speciesPlan(species), species, [gait], KEYS, { behaviors, reactions }));
-    const scene = await WORLD_KINDS.layered.resolve({ kind: 'layered', recipe }, { title: species });
+    const scene = lit ? await WORLD_KINDS.layered.resolve({ kind: 'layered', recipe, smooth: true }, { title: species, light: FLAT_LIGHT, unshaded: true })
+      : await WORLD_KINDS.layered.resolve({ kind: 'layered', recipe }, { title: species });
     const { preview, embodies, ...pack } = scene.figures.body;
     const reacts = Object.fromEntries(Object.entries(REACT_STATES).filter(([, w]) => pack.clips[w]).map(([st, w]) => [st, pack.clips[w]]));
     const fig = { ...pack, clips: { ...pack.clips, forward: pack.clips[gait], ...(behaviors.includes('eat') ? { graze: pack.clips.eat } : {}), ...reacts } };

@@ -6,7 +6,9 @@
  * it, the hero come in at its mouth and the boss coiled toward its back wall, the chase held low behind the hero on the
  * line from the boss (worlds/controllable/rules-basic.js follow `face`) so it looms; won by bringing it down.
  *
- *   LAIR                        the chamber, its rock, its light, where the two stand, the camera's words
+ *   LAIR                        the chamber, its rock, its light, where the two stand, the camera's words, and the light
+ *                               its bodies are drawn under (`cast`: the lair's own, every body lit by the level as the
+ *                               hero is: the manifest's castLight)
  *   lairBossOf(G, glyphs)       → { kind, beat } the climax beat's boss where it stands as a boss of the shelf, else null
  *   withoutLairBoss(glyphs, b)  → the glyphs with that beat's foes taken off it (the climax then holds nothing)
  *   lairStage(level, index, b, G) → the lair's stage (levels.js gameStages)
@@ -27,6 +29,11 @@ export const LAIR = Object.freeze({
   // (the boss coiled toward the back wall facing the mouth, the hero come in at the mouth facing it; dropped onto the
   // cave's floor from `drop` m, which undulates)
   boss: Object.freeze([-6, 0, 0]), hero: Object.freeze([6, 1.5]), drop: 3,
+  // (the bodies' light, the cast rig's (color-theorist/cave-rig.js): the fire's warm key thrown high from one side of the
+  // line the two face each other on (a three-quarter key: it models them both and never glares straight back down the
+  // chase, as a key from behind the camera does off a wing's gloss); the rock's cold light, under a sky's, filling them;
+  // the floor's bounce; the walls' rim faint)
+  cast: Object.freeze({ fire: '#ffb070', key: 0.8, ambient: 0.3, tint: Object.freeze([0.92, 0.96, 1.08]), floor: '#59606c', wall: '#666e7c', toLight: Object.freeze([0.2, 0.6, 0.78]), rim: 0.18 }),
   // (the chase: low, close, off the shoulder, its look lifted toward the boss)
   camera: Object.freeze({ dist: 4.2, height: 0.9, shoulder: 1.1, lookH: 1.4, faceH: 7.5, faceMix: 0.6 }),
 });
@@ -52,7 +59,7 @@ export function withoutLairBoss(glyphs, boss) {
 export function lairStage(level, index, boss, G) {
   const E = bestiaryOf(G)[boss.kind], row = E.dragon ? DRAGONS[E.dragon] : VEHICLES[E.vehicle];
   return { level, node: 'lair', section: 'lair', index, boss: boss.kind, label: `${row.name}'s lair`,
-    manifest: { kind: 'dungeon', chambers: [{ ...LAIR.chamber, at: [...LAIR.chamber.at] }], style: structuredClone(LAIR.style), lighting: structuredClone(LAIR.lighting), fire: true } };
+    manifest: { kind: 'dungeon', chambers: [{ ...LAIR.chamber, at: [...LAIR.chamber.at] }], style: structuredClone(LAIR.style), lighting: structuredClone(LAIR.lighting), fire: true, castLight: { cave: structuredClone(LAIR.cast) } } };
 }
 
 export const lairArena = () => ({ center: [...LAIR.chamber.at], r: LAIR.chamber.radius, z: 0 });

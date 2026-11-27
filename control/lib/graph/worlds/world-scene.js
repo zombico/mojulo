@@ -268,6 +268,16 @@ async function celBody(manifest, ctx, jumps = null) {
   return { ...L, figures: { ...L.figures, body: { ...A, toon: true, parts } } };
 }
 
+/** A cast body's rig (color-theorist/cast-rig.js) as the page carries it, under the page's cast light: a land's cube at its
+ * hour (its surface the form's: the renderer tones it with the land), or a cave's own (cave-rig.js: its surface the
+ * paint's, the body toning itself). */
+async function castOf(fc, { register = 'western', palette = null } = {}) {
+  const { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
+  if (fc.cave) { const { caveRig } = await import('@/lib/graph/color-theorist/cave-rig.js'); return { ...castRigInput(caveRig(fc.cave, { register, ...(palette ? { palette } : {}) })), surface: 'paint' }; }
+  const { castRig } = await import('@/lib/graph/color-theorist/cast-rig.js');
+  return { ...castRigInput(castRig(fc.cube, { ...(fc.hour !== undefined ? { hour: fc.hour } : {}), register, ...(palette ? { palette } : {}) })), surface: 'form' };
+}
+
 export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, talks = null, lit = false, pilot = false, cel = false, marks = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
@@ -1068,6 +1078,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // practice room's hero drawn as a level's form page draws it, the skinned body under one light; absent, nothing)
   const CL = sketch.manifest.castLight;
   if (payload && !unshaded && viewOpts.paint !== true && CL && typeof CL === 'object' && !Array.isArray(CL) && CL.cube !== undefined) formCast = { cube: readGeocube(CL.cube), ...(CL.hour !== undefined ? { hour: readHour(CL.hour) } : {}) };
+  // (a place with no sky, a cave (`castLight: { cave: { fire, key, ambient, tint, floor, wall, toLight } }`, a boss's lair):
+  // its bodies under the rig solved from its own fire and rock, color-theorist/cave-rig.js; absent, nothing)
+  else if (payload && !unshaded && viewOpts.paint !== true && CL && typeof CL === 'object' && !Array.isArray(CL) && CL.cave !== undefined) formCast = { cave: (await import('@/lib/graph/color-theorist/cave-rig.js')).readCave(CL.cave) };
   const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
   if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
     // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)
@@ -1641,7 +1654,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
             // (read as the body it is, its palette: a dark suit's shade side lifted off black, cast-rig.js value)
-            figure.cast = { ...castRigInput(castRig(formCast.cube, { ...(formCast.hour !== undefined ? { hour: formCast.hour } : {}), register: reg, ...(fig.palette ? { palette: fig.palette } : {}) })), surface: 'form' };
+            figure.cast = await castOf(formCast, { register: reg, ...(fig.palette ? { palette: fig.palette } : {}) });
           }
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
@@ -1869,15 +1882,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // A BEAST BOSS (gameworld/beast-boss.js: the boss shelf's hydra, a vehicle boss drawn as a beast): a figures-map entry
         // `beastBoss: <its row>`, built here from the fauna it is grown from, never stored. Absent ⇒ none
         if (typeof rawSpec.beastBoss === 'string') {
-          const { beastBossFigure } = await import('@/lib/graph/gameworld/beast-boss.js');
-          payload.figures[name] = await beastBossFigure(rawSpec.beastBoss);
+          const { beastBossFigure, beastPalette } = await import('@/lib/graph/gameworld/beast-boss.js');
+          // (under the level's own light where the page casts its bodies, as a dragon is)
+          const F = await beastBossFigure(rawSpec.beastBoss, formCast ? { lit: true } : {});
+          if (formCast) { const { CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'); F.cast = await castOf(formCast, { register: sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western', palette: beastPalette(rawSpec.beastBoss) }); }
+          payload.figures[name] = F;
           continue;
         }
         // A DRAGON (boss/dragons.js, gameworld/beast-boss.js): a figures-map entry `dragon: { id, form }`, its 'primary' form
         // on four legs or its 'risen' one it rises into, built here, never stored. Absent ⇒ none
+        // (under the level's own light where the page casts its bodies (`castLight`): built lit, its colour under no light
+        // and its normals, the rig solved for its colours)
         if (rawSpec.dragon && typeof rawSpec.dragon === 'object') {
-          const { dragonFormFigure } = await import('@/lib/graph/gameworld/beast-boss.js');
-          payload.figures[name] = await dragonFormFigure(rawSpec.dragon.id, rawSpec.dragon.form);
+          const { dragonFormFigure, dragonPalette } = await import('@/lib/graph/gameworld/beast-boss.js');
+          const F = await dragonFormFigure(rawSpec.dragon.id, rawSpec.dragon.form, formCast ? { lit: true } : {});
+          if (formCast) { const { CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'); F.cast = await castOf(formCast, { register: sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western', palette: dragonPalette(rawSpec.dragon.id) }); }
+          payload.figures[name] = F;
           continue;
         }
         // A CASTLE'S BELL (gameworld/metroidvania/bell.js: a boss no door makes): a figures-map entry `bell: { card }`,

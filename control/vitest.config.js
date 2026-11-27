@@ -30,6 +30,8 @@ export const E2E = [
   // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
   'lib/graph/level/grid-scene.e2e.test.js',
   'lib/graph/worlds/built-light.e2e.test.js',
+  // a boss's lair resolved through world-scene, its dragon's two forms built lit under the cave's own rig
+  'lib/graph/gameworld/lair-light.e2e.test.js',
   // a whole physical geocity resolved through world-scene (its metro, its ring's blocks, pieces and load audit): minutes
   'lib/graph/rupa/city-ring.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',

@@ -70,12 +70,16 @@ export function spreadPack(F, turns) {
   const parts = F.parts.map((P) => {
     if (!P || typeof P.pos !== 'string') return P;
     const V = dec(P.pos, Float32Array), J = dec(P.jnt, Uint8Array), W = dec(P.wgt, Float32Array);
+    // (a lit pack's normals and tangents turned with their corners: `nrm` xyz, `tan` xyz and its handedness)
+    const Nn = typeof P.nrm === 'string' ? dec(P.nrm, Float32Array) : null, Tn = typeof P.tan === 'string' ? dec(P.tan, Float32Array) : null, tw = Tn ? Tn.length / (V.length / 3) : 0;
     for (let v = 0; v < V.length / 3; v++) {
       let top = 0; for (let q = 1; q < 4; q++) if (W[v * 4 + q] > W[v * 4 + top]) top = q;
       const j = J[v * 4 + top]; if (!at[j]) continue;
-      const o = rot([V[v * 3], V[v * 3 + 1], V[v * 3 + 2]], F.bones[j].head, at[j]); V.set(o, v * 3);
+      V.set(rot([V[v * 3], V[v * 3 + 1], V[v * 3 + 2]], F.bones[j].head, at[j]), v * 3);
+      if (Nn) Nn.set(rot([Nn[v * 3], Nn[v * 3 + 1], Nn[v * 3 + 2]], [0, 0, 0], at[j]), v * 3);
+      if (Tn) Tn.set(rot([Tn[v * tw], Tn[v * tw + 1], Tn[v * tw + 2]], [0, 0, 0], at[j]), v * tw);
     }
-    return { ...P, pos: enc(V) };
+    return { ...P, pos: enc(V), ...(Nn ? { nrm: enc(Nn) } : {}), ...(Tn ? { tan: enc(Tn) } : {}) };
   });
   return { ...F, parts, bones: F.bones.map((b, j) => (at[j] ? { ...b, tail: rot(b.tail, b.head, at[j]) } : b)) };
 }

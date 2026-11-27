@@ -25,7 +25,7 @@ describe('a boss\'s lair', () => {
     expect(withoutLairBoss({ grid: { sketch } }, b).grid.sketch.scenario.beats[1].foes).toBeUndefined();
     const S = lairStage('lvl', 4, b, G(beast));
     expect(S).toMatchObject({ level: 'lvl', section: 'lair', index: 4, boss: 'boss' });
-    expect(S.manifest).toMatchObject({ kind: 'dungeon', fire: true });
+    expect(S.manifest).toMatchObject({ kind: 'dungeon', fire: true, castLight: { cave: LAIR.cast } });
     expect(S.manifest.chambers[0].radius).toBe(LAIR.chamber.radius);
     expect(S.label).toContain(VEHICLES[beast].name.replace(/^The /, ''));
   });
