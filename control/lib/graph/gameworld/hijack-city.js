@@ -12,24 +12,66 @@
  *
  *   HIJACK_CITY            the rail's name and the starter's title (a person's game takes its own)
  *   HIJACK_DISTRICT        the district's geocity: the metro it is cut from, its rings, its water, where it stands
- *   hijackCityWorld({ name?, seed? }) → the starter gameworld: a hero, the district, four story missions for one
- *                          contact (the last the end), a repeated fare, two crews, the law, the shops, the look, sound
- *                          and music. A plain value: the same words give the same world
+ *   HIJACK_DISTRICTS       the districts a starter may stand in, by a word: `downtown` (HIJACK_DISTRICT), `inner-city`
+ *                          (a Northeast metro's frame: brick walk-ups, low-rises and main streets among its midrises),
+ *                          `suburbs` (its outskirts: colonials, garden apartments, walk-ups); each a geocity whose
+ *                          evocation stands `at` its ring (geocity/design.js: the ring's most lived-in neighbourhood)
+ *   hijackCityWorld({ name?, seed?, locale?, district?, register?, hour?, people? }) → the starter gameworld (`locale` where it is,
+ *                          gameworld/locales.js: its register, district, light, sky, air and grade, each word named
+ *                          over it winning; `district` a HIJACK_DISTRICTS word, downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
+ *                          own unless named, a San Francisco one laying it on the hill city in its fog): a hero, the
+ *                          district (a car park of it built as the dump, the shore before it a dock, its highways given
+ *                          ramps), four story missions for one contact (the last
+ *                          the end), a repeated fare, Jobsified's driving jobs (HIJACK_SHIFTS), two
+ *                          crews, the law, the shops, the look, sound and music. A plain value: the same words give
+ *                          the same world
  *   hijackCityStart(world) → null | { world, says }: a locked pitch from the rail with no level yet, laid with the
  *                          starter under it; every key the creator wrote wins (gameworld/pitch-start.js)
  *   HIJACK_GROWS           the words the starter is grown by, each a key of the gameworld: what a person changes first
  *
- * Pure: no dice, no imports beyond the reader of a world's own keys.
+ * Pure: no dice; its locales' table (gameworld/locales.js) its one import.
  */
+import { localeOf } from './locales.js';
+
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export const HIJACK_CITY = 'Hijack City';
 
-/** The district a Hijack City is played in: a neighbourhood near a lakeshore metro's core, water on its south. */
+/** The district a Hijack City is played in: a lakeshore metro's downtown, its core (its most lived-in neighbourhood),
+ *  water on its south, its outskirts a West Coast tract. */
 export const HIJACK_DISTRICT = Object.freeze({
   metro: Object.freeze({ from: 'lakeshore', rings: Object.freeze({ core: 350, frame: 700 }) }),
   extent: Object.freeze([1800, 1500]), water: Object.freeze({ sides: Object.freeze(['s']), depth: 200 }), core: Object.freeze([0.5, 0.2]),
-  evoke: 'neighbourhood', at: 'B4', shops: true,
+  // (downtown: the metro's core, its towers, its podiums and its square, the frame round it; the suburbs are a district
+  // of their own)
+  evoke: 'neighbourhood', at: 'core', shops: true,
+  // (one line of streetcar track through it, its streetcars running on it: geocity/roads.js `most`, geocity/flow.js)
+  roads: Object.freeze({ streetcar: Object.freeze({ most: 1 }) }),
+  // (its outskirts' register: a West Coast tract of stucco ranches under palms, geotown/pattern.js; the downtown the
+  // metro's own)
+  outskirts: 'west-coast',
+});
+/** A hill city's district, for a San Francisco register (geocity/metro.js `bayside`): a neighbourhood of its outskirts
+ *  beside the frame, its core on the bay at the north-east, water north and east; its own fog (HIJACK_AIR). */
+export const HIJACK_HILL_DISTRICT = Object.freeze({
+  metro: Object.freeze({ from: 'bayside', rings: Object.freeze({ core: 350, frame: 700 }) }),
+  extent: Object.freeze([2200, 1800]), water: Object.freeze({ sides: Object.freeze(['n', 'e']), depth: 220 }), core: Object.freeze([0.8, 0.8]),
+  evoke: 'neighbourhood', at: 'B3', shops: true, outskirts: 'san-francisco',
+});
+/** The registers that lay the hill city's district, and the air each is seen through (the fog off the ocean). */
+export const HIJACK_HILL_REGISTERS = Object.freeze(['san-francisco', 'sunset']);
+const HILL_AIR = Object.freeze({ kind: 'mist' });
+
+// (a Northeast metro cut small for a district: its harbour east, its core by it, its frame and outskirts inland; it
+// holds every law of the metro's at its game scale, evoked at either ring)
+const NORTHEAST_CUT = Object.freeze({ metro: Object.freeze({ from: 'northeast', rings: Object.freeze({ core: 350, frame: 900 }) }), extent: Object.freeze([3000, 2400]),
+  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true,
+  roads: Object.freeze({ streetcar: Object.freeze({ most: 1 }) }) });
+/** The districts a Hijack City may stand in, by a word: its streets, its buildings and its traffic each its ring's. */
+export const HIJACK_DISTRICTS = Object.freeze({
+  downtown: HIJACK_DISTRICT,
+  'inner-city': Object.freeze({ ...NORTHEAST_CUT, at: 'frame' }),
+  suburbs: Object.freeze({ ...NORTHEAST_CUT, at: 'outskirts' }),
 });
 
 // the contact's jobs, told as missions: a first errand, one with heat, one against the clock, the end
@@ -40,25 +82,96 @@ const MISSIONS = Object.freeze([
   { id: 'the-jeweller', name: 'The jeweller', reward: 300, item: 'stones', offer: 'This is the one. The jeweller\'s. Take the stones, lose the police, bring them to me. Five minutes.', mission: { heat: 3, clean: true, time: 300, final: true } },
 ]);
 
+/** The city's driving jobs a Hijack City starts with, on the Jobsified app (gameworld/jobsified.js SHIFTS, a job a row),
+ *  each taken on the phone and worked again for more: the bin round (a garbage truck from the works yard, its piles held
+ *  at until it is full, emptied at the district's dump), a heavy vehicle call (trucks and a site's machines issued by the
+ *  works yard in turn, each driven across the district to a building site) and a bus route (a bus issued by the depot, its stops held at in order: those
+ *  waiting board, those from the stop before get off) and dig and load (a building site's excavator operated, licence and
+ *  all, its pile of spoil tipped into a truck) and groundskeeping (a park's long grass mown on a ride-on mower, the
+ *  grounds crew off sick, licence and all); and, the pit dug, the foreman's materials never arriving, the Dockers'
+ *  delivery orders (checked in for at their HQ, trucks from the dock to building sites). */
+/** The municipal office's requests (municipal.js): constituents' infra requests on the CityLine 311 app, done in a city
+ *  worker's ID: a work order made at City Hall, the material from the works yard, the fix in place. */
+export const HIJACK_REQUESTS = Object.freeze([
+  Object.freeze({ id: 'pothole', kind: 'pothole', from: 'Mrs. Henderson' }),
+  Object.freeze({ id: 'fence', kind: 'fence', from: 'Marjorie, again' }),
+  Object.freeze({ id: 'park-litter', kind: 'park', from: 'The Residents\' Association (all three of them)' }),
+]);
+
+/** How many stars are hidden round the district (gameworld/hidden-stars.js): found by looking, kept in the bag. */
+export const HIJACK_HIDDEN = 10;
+
+export const HIJACK_SHIFTS = Object.freeze([
+  Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
+  Object.freeze({ id: 'heavy-haul', name: 'Heavy vehicle call', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
+  Object.freeze({ id: 'bus-route', name: 'Bus route', vehicle: 'bus', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 50 })]) }),
+  Object.freeze({ id: 'street-sweeping', name: 'Street sweeping', vehicle: 'sweeper', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 35 })]) }),
+  // (the parks' grounds crew off sick: the long grass mown on a ride-on mower, licence and all)
+  Object.freeze({ id: 'groundskeeping', name: 'Groundskeeping', vehicle: 'groundskeeper', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 45 })]) }),
+  Object.freeze({ id: 'dig-and-load', name: 'Dig and load', vehicle: 'excavator', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 70 })]) }),
+  // (an office temp's job, the staffing app's: a lifted badge, a desk in Synergetics Tower, its shifts paid in there)
+  Object.freeze({ id: 'office-temp', name: 'Office temp', vehicle: 'temp', repeat: true }),
+  // (the pit dug, the foreman's materials never come: the Dockers' delivery orders, checked in for at their HQ)
+  Object.freeze({ id: 'materials', name: 'Delivery orders', vehicle: 'freight', after: 'dig-and-load', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 80 })]) }),
+  // (the emergency station's calls: a patient taken in, fires hosed down; a courier's van out of the dock; a mail round)
+  Object.freeze({ id: 'ambulance-calls', name: 'Ambulance calls', vehicle: 'ambulance', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 55 })]) }),
+  Object.freeze({ id: 'fire-calls', name: 'Fire calls', vehicle: 'fire', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 65 })]) }),
+  Object.freeze({ id: 'courier-run', name: 'Courier run', vehicle: 'courier', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
+  Object.freeze({ id: 'mail-round', name: 'Mail round', vehicle: 'mail', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 35 })]) }),
+]);
+
 /** What a person changes first, each a key of the gameworld (the gameworld-hijack-city card says how). */
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
-  levels: 'the district: another metro (`geocity.metro.from`), its size, its water, another district beside it',
-  errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
+  style: 'where it is, by a locale (`hijackCityWorld({ locale })`, gameworld/locales.js: los-angeles, miami, san-francisco, boston, toronto: its suburbs, light, sky, air and grade together), or its own `geocube`, `hour`, `clouds`, `air`',
+  levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, northeast, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, northeast, bayside), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it, its museum (`geocity.museum`, `hijackCityWorld({ museum })`: its name and its three wings\' collections, things minted in mojulo; false for none)',
+  errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work (TaskFu\'s fares, Jobsified\'s driving jobs: `vehicle`, gameworld/jobsified.js)',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
-  shops: 'the respray garage and the gun shop, their prices',
+  shops: 'the respray garage, the gun shop and the forger (a fake ID: the heavy machinery licence the heavy vehicle call asks for), their prices',
   ui: 'the look of the menus and the HUD (a theme card)',
-  music: 'the score: walking, the chase, the tension',
+  music: 'the score: walking (shady lo-fi, `music.cues[\'level:district\']`), the screens (its mirror, vibrant), the chase, the tension; the street\'s bed (`sound.bed`: block, boulevard, city)',
 });
 
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2 } = {}) {
-  const district = JSON.parse(JSON.stringify(HIJACK_DISTRICT));
+// (a city's NIGHT where its locale says none: warm lamps, a dark thin haze, the night's grade)
+export const HIJACK_NIGHT = Object.freeze({ lamps: '#ffd08a', air: Object.freeze({ kind: 'haze', visibility: 2600, colour: '#252a35' }), grade: 'night' });
+const NIGHT_HOURS = Object.freeze(['dusk', 'night']);
+const isNight = (h) => (typeof h === 'number' ? h >= 19.5 || h < 5.5 : NIGHT_HOURS.includes(h));
+// (its MUSEUM, geocity/museum.js: a block across a street from the walk's start built as one, entered by its door into a
+// building of its own, three wings of galleries; a collection a wing, each piece a stored sketch's ref, era/exhibits.js)
+export const HIJACK_MUSEUM = Object.freeze({ name: 'The City Museum' });
+// (its other WALK-INS, geocity/walkins.js: an arcade whose floor keeps the inside games, a public library; and THE GAMES
+// INSIDE THE GAME, gameworld/minigames.js: a blocks cabinet and a match cabinet, kept where a room keeps one)
+export const HIJACK_ENTER = Object.freeze(['arcade', 'library', 'aquarium', 'zoo']);
+export const HIJACK_MINIGAMES = Object.freeze([Object.freeze({ game: 'blocks', where: 'inside' }), Object.freeze({ game: 'match', where: 'inside' }),
+  // (a line cast off the dock's quay, past the crane: its keeper an old hand at the water's edge)
+  Object.freeze({ game: 'fishing', where: 'quay' })]);
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null, people = null, museum = null } = {}) {
+  // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
+  // air and grade; every word the person names over it wins. None: the starter as it always was)
+  const L = locale === null ? null : localeOf(locale), word = named ?? L?.district ?? 'downtown', register = own ?? L?.register ?? null;
+  if (!HIJACK_DISTRICTS[word]) throw new Error(`hijack city: district is ${Object.keys(HIJACK_DISTRICTS).join(', ')}`);
+  // (`register`: its outskirts' pattern, geotown/pattern.js PATTERNS: 'tropical' for a coast, 'bay-and-gable' for a
+  // streetcar suburb, 'san-francisco' or 'sunset' the district laid on the hill city at its word's ring, in its fog;
+  // the district's own unless named)
+  const hill = HIJACK_HILL_REGISTERS.includes(register);
+  const base = hill ? (word === 'downtown' ? HIJACK_HILL_DISTRICT : { ...HIJACK_HILL_DISTRICT, at: word === 'inner-city' ? 'frame' : 'outskirts' }) : HIJACK_DISTRICTS[word];
+  // (a locale's city, its grammar, its land and its heights by ring, over the district's metro: gameworld/locales.js)
+  // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
+  // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
+  const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
+  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, office: true, cityhall: true, enter: [...HIJACK_ENTER], ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
+  if (district.museum === undefined) delete district.museum;
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
-    // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page)
-    style: { kit: 'trail-valley', geocube: { from: 'valley-morning', era: 'gen-7' } },
+    // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair
+    // sky, a haze thick enough that the far blocks pale a kilometre off, the finish over the bake (one tone curve, the
+    // sky in the glass, the lamps' bloom) and the view cone, so the street's kit, its trees and its traffic are drawn as
+    // far as they read)
+    style: { kit: 'trail-valley', geocube: { from: L ? L.cube : 'valley-morning', era: 'gen-7' }, ...(hour ? { hour } : {}), clouds: L?.clouds ?? 'fair', air: N ? JSON.parse(JSON.stringify(N.air)) : L?.air ? JSON.parse(JSON.stringify(L.air)) : hill ? { ...HILL_AIR } : { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
+    // (a locale's colour grade over every frame, grade.js)
+    ...(N?.grade ?? L?.grade ? { grade: N?.grade ?? L.grade } : {}),
     characters: {
       direction: { tradition: 'western' },
       hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold', 'athletic'] }, actions: { idiom: 'city-stalker-like' } },
@@ -69,6 +182,9 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2 } = {}) {
       ...MISSIONS.map((m) => ({ id: m.id, name: m.name, contact: 'vince', giver: 'district', reward: [{ item: 'coin', n: m.reward }], offer: m.offer, list: [{ item: m.item, at: 'district' }], mission: { ...m.mission } })),
       // (side work on the phone: fares, as many as are driven)
       { id: 'fare', giver: 'district', repeat: true, reward: [{ item: 'coin', n: 12 }], list: [{ item: 'passenger', at: 'district' }], app: 'taskfu' },
+      // (the city's driving jobs on Jobsified, jobsified.js: a garbage truck's bin round from the works yard and back,
+      // driven again for more; a district with no works yard lays none of it)
+      ...HIJACK_SHIFTS.map((J) => ({ ...J, giver: 'district', ...(J.reward ? { reward: J.reward.map((r) => ({ ...r })) } : {}) })),
     ],
     ui: { theme: { from: 'downtown', icons: 'solid' }, colour: 'theme' },
     factions: {
@@ -79,9 +195,16 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2 } = {}) {
       dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south', rivals: ['reds'], board: [{ id: 'repo', name: 'Repossession', act: { verb: 'take', target: 'car', on: 'reds' }, reward: [{ item: 'coin', n: 40 }] }], crew: 'docker' },
     },
     foes: { docker: { class: 'pursuer', skin: { people: 'human', dress: { faction: 'streetGang', colourway: 'blue' } } } },
-    sound: {}, music: {},
+    // (its sound: the block at street level, horns and sirens and no birds, sfx-shelf/beds.js `block`; its score: the
+    // streets walked to shady lo-fi with the chase over it, its screens to the mirror, vibrant: beats/club-score.js)
+    minigames: HIJACK_MINIGAMES.map((g) => ({ ...g })),
+    sound: { bed: 'block' }, music: { cues: { 'level:district': 'shady', title: 'vibrant', menu: 'vibrant' } },
     law: true,
-    shops: { respray: true, guns: true },
+    // (a forger too: the papers the heavy vehicle call asks for, HIJACK_SHIFTS)
+    shops: { respray: true, guns: true, forger: true },
+    municipal: { requests: HIJACK_REQUESTS.map((R) => ({ ...R })) },
+    // (stars tucked round the district, found by looking: parks' corners, lots, under the ramps, the dock; hidden-stars.js)
+    hidden: { stars: HIJACK_HIDDEN },
   };
 }
 

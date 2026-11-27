@@ -61,8 +61,10 @@ describe('octopus boxer', () => {
   }, 240000);
 
   it('the fist’s fingers land near the `fist` word, whose own thumb runs through the fingers', () => {
-    const fist = handShape(R, 'R', 'fist'), pe = poleError(R, 'R', fist);
-    for (const d of FINGERS) expect(pe.tips[d], d).toBeLessThan(0.02);
+    // (within an eighth of the hand's span, the wrist to the middle finger's tip: the hand is sized to the body under
+    // realistic laws 18, and a tip's error grows with it)
+    const fist = handShape(R, 'R', 'fist'), pe = poleError(R, 'R', fist), span = dist(R.joints.wristR, R.joints.middleTipR);
+    for (const d of FINGERS) expect(pe.tips[d], d).toBeLessThan(0.125 * span);
     const word = Object.fromEntries(DIGITS.map((d) => [d, HAND_POSES.fist[d]]));
     expect(clearOf(word, 'thumb'), 'the word’s thumb pressed into the fingers').toBeLessThan(-0.01);
     expect(clearOf(fist.fingers, 'thumb')).toBeGreaterThan(-0.003);

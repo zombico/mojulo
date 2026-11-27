@@ -51,6 +51,17 @@ export function tailgateAt(cls, reach) {
   for (let k = 0; k < 50; k++) { const m = (lo + hi) / 2; if (lowest(pts, pv, m) >= reach) lo = m; else hi = m; }
   return lo;
 }
+/** A REFUSE TRUCK'S TAILGATE, for a body that swings it (gameworld/jobsified.js, scene/channels/cab-pool.js `gate`): its
+ *  faces (the `parts` the tailgate's builder names: its shell, the hopper, the packer, the lifter, its lamps and marks),
+ *  the hinge it swings up about (`pivot`: [y, z], along x), how far it swings to unload (`tip`, radians, its tail up: its
+ *  lower edge at the deployed reach) and where it stands closed (`closed`). Null for any other class. */
+export const GATE_PARTS = Object.freeze(['tailgate', 'hopper', 'hopper.sill', 'packer.ram', 'packer.rod', 'lifter', 'lifter.comb', 'taillamp', 'taillamp.bezel', 'beacon.rear', 'beacon.rear.bezel', 'chevron', 'grab.rear']);
+export function refuseGate(cls) {
+  const v = VEHICLES[cls];
+  if (cls !== 'refuseTruck' || !v) return null;
+  const yT = -v.L / 2, yH = yT + 2.15;
+  return { parts: GATE_PARTS, pivot: HINGE(yH), tip: tailgateAt(cls, 2.5), closed: tailgateAt(cls, reachOf('refuse', {})) };
+}
 function refuse(cls, { words = [], pose = {} } = {}) {
   const v = VEHICLES[cls], hw = v.W / 2, r = v.wheelRadius, axles = worksAxles(cls, 'refuse'), [yf] = axles, yN = v.L / 2, yT = -v.L / 2, out = [];
   const P = (o) => out.push(...plate(o));

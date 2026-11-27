@@ -110,7 +110,7 @@ describe('suggestScore: laws over the grid', () => {
       if (f) field.add(f.mood);
       if (k) club.add(k.mood);
     });
-    for (const p of [{ title: 'corner cafe' }, { title: 'underwater reef' }, { title: 'neon lab' }]) for (const play of PLAYS) {
+    for (const p of [{ title: 'corner cafe' }, { title: 'underwater reef' }, { title: 'neon lab' }, { title: 'back alley' }, { title: 'bustling boulevard' }]) for (const play of PLAYS) {
       const k = suggestScore({ mechanics: [], base: 'terrain', ...p, ...play });
       if (k) club.add(k.mood);
     }

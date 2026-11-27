@@ -53,7 +53,7 @@ import { roadKinds, layoutOf } from './roads.js';
 import { townsOf, blockTownsOf } from './towns.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
-import { highwaysOf, highwayLaws } from './highways.js';
+import { highwaysOf, highwayLaws, highwayPlan, corridorHalf, rampsOf, RAMP } from './highways.js';
 import { waterfrontOf, waterfrontLaws } from './waterfront.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { profileStreets, climbLift } from '../geotown/profile.js';
@@ -99,6 +99,13 @@ export function geocityLand(T, land, seed = 1, field = null) {
       hills = (x, y) => (raw(x, y) - lo) * k;
     }
     N = (x, y) => fall(x, y) + hills(x, y);
+    // (THE SHORE, opt-in `shore` metres, a hill city's: within it of a side its water lies along, the land eased down to
+    // the water's edge, so its waterfront stands at the water and its hills rise inland, never a cliff into the sea)
+    const ease = T.metro.shore, wet = T.metro.water?.sides ?? [];
+    if (ease > 0 && wet.length) {
+      const N0 = N, edge = { w: (x) => x - x0, e: (x) => x1 - x, s: (x, y) => y - y0, n: (x, y) => y1 - y };
+      N = (x, y) => { const d = Math.min(...wet.map((w) => edge[w](x, y))), t = Math.max(0, Math.min(1, d / ease)); return N0(x, y) * t * t * (3 - 2 * t); };
+    }
   }
   // S: N on the grid, box-blurred twice each way (near a gaussian of S_BLUR), clamped at the edges, read bilinearly
   const nx = Math.ceil(W / S_CELL) + 1, ny = Math.ceil(D / S_CELL) + 1;
@@ -185,6 +192,14 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   for (const l of lines) {
     const lay = layoutOf(kinds[l.id], l.axis, M.roads, G.traffic), h = r3(lay.road / 2 + sec.walk);
     Object.assign(l, { kind: kinds[l.id], road: lay.road, half: h, bands: lay.bands, tracks: lay.tracks, rect: l.axis === 'ns' ? [r3(l.at - h), land[1], r3(l.at + h), land[3]] : [land[0], r3(l.at - h), land[2], r3(l.at + h)] });
+  }
+  // (an arterial that carries a highway, highways.js: laid to its corridor, the deck's half and its clearance each side,
+  // so no block is cut under or against the deck; the right-of-way's walks wide under it)
+  for (const p of highwayPlan(M, { lines, water, seat, frame: { W, D } })) {
+    // (a district with a dock, its highways driven: room each side for a ramp, highways.js RAMP)
+    const l = lines.find((x) => x.id === p.along), c = r3(corridorHalf(M.highways.lanes) + (T.dock ? RAMP.room : 0));
+    if (!l || l.half >= c) continue;
+    Object.assign(l, { half: c, rect: l.axis === 'ns' ? [r3(l.at - c), land[1], r3(l.at + c), land[3]] : [land[0], r3(l.at - c), land[2], r3(l.at + c)] });
   }
   const widest = Math.max(...lines.map((l) => l.half));
   section.half = widest; section.road = r3(Math.max(...lines.map((l) => l.road))); section.row = r3(2 * widest);
@@ -289,7 +304,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   }
   for (const r of regions) {
     const b = Bs[r.id];
-    Object.assign(r, { streets: b.streets, blocks: b.blocks, ledger: b.ledger });
+    Object.assign(r, { streets: b.streets, blocks: b.blocks, ledger: b.ledger, ...(b.alleys ? { alleys: b.alleys } : {}) });
     if (r.parkRect && b.park) r.parkRect = { ...r.parkRect, rect: b.park, area: r3(area(b.park)) };
     r.soft = r3(Object.entries(b.ledger.surfaces).filter(([k]) => isSoft(k)).reduce((s, [, v]) => s + v, 0));
   }
@@ -323,6 +338,15 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   // 10 an evocation: what it centres on and draws at detail, and the metro to scale it is held to
   if (T.evoke !== 'metro') {
     d.evoked = evokedOf(d, T);
+    // (a DOCK, `dock`: the main shore's segment before the evocation's middle a working port, its ramps down from the
+    // highways; waterfront.js `port`, highways.js rampsOf)
+    if (T.dock && d.waterfront) {
+      const ER = d.regions.filter((r) => d.evoked.regions?.includes(r.id)), c = ER.length ? [ER.reduce((s, r) => s + (r.rect[0] + r.rect[2]) / 2, 0) / ER.length, ER.reduce((s, r) => s + (r.rect[1] + r.rect[3]) / 2, 0) / ER.length] : d.seat;
+      const Wm = d.waterfront.find((w) => w.main), along = Wm && (Wm.side === 's' || Wm.side === 'n') ? c[0] : c[1];
+      const g = Wm?.segments.find((x) => along >= x.a0 && along <= x.a1) ?? Wm?.segments.reduce((m, x) => (!m || Math.abs((x.a0 + x.a1) / 2 - along) < Math.abs((m.a0 + m.a1) / 2 - along) ? x : m), null);
+      if (g) { g.kind = 'port'; delete g.shore; delete g.piers; }
+    }
+    if (T.dock && d.highways) d.ramps = rampsOf(d);
     const told = ['evoke', 'at', 'along', 'play', 'under', 'subway'];
     const ref = designGeocity(Object.fromEntries(Object.entries(spec).filter(([k]) => !told.includes(k))), { seed, field });
     d.laws.push(evokesLaw(d, ref));
@@ -342,6 +366,8 @@ export function industryOf(regions, M, seed) {
   return out.sort();
 }
 
+// a neighbourhood's lived-in fabric, its blocks of homes (an evocation `at` a ring picks the neighbourhood with the most)
+const FABRIC = new Set(['houses', 'apartments', 'lowrise', 'garden', 'midrise', 'slab']);
 /** What an evocation centres on, the blocks it draws at a building's detail and the neighbourhoods round them it draws
  *  as massing (the rest of the metro is its skyline). */
 function evokedOf(d, T) {
@@ -352,7 +378,13 @@ function evokedOf(d, T) {
   const out = { evoke: T.evoke, play: T.play };
   if (T.evoke === 'skyline') return { ...out, blocks: [], regions: [] };
   if (T.evoke === 'neighbourhood') {
-    const at = T.at ?? built.filter((r) => r.builds === 'core').sort((p, q) => near(p.mid) - near(q.mid))[0]?.id ?? built[0].id;
+    // (`at` a neighbourhood's id, or a RING's word: the neighbourhood that builds as it nearest the seat, none industrial;
+    // the core's by default)
+    // (the frame's or the outskirts': the one with the most of its ring's lived-in FABRIC, its blocks of homes, nearest
+    // the seat among equals; never a strip of shops along an arterial)
+    const ring = !T.at ? 'core' : ['core', 'frame', 'outskirts'].includes(T.at) ? T.at : null;
+    const fabric = (r) => (ring === 'core' ? 0 : r.blocks.filter((b) => FABRIC.has(b.kind)).length);
+    const at = ring ? (built.filter((r) => (r.builds ?? r.ring) === ring && !r.industrial).sort((p, q) => fabric(q) - fabric(p) || near(p.mid) - near(q.mid))[0]?.id ?? no(`at '${ring}': this metro has no neighbourhood that builds as its ${ring}`)) : T.at;
     const r = byId.get(at) ?? no(`at '${at}' is not a neighbourhood (${d.regions.map((x) => x.id).join(', ')})`);
     return { ...out, at, blocks: r.blocks.map((b) => b.id), regions: round([r]) };
   }

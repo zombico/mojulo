@@ -100,6 +100,18 @@ const TEXTURE_STYLES = Object.freeze({
   coily: { male: [{ style: 'twa' }, { style: 'afro' }], female: [{ style: 'afro' }, { style: 'twa' }] },
 });
 
+/** THE IRIS'S COLOUR by its word (egocube/ancestry.js EYE_COLOURS): a mid-iris colour the eye's pattern (head-relational-eye.js
+ * irisTone) darkens toward the limbus and lightens about the pupil */
+export const IRIS_HEX = Object.freeze({
+  'dark-brown': '#3a2618', brown: '#5a3820', amber: '#8a5c26', hazel: '#76663a', green: '#5c7246', blue: '#4f7394', grey: '#7a8590',
+});
+/** An egocube ancestry's person's IRIS (realistic laws 19): a colour word off the ancestry's own list (`eyes`, weighted by
+ * repeats), on a stream of its own so the rest of the person's roll (readAncestry) moves not at all → { word, hex } */
+export function ancestryIris({ id, sex = 'male', seed = 1 } = {}) {
+  const A = HUMAN_ANCESTRIES[id], list = A?.eyes?.length ? A.eyes : ['brown'];
+  const word = list[Math.floor(streamOf(seed, 'dermal-ancestry-iris', `${id}/${sex}`)() * list.length) % list.length];
+  return { word, hex: IRIS_HEX[word] ?? IRIS_HEX.brown };
+}
 /** A person of an egocube ancestry, rolled inside its ranges: { sex, relations, eyes, dermis, scalp, epidermis, rolled }. */
 export function readAncestry({ id, sex = 'male', seed = 1, game = false, eyeShape = null } = {}) {
   const A = HUMAN_ANCESTRIES[id];

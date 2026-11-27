@@ -241,7 +241,8 @@ A cube that names no domains offers one per terrain and one per interior.
   crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
   grass, its trees grow as form (their litter round their feet), its hedges, beds, planters and foundation plantings
   are the plant library's bushes and shrubs (`pattern.houseplants`), no trail's rubble or patches. `pattern` a block pattern (`bay-and-gable`, a
-  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `profile` its streets
+  Toronto Annex; `old-town`; `west-coast`, stucco ranches under palms; `tropical`, a pastel coast; `san-francisco`, painted Victorians up
+  steep streets; `sunset`, stucco rows over their garages; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `profile` its streets
   laid as a hill town lays them (`true` or `{ walkable, curve }`: its crossings level, each block graded on one ramp, a
   stretch past `walkable` said too steep to walk by the `walkable` law; a street's stairs are its buildings' front steps), `slope` THIS CLIMBS (`{ toward: n | e | s | w, grade }` the land
   rising toward a side over its hills, the houses' pads with it; `streets: { 'ns-1': 0.12 }` each named street, one
@@ -266,8 +267,9 @@ A cube that names no domains offers one per terrain and one per interior.
   cars in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
   its garbage trucks and works pickups, an emergency station with its fire engines, ambulances and police cars, the rest
   car parks); a vacant block by its construction sites their contractor's yard of mixers, tippers and loaders. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, waterfront?, evoke?, at?, along?, play?, profile?, slope? }`: `industry` its
-  industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
+  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, waterfront?, evoke?, at?, along?, play?, profile?, slope? }`: `outskirts` the
+  pattern its suburbs are in, out to its edge (`west-coast`, `tropical`, `san-francisco`, `sunset`; a hill city:
+  `metro: { from: 'bayside' }`); `industry` its industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
   most] }`: a share of the outskirts' neighbourhoods, its land's edge and its shore first; big blocks: a works' corrugated
   hall and its stack, a clad warehouse's docks and trucks, container stacks and silos, a tank farm's tanks, gas spheres or
   a gasholder, and in each a substation of outdoor transformers, gantries and breakers, fed by a line on lattice pylons
@@ -298,7 +300,7 @@ A cube that names no domains offers one per terrain and one per interior.
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,
   bins, hydrants, hydro poles, street trees and tiled ground); `lively` the share of each ring's blocks going up
-  (scaffolding, a crane, hoarding, barriers), parked or vacant; `shops` (as a geotown's) its rows of shops along its main streets and its neighbourhoods' edges walked into, each bay a store behind its own door and a stoop up from its walk (a `shop` anchor each; shops of one size share one inside; a shop on a pad high over its walk has its floor sunk under the pad, `store.sink`), a geotown composed in taking it too; `geotowns` the geotown composed in at any grain, anywhere:
+  (scaffolding, a crane, hoarding, barriers), parked or vacant; `civic` the places it keeps (`{ worship, cemetery: { <ring>: share }, faiths: { church, mosque, temple }, block }`, or `false`: a church, mosque or temple from the city library on a railed forecourt, a cemetery in its rows); its highways laid in corridors clear of every block; `shops` (as a geotown's) its rows of shops along its main streets and its neighbourhoods' edges walked into, each bay a store behind its own door and a stoop up from its walk (a `shop` anchor each; shops of one size share one inside; a shop on a pad high over its walk has its floor sunk under the pad, `store.sink`), a geotown composed in taking it too; `geotowns` the geotown composed in at any grain, anywhere:
   `{ 'D3': true | { neighbourhood: 'annex' } }` a neighbourhood laid by it (fitted by its ring), `{ 'D3.2.1': true |
   { segment: 'main-street' } }` one block laid by its segment, filled and cropped to the block, all on the metro's land;
   `metro` a card (`lakeshore`, a Toronto by

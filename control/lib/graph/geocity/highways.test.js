@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { designGeocity } from './design.js';
 import { readGeocity } from './metro.js';
-import { highwaysOf, highwayLaws, deckAt, deckWidth, HIGHWAY } from './highways.js';
+import { highwaysOf, highwayLaws, deckAt, deckWidth, HIGHWAY, corridorHalf } from './highways.js';
 import { assembleGeocityScene } from './scene.js';
 
 const d = designGeocity({ evoke: 'neighbourhood' }, { seed: 2 }), H = d.highways;
@@ -32,6 +32,18 @@ describe('the metro\'s highways, planned', () => {
       expect(deckAt(h, town.at) - HIGHWAY.depth - deckAt(town, h.at)).toBeGreaterThanOrEqual(HIGHWAY.clear);
       expect(Math.abs(deckAt(h, h.lo) - deckAt(shore, h.at))).toBeLessThan(0.5);
     }
+  });
+
+  it('keeps its corridor clear: the arterial it rides laid to its deck and its clearance, no neighbourhood within it', () => {
+    for (const h of H.filter((x) => x.line || x.along !== 'shore')) {
+      const l = d.lines.find((x) => x.id === h.along);
+      if (!l) continue;
+      expect(l.half).toBeGreaterThanOrEqual(corridorHalf(h.lanes) - 1e-6);
+      const c = h.corridor;
+      expect(c[2] - c[0] === h.hi - h.lo || c[3] - c[1] === h.hi - h.lo).toBe(true);
+      for (const r of d.regions) expect(Math.min(c[2], r.rect[2]) - Math.max(c[0], r.rect[0]) <= 0.01 || Math.min(c[3], r.rect[3]) - Math.max(c[1], r.rect[1]) <= 0.01, `${r.id} in ${h.id}`).toBe(true);
+    }
+    expect(highwayLaws(d, H).find((l) => l.law === 'highway-corridor').ok).toBe(true);
   });
 
   it('stands its piers in its arterial\'s kerb lanes and never in a crossing', () => {
@@ -71,5 +83,30 @@ describe('the metro\'s highways, built', () => {
     const under = lamps.filter((t) => Math.abs(t.pos[1] - town.at) < town.w / 2 && t.pos[0] > town.lo && t.pos[0] < town.hi && t.pos[2] < deckAt(town, t.pos[0]) - 1);
     expect(under).toHaveLength(0);
     for (const id of ['highway-grade', 'highway-clear', 'faces']) expect(p.geocity.laws.find((l) => l.law === id).ok).toBe(true);
+  });
+});
+
+describe('a district with a dock: a port on its shore, its highways given ramps', () => {
+  const D = designGeocity({ evoke: 'neighbourhood', dock: true }, { seed: 2 });
+  it('the main shore\'s segment before the evocation a port; ramps beside the decks, each from the deck\'s top down to the street short of an arterial, and one into the port', async () => {
+    const { RAMP, rampsOf } = await import('./highways.js');
+    const port = D.waterfront.find((w) => w.main).segments.filter((g) => g.kind === 'port');
+    expect(port).toHaveLength(1);
+    // (without the word: no port, no ramps, the corridor its own)
+    expect(d.waterfront.flatMap((w) => w.segments).some((g) => g.kind === 'port')).toBe(false);
+    expect(d.ramps).toBeUndefined();
+    const toPort = D.ramps.filter((r) => r.port);
+    expect(toPort).toHaveLength(1);
+    expect(toPort[0].u1).toBeGreaterThan(port[0].a0);
+    for (const r of D.ramps) {
+      const h = D.highways.find((x) => x.id === r.highway);
+      expect(h.water).toBeFalsy();
+      // (beside its deck, in the room its corridor keeps, never on it)
+      expect(Math.abs(r.at - h.at)).toBeCloseTo(h.w / 2 + RAMP.room / 2, 2);
+      expect(r.z0).toBeCloseTo(deckAt(h, r.u0), 1);
+      if (!r.port) expect((r.z0 - r.z1) / Math.abs(r.u1 - r.u0)).toBeLessThanOrEqual(RAMP.grade * 1.03);
+    }
+    expect(D.highways.every((h) => h.water || (h.axis === 'x' ? h.corridor[3] - h.corridor[1] : h.corridor[2] - h.corridor[0]) >= h.w + 2 * (HIGHWAY.side + RAMP.room) - 0.01)).toBe(true);
+    expect(rampsOf({ highways: [] })).toEqual([]);
   });
 });

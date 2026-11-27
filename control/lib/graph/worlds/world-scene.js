@@ -50,6 +50,7 @@ import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps, ROOM_MAPS } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
+import { townReflect } from '@/lib/graph/form/town-gloss';
 import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
 import { resamplePlans, firstReading } from '@/lib/graph/matte-paint/detail';
@@ -174,26 +175,36 @@ const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave
  * does (its AI, or held still), the height below which a seated body is brought back, and the lives its falls cost (each
  * seat's own, or one count shared). Throws, teaching. */
 export function readSeats(seats, entities, pilot = null) {
-  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared' }, the bodies seats 2 to 4 take`);
+  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared', contest?: 'versus' | 'free-for-all' | 'teams', downs?: 'level', crew?: { <seat>: { body: the pilot, as: 'gunner' } } }, the bodies seats 2 to 4 take`);
   if (!seats || typeof seats !== 'object' || Array.isArray(seats)) throw bad('');
-  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool'].includes(k)) throw bad(`.${k} is not a seats key`);
+  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool', 'contest', 'downs', 'crew'].includes(k)) throw bad(`.${k} is not a seats key`);
   const list = Array.isArray(entities) ? entities : [], first = pilot ?? list.find((e) => e && e.pilotable)?.id;
-  if (!Array.isArray(seats.bodies) || !seats.bodies.length || seats.bodies.length > 3) throw bad('.bodies names one to three bodies');
+  // (crew: a seat that works the pilot's gun, a gunner, with no body of its own: seats.crew { 2: { body, as: 'gunner' } })
+  const crew = seats.crew === undefined ? null : seats.crew;
+  if (crew !== null && (typeof crew !== 'object' || Array.isArray(crew))) throw bad('.crew is { <seat 2-4>: { body, as: \'gunner\' } }');
+  const crewN = crew ? Object.keys(crew).length : 0;
+  if (!Array.isArray(seats.bodies) || (!seats.bodies.length && !crewN) || seats.bodies.length + crewN > 3) throw bad('.bodies names one to three bodies (none, with a crew)');
   seats.bodies.forEach((id, i) => {
     const e = list.find((x) => x && x.id === id);
     if (!e || !e.pilotable) throw bad(`.bodies[${i}] '${id}' is not a pilotable entity of this world`);
     if (id === first) throw bad(`.bodies[${i}] '${id}' is the pilot, seat 1's body`);
     if (seats.bodies.indexOf(id) !== i) throw bad(`.bodies[${i}] '${id}' appears twice`);
   });
-  const max = seats.max ?? seats.bodies.length + 1;
-  if (!Number.isInteger(max) || max < 2 || max > seats.bodies.length + 1) throw bad(`.max is 2 to ${seats.bodies.length + 1} (one more than the bodies)`);
+  if (crew) for (const k of Object.keys(crew)) {
+    const c = crew[k], n = Number(k);
+    if (!Number.isInteger(n) || n < 2 || n > 4 || !c || c.as !== 'gunner' || c.body !== first) throw bad(`.crew['${k}'] is { body: '${first}', as: 'gunner' }: seat 2 to 4 working the pilot's gun`);
+  }
+  const all = seats.bodies.length + crewN + 1, max = seats.max ?? all;
+  if (!Number.isInteger(max) || max < 2 || max > all) throw bad(`.max is 2 to ${all} (one more than the bodies and the crew)`);
   if (seats.join !== undefined && !['drop-in', 'lobby'].includes(seats.join)) throw bad('.join is drop-in or lobby');
   if (seats.drop !== undefined && !['ai', 'pause'].includes(seats.drop)) throw bad('.drop is ai or pause');
   if (seats.floor !== undefined && !Number.isFinite(seats.floor)) throw bad('.floor is a height in metres');
   if (seats.lives !== undefined && !(Number.isInteger(seats.lives) && seats.lives >= 1 && seats.lives <= 99)) throw bad('.lives is a whole count, 1 to 99: the falls a seat (or the seats together) may take');
   if (seats.pool !== undefined && !['own', 'shared'].includes(seats.pool)) throw bad('.pool is own (each seat its lives) or shared (one count for all)');
   if (seats.pool !== undefined && seats.lives === undefined) throw bad('.pool shares or splits lives: give lives');
-  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
+  if (seats.contest !== undefined && !['versus', 'free-for-all', 'teams'].includes(seats.contest)) throw bad('.contest is versus, free-for-all or teams (the seats against each other; absent, co-op)');
+  if (seats.downs !== undefined && seats.downs !== 'level') throw bad('.downs is level (the level\'s mechanics bring a downed seat back, a match\'s frags)');
+  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}), ...(seats.contest ? { contest: seats.contest } : {}), ...(seats.downs ? { downs: seats.downs } : {}), ...(crew ? { crew: JSON.parse(JSON.stringify(crew)) } : {}) };
 }
 
 /** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip, aimClip), and the fighting stances: those
@@ -636,6 +647,28 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // a building's TANKS' fish (era/aquarium.js, marine/tank.js): the sea's animals on loops inside each tank's water, drawn
+  // by the walkers channel as the sea's are. No tanks ⇒ untouched
+  if (payload && Array.isArray(payload.tankSwims)) {
+    const swims = payload.tankSwims;
+    delete payload.tankSwims;
+    const { tankFauna } = await import('@/lib/graph/marine/tank.js');
+    const { lowerMarineFauna, marineLength } = await import('@/lib/graph/worlds/marine-fauna.js');
+    await lowerMarineFauna(payload, tankFauna(swims, { lengthOf: marineLength, seed: sketch.manifest?.program?.seed ?? 1 }));
+  }
+
+  // a building's PENS' animals (era/zoo.js, fauna/pen.js): the land's animals walking loops inside each pen's fence
+  if (payload && Array.isArray(payload.penWalks)) {
+    const walks = payload.penWalks;
+    delete payload.penWalks;
+    const { penFauna } = await import('@/lib/graph/fauna/pen.js');
+    const { sizeClassOf } = await import('@/lib/graph/fauna/size-class.js');
+    const { lowerMarineFauna } = await import('@/lib/graph/worlds/marine-fauna.js');
+    const { motionGaits } = await import('@/lib/graph/fauna/rig.js');
+    const gaitOf = (sp) => { const g = motionGaits(sp); return ['walk', 'waddle', 'hop', 'trot'].find((x) => g.includes(x)) ?? g[0]; };
+    await lowerMarineFauna(payload, penFauna(walks, { lengthOf: (sp) => sizeClassOf(sp).extent, gaitOf, seed: sketch.manifest?.program?.seed ?? 1 }));
+  }
+
   // statue refs (historic/statues.js): a historic city's statue slots name stored statues; the city removed the stand-ins
   // and recorded where each figure stands (metres, its turn, its height). The ref resolves HERE, where the store is: its
   // World faces baked under the city's sun turned into its own frame (`light`), its base dropped, fitted onto the slot's
@@ -1033,7 +1066,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // says otherwise, and a page that is paint is as it was)
   { const L = sketch.manifest.light, said = L && typeof L === 'object' && L.finish !== undefined;
     const fin = payload && !unshaded ? (said ? readFinish(L) : payload.form && (payload.form.land || payload.form.room) ? readFinish({ finish: true }) : null) : null;
-    if (fin) payload.finish = fin; }
+    if (fin) payload.finish = fin;
+    // (a town's glass, form/town-gloss.js: given back the sky it stands under where its finish asks to reflect; on any
+    // other page its gloss is dropped and the glass is the wall it was baked as)
+    const T = payload && payload.form && payload.form.town;
+    if (T && T.gloss) { const { gloss, ...rest } = T, R = fin && fin.reflect ? townReflect(payload.sky, gloss) : null; payload.form = { ...payload.form, town: R ? { ...rest, reflect: R } : rest }; } }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,
@@ -1089,6 +1126,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? (TG.elsewhere === 'meadow' ? { tallGrass: TG, ...(sward !== undefined ? { sward } : {}) } : { sward: { short: 0, medium: 0 }, tallGrass: TG }) : sward !== undefined ? { sward } : {}), ...(M.parallax === false ? { relief: false, stones: LEAN_STONES } : M.parallax === 'cliffs' ? { stones: LEAN_STONES } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a city at night, geocity/scene.js NIGHT_CITY: its land under the same dimmed moon and sky as its buildings, so its
+    // lawns and its parks fall into the dark with them)
+    const NL = payload.geocity?.night;
+    if (read && NL && payload.form?.land?.light) { const Ll = payload.form.land.light; payload.form = { ...payload.form, land: { ...payload.form.land, light: { ...Ll, sun: Ll.sun.map((v) => v * NL.moon), ambient: Ll.ambient.map((v) => v * NL.ambient) } } }; }
     // (a works' floor plan, local-meru/works-floor.js: the form's land draws it; nothing else reads it)
     if (payload.floorPlan) { if (read) payload.form.land = { ...payload.form.land, floor: payload.floorPlan }; delete payload.floorPlan; }
     // (and the molten metal its runners carry, channels/works-melt.js)
@@ -1567,6 +1608,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // meshRef entries were consumed by the bind-back block above (static
         // scenery lowered into payload.faces — not an entity body).
         if (typeof rawSpec.meshRef === 'string') continue;
+        // (a realistic person already made from these words, figures/crowd-kept.js: its two crowd figures off the disk,
+        // never baked again)
+        if (rawSpec.crowd === 'real') { const { realCrowdRead } = await import('@/lib/graph/figures/crowd-kept.js'); const kept = realCrowdRead(name, rawSpec); if (kept) { Object.assign(payload.figures, kept); continue; } }
         // HERO bodies (playscape/player.js): a figures-map entry may be a HERO, inline (`hero`: the hero door's spec, as
         // mint_solid({ kind: 'layered', via: 'hero', spec }) takes it) or STORED (`heroRef`: a layered hero sketch). It
         // resolves through the layered kind and hands over the packed rig the World page already plays as a
@@ -1641,6 +1685,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
           // THE CROWD GRADE (figures/crowd-figure.js, a figure's `crowd: true`): a made character sampled again to a
           // crowd's budget, the walkers' own format: a street's people, each the hero door's person. Absent: as it was
+          // (a REALISTIC person, `crowd: 'real'` (gameworld/people.js, a level's realistic people): baked once, drawn at
+          // the realistic crowd grade twice, its far figure under its own name and its near one as `<name>:near` (the
+          // walkers draw it within their near reach), kept on disk by what it was made from (realCrowdKept))
+          if (rawSpec.crowd === 'real') { const { realCrowdKept } = await import('@/lib/graph/figures/crowd-kept.js'); Object.assign(payload.figures, await realCrowdKept(name, rawSpec, figure)); continue; }
           if (rawSpec.crowd === true) { const { crowdFigure } = await import('@/lib/graph/figures/crowd-figure.js'); payload.figures[name] = crowdFigure(figure, { ...(Number.isFinite(rawSpec.budget) ? { budget: rawSpec.budget } : {}), ...(rawSpec.stand === true ? { stand: true } : {}) }); continue; }
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           // THE PLAY GRADE HELD (figures/figure-lod.js): a play-grade world's figure that bakes over its budget (a hero on a
@@ -2058,6 +2106,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         } else {
           payload.figures[name] = renderFigureWorldFrames(spec, spec.frames || 24).frames;
         }
+      }
+      // (a city's realistic people paced by their own walks, figures/walker-pace.js: each group of a six at its members' mean
+      // natural pace, each stepping by the stride its walk measures, so no one skates; a page without them as it was)
+      if (Array.isArray(payload.walkers) && payload.figures && payload.walkers.some((w) => w && w.near && payload.figures[w.figure]?.clips?.forward?.stride > 0)) {
+        const [{ paceWalkers }, { SIX_WALK }] = await Promise.all([import('@/lib/graph/figures/walker-pace.js'), import('@/lib/graph/geocity/crowd.js')]);
+        payload.walkers = paceWalkers(payload.walkers, payload.figures, { base: SIX_WALK });
       }
       // I4: record each figures-map entry's manifest-level body
       // source so the GLB export can stamp `moj:body` extras on entity nodes. Payload-only

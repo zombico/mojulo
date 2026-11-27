@@ -256,7 +256,8 @@ export function pageFigures(figures) {
  * seated body, and a strip names who is in. Emitted only for a world with seats. */
 function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
-  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
+  const crewN = seats.crew && typeof seats.crew === 'object' ? Object.keys(seats.crew).length : 0;   // (a gunner seat: no body of its own, turret.js)
+  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1 + crewN, bodies.length + 1 + crewN));
   return `// ── SEATS ──
 const __SK = (${buildSeatsKernel.toString()})();
 let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
@@ -282,8 +283,10 @@ function __seatSnap(x) {
   let mx, my;
   if (kb) { mx = __CTL.axis(__BIND, 'turnRight', 'turnLeft', 'keyboard', rd); my = __CTL.axis(__BIND, 'moveForward', 'moveBack', 'keyboard', rd); }
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
+  // (a pad's right stick: the seat's look, as seat 1's pad looks, a gunner's aim: turret.js)
+  const rs = kb ? null : __padStick(g.axes[2] || 0, g.axes[3] || 0), ls = __padCfg.lookScale, ly = __padCfg.invertY ? -1 : 1;
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
-  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
+  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0, ...(rs && (rs[0] || rs[1]) ? { lookDX: (__MOUSELOOK ? -1 : 1) * rs[0] * ls, lookDY: (__MOUSELOOK ? -1 : 1) * rs[1] * ls * ly } : {}) };
   P.jump = jh; P.tackle = tk;${uses ? `
   const ih = h('interact'); if (ih && P.interact === false) __seatUseN[x.n] = (__seatUseN[x.n] || 0) + 1; P.interact = ih;   // (a seat's own use press; the press that sat it down is not one)` : ''}
   return out;
@@ -299,7 +302,9 @@ document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {
   const L = __world.seatLives, lives = (n) => (L ? (__world.seatPool === 'shared' ? L.shared : L[n]) : null);
-  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n)).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
+  // a seat's own hp (seats 2 to 4, its body's; seat 1's is the level's HUD): a bar in its chip, in tenths
+  const hpOf = (n) => { const e = n > 1 && __world.byId[__SEAT_BODY[n - 2]]; return e && Number.isFinite(e.hpMax) && e.hpMax > 0 && !e.gone ? Math.max(0, Math.min(1, e.body.hp / e.hpMax)) : null; };
+  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n) + ':' + (hpOf(x.n) == null ? '' : Math.round(hpOf(x.n) * 10))).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
   if (said === __seatSaid) return;
   __seatSaid = said;
   // the shell (game-seats): who sits where, so its pause names the seat that opened it
@@ -310,6 +315,8 @@ function __seatStrip() {
     c.style.cssText = 'padding:2px 8px;border-radius:10px;border:2px solid ' + col + ';color:' + (x ? '#fff' : col) + ';background:' + (x && !x.away ? col : 'rgba(0,0,0,.45)');
     const out = __world.seatOut && __world.seatOut[n];
     c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
+    const hp = x && !out ? hpOf(n) : null;
+    if (hp != null) { const b = document.createElement('span'), f = document.createElement('span'); b.style.cssText = 'display:inline-block;vertical-align:middle;margin-left:6px;width:34px;height:5px;border-radius:3px;background:rgba(0,0,0,.5)'; f.style.cssText = 'display:block;height:100%;border-radius:3px;background:#fff;width:' + Math.round(hp * 100) + '%'; b.appendChild(f); c.appendChild(b); }
     __seatEl.appendChild(c);
   }
   // a shared pool: one count for every seat, after the chips
@@ -342,10 +349,14 @@ function __withSeats(inp) {
   __seat1 = s1 ? s1.controller : null;
   const seats = {};
   for (const x of __SEATS.seats) if (x.n > 1 && !x.away) { const snap = __seatSnap(x); if (snap) seats[x.n] = snap; }
+  // (a contest of presses wanted, events.js: each seat's fresh jump said to the bus as press:<n>)
+  if (window.__mojPresses && typeof __inputQueue !== 'undefined') { if (inp.jump === 1 && s1) __inputQueue.push({ type: 'press:1' }); for (const n in seats) if (seats[n].jump === 1) __inputQueue.push({ type: 'press:' + n }); }
   __seatStrip();
   return { ...inp, seats };
 }
-window.__mojSeats = () => __SEATS;
+window.__mojSeats = () => __SEATS;${seats.join === 'lobby' ? `
+// (a lobby, channels/seat-lobby.js: its seats are taken while it is open, the world held behind it; it closes them)
+window.__mojSeatsOpen = (open) => { __SEATS = __SK.setOpen(__SEATS, open); __seatStrip(); };` : ''}
 window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color: '#' + __seatRing[n].material.color.getHexString(), visible: __seatRing[n].visible }));
 `;
 }
@@ -876,7 +887,11 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // or a ceiling would pull the eye in onto the body, not on a stair alone; absent, not a byte
   const clearAll = !!(camera && camera.clear === true), clearOn = stairsOn || clearAll;
   // (what the eye's line back from the look point passes through, read by the wall pull-in and the clear line's search alike)
-  const camSkips = `${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
+  // (a page with cars to drive, its cabs: while the camera follows a car it pulls in for walls alone, never for the street's
+  // kit, its trees or the traffic, every one of them drawn instanced, which crossed the line back from a car every second
+  // or two at speed and threw the eye forward each time; on foot it is as it was)
+  const carCam = entities.some((e) => e && e.mount && e.mount.cab);
+  const camSkips = `${carCam ? "        if (typeof __camDrv !== 'undefined' && __camDrv && ho.isInstancedMesh) continue;\n" : ''}${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
         // hands and the gun before it, hidden now: a thing not drawn hides nothing)
         { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
         // (nor on what stands between the look point and the body: the look leads the body, so a body run up against a
@@ -3244,7 +3259,8 @@ function __driveCameraBy(dt) {
       const ux = dx / full, uy = dy / full, uz = dz / full;
       __camRay.set(new THREE.Vector3(look[0], look[1], look[2]), new THREE.Vector3(ux, uy, uz));
       __camRay.far = full; __camRay.camera = camera;   // sprite-safe traverse (see __ground's E8 note)
-      const own = __bodySet();
+      const own = __bodySet();${carCam ? `
+      const __tgD = __world.byId[c.rule.target], __camDrv = !!(__tgD && __tgD.mount && __tgD.mount.cab);` : ''}
       let hitD = full;
       for (const hit of __camRay.intersectObjects(__rayRoots(own), true)) {
         const ho = hit.object;
@@ -6104,7 +6120,8 @@ function __updateBreaks(dt) {
   }
 }
 ${distort ? distortViewScript(weightless ? { weightless } : {}) : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
-${hangarHook}  __msHookParams();
+${hangarHook}  __msHookParams();${seats && seats.join === 'lobby' ? `
+  if (__SEATS.open) { __SEATS = __SK.step(__SEATS, __seatFrame()); __seatStrip(); }   // (the lobby's seats, taken while the world is held)` : ''}
   if (dt > 0 && !window.__mojFreeze${landHold ? ' && window.__formReady' : ''}) {   // a menu up freezes the world (interact-channel)${landHold ? `
     // (and a lean land, form.land.lean: the world waits for the form render's land, the only ground on the page)` : ''}
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `

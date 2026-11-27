@@ -13,6 +13,8 @@
  *                   island), `depth` metres out from the land
  *     core          [u, v]: the core's SEAT, shares of the land west to east and south to north (the spine crosses there)
  *     fall          { drop, toward }: the land falls `drop` metres across it toward a side (the shore); 0 level
+ *     shore         (opt-in) metres: within them of a side its water lies along, the land eased down to the water's
+ *                   edge (a hill city's waterfront at the water, its hills inland); none, the land as it falls
  *     hills         false | { height, span?, from }: the hills over the fall, metres lowest to highest, read from a
  *                   painted landscape (`span` the metres its painting spans, the map's longer side by default)
  *     arterials     { core: [lo, hi], outer: [lo, hi], reach }: metres between arterials at the seat and at `reach`
@@ -38,13 +40,27 @@
  *     streets       { collector, civic, school }: a neighbourhood wider than `collector` metres gets a collector across it
  *                   that way; one of `civic` blocks or more gets its civic block (the core's square, the outskirts'
  *                   school), a school's block at least `school` m²
- *     segments      { core: { tower, podium }, frame: { midrise, slab }, outskirts: { houses, apartments, lowrise } }:
+ *     segments      { core: { tower, podium }, frame: { midrise, slab, lowrise, apartments, main-street }, outskirts: { houses,
+ *                   apartments, lowrise, garden } }:
  *                   the weights a block off its arterials and collectors is given to each segment by (blocks.js)
  *     roads         each arterial's cross-section (roads.js): { lane, parking, bike, lanes, median: { share, w },
  *                   oneway: { pairs, lanes }, streetcar: { spine, share, gauge, row } }: four lanes a major street,
  *                   a spacer on some, one-way pairs of three lanes by the core, streetcar rails on the spines and some
  *     lively        { <ring>: { construction, parking, vacant } }: the share of a ring's blocks (off its civic one) a
  *                   building going up, a surface parking lot, a vacant lot takes in place of its segment (blocks.js)
+ *     civic         { worship: { <ring>: share }, cemetery: { <ring>: share }, faiths: { church, mosque, temple },
+ *                   block: [least, most] } or false: THE PLACES a city keeps (blocks.js): the share of a ring's
+ *                   neighbourhoods that give one calm block to a place of worship (its faith by the weights, its
+ *                   building the city library's church, mosque or temple, segments.js `worship`) and to a cemetery (its
+ *                   largest block, `cemetery`), on their own dice; a block's area held inside `block` (m²); in the core
+ *                   and the frame a place of worship takes a LOT in a built block, a slice `lot` m wide (least, most) at
+ *                   its end on a street corner, built to its walk among its neighbours
+ *     crowd         'quiet' | 'busy' | 'packed': its played pavements' people in sixes (crowd.js): one, two or three sixes
+ *                   of different people rolled, up to four, eight or twelve sixes walking; a busy one in the core and the
+ *                   frame, a quiet one in the outskirts unless named
+ *     lamps         '#rrggbb': its street lamps' light at night (geocity/scene.js NIGHT_CITY), its pools on the ground
+ *     alleys        { core, frame, outskirts, w, least } or false: the share of each ring's built blocks cut down the
+ *                   middle by a service alley street to street (blocks.js), its width and each half's least depth (m)
  *     industry      { share, segments: { works, warehouse, storage, tanks }, block: [least, most] } or false: the share
  *                   of the outskirts' neighbourhoods built as industry (design.js; its edge's and its shore's first),
  *                   their blocks' segments by weight (segments.js), a substation in each, the length of a block's side
@@ -88,6 +104,12 @@
  *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
  *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
  *
+ *     dock          true: a working port on the main shore before the evocation (waterfront.js `port`: its yard, its
+ *                   containers, its warehouse and its trucks' bays), a ramp up from it to the shore's highway, and ramps
+ *                   from every land highway down to its streets at each arterial it crosses (highways.js rampsOf): the
+ *                   highways driven, gameworld/jobsified.js's dock
+ *     dump          true: one of its car parks near the eye, the farthest from its works yard, built as a dump (a tipping
+ *                   hall open to its street): where a driving job's garbage truck unloads, gameworld/jobsified.js
  *     shops         true | { cards?: [a seeded store card's id…], near?: metres }: its rows of shops walked into, each
  *                   bay a store from a card behind its own door, its inside drawn near the camera only
  *                   (retail/store-slot.js); a geotown composed into it takes it too
@@ -105,10 +127,13 @@
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
  */
+import { WALKIN_USES } from './walkins.js';
+import { readExhibits } from '../era/exhibits.js';
 import { readEnter } from '../retail/store-enter.js';
 import { resolveGrammar } from '../city/plan/grammars.js';
 import { grammarAtPlay } from '../city/plan/grammar.js';
 import { PATTERNS, PATTERN_IDS } from '../geotown/pattern.js';
+import { CROWD_WORDS, PEOPLE_WORDS } from './crowd.js';
 
 export const SIDES = Object.freeze(['n', 'e', 's', 'w']);
 export const RINGS = Object.freeze({
@@ -173,6 +198,67 @@ export const METROS = Object.freeze({
     grammar: 'mediterranean',
     outskirts: 'bay-and-gable',
   }),
+  // (a West Coast hill city: geotown/pattern.js san-francisco its outskirts, sunset another; its streetcar lines its cable
+  // cars, the metro's own streetcar on its steepest streets)
+  bayside: Object.freeze({
+    read: 'a hilly peninsula metro (a San Francisco): its core on the bay at the north-east corner, water on three sides, steep hills its grid is laid straight over, cable cars up its streets, Victorian neighbourhoods painted their colours',
+    extent: [4000, 3600],
+    water: { sides: ['n', 'e', 'w'], depth: 320 },
+    // (its waterfront at the water, its hills rising inland from it)
+    shore: 380,
+    core: [0.78, 0.82],
+    fall: { drop: 20, toward: 'e' },
+    hills: { height: 70, from: SWELL },
+    arterials: { core: [220, 300], outer: [640, 860], reach: 1700 },
+    rings: { core: 560, frame: 1300 },
+    heights: {
+      core: { rail: [6, 60], median: [10, 30] },
+      frame: { rail: [3, 8], median: [3, 5] },
+      outskirts: { rail: [2, 3], median: [2, 3] },
+      corridor: { spine: 6, arterial: 4, depth: 32 },
+      nodes: { every: 2, reach: 280 },
+    },
+    green: { share: 0.14, parks: 2, most: 0.35, weights: { core: 0.3, frame: 1, outskirts: 1.3 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 3500, aspect: 2 } },
+    streets: { collector: 520, civic: 6, school: 8000 },
+    roads: { lane: 3.2, parking: 2.3, bike: 1.5, lanes: 4, median: { share: 0.15, w: 3 }, oneway: { pairs: 1, lanes: 3 }, streetcar: { spine: true, share: 0.3, gauge: 1.067, row: 7 } },
+    segments: { core: { tower: 3, podium: 2 }, frame: { midrise: 3, slab: 1 }, outskirts: { houses: 8, apartments: 1, lowrise: 0 } },
+    lively: { core: { construction: 0.05, parking: 0.04, vacant: 0.01 }, frame: { construction: 0.04, parking: 0.04, vacant: 0.02 }, outskirts: { construction: 0.02, parking: 0.01, vacant: 0.02 } },
+    industry: { share: 0.1, segments: { works: 2, warehouse: 3, storage: 1.5, tanks: 1 }, block: [120, 180] },
+    grade: 0.12,
+    grammar: 'north-american',
+    outskirts: 'san-francisco',
+  }),
+  // A NORTHEAST METRO (a Boston, a Providence): its core on a harbour to the east, an inner city of brick walk-ups,
+  // four-storey low-rises and main streets among its midrises; its outskirts the Northeast suburb (geotown/pattern.js
+  // northeast): colonials and Capes, garden apartments, walk-ups
+  northeast: Object.freeze({
+    read: 'a Northeastern US metro (a Boston): its core on a harbour to the east, an inner city of brick walk-ups and main streets, its suburbs of colonials and garden apartments inland',
+    extent: [4200, 3600],
+    water: { sides: ['e'], depth: 360 },
+    core: [0.86, 0.5],
+    fall: { drop: 35, toward: 'e' },
+    hills: { height: 22, from: SWELL },
+    arterials: { core: [240, 340], outer: [760, 960], reach: 1900 },
+    rings: { core: 560, frame: 1450 },
+    heights: {
+      core: { rail: [6, 60], median: [10, 30] },
+      frame: { rail: [3, 10], median: [4, 6] },
+      outskirts: { rail: [1, 3], median: [2, 2.5] },
+      corridor: { spine: 6, arterial: 4, depth: 34 },
+      nodes: { every: 2, reach: 300 },
+    },
+    green: { share: 0.14, parks: 1, most: 0.3, weights: { core: 0.4, frame: 1, outskirts: 1.3 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 4000, aspect: 2 } },
+    streets: { collector: 560, civic: 6, school: 9000 },
+    roads: { lane: 3.3, parking: 2.4, bike: 1.6, lanes: 4, median: { share: 0.2, w: 4 }, oneway: { pairs: 1, lanes: 3 }, streetcar: { spine: true, share: 0.2, gauge: 1.435, row: 7.5 } },
+    // (its inner city mostly LOW-RISE: walk-ups, low-rises and main streets among fewer midrises; its outskirts houses,
+    // garden apartments and walk-ups)
+    segments: { core: { tower: 2, podium: 3 }, frame: { midrise: 2, slab: 1, lowrise: 3, apartments: 2, 'main-street': 1 }, outskirts: { houses: 6, garden: 2, apartments: 1, lowrise: 1 } },
+    lively: { core: { construction: 0.06, parking: 0.05, vacant: 0.01 }, frame: { construction: 0.04, parking: 0.06, vacant: 0.04 }, outskirts: { construction: 0.02, parking: 0.02, vacant: 0.02 } },
+    industry: { share: 0.18, segments: { works: 3, warehouse: 3, storage: 1.5, tanks: 1.5 }, block: [120, 190] },
+    grade: 0.07,
+    grammar: 'north-american',
+    outskirts: 'northeast',
+  }),
 });
 export const METRO_IDS = Object.freeze(Object.keys(METROS));
 export const EVOKES = Object.freeze({
@@ -188,9 +274,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'dump', 'dock', 'museum', 'office', 'cityhall', 'enter']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'dump', 'dock', 'museum', 'office', 'cityhall', 'enter']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -230,7 +316,8 @@ export function readGeocity(spec = {}) {
   if (!(play in PLAY)) no(`play is ${Object.keys(PLAY).join(' or ')}`);
   if (spec.at !== undefined && !['neighbourhood', 'segment'].includes(evoke)) no('at is what a neighbourhood or a segment evocation centres on');
   if (spec.along !== undefined && evoke !== 'corridor') no('along is the arterial a corridor evocation runs along');
-  if (spec.at !== undefined && typeof spec.at !== 'string') no('at is a neighbourhood\'s id (\'D3\') or a block\'s (\'D3.2.1\')');
+  if (spec.at !== undefined && typeof spec.at !== 'string') no('at is a neighbourhood\'s id (\'D3\'), a ring\'s (core, frame, outskirts: its neighbourhood nearest the seat) or a block\'s (\'D3.2.1\')');
+  if (['core', 'frame', 'outskirts'].includes(spec.at) && evoke !== 'neighbourhood') no('at as a ring (core, frame, outskirts) is a neighbourhood evocation\'s');
   if (spec.along !== undefined && typeof spec.along !== 'string') no('along is an arterial\'s id (\'ns-3\')');
   // the geotowns it composes: a neighbourhood by its id, laid by the geotown (true: fitted by its ring, or its recipe)
   const geotowns = spec.geotowns ?? {};
@@ -238,6 +325,7 @@ export function readGeocity(spec = {}) {
 
   if (!pair(M.extent, 600, 12000)) no('extent is [W, D], metres east and north, each 600 to 12000');
   const [W, D] = M.extent;
+  if (M.shore !== undefined && !num(M.shore, 0, 2000)) no('shore is metres, 0–2000: how far from its water the land eases down to it');
   if (!isObj(M.water) || !Array.isArray(M.water.sides) || !M.water.sides.every((s) => SIDES.includes(s)) || new Set(M.water.sides).size !== M.water.sides.length) no(`water.sides is the sides with water, of ${SIDES.join(', ')}`);
   if (!num(M.water.depth, 0, Math.min(W, D) / 4)) no(`water.depth is the metres of water out from the land, 0 to a quarter of the shorter side (${Math.min(W, D) / 4})`);
   if (!(Array.isArray(M.core) && M.core.length === 2 && M.core.every((v) => num(v, 0, 1)))) no('core is [u, v], the seat\'s shares of the land west to east and south to north, each 0 to 1');
@@ -272,13 +360,38 @@ export function readGeocity(spec = {}) {
   if (!isObj(Pk) || !isObj(Pk.share) || !RING_IDS.every((r) => num(Pk.share[r], 0, 1)) || !num(Pk.least, 0, 1e6) || !num(Pk.aspect, 1, 6)) no('green.park is { share: { core, frame, outskirts } 0–1, least: m², aspect: 1–6 }');
   const St = M.streets;
   if (!isObj(St) || !num(St.collector, 100, 12000) || !(Number.isInteger(St.civic) && St.civic >= 1) || !num(St.school, 0, 1e6)) no('streets is { collector: metres, civic: blocks (a whole number), school: m² }');
-  const SEG = { core: ['tower', 'podium'], frame: ['midrise', 'slab'], outskirts: ['houses', 'apartments', 'lowrise'] };
+  // (the inner city, the frame: its midrises and slabs, and its LOW-RISE fabric: four-storey walk-ups, a walk-up among
+  // houses, a main street of shops; the outskirts: its houses, its walk-ups and its garden apartments)
+  const SEG = { core: ['tower', 'podium'], frame: ['midrise', 'slab', 'lowrise', 'apartments', 'main-street'], outskirts: ['houses', 'apartments', 'lowrise', 'garden'] };
   if (!isObj(M.segments)) no('segments is { core, frame, outskirts }, each its segments\' weights');
   for (const [ring, ids] of Object.entries(SEG)) {
     const w = M.segments[ring];
     if (!isObj(w) || Object.keys(w).some((k) => !ids.includes(k)) || !Object.values(w).every((v) => num(v, 0, 100)) || !Object.values(w).some((v) => v > 0)) no(`segments.${ring} is weights over ${ids.join(', ')}, one of them above 0`);
   }
   if (!isObj(M.lively) || !RING_IDS.every((r) => isObj(M.lively[r]) && ['construction', 'parking', 'vacant'].every((k) => num(M.lively[r][k] ?? 0, 0, 0.5)) && Object.keys(M.lively[r]).every((k) => ['construction', 'parking', 'vacant'].includes(k)))) no('lively is { core, frame, outskirts }, each { construction, parking, vacant } shares 0–0.5');
+  // (its places, blocks.js: `false` none; else the share of each ring's neighbourhoods with a place of worship and with a
+  // cemetery, the faiths by weight, the blocks' area they take)
+  const CIV = { worship: { core: 0.6, frame: 0.5, outskirts: 0.4 }, cemetery: { core: 0, frame: 0.1, outskirts: 0.2 }, faiths: { church: 0.75, mosque: 0.15, temple: 0.1 }, block: [1200, 26000], lot: [24, 36] };
+  M.civic = M.civic === false ? { ...CIV, worship: { core: 0, frame: 0, outskirts: 0 }, cemetery: { core: 0, frame: 0, outskirts: 0 } } : merge(CIV, M.civic ?? {});
+  const Cv = M.civic, FAITHS = ['church', 'mosque', 'temple'];
+  if (!isObj(Cv) || Object.keys(Cv).some((k) => !Object.keys(CIV).includes(k)) || !['worship', 'cemetery'].every((k) => isObj(Cv[k]) && RING_IDS.every((r) => num(Cv[k][r] ?? 0, 0, 1)) && Object.keys(Cv[k]).every((r) => RING_IDS.includes(r)))
+    || !isObj(Cv.faiths) || Object.keys(Cv.faiths).some((k) => !FAITHS.includes(k)) || !Object.values(Cv.faiths).every((v) => num(v, 0, 100)) || !Object.values(Cv.faiths).some((v) => v > 0)
+    || !(Array.isArray(Cv.block) && Cv.block.length === 2 && num(Cv.block[0], 200, 1e5) && num(Cv.block[1], Cv.block[0], 1e6))
+    || !(Array.isArray(Cv.lot) && Cv.lot.length === 2 && num(Cv.lot[0], 12, 80) && num(Cv.lot[1], Cv.lot[0], 120)))
+    no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m², lot: [least, most] m }`);
+  // (its played pavements' crowd, crowd.js: quiet, busy or packed, in sixes)
+  if (M.crowd !== undefined && !CROWD_WORDS.includes(M.crowd)) no(`crowd is ${CROWD_WORDS.join(', ')}: how many sixes of people walk its played pavements`);
+  if (M.people !== undefined && !PEOPLE_WORDS.includes(M.people)) no(`people is ${PEOPLE_WORDS.join(', ')}: who walks its played pavements`);
+  if (M.mix !== undefined && typeof M.mix !== 'string') no('mix is a locale (gameworld/street-cast.js STREET_MIX): whose faces its people are drawn from');
+  // (its street lamps' light at night, geocity/scene.js NIGHT_CITY: a colour, sodium's amber to an LED's white)
+  if (M.lamps !== undefined && !(typeof M.lamps === 'string' && /^#[0-9a-f]{6}$/i.test(M.lamps))) no('lamps is a colour, "#rrggbb": its street lamps\' light at night');
+  // (its alleys, blocks.js: `false` none; else the share of each ring's built blocks cut by one, its width and the least
+  // depth each half keeps, m)
+  const ALD = { core: 0.55, frame: 0.6, outskirts: 0, w: 6, least: 16 };
+  M.alleys = M.alleys === false ? { ...ALD, core: 0, frame: 0, outskirts: 0 } : merge(ALD, M.alleys ?? {});
+  const Al = M.alleys;
+  if (!isObj(Al) || Object.keys(Al).some((k) => !Object.keys(ALD).includes(k)) || !RING_IDS.every((r) => num(Al[r], 0, 1)) || !num(Al.w, 3, 12) || !num(Al.least, 8, 60))
+    no('alleys is false or { core, frame, outskirts: 0–1 (the share of built blocks cut by one), w: 3–12 m, least: 8–60 m (each half\'s depth) }');
   // (its industry, industry.js: `false` none; else the share of its outskirts' neighbourhoods given to it, its blocks'
   // segments by weight, the length of a side its blocks are laid at)
   const IND = { share: 0.2, segments: { works: 3, warehouse: 3, storage: 1.5, tanks: 1.5 }, block: [120, 190] };
@@ -302,12 +415,46 @@ export function readGeocity(spec = {}) {
   if (!isObj(Rd) || !num(Rd.lane, 2.5, 4.5) || !num(Rd.parking, 0, 4) || !num(Rd.bike, 0, 3) || !(Number.isInteger(Rd.lanes) && Rd.lanes >= 2 && Rd.lanes <= 8 && Rd.lanes % 2 === 0)) no('roads is { lane: 2.5–4.5 m, parking: m, bike: m, lanes: an even 2–8, median, oneway, streetcar }');
   if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');
   if (!isObj(Rd.oneway) || !(Number.isInteger(Rd.oneway.pairs) && Rd.oneway.pairs >= 0 && Rd.oneway.pairs <= 4) || !(Number.isInteger(Rd.oneway.lanes) && Rd.oneway.lanes >= 1 && Rd.oneway.lanes <= 5)) no('roads.oneway is { pairs: 0–4, lanes: 1–5 }');
-  if (!isObj(Rd.streetcar) || typeof Rd.streetcar.spine !== 'boolean' || !num(Rd.streetcar.share, 0, 1) || !num(Rd.streetcar.gauge, 0.6, 2) || !num(Rd.streetcar.row, 4, 20)) no('roads.streetcar is { spine: boolean, share: 0–1, gauge: metres, row: metres }');
+  if (!isObj(Rd.streetcar) || typeof Rd.streetcar.spine !== 'boolean' || !num(Rd.streetcar.share, 0, 1) || !num(Rd.streetcar.gauge, 0.6, 2) || !num(Rd.streetcar.row, 4, 20) || (Rd.streetcar.most !== undefined && !(Number.isInteger(Rd.streetcar.most) && Rd.streetcar.most >= 0 && Rd.streetcar.most <= 12))) no('roads.streetcar is { spine: boolean, share: 0–1, gauge: metres, row: metres, most?: 0–12 lines }');
   if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
   if (M.grades !== undefined && (!isObj(M.grades) || Object.keys(M.grades).some((k) => !['collector', 'local'].includes(k)) || Object.values(M.grades).some((g) => !num(g, 0.01, 0.4)))) no('grades is { collector?, local? }: the steepest of each neighbourhood street, rise over run, 0.01 to 0.4');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
   // building's detail
   // (its shops walked into, retail/store-slot.js: each shop of a row of shops a store from a card, entered by its door)
   const shops = readEnter(spec.shops, no);
+  // (its museum, geocity/museum.js: a block near the walk's start built as one, entered by its door into a building of
+  // its own; its galleries' pieces the interior's, era/exhibits.js)
+  const museum = spec.museum === undefined || spec.museum === false ? null : spec.museum === true ? {} : spec.museum;
+  if (museum !== null) {
+    if (!isObj(museum)) no('museum is true or { name?, exhibits?, scale? }: a museum on a block near the walk\'s start, walked into');
+    for (const k of Object.keys(museum)) if (!['name', 'exhibits', 'scale'].includes(k)) no(`museum.${k} is not a setting (name, exhibits, scale)`);
+    if (museum.name !== undefined && !(typeof museum.name === 'string' && museum.name.trim())) no('museum.name is its name');
+    if (museum.scale !== undefined && !num(museum.scale, 1, 2)) no('museum.scale is 1 to 2: its rooms laid that much larger for a third-person camera');
+    if (museum.exhibits !== undefined) { try { readExhibits(museum.exhibits); } catch (e) { no(`museum.${e.message}`); } }
+  }
+  // (an OFFICE tower walked into, scene.js: the lobby of the office front nearest the walk's start a door into a building
+  // of its own, the office program's, era/programs.js; a desk job's: gameworld/temp-agency.js)
+  const office = spec.office === undefined || spec.office === false ? null : spec.office === true ? {} : spec.office;
+  if (office !== null) {
+    if (!isObj(office)) no('office is true or { name? }: an office tower near the walk\'s start, its lobby walked into');
+    for (const k of Object.keys(office)) if (!['name'].includes(k)) no(`office.${k} is not a setting (name)`);
+    if (office.name !== undefined && !(typeof office.name === 'string' && office.name.trim())) no('office.name is its name');
+  }
+  // (its CITY HALL walked into, scene.js: the museum's civic front on the next block that can take one, its door into a
+  // building of its own where a clerk makes work orders: gameworld/municipal.js)
+  const cityhall = spec.cityhall === undefined || spec.cityhall === false ? null : spec.cityhall === true ? {} : spec.cityhall;
+  if (cityhall !== null) {
+    if (!isObj(cityhall)) no('cityhall is true or { name? }: a city hall on a block near the walk\'s start, walked into');
+    for (const k of Object.keys(cityhall)) if (!['name'].includes(k)) no(`cityhall.${k} is not a setting (name)`);
+    if (cityhall.name !== undefined && !(typeof cityhall.name === 'string' && cityhall.name.trim())) no('cityhall.name is its name');
+  }
+  // (a DUMP, scene.js dumpOf: one of its car parks near the eye built as a tipping hall, a driving job's: jobsified.js)
+  if (spec.dump !== undefined && spec.dump !== true) no('dump is true: one of the district\'s car parks built as a dump, where a garbage truck unloads');
+  // (a DOCK, waterfront.js `port`: the main shore's segment before the evocation a working port, its trucks', its ramp up
+  // to the shore's highway; and every land highway given RAMPS down to its streets, highways.js rampsOf)
+  if (spec.dock !== undefined && spec.dock !== true) no('dock is true: a working port on the main shore, a ramp up to its highway, and ramps from the highways down to the streets');
+  // (its WALK-INS, geocity/walkins.js: civic buildings beside the museum's, each walked into on a page of its own)
+  const enter = spec.enter === undefined ? null : spec.enter;
+  if (enter !== null && (!Array.isArray(enter) || enter.some((u) => !WALKIN_USES.includes(u)) || new Set(enter).size !== enter.length)) no(`enter is a list of the civic buildings walked into, each once: ${WALKIN_USES.join(', ')}`);
   const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
   if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');
   if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
@@ -362,5 +509,5 @@ export function readGeocity(spec = {}) {
     slope = { streets: { ...S.streets } };
     if (!profile) profile = {};
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(spec.dump === true ? { dump: true } : {}), ...(spec.dock === true ? { dock: true } : {}), ...(museum ? { museum } : {}), ...(office ? { office } : {}), ...(cityhall ? { cityhall } : {}), ...(enter?.length ? { enter: [...enter] } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }

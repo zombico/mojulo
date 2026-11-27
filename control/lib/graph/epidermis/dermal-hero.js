@@ -257,7 +257,7 @@ function headSkin(mesh, recipe, D, page) {
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   // (the brows PAINTED where the recipe says, `faceHairPaint`: the groom's hairs as strokes on the head it charts, dermal-brow.js)
   const brows = recipe.faceHairPaint ? browStrokes(H, recipe.faceHairPaint.epidermis, { lashLine: !!recipe.faceHairPaint.lashLine }) : null;
-  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip } : {}), ...(brows ? { brows } : {}), ...(recipe.faceHairPaint?.beard ? { beardStreaks: true } : {}), ...(recipe.faceHairPaint?.scalp ? { scalpStreaks: true, aoFloor: AO_FLOOR } : {}) });
+  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip, ...(recipe.hairClip.seams === 'joined' ? { joined: true } : {}) } : {}), ...(brows ? { brows } : {}), ...(recipe.faceHairPaint?.beard ? { beardStreaks: true } : {}), ...(recipe.faceHairPaint?.scalp ? { scalpStreaks: true, aoFloor: AO_FLOOR } : {}) });
   return { chart, layout, maps, local, skinFace };
 }
 

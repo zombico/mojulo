@@ -6,7 +6,7 @@ import { assembleGeocityScene } from './scene.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 
 const CITY = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon', geocity: { metro: { from: 'lakeshore', rings: { core: 160, frame: 330 } }, extent: [900, 800], water: { sides: ['s'], depth: 100 }, core: [0.5, 0.45] } };
-const KEPT = ['geocity:glass', 'geocity:night-window', 'geocity:facade'];
+const KEPT = ['geocity:night-window', 'geocity:facade', 'geocity:sacred'];
 const walls = (P) => P.faces.filter((f) => f.cornerLight !== undefined && Math.abs(f.normal[2]) < 0.3);
 
 describe('a city\'s massing in the form render', () => {
@@ -17,9 +17,15 @@ describe('a city\'s massing in the form render', () => {
     expect(paint.faces.some((f) => f.cornerLight !== undefined)).toBe(false);
     const lit = live.faces.filter((f) => f.cornerLight !== undefined);
     expect(lit.length).toBeGreaterThan(0);
-    // (the same faces in the same places; the glass, a lit window, a detail lot's skin and the land's ground left as they came)
-    expect(live.faces.map((f) => f.group)).toEqual(paint.faces.map((f) => f.group));
+    // (the same faces in the same places, a glass tower's walls its curtain wall; a lit window, a detail lot's skin and
+    // the land's ground left as they came)
+    expect(live.faces.map((f) => (f.group === 'geocity:curtain' ? 'geocity:tower' : f.group))).toEqual(paint.faces.map((f) => f.group));
     expect(lit.some((f) => KEPT.includes(f.group) || f.group === 'isekai:ground')).toBe(false);
+    // (its glass baked as its walls are, its sheen given over to the form render: a gloss for each glazed group it has)
+    const glass = live.faces.filter((f) => f.group === 'geocity:glass' || f.group === 'geocity:curtain');
+    expect(glass.every((f) => f.cornerLight !== undefined && !f.spec)).toBe(true);
+    expect(Object.keys(live.form.town.gloss).some((g) => g.startsWith('geocity:front-win-pane'))).toBe(true);
+    for (const g of new Set(glass.map((f) => f.group))) expect(live.form.town.gloss[g]).toBeDefined();
     // (the sun its one lamp, along the cube's solved sun)
     const T = live.form.town, d = T.lights[0].at, l = Math.hypot(...d);
     expect(T.lights).toHaveLength(1);
@@ -44,8 +50,15 @@ describe('a city\'s massing in the form render', () => {
     expect(front(paint).length).toBeGreaterThan(0);
     expect(front(paint).some((r) => r.template.some((f) => f.cornerLight !== undefined))).toBe(false);
     const F = front(live);
-    expect(F.map((r) => [r.group, r.transforms.length])).toEqual(front(paint).map((r) => [r.group, r.transforms.length]));
-    expect(F.every((r) => r.template.every((f) => f.cornerLight !== undefined && f.sunShare !== undefined))).toBe(true);
+    // (the same pieces, and a window's pane its own stamp beside its unit, one a window: frontage.js `panes`)
+    const pane = (r) => r.group.startsWith('geocity:front-win-pane');
+    expect(F.filter((r) => !pane(r)).map((r) => [r.group, r.transforms.length])).toEqual(front(paint).map((r) => [r.group, r.transforms.length]));
+    const n = (L, re) => L.filter((r) => re.test(r.group)).reduce((a, r) => a + r.transforms.length, 0);
+    expect(n(F, /front-win-pane/)).toBe(n(front(paint), /front-win-unit/));
+    // (every piece baked but a shop's lit interior, which carries its own light: frontage.js `interior`)
+    const own = (r) => r.group.startsWith('geocity:front-interior');
+    expect(F.filter((r) => !own(r)).every((r) => r.template.every((f) => f.cornerLight !== undefined && f.sunShare !== undefined))).toBe(true);
+    expect(F.filter(own).every((r) => r.template.every((f) => f.cornerLight === undefined))).toBe(true);
     // (the same piece each way: the same colours, a different light)
     const byGroup = new Map();
     for (const r of F) { if (!byGroup.has(r.group)) byGroup.set(r.group, []); byGroup.get(r.group).push(r); }

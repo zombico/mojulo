@@ -241,6 +241,8 @@ export function eventsChannelScript(events0, { fxDay = null, rollItems = false, 
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
   const seatUses = seatUsesOf(events.sources), seatReach = Object.keys(seatUses).length ? seatReachScript(seatUses) : '';   // seats 2 … their own places (a seated shift)
+  // (a contest of the seats' presses, mechanics.js mash: the bus hears each seat's `press:<n>`, sent by the seats' own reads)
+  const presses = (events.reactions || []).some((r) => r && typeof r.on === 'string' && /^press:[1-4]$/.test(r.on));
   // the statuses its cues put on the cast, drawn on their bodies in their looks; and those its bodies are born under
   const els = [...(cast ? statusElements(events) : []), ...(Array.isArray(events.born) ? events.born : [])].filter((n, i, a) => a.indexOf(n) === i);
   const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
@@ -303,7 +305,8 @@ window.__mojUnlay = function (zones) {
 if (window.__mojUnlaid) window.__mojUnlay(window.__mojUnlaid);` : ''}
 // INPUT as a source (the 4th, beside physics facts / timers / watches): bind key/pointer to a bus
 // event. Listeners push onto a queue drained each frame, so a conceptual world is clickable.
-const __inputQueue = [];
+const __inputQueue = [];${presses ? `
+window.__mojPresses = true;   // (the seats' presses wanted: controllable/index.js __withSeats sends press:<n>)` : ''}
 const __markerMeshes = {};        // bus entity id → mesh (spawn/toggle/move reflect onto these)
 const __MARKER_COLOR = 0x7ad1ff;
 const __pickRay = new THREE.Raycaster();

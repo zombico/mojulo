@@ -67,6 +67,8 @@ export function cityMap(plan, manifest, ui = undefined) {
   for (const F of sides) markers.push({ x: r4(X(F.at[0])), y: r4(Y(F.at[1])), kind: 'npc', icon: 'person', label: `${F.name}: join here` });
   // (the city's shops, game/shop-mechanics.js: the respray, the gun shop)
   for (const m of manifest?.game?.mechanics ?? []) if ((m?.kind === 'respray' || m?.kind === 'gunshop') && Array.isArray(m.at)) markers.push({ x: r4(X(m.at[0])), y: r4(Y(m.at[1])), kind: 'poi', icon: m.kind === 'respray' ? icons.respray : icons.guns, label: m.kind === 'respray' ? `Respray (${m.price})` : `Gun shop: rounds (${m.price})` });
+  // (the forger, shops.js: where papers are bought)
+  for (const m of manifest?.game?.mechanics ?? []) if (m?.kind === 'forger' && Array.isArray(m.at)) markers.push({ x: r4(X(m.at[0])), y: r4(Y(m.at[1])), kind: 'poi', icon: icons.shop, label: `Forger: ${m.name ?? 'papers'} (${m.price})` });
   const radius = U.radius ?? CITY_MAP.radius, cars = (U.cars ?? CITY_MAP.cars) !== false;
   return {
     box: [r4(ox), r4(oy)], side: r4(side), shapes, markers,

@@ -14,7 +14,8 @@
  *     oneway                one-way pairs by the core (the nearest parallel arterials either side of nothing but each
  *                           other, off the spine), each `lanes` the same way, a bike lane on one side
  *     streetcar             rails on the spines (`spine`) and on a share of the other two-way arterials; `gauge` the
- *                           track's (Toronto's broad gauge), `row` the right-of-way a spacer takes when it carries them
+ *                           track's (Toronto's broad gauge), `row` the right-of-way a spacer takes when it carries them;
+ *                           `most` (optional) the most lines of track a district carries, the spines first, then the longest
  *
  *   roadKinds(lines, M, seed, seat) → { <line id>: { oneway: 0 | 1 | -1, median, streetcar } }
  *   layoutOf(kind, axis, R, traffic) → { road, bands: [{ kind, from, to, dir?, streetcar? }], tracks: [{ at, dir }] }
@@ -49,6 +50,13 @@ export function roadKinds(lines, M, seed, seat) {
     const Rl = streamOf(seed, 'roads', l.id);
     K.median = Rl() < R.median.share;
     K.streetcar = l.rank === 'spine' ? R.streetcar.spine : Rl() < R.streetcar.share;
+  }
+  // (at most `most` lines of track, where a district says: the spines first, then the longest, the rest left plain)
+  const most = R.streetcar.most;
+  if (Number.isInteger(most)) {
+    const len = (l) => (l.axis === 'ns' ? l.rect[3] - l.rect[1] : l.rect[2] - l.rect[0]);
+    const carrying = lines.filter((l) => out[l.id].streetcar).sort((a, b) => (a.rank === 'spine' ? 0 : 1) - (b.rank === 'spine' ? 0 : 1) || len(b) - len(a) || a.id.localeCompare(b.id));
+    for (const l of carrying.slice(most)) out[l.id].streetcar = false;
   }
   return out;
 }

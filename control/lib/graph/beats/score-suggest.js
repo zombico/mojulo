@@ -56,7 +56,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 // jungle-trail, isekai-meadow, island-plaza …).
 const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-ashlar': 'dungeon crypt', 'gothic-nave': 'cathedral', 'isekai-bamboo': 'bamboo grove', 'isekai-sakura': 'garden', 'alien-night': 'alien planet', 'research-lab': 'abandoned research lab',
   'bay-military': 'military hangar station', 'bay-utility': 'industrial warehouse station', 'bay-science': 'research lab',
-  'bay-everyday': 'office building shop', 'bay-vernacular': 'town tavern shop',
+  'bay-everyday': 'office building shop', 'bay-vernacular': 'town tavern shop', 'bay-gallery': 'museum gallery shop',
   // (the RPG dungeons, era/dungeon.js)
   'deep-forge': 'dungeon forge mine', 'fungal-grotto': 'dungeon cave grotto', 'drowned-shrine': 'dungeon underwater temple', 'arcane-vault': 'dungeon arcane library' };
 
@@ -70,18 +70,25 @@ const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-ashlar': 'dungeon 
 const TECH_WORDS = /sci-?fi|neon|cyber|futur|robot|android|\bmech|space|station|alien|planet|\blab\b|laborator|reactor|synth|\bclub|\brave|disco|arcade|hacker|matrix|digital|virtual|\bgrid|tron\b/;
 const COZY_WORDS = /\bcaf[eé]|coffee|apartment|bedroom|rooftop|lo-?fi|chill|\bcozy|\bcosy|\bstudy|vinyl|record shop|rainy/;
 const DRIFT_WORDS = /underwater|ocean|\breef|abyss|\bvoid\b|cosmos|nebula|\bzen\b|meditat|dreamscape|ambient|limbo/;
+// and the city's two faces: the STREET scene (an alley, a gang's block, a heist, noir) takes shady lo-fi; the BUSTLE (a
+// boulevard, a street fair, a market's crowd) its mirror, vibrant. Narrow words: a game named for a city is not called
+// electronic for the name alone
+const STREET_WORDS = /\balley|\bgang|\bcrime|criminal|\bheist|hustl|underworld|\bnoir\b|sketchy|\bshady|back street|\bthug/;
+const BUSTLE_WORDS = /vibrant|bustl|boulevard|street fair|block party|carnival|night market|\bplaza\b/;
 export const REACH = {
   tech: ['drift', 'deep', 'drive', 'ambient'],
   cozy: ['chill', 'lofi', 'ambient', 'deep', 'drive'],
   drift: ['ambient', 'drift', 'chill'],
   any: ['ambient', 'chill', 'lofi', 'drift', 'deep', 'drive'],
+  street: ['shady', 'drive'],
+  bustle: ['vibrant', 'drive'],
 };
-export const CLUB_PLANE = { ambient: [0.2, 0.05], chill: [0.4, 0.2], lofi: [0.55, 0.4], drift: [-0.1, 0.25], deep: [0.2, 0.5], drive: [0, 0.7], rave: [-0.3, 0.85], peak: [-0.5, 0.95] };
+export const CLUB_PLANE = { ambient: [0.2, 0.05], chill: [0.4, 0.2], lofi: [0.55, 0.4], drift: [-0.1, 0.25], deep: [0.2, 0.5], drive: [0, 0.7], rave: [-0.3, 0.85], peak: [-0.5, 0.95], shady: [-0.25, 0.25], vibrant: [0.65, 0.3] };
 const placeText = (c) => [c.base, c.kind, c.theme, c.title].filter((x) => typeof x === 'string').join(' ').toLowerCase();
 /** The electronic kind of scene its words say: 'drift', 'cozy', 'tech', or null (the orchestra's). */
 export function sceneFlavour(context = {}) {
   const t = placeText(context);
-  return DRIFT_WORDS.test(t) ? 'drift' : COZY_WORDS.test(t) ? 'cozy' : TECH_WORDS.test(t) ? 'tech' : null;
+  return DRIFT_WORDS.test(t) ? 'drift' : COZY_WORDS.test(t) ? 'cozy' : STREET_WORDS.test(t) ? 'street' : BUSTLE_WORDS.test(t) ? 'bustle' : TECH_WORDS.test(t) ? 'tech' : null;
 }
 /** 'club' when the scene's words say electronic, else 'field'. */
 export function sceneStyle(context = {}) {

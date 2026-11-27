@@ -4,13 +4,17 @@
  * towers that stand on the ground (a monopole and its three sectors), and the aviation lights that blink over the tallest
  * (the beacons channel, scene/channels/beacons.js).
  *
- *   rooftopTemplates(L) → { hvac, sector, mast, satdish, dish: { e, w, n, s }, celltower }: each about its foot, baked
+ *   rooftopTemplates(L) → { hvac, penthouse (a unit box), cooling, bulkhead, sector, mast, satdish, dish: { e, w, n, s },
+ *                    celltower }: each about its foot, baked
  *                    under the scene's light (a dish faces the way its key says)
  *   rooftopPlan(shells, seed) → [{ key, at: [x, y, z] }]: each flat roof of a low or mid-rise building its kit by its own
  *                    dice (ROOFTOP: which groups, how tall, how often each)
+ *   lotRoofPlan(lots, seed, { kit? }) → [{ key, at, scale? }]: a facade-detail lot's roof, or a massing's (`kit: false`,
+ *                    its low kit rooftopPlan's already): a tower's penthouse and cooling towers, a flat roof's bulkhead
+ *                    and cooling tower and kit
  *   beaconsOf(towers) → [[x, y, z]]: a tall building's aviation lights, at two opposite corners of its roof and, past
  *                    BEACON.mid, the other two half way up
- *   ROOFTOP, BEACON  the numbers
+ *   ROOFTOP, ROOF_LOT, BEACON  the numbers
  *
  * Metres, the design's frame. Pure; the metro's dice.
  */
@@ -23,6 +27,11 @@ export const ROOFTOP = Object.freeze({
   groups: ['geocity:midrise', 'geocity:slab', 'geocity:podium', 'geocity:walkup', 'geocity:lowrise', 'geocity:low', 'geocity:school', 'geocity:shops', 'geocity:avenue', 'geocity:control-'],
   height: [7, 75], least: 10, hvac: 0.75, sector: 0.32, dish: 0.25, mast: 0.2, satdish: 0.3, inset: 1.6,
 });
+// a facade-detail lot's roof, and a massing's (lotRoofPlan): a tower's penthouse, its plan a share of its roof's (a
+// narrowing shape's less) and its height (m); the shapes that narrow; how often a tower has a mast over it, a flat roof a
+// stair's bulkhead, and a flat roof this tall and this wide (m) its cooling tower; an air handler a roof's every
+// `hvacPer` m², `hvacMost` the most in its row
+export const ROOF_LOT = Object.freeze({ penthouse: Object.freeze({ share: 0.42, narrow: 0.3, h: 5 }), narrow: Object.freeze(['setback', 'spindle', 'cylinder']), mast: 0.45, bulkhead: 0.7, cooling: Object.freeze({ h: 20, least: 16, share: 0.45 }), hvacPer: 450, hvacMost: 6 });
 // the aviation lights: over a building this tall (m), a ring half way up one past `mid`; their blink
 export const BEACON = Object.freeze({ tall: 120, mid: 220, period: 1.6, duty: 0.35, color: '#ff2a1a' });
 
@@ -99,12 +108,20 @@ function celltower() {
   return out;
 }
 
+/** A tower's mechanical penthouse: a unit box (stretched per roof: its plan and its height) under a cap, a band of
+ *  louvres round its top. */
+const penthouse = () => [...boxU(-0.5, -0.5, 0, 0.5, 0.5, 0.72, '#b7b4ab'), ...boxU(-0.505, -0.505, 0.72, 0.505, 0.505, 0.94, '#5d6266'), ...boxU(-0.51, -0.51, 0.94, 0.51, 0.51, 1, '#cfcbc0')];
+/** A cooling tower: its casing on a steel curb, louvred sides, a fan's shroud on top. */
+const cooling = () => [...boxU(-1.6, -1.6, 0, 1.6, 1.6, 0.4, DARK), ...boxU(-1.5, -1.5, 0.4, 1.5, 1.5, 2.6, '#c9ccc8'), ...boxU(-1.52, -1.52, 0.7, 1.52, 1.52, 1.9, '#7f8588'), ...cylU(0, 0, 1.05, 2.6, 3.3, 14, '#9da2a4', 0.95), ...cylU(0, 0, 0.85, 3.3, 3.32, 14, '#232527')];
+/** A stair's bulkhead: a small box over the stair's head, its door on one side, a vent on its roof. */
+const bulkhead = () => [...boxU(-1.6, -2.1, 0, 1.6, 2.1, 2.9, '#bdb6a8'), ...boxU(-0.5, -2.13, 0, 0.5, -2.1, 2.1, '#4a4d50'), ...boxU(-0.3, -0.3, 2.9, 0.3, 0.3, 3.4, GREY)];
+
 const MEMO = new WeakMap();
 /** The rooftop kit and the cell tower under a scene's light, once a light. */
 export function rooftopTemplates(L) {
   let T = MEMO.get(L);
   if (T) return T;
-  T = { hvac: lit(hvac(), L), sector: lit(sector(), L), mast: lit(mast(), L), satdish: lit(satdish(), L), celltower: lit(celltower(), L), dish: Object.fromEntries(Object.entries({ e: [1, 0], w: [-1, 0], n: [0, 1], s: [0, -1] }).map(([k, v]) => [k, lit(dish(v), L)])) };
+  T = { hvac: lit(hvac(), L), penthouse: lit(penthouse(), L), cooling: lit(cooling(), L), bulkhead: lit(bulkhead(), L), sector: lit(sector(), L), mast: lit(mast(), L), satdish: lit(satdish(), L), celltower: lit(celltower(), L), dish: Object.fromEntries(Object.entries({ e: [1, 0], w: [-1, 0], n: [0, 1], s: [0, -1] }).map(([k, v]) => [k, lit(dish(v), L)])) };
   MEMO.set(L, T);
   return T;
 }
@@ -123,6 +140,38 @@ export function rooftopPlan(shells, seed) {
     if (R() < ROOFTOP.dish) { const f = ['e', 'w', 'n', 's'][Math.floor(R() * 4)], u = f === 'e' ? 1 : f === 'w' ? 0 : 0.3 + 0.4 * R(), v = f === 'n' ? 1 : f === 's' ? 0 : 0.3 + 0.4 * R(); out.push({ key: `dish:${f}`, at: at(u, v) }); }
     if (R() < ROOFTOP.mast) out.push({ key: 'mast', at: at(0.5 + (R() - 0.5) * 0.5, 0.5 + (R() - 0.5) * 0.5) });
     if (R() < ROOFTOP.satdish && h < 30) out.push({ key: 'satdish', at: at(0.1 + R() * 0.8, 0.12) });
+  }
+  return out;
+}
+
+/** The roofs of a district's buildings at a facade's detail (geocity/scene.js `lots`: { id, x0, y0, x1, y1, z0, h,
+ *  tower?, shape }): a TOWER its mechanical penthouse at its roof's middle (stretched to its top, ROOF_LOT.penthouse; a
+ *  narrowing shape's smaller), cooling towers beside it where its roof holds them, a mast over some; a flat roof (a
+ *  `box` or a `podium`) a stair's bulkhead on most and the low and mid-rise kit as a massing's (rooftopPlan); any other
+ *  shape none. → [{ key, at, scale? }] */
+export function lotRoofPlan(lots, seed, { kit = true } = {}) {
+  const out = [], P = ROOF_LOT;
+  for (const l of lots) {
+    const w = l.x1 - l.x0, d = l.y1 - l.y0, z = r4(l.z0 + l.h), cx = (l.x0 + l.x1) / 2, cy = (l.y0 + l.y1) / 2, R = streamOf(seed, 'roof', `lot:${l.id}`);
+    if (Math.min(w, d) < ROOFTOP.least) continue;
+    if (l.tower) {
+      const k = P.narrow.includes(l.shape) ? P.penthouse.narrow : P.penthouse.share, pw = w * k, pd = d * k;
+      out.push({ key: 'penthouse', at: [r4(cx), r4(cy), z], scale: [r4(pw), r4(pd), P.penthouse.h] });
+      if (!P.narrow.includes(l.shape)) {
+        const longX = w >= d, room = (longX ? w : d) * (1 - k) / 2;
+        if (room > 4.4) for (const sd of [-1, 1]) out.push({ key: 'cooling', at: longX ? [r4(cx + sd * (pw / 2 + room / 2)), r4(cy), z] : [r4(cx), r4(cy + sd * (pd / 2 + room / 2)), z] });
+      }
+      if (R() < P.mast) out.push({ key: 'mast', at: [r4(cx), r4(cy), r4(z + P.penthouse.h)] });
+      continue;
+    }
+    if (!['box', 'podium'].includes(l.shape)) continue;
+    if (R() < P.bulkhead) out.push({ key: 'bulkhead', at: [r4(l.x0 + 3 + (w - 6) * (0.15 + 0.7 * R())), r4(l.y0 + 3.5 + (d - 7) * (0.15 + 0.7 * R())), z] });
+    // (a big flat roof its air handlers in a row along it, as many as its plan holds, ROOF_LOT.hvacPer m² each)
+    const n = Math.min(P.hvacMost, Math.floor((w * d) / P.hvacPer));
+    if (n > 0) { const longX = w >= d, v = 0.25 + 0.5 * R(); for (let k = 0; k < n; k++) { const u = (k + 0.5) / n; out.push({ key: 'hvac', at: longX ? [r4(l.x0 + 3 + (w - 6) * u), r4(l.y0 + 3 + (d - 6) * v), z] : [r4(l.x0 + 3 + (w - 6) * v), r4(l.y0 + 3 + (d - 6) * u), z] }); } }
+    // (a big flat roof over a tall enough building its cooling tower)
+    if (l.h >= P.cooling.h && Math.min(w, d) >= P.cooling.least && R() < P.cooling.share) out.push({ key: 'cooling', at: [r4(l.x0 + 3 + (w - 6) * (0.2 + 0.6 * R())), r4(l.y0 + 3 + (d - 6) * (0.2 + 0.6 * R())), z] });
+    if (kit) out.push(...rooftopPlan([{ id: `lot:${l.id}`, min: [l.x0, l.y0, l.z0], max: [l.x1, l.y1, z], group: 'geocity:midrise', flat: true }], seed));
   }
   return out;
 }

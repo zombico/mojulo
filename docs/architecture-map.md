@@ -202,6 +202,11 @@ Pointers only; each target carries its own design notes.
   (three tiles, floor, rail and pillar, a row each in `tiles.js`, and the modules on them; a deck a map of glyphs, its
   rails and columns found, `plan.js`; its laws, `laws.js`; built over the sea, `build.js`; a new rig a row of `rigs.js`;
   drawn in the facility maps book): [docs/offshore-rigs.md](offshore-rigs.md).
+- Museums and the city's other walk-ins (a civic building walked into on a page of its own: the museum's T of three
+  gallery wings, its pieces things mojulo made on plinths; an arcade, a library, an aquarium's tanks, `era/aquarium.js`,
+  a zoo's pens, `era/zoo.js`, a row each of `geocity/walkins.js`): the front `geocity/museum.js`, the program
+  `era/programs.js` `museum`, the plinths [era/exhibits.js](../control/lib/graph/era/exhibits.js), the door
+  `gameworld/levels.js` `museumDoor`: [docs/museum.md](museum.md).
 - Room craft: [era/room-craft.js](../control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).

@@ -30,6 +30,7 @@ const REGISTERS = Object.keys(REGISTER_PRESETS);
 export const REGISTER_WORDS = Object.freeze({
   military: ['military', 'hangar', 'armoury', 'armory', 'bunker', 'barracks', 'silo', 'command post'],
   utility: ['utility', 'warehouse', 'depot', 'plant room', 'factory', 'workshop', 'loading dock', 'garage', 'boiler room'],
+  gallery: ['museum', 'gallery', 'exhibition hall', 'art gallery'],
   science: ['science', 'lab', 'laboratory', 'research', 'clean room', 'control room', 'facility', 'observatory'],
   everyday: ['everyday', 'office', 'school', 'clinic', 'hospital', 'shop', 'store', 'mall', 'hotel', 'library', 'apartment'],
 });
@@ -54,24 +55,28 @@ export const COMPOSE_WORDS = Object.freeze({
     utility: ['concrete block', 'cinder block', 'cladding', 'standing seam', 'sawtooth roof', 'trusses', 'industrial'],
     science: ['white panels', 'panelled', 'paneled', 'glazed tile', 'terrazzo', 'carbon fibre', 'carbon fiber', 'coffered', 'sterile'],
     everyday: ['drywall', 'plasterboard', 'carpet', 'veneer', 'laminate', 'vinyl floor', 'ceiling tiles', 'suspended ceiling'],
+    gallery: ['white cube', 'gallery walls', 'smooth plaster', 'oak boards', 'shadow gap'],
   },
   palette: {
     military: ['military greys', 'military grey', 'gunmetal', 'olive drab', 'olive', 'drab', 'signal orange', 'camouflage'],
     utility: ['safety yellow', 'safety green', 'yellow steel', 'faded', 'grimy', 'oily'],
     science: ['white', 'clinical', 'teal', 'pale', 'spotless', 'pristine'],
     everyday: ['beige', 'neutral', 'muted', 'wood', 'homely', 'corporate', 'pastel'],
+    gallery: ['gallery white', 'warm white', 'oxblood', 'salon'],
   },
   plot: {
     military: ['harsh light', 'red light', 'alarm', 'emergency light', 'searchlight'],
     utility: ['sodium', 'amber light', 'orange light', 'floodlit', 'floodlights', 'work lights'],
     science: ['cold', 'blue light', 'cyan', 'glowing', 'fluorescent', 'bright'],
     everyday: ['warm light', 'soft light', 'daylight', 'downlights', 'cosy', 'cozy', 'exit signs'],
+    gallery: ['gallery lighting', 'track lights', 'track lighting', 'skylights'],
   },
   dressing: {
     military: ['crane', 'gantry', 'grating', 'heavy', 'hazard stripes', 'exposed services'],
     utility: ['pipes', 'conduit', 'cables', 'loading', 'pallets'],
     science: ['instruments', 'equipment'],
     everyday: ['tidy', 'finished', 'carpeted', 'furnished'],
+    gallery: ['bare', 'uncluttered', 'spare'],
   },
 });
 

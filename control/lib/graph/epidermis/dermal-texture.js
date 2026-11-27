@@ -127,9 +127,10 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * { scalp: { n, mm } | null, beard }) the hair a clipper took under its shell painted as its SHADOW, the
  * hair's colour by the share its length covers (dermal-map.js CLIPPER), the scalp's where its guides say, a styled
  * stubble's by its length; absent, the paint as it was. `opts.brows` (dermal-brow.js `browStrokes`) the brows painted on
- * the head's texels, each hair a stroke; absent, none.
+ * the head's texels, each hair a stroke; absent, none. `opts.joined` (realistic laws 19): a face across two islands
+ * painted as the skin beside it, never the white texel (faceUVs).
  */
-export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, beardStreaks = false, scalpStreaks = false, aoFloor = undefined } = {}) {
+export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, joined = false, beardStreaks = false, scalpStreaks = false, aoFloor = undefined } = {}) {
   const P = dermalPages(layout, D), clipAt = clip ? clipField(clip.scalp) : null;
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
@@ -138,7 +139,7 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, 
       scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}), ...(beardStreaks ? { beardStreaks } : {}), ...(scalpStreaks ? { scalpStreaks } : {}),
     });
   }
-  return finishPages(P, chart, faceUVs(chart, layout), D, layout, aoFloor !== undefined ? { aoFloor } : {});
+  return finishPages(P, chart, faceUVs(chart, layout, { joined }), D, layout, aoFloor !== undefined ? { aoFloor } : {});
 }
 
 /** The pages, blank: the albedo white, the roughness mid, the flow at rest. */
@@ -376,11 +377,20 @@ export function bakeVertex(chart, uvOf, N, NH, values, empty = 0) {
  * low corners a turn on (the rectangle's extra column); a cap's apex (where `around` means nothing) takes its
  * neighbours' mean.
  */
-export function faceUVs(chart, layout) {
+export function faceUVs(chart, layout, { joined = false } = {}) {
   const N = layout.page, NH = layout.pageH ?? N, byKey = new Map(layout.rects.map((r) => [r.key, r])), white = [(WHITE / 2) / N, 1 - (WHITE / 2) / NH];
   const out = chart.faces.map((tri) => {
-    const s = tri.map((vi) => chart.samples[vi]);
-    if (s.some((x) => !x) || s.some((x) => x.key !== s[0].key)) return null;
+    let s = tri.map((vi) => chart.samples[vi]);
+    // (`joined`: a corner the chart has no sample for, the lips' cut, takes a corner that has one)
+    if (s.some((x) => !x)) { const has = s.filter(Boolean); if (!joined || !has.length) return null; s = s.map((x) => x || has[0]); }
+    // (a face across two islands: before, the white texel, a pale jagged rim along every island's seam (the lips' cut,
+    // the nostrils' edge); `joined` (realistic laws 19), its corners off the island most of its corners are on taken at
+    // the nearest corner that is, so the face is the skin beside it)
+    if (s.some((x) => x.key !== s[0].key)) {
+      if (!joined) return null;
+      const key = s.filter((x) => x.key === s[1].key).length >= 2 ? s[1].key : s[0].key, on = s.filter((x) => x.key === key);
+      s = s.map((x) => (x.key === key ? x : on[0]));
+    }
     const r = byKey.get(s[0].key); if (!r) return null;
     let us = s.map((x) => (((x.around - r.seam) % 1) + 1) % 1);
     if (Math.max(...us) - Math.min(...us) > 0.5) us = us.map((u) => (u < 0.5 ? u + 1 : u));

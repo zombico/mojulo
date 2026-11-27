@@ -202,9 +202,19 @@ export function buildRulesBasic(E) {
     if (tlMix && want[2] > tlCeil) want[2] = Math.max(tz + 1, tlCeil);
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
+    // (the LOOK EASED, opt-in `lookEase`, a car's chase, gameworld/cars.js: the point ahead it aims at led along a heading
+    // eased after the target's, so a steering key's tap swings the aim no faster than the chase swings the eye; a fresh
+    // ride's starts where the car points. Absent → the look along the target's own heading, as it was)
+    let fl = f;
+    if (r.lookEase) {
+      const wrapA = (a) => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      if (e.lookHd == null || !(world.time - (e.lookHdT ?? -1e9) < 0.5)) e.lookHd = h;
+      e.lookHd = wrapA(e.lookHd + wrapA(h - e.lookHd) * smooth(r.lookEase, dt)); e.lookHdT = world.time;
+      fl = fwdXY(e.lookHd);
+    }
     e.lookAt = [
-      tgt.transform.pos[0] + f[0] * lead * cp,
-      tgt.transform.pos[1] + f[1] * lead * cp,
+      tgt.transform.pos[0] + fl[0] * lead * cp,
+      tgt.transform.pos[1] + fl[1] * lead * cp,
       tz + lookH + lead * sp,
     ];
     if (vs) { const a = r.vista.at; e.lookAt = [e.lookAt[0] + (a[0] - e.lookAt[0]) * vs, e.lookAt[1] + (a[1] - e.lookAt[1]) * vs, e.lookAt[2] + (a[2] - e.lookAt[2]) * vs]; }
@@ -545,12 +555,22 @@ export function buildRulesBasic(E) {
   // its seat one, or the shared count one; a seat with none left is out (its body gone), and when no seat is left
   // playing the seats are over (state.seatsOver: the page ends the level, failed). Without lives seat 1's fall is the
   // level's catch, as before.
+  // A SEAT DOWNED (its body's hp spent, combat-hit's `downed`, or felled by the cast: a seat's level hp spent, mechanics.js
+  // seatedDeath) is taken as a fall once its collapse has played (SEAT_DOWN_HOLD s): a life, then up again beside the
+  // others with its hp whole, or out. Seat 1's down is the level's own (fail-on-death's), unless the seats count lives.
+  const SEAT_DOWN_HOLD = 1.5;
   E.registerWorldPass('seat-falls', (state) => {
     if (!state.seatOf) return;
     const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? 1 : state.seatOf[e.id]);
     for (const e of all) {
-      if (e.gone || e.transform.pos[2] >= state.seatFloor) continue;
+      if (e.gone) continue;
       const n = seatN(e);
+      let down = false;
+      if ((n > 1 || state.seatLives) && e.downed && !state.seatDownsLevel) {
+        if (e.seatDownAt == null) e.seatDownAt = state.time;
+        down = state.time - e.seatDownAt >= SEAT_DOWN_HOLD;
+      }
+      if (!down && e.transform.pos[2] >= state.seatFloor) continue;
       if (n === 1 && !state.seatLives) continue;
       if (state.seatLives) {
         const k = state.seatPool === 'shared' ? 'shared' : n;
@@ -565,6 +585,13 @@ export function buildRulesBasic(E) {
       const at = to ? to.transform.pos : null, home = state.seatHome && state.seatHome[e.id];
       e.transform.pos = at ? [at[0], at[1], at[2] + 1] : home ? home.slice() : [e.transform.pos[0], e.transform.pos[1], 0];
       if (e.vel) e.vel = [0, 0, 0];
+      if (down) {
+        // up again: its hp whole, the collapse let go (combat-match.js respawnEntity's reset, where it stands)
+        if (Number.isFinite(e.hpMax)) e.body.hp = e.hpMax;
+        if (Number.isFinite(e.poiseMax)) e.poise = e.poiseMax;
+        e.downed = false; e.castDown = false; e.seatDownAt = null; e.staggerT = null; e.downPauseT = null; e.reactionEnded = false;
+        e.locomotion = 'forward'; e.moving = false; e.gaitPhase = 0;
+      }
     }
   });
 

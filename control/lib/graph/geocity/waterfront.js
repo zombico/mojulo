@@ -56,7 +56,8 @@ export function shoreAt(g, a) {
   const body = N.form === 'bay' ? -N.amp * taper ** 0.7 : N.form === 'headland' ? N.amp * taper ** 1.5 : -N.amp * taper ** 1.2;
   return g.depth + body + wave;
 }
-export const WATERFRONT_KINDS = Object.freeze(['quay', 'pier', 'dining', 'park', 'beach', 'marina', 'steps']);
+// (`port` is never picked by the dice: a district that asks for a dock is given one, design.js)
+export const WATERFRONT_KINDS = Object.freeze(['quay', 'pier', 'dining', 'park', 'beach', 'marina', 'steps', 'port']);
 
 /** A strip's frame: `a` along its shore, `t` out from the land's edge into the water. */
 export function frameOf(W) {

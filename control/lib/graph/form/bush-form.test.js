@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bushForm, bushBlossom, bushBerries, BUSH_HABITS, BUSH_FORM, BUSH_ADORN, ADORN } from './bush-form.js';
+import { bushForm, bushBlossom, bushBerries, bushPuffs, BUSH_HABITS, BUSH_FORM, BUSH_ADORN, ADORN } from './bush-form.js';
 import { leafClump, leafSpray, leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 
@@ -8,8 +8,9 @@ const byShape = (shape) => Object.keys(BUSH_HABITS).find((f) => BUSH_HABITS[f].s
 const CASES = ['dome', 'fountain', 'rosette'].map(byShape);
 
 describe('a bush read as form', () => {
-  it('has a habit for every leaf form a bush kind names', () => {
-    expect(Object.keys(BUSH_HABITS).sort()).toEqual([...LEAF_FORM_IDS].sort());
+  it('has a habit for every leaf form a bush kind names, and the clipped hedge a scene lays', () => {
+    for (const f of LEAF_FORM_IDS) expect(BUSH_HABITS[f]).toBeTruthy();
+    expect(Object.keys(BUSH_HABITS).filter((k) => !LEAF_FORM_IDS.includes(k))).toEqual(['hedge']);
   });
 
   it('is deterministic from its seed, and another seed another bush', () => {
@@ -117,3 +118,47 @@ describe('the sprays take a leaf where they take a species', () => {
     expect(leafHolds(leaf).clump).toBeGreaterThan(leafHolds(leaf).spray);
   });
 });
+
+describe('a bush as flock (a realistic stage\'s, its `flock` row)', () => {
+  it('stands its mass as puffs where its clumps are, set in from its outline and apart, overlapping into one mass', () => {
+    // (one habit per outline that takes it, chosen from the rows; a habit without the row none)
+    const takes = Object.keys(BUSH_HABITS).filter((k) => BUSH_HABITS[k].flock), not = Object.keys(BUSH_HABITS).find((k) => !BUSH_HABITS[k].flock);
+    expect(takes.length).toBeGreaterThan(0);
+    expect(bushPuffs(bushForm(not, { seed: 1 }), BUSH_HABITS[not].flock)).toEqual([]);
+    for (const k of takes) {
+      const B = bushForm(k, { seed: 1 }), F = BUSH_HABITS[k].flock, P = bushPuffs(B, F), s0 = F.size * B.height;
+      expect(P.length).toBeGreaterThan(3);
+      // (a mass's kept apart; a fountain's along its arches, over the stem where its leaves are, from `along` of the way out)
+      if (F.along === undefined) for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) expect(Math.hypot(...P[i].p.map((v, c) => v - P[j].p[c]))).toBeGreaterThanOrEqual(s0 * F.apart - 1e-3);
+      else {
+        expect(B.arches.length).toBeGreaterThan(1);
+        const near = (q) => Math.min(...B.arches.flatMap((A) => A.pts.slice(Math.floor(F.along * (A.pts.length - 1))).map((x) => Math.hypot(...x.map((v, c) => v - q.p[c])))));
+        for (const q of P) expect(near(q)).toBeLessThan(q.s * (F.lift + 0.6));
+        expect(P.length).toBeGreaterThanOrEqual(B.arches.length);
+      }
+      // (one mass: each puff reaches another, its radii summed past the distance between them)
+      for (const a of P) expect(P.some((b) => b !== a && Math.hypot(...a.p.map((v, c) => v - b.p[c])) < (a.s + b.s) * 1.6)).toBe(true);
+      // (every clump of its outline within a puff's reach: the mass is the bush's shape)
+      for (const c of B.clumps) expect(Math.min(...P.map((q) => Math.hypot(...c.p.map((v, i) => v - q.p[i])) - q.s))).toBeLessThan(s0 * 1.6);
+      expect(bushPuffs(bushForm(k, { seed: 1 }), F)).toEqual(P);
+      // (its sponge finer than a tree's: its leaves are smaller)
+      expect(F.grain).toBeLessThan(1);
+    }
+  });
+});
+
+describe('a clipped hedge (BUSH_HABITS.hedge)', () => {
+  it('is a box along its line, flat on top, its flock\'s puffs runs filling it and bridging the seam with the next', () => {
+    const h = 1.2, B = bushForm('hedge', { seed: 1, height: h }), H = BUSH_HABITS.hedge, L = H.length * h, D = H.radius * h;
+    // (its clumps within its box: along x its length, across y its depth, its top level)
+    for (const c of B.clumps) { expect(Math.abs(c.p[0])).toBeLessThanOrEqual(L / 2 + 1e-6); expect(Math.abs(c.p[1])).toBeLessThanOrEqual(D + 1e-6); expect(c.p[2]).toBeLessThanOrEqual(h + 1e-6); }
+    expect(B.clumps.filter((c) => c.o[2] === 1).length).toBeGreaterThan(2);
+    const P = bushPuffs(B, H.flock);
+    expect(new Set(P.map((q) => q.p.join(','))).size).toBe(P.length);
+    // (each puff long along the line; one at the segment's end, so the next segment's runs join it)
+    for (const q of P) expect(q.o).toEqual([1, 0, 0]);
+    expect(P.some((q) => Math.abs(q.p[0] + L / 2) < 1e-6)).toBe(true);
+    expect(Math.max(...P.map((q) => q.p[2] + q.s * H.flock.puff.top))).toBeGreaterThan(h * 0.85);
+  });
+});
+

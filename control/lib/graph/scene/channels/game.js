@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SAVE as GAME_MSG_SAVE, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SAVE as GAME_MSG_SAVE, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END, MSG_LOADING as GAME_MSG_LOADING } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 import { openingScript, resultsScript } from './game-screens.js';
@@ -35,6 +35,24 @@ export function awaitShell({ started, fallback, wait = 1500, tick = 100, slack =
 }
 
 import { rankOf, levelRank } from '../../game/rank.js';
+/** When a level is WARM, so the shell's veil lifts (MSG_SHOWN): `frames` frames in a row each no slower than `ratio` ×
+ *  the quickest of them plus `slack` ms (steady, whatever the machine's own speed); at the latest `most` ms after its
+ *  first frame. The shell is told it is warming up from that first frame (MSG_LOADING at `progress`). */
+export const GAME_WARM = Object.freeze({ frames: 8, ratio: 2, slack: 20, most: 20000, progress: 95 });
+// (inlined by its source: the page's own frames watched until they steady, then the shell told)
+export function warmWatch(W) {
+  const say = (m) => { try { window.parent.postMessage(m, '*'); } catch (e) { /* opaque parent */ } };
+  let t0 = null, last = null;
+  const D = [];
+  const tick = (t) => {
+    if (t0 === null) { t0 = t; say({ moj: W.loading, progress: W.progress, step: 'warming up' }); }
+    if (last !== null) { D.push(t - last); if (D.length > W.frames) D.shift(); }
+    last = t;
+    if ((D.length === W.frames && Math.max(...D) <= W.ratio * Math.min(...D) + W.slack) || t - t0 > W.most) { say({ moj: W.shown }); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
 export function gameChannelScript(game, { shownOnStart = false } = {}) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
@@ -354,10 +372,12 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       start(d.params, d.seed);
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
-    // shown: the first frame drawn (two frames on: the world's loop draws in the first), so the shell's veil lifts on a
-    // picture, never on a page still building${shownOnStart ? `. A level whose seed changes what is there (its roll) says so only
-    // once it has started: two frames after its start, so the veil never lifts on the level as it was before its roll` : ''}
-    ${shownOnStart ? 'st.onStart.push(() => ' : ''}requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }))${shownOnStart ? ')' : ''};
+    // shown: the level drawn and WARM (GAME_WARM): its frames steady, the last few none much slower than the quickest of
+    // them, so the shell's veil lifts on a level that plays and never on one still compiling its shaders, uploading its
+    // banks or building the people near it (the shell told it is warming up the while, MSG_LOADING); a level that never
+    // steadies says it at the cap${shownOnStart ? `. A level whose seed changes what is there (its roll) watches only
+    // once it has started, so the veil never lifts on the level as it was before its roll` : ''}
+    ${shownOnStart ? 'st.onStart.push(() => ' : ''}(${warmWatch.toString()})(${safeJson({ ...GAME_WARM, shown: GAME_MSG_SHOWN, loading: GAME_MSG_LOADING })})${shownOnStart ? ')' : ''};
     // (the grace is 1.5 s the shell could have answered in, not 1.5 s on the clock: awaitShell below)
     (${awaitShell.toString()})({ started: () => st.started, fallback });
   } else {${game && game.opening ? `

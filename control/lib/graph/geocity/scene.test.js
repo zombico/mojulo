@@ -17,7 +17,10 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(P.faces.length).toBeLessThanOrEqual(GEOCITY_FACES);
     const towers = D.regions.flatMap((r) => r.blocks).flatMap((b) => b.towers ?? []);
     expect(P.geocity.counts.towers).toBe(towers.length);
-    expect(group('geocity:tower').length).toBe(4 * towers.length);
+    // (each tower its four walls, and a wall over ground that falls away from it carried down to that ground: a plinth)
+    const T = group('geocity:tower').length;
+    expect(T).toBeGreaterThanOrEqual(4 * towers.length);
+    expect(T).toBeLessThanOrEqual(8 * towers.length);
     expect(group('geocity:house').length).toBeGreaterThan(0);
     expect(group('geocity:water').length).toBe(1);
   });
@@ -51,8 +54,10 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     const N = assembleGeocityScene({ ...M, hour: 'night' });
     expect(N.geocity.counts.panes).toBeGreaterThan(0);
     expect(N.faces.filter((f) => f.group === 'geocity:night-window')).toHaveLength(N.geocity.counts.panes);
-    // (the rest of the night's metro is the day's, face for face but its light)
-    expect(N.faces.length - N.geocity.counts.panes).toBe(P.faces.length);
+    // (the rest of the night's metro is the day's, face for face but its light, and each lamp's pool and glow: NIGHT_CITY)
+    const lamps = N.faces.filter((f) => f.group === 'geocity:pool' || f.group === 'geocity:lamp-glow').length;
+    expect(lamps).toBe(2 * (N.geocity.counts.pools ?? 0));
+    expect(N.faces.length - N.geocity.counts.panes - lamps).toBe(P.faces.length);
   });
 
   it('is the same metro for the same recipe', () => {
@@ -76,6 +81,9 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(() => assembleGeocityScene({ ...M, domain: 'x' })).toThrow(/'domain' is not a setting of the geocube kind's geocity/);
     // (its view cone, asked: the screen's reach, or metres in range)
     expect(() => assembleGeocityScene({ ...M, cone: 'far' })).toThrow(/cone is the view cone/);
+    // (its crowns, the form render's reading of its street trees and its towns': a word it does not know refused)
+    expect(() => assembleGeocityScene({ ...M, crowns: 'fluffy' })).toThrow(/crowns is/);
+    expect(() => assembleGeocityScene({ ...M, crowns: { form: 'hybrid', flock: true } })).toThrow(/realistic crown's setting/);
   });
 });
 
@@ -233,6 +241,8 @@ describe('the geocity read in the form render', () => {
     expect(F.faces.some((f) => FORM_GROUND.includes(f.group))).toBe(false);
     expect(F.plants.trees.length).toBeGreaterThan(0);
     expect(F.plants.clear.length).toBeGreaterThanOrEqual(F.plants.trees.length);
+    // (every street tree on its walk or in its pit: none on a carriageway, none in a crossing)
+    expect(F.geocity.laws.find((l) => l.law === 'trees-clear')).toMatchObject({ ok: true });
     // (no street tree drawn as paint where the form grows it)
     expect((F.repeats ?? []).some((rp) => String(rp.group).startsWith('geocity:tree-'))).toBe(false);
     expect(P.plants).toBeUndefined();

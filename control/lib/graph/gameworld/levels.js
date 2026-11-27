@@ -25,6 +25,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { WALKINS } from '../geocity/walkins.js';
 import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
 import { frameEntity, frameMounts, frameGravity, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
@@ -83,7 +84,15 @@ import { taskApps, appTitle } from './phone-ui.js';
 import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
-import { patrolCar } from './cars.js';
+import { patrolCar, depotCabs, issuedCabs } from './cars.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf, MOW_ROUND } from './jobsified.js';
+import { FORGED, PAPERS } from './shops.js';
+import { MUNICIPAL, REQUEST_KINDS, requestSites } from './municipal.js';
+import { hiddenSpots } from './hidden-stars.js';
+// (how near a hidden star is picked up from, m: a step or two, it is looked for)
+const HIDDEN_PICK = 1.6;
+// (the papers a driving or desk job asks for: its row's `papers`, or the licence a `licence` row asks for)
+const paperOf = (S) => (S.papers ? PAPERS[S.papers] : S.licence ? FORGED : null);
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -200,6 +209,10 @@ const EYE_FALLBACK = 1.7;
 const HERO_EYE = 1.6;
 // the ¾ overhead camera: north up the screen, 60° below the horizon, far enough back to read a trail's next turn
 // the flags slice a world's breaks are kept in (the aftermath mechanic)
+// (a town's or a district's sky words, carried from its style onto its geocube: world.js skyOfStyle; its hour first, as
+// it always was, so a level that names no other word is the manifest it was)
+const skyWords = (R) => { const { spec, cube, enter, ...sky } = R; return sky; };
+
 export const AFTERMATH_SLICE = 'aftermath';
 const OVERHEAD = Object.freeze({ yaw: Math.PI / 2, tilt: Math.PI / 3, dist: 14, lookH: 1 });
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -238,10 +251,16 @@ export function gameStages(world) {
     // a metroidvania level is one stage: its box built for the hero its level order makes (metroidvania/scene.js)
     if (R.metroidvania) { out.push({ level, node: 'box', section: 'metroidvania', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'metroidvania', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, metroidvania: R.metroidvania, ...(R.segment !== undefined ? { segment: R.segment } : {}) } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
-    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
+    if (R.geocity) {
+      out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...skyWords(R.geocity) } });
+      // (its museum and its office tower entered at their doors, geocity/museum.js and scene.js `office`: each a level of its
+      // own after the district, linked by its door, and its other walk-ins' (geocity/walkins.js); the office's a desk's, deskwork's: gameworld/temp-agency.js)
+      if (R.geocity.spec?.museum || R.geocity.spec?.office || R.geocity.spec?.cityhall || R.geocity.spec?.enter?.length) (stageEnds(out[out.length - 1].manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `district-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'district', index: 0, door: d.id }, building: { use: d.inside.use }, label: d.inside.name, ...(d.inside.desk ? { desk: true } : {}), ...(d.inside.clerk ? { clerk: true } : {}), manifest: interiorStage(d.inside) }));
+      continue;
+    }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
-      out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
+      out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...skyWords(R.geotown), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
       // (its houses entered at their doors, each a level of its own after the town, linked by its door)
       const st = out[out.length - 1];
       (stageEnds(st.manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `town-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'town', index: 0, door: d.id }, building: { use: d.inside.use }, manifest: inPalette(interiorStage(d.inside), R.style?.palette ?? G.style?.palette, `${level}/town-${d.id}`) }));
@@ -700,8 +719,11 @@ function geotownEnds(manifest) {
 // never a roof, and never the highway carried over its streets: a level is set down on the street under it), what
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
+// the lanes a kerb keeps out of: the traffic's, never a streetcar's tracks (geocity/flow.js `:tram`): its cars run past
+// what is parked, as they did before the tracks were lanes, and a street a line runs down still parks at its kerbs
+const kerbLanes = (P) => (P.flow?.lanes ?? []).filter((L) => !String(L.line ?? '').endsWith(':tram'));
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], P = assembleGeocityScene(own, { play: true, parked, streets });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], dockAt = [], rampsAt = [], parks = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt, dockAt, rampsAt, parks });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -710,22 +732,76 @@ function geocityEnds(manifest) {
   const beats = [];
   let last = route[0];
   for (const p of route.slice(1, far)) if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 12) { beats.push({ beat: 'along', at: on(p) }); last = p; }
-  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]) };
+  // (its MUSEUM's door, geocity/museum.js: the portico before its door, entered into the museum's building on a page of
+  // its own; walked back out, the hero stands at the foot of its steps facing its street)
+  const doors = [...(manifest.geocity?.museum ? (P.anchors ?? []).filter((a) => a.kind === 'museum').map((a) => museumDoor(a, manifest.geocity.museum, ground, manifest.seed ?? 1)) : []),
+    // (its OFFICE tower's lobby, `office`: entered into the office's building, its desk where a temp's shift is worked)
+    ...(manifest.geocity?.office ? (P.anchors ?? []).filter((a) => a.kind === 'office').map((a) => officeDoor(a, manifest.geocity.office, ground, manifest.seed ?? 1)) : []),
+    // (its CITY HALL's door, `cityhall`: the museum's civic front, into a building of its own, a clerk's desk in it)
+    ...(manifest.geocity?.cityhall ? (P.anchors ?? []).filter((a) => a.kind === 'cityhall').map((a) => cityhallDoor(a, manifest.geocity.cityhall, ground, manifest.seed ?? 1)) : []),
+    // (and its other WALK-INS', geocity/walkins.js: an arcade's, a library's, each into its program laid in its own look)
+    ...(manifest.geocity?.enter?.length ? (P.anchors ?? []).filter((a) => a.kind === 'walkin' && WALKINS[a.use]).map((a, k) => walkinDoor(a, ground, (manifest.seed ?? 1) + 2 + k)) : [])];
+  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]), ...(doors.length ? { doors } : {}) };
   Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
-  // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a walk of the start, its
-  // own fleet's at the kerb there)
+  // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a few steps of the start
+  // (KERB.walk: a downtown's kerbs park cars down every street), its own fleet's at the kerb there, in no bay a car of
+  // the street's already stands in)
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
-  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [])), ...lots], enumerable: false });
+  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, kerbLanes(P), lots)), ...lots], enumerable: false });
+  // (a KERB beside a place on its walk, `kerbAt(p, N)`, N the way out to its street: a bay on the road there, clear of
+  // the cars parked, turned along the street; null where none. Where a job stands a vehicle of its own: jobsified.js)
+  let roadAt = null;
+  Object.defineProperty(out, 'kerbAt', { value: (p, N) => { roadAt ??= groundSampler(P.faces ?? [], /^geocity:road$/); return kerbSpots([[p[0], p[1]], [p[0] - N[1], p[1] + N[0]]], roadAt, P.colliders ?? [], ground, kerbLanes(P), lots)[0] ?? null; }, enumerable: false });
   // (its STREETS as a driver keeps to them: the middle line of each signalled street its traffic drives, cityRoads)
   Object.defineProperty(out, 'roads', { value: cityRoads(streets), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (its PLACES: each shop walked into as somewhere a job may send its hero, a stride out from its door on the walk or
   // the forecourt before it: where a pick-up or a hand-in stands, had from the kerb)
-  Object.defineProperty(out, 'places', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
+  // (a district with no shop walked into, a downtown's towers and podiums: each SHOPFRONT the same, the kerb before a shop
+  // bay's door, its tenant's store named; never a till)
+  const walkedIn = (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.at, N: a.N }));
+  const shops = walkedIn.length ? walkedIn : shopfronts;
+  Object.defineProperty(out, 'places', { value: shops.map((a) => ({ id: a.id, card: a.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
+  // (its DEPOTS: each yard the district keeps vehicles in (geocity/fleets.js YARDS), its middle on the ground, how far it
+  // reaches, and each of its vehicles a hero may get into (one of `parked`, the same entry) by its role: a driving job's
+  // depot, gameworld/jobsified.js)
+  const lotsOut = out.parked;
+  Object.defineProperty(out, 'depots', { value: yards.map((Y) => {
+    const cabs = Y.vehicles.map((v) => ({ role: v.role, car: lotsOut.find((c) => Math.abs(c.at[0] - v.at[0]) < 0.05 && Math.abs(c.at[1] - v.at[1]) < 0.05) ?? null })).filter((v) => v.car);
+    const [x0, y0, x1, y1] = Y.rect;
+    // (`half`: its box, the yard whole; `radius` the reach of a word about it, to its far corner)
+    return { id: Y.id, yard: Y.yard, at: on([(x0 + x1) / 2, (y0 + y1) / 2, Y.z]), half: [r3((x1 - x0) / 2), r3((y1 - y0) / 2)], radius: r3(Math.hypot(x1 - x0, y1 - y0) / 2), cabs };
+  }), enumerable: false });
+  // (room to stand a vehicle in a yard, `yardAt(id)`: on the yard's lot, clear of its walls and kit and of every car
+  // parked there, a few metres apart, nose along its long side, nearest its middle first; a job's issued vehicle is had
+  // at its yard, jobsified.js issuedOf)
+  Object.defineProperty(out, 'yardAt', { value: (id) => {
+    const Y = yards.find((y) => y.id === id || y.yard === id);
+    if (!Y) return [];
+    const [x0, y0, x1, y1] = Y.rect, alongX = x1 - x0 >= y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, I = YARD_STAND.inset, out2 = [];
+    const blocked = (x, y, z) => (P.colliders ?? []).some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
+    for (let x = x0 + I; x <= x1 - I + 1e-6; x += YARD_STAND.step) for (let y = y0 + I; y <= y1 - I + 1e-6; y += YARD_STAND.step) {
+      const z = ground(x, y);
+      if (z === null || z === undefined || Math.abs(z - Y.z) > YARD_STAND.level || blocked(x, y, z) || lotsOut.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < KERB.bay)) continue;
+      out2.push({ at: [r3(x), r3(y), r3(z)], heading: alongX ? 0 : r3(Math.PI / 2) });
+    }
+    return out2.sort((a, b) => Math.hypot(a.at[0] - cx, a.at[1] - cy) - Math.hypot(b.at[0] - cx, b.at[1] - cy) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+  }, enumerable: false });
+  // (its LOTS near the eye: each empty lot and building site, its box and its middle on the ground, an empty lot's open
+  // side: where a driving job builds its dump or sends a load, jobsified.js)
+  Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}), ...(Q.digger ? { digger: Q.digger } : {}), ...(Q.truck ? { truck: Q.truck } : {}) })), enumerable: false });
+  // (its parks near the eye, geocity/scene.js `ctx.parks`: a groundskeeper's lawns)
+  Object.defineProperty(out, 'parks', { value: parks.map((Q) => ({ ...Q, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]) })), enumerable: false });
+  // (its DOCK, where it asks for one, `geocity.dock`: the port's yard, its middle and its truck bays; and its RAMPS, each
+  // between a highway's deck and the street, its top and its foot: the highways driven)
+  Object.defineProperty(out, 'dock', { value: dockAt[0] ? { id: dockAt[0].id, at: dockAt[0].at.map(r3), rect: dockAt[0].rect, bays: dockAt[0].bays.map((b) => ({ at: b.at.map(r3), heading: b.heading })), ...(dockAt[0].quay ? { quay: { at: dockAt[0].quay.at.map(r3), along: dockAt[0].quay.along, out: dockAt[0].quay.out } } : {}) } : null, enumerable: false });
+  Object.defineProperty(out, 'ramps', { value: rampsAt.map((r) => ({ ...r })), enumerable: false });
+  // (its DUMP, where it asks for one, `geocity.dump`: the tipping hall's middle on its floor and its box)
+  Object.defineProperty(out, 'dump', { value: dumpAt[0] ? { id: dumpAt[0].id, at: on(dumpAt[0].at), half: dumpAt[0].half } : null, enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
@@ -750,8 +826,11 @@ const parkedCars = (list) => list.filter((c) => !c.extra).map((c) => ({ at: c.po
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
 // apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
 // the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
-const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 60, lane: 2.4 });
-function kerbSpots(route, road, colliders, top = null, lanes = []) {
+// room in a yard for an issued vehicle (m): how far in from its edge, the grid it is looked for on, how far off the yard's
+// own level the ground may be
+const YARD_STAND = Object.freeze({ inset: 3.5, step: 3, level: 0.4 });
+const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 20, lane: 2.4, bay: 5.5 });
+function kerbSpots(route, road, colliders, top = null, lanes = [], taken = []) {
   if (route.length < 2) return [];
   const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
   const blocked = (x, y, z) => colliders.some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
@@ -766,7 +845,8 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
   for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
     if (spots.length >= KERB.most) break;
     const x = x0 + side.n[0] * side.s + f[0] * k * KERB.apart, y = y0 + side.n[1] * side.s + f[1] * k * KERB.apart, z = road(x, y);
-    if (z === null || blocked(x, y, z) || (top && [-2.2, 2.2].some((d) => !open(x + f[0] * d, y + f[1] * d)))) continue;
+    // (never in a bay the street already parks a car in: geocity/scene.js's kerbs, its lots)
+    if (z === null || blocked(x, y, z) || taken.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < KERB.bay) || (top && [-2.2, 2.2].some((d) => !open(x + f[0] * d, y + f[1] * d)))) continue;
     spots.push({ at: [r3(x), r3(y), r3(z)], heading: r3(hd) });
   }
   return spots;
@@ -834,6 +914,50 @@ const GIVER = Object.freeze({ off: 120, apart: 14, says: 'I have a job for you.'
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
 function kerbCars(seed, spots) {
   return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('site:'));
+}
+
+/** THE OFFICE TOWER'S DOOR (geocity/scene.js `office`): its zone just before its lobby's glass doors, the way back out on
+ *  the walk before them, facing its street; its inside the office's building (era/programs.js `office`: a lobby, a stair
+ *  core, office wings, meeting rooms, the boardroom at the top) in the everyday bay kit, its offices pods of desks
+ *  (room-layouts.js `islands`), no goal (left by its door), a desk
+ *  in it where a shift is worked (gameworld/temp-agency.js). */
+export const OFFICE_IN = Object.freeze({ zone: 0.9, back: 4, kit: 'bay-everyday', layouts: Object.freeze({ office: 'islands' }), name: 'Synergetics Tower' });
+function officeDoor(a, O0, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor, O = O0 === true ? {} : O0;
+  const zone = [a.at[0] + nx * OFFICE_IN.zone, a.at[1] + ny * OFFICE_IN.zone], back = [a.at[0] + nx * (OFFICE_IN.zone + OFFICE_IN.back), a.at[1] + ny * (OFFICE_IN.zone + OFFICE_IN.back)];
+  return { id: 'office', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'office', seed: seed + 2, kit: OFFICE_IN.kit, layouts: OFFICE_IN.layouts, exit: false, desk: true, name: O.name ?? OFFICE_IN.name } };
+}
+
+/** CITY HALL'S DOOR (geocity/scene.js `cityhall`, the museum's civic front): its zone on its portico before its door, the
+ *  way back out at the foot of its steps; its inside the office program in the everyday kit (its offices in pods), no
+ *  goal, a clerk's desk in it where work orders are made (gameworld/municipal.js CLERK_DESK). */
+function cityhallDoor(a, O0, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor, O = O0 === true ? {} : O0;
+  const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + MUSEUM_IN.back), a.at[1] + ny * (MUSEUM_IN.zone + MUSEUM_IN.back)];
+  return { id: 'cityhall', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'office', seed: seed + 3, kit: OFFICE_IN.kit, layouts: OFFICE_IN.layouts, exit: false, clerk: true, name: O.name ?? 'City Hall' } };
+}
+
+/** THE MUSEUM'S DOOR (geocity/museum.js): its zone on the portico just before its door, the way back out at the foot of
+ *  its steps, facing its street; its inside the museum's building (era/programs.js `museum`) with the city's exhibits,
+ *  laid larger for the follow camera, and no goal: it is looked round and left by its door. */
+export const MUSEUM_IN = Object.freeze({ zone: 0.9, back: 6, scale: 1.5 });
+function museumDoor(a, M, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor;
+  const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + MUSEUM_IN.back), a.at[1] + ny * (MUSEUM_IN.zone + MUSEUM_IN.back)];
+  const O = M === true ? {} : M;
+  return { id: 'museum', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'museum', seed: seed + 1, scale: O.scale ?? MUSEUM_IN.scale, exit: false, ...(O.name ? { name: O.name } : {}), ...(O.exhibits ? { exhibits: O.exhibits } : {}) } };
+}
+
+/** A WALK-IN'S DOOR (geocity/walkins.js), the museum's way: its zone before its door, the way back out a few steps into
+ *  its forecourt facing its street; its inside its program in its kit and look, looked round and left by its door. */
+function walkinDoor(a, ground, seed) {
+  const [nx, ny] = a.N, W = WALKINS[a.use], z = (p) => ground(p[0], p[1]) ?? a.floor;
+  const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + 3), a.at[1] + ny * (MUSEUM_IN.zone + 3)];
+  return { id: a.use, at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: W.program, seed, kit: W.kit, compose: W.compose === false ? false : { ...W.compose }, scale: W.scale ?? MUSEUM_IN.scale, exit: false, name: a.name ?? W.name, ...(W.reference ? { reference: W.reference } : {}), ...(W.tanks ? { tanks: JSON.parse(JSON.stringify(W.tanks)) } : {}), ...(W.pens ? { pens: JSON.parse(JSON.stringify(W.pens)) } : {}) } };
 }
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
@@ -1064,7 +1188,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null, errands: G.errands ?? null }) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length || !!G.municipal || !!G.hidden, shops: G.shops ?? null, errands: G.errands ?? null, municipal: G.municipal ?? null, hidden: G.hidden ?? null, seed: G.seed ?? 1 }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1082,7 +1206,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // THE LEVEL'S OWN SAVE (a played city with jobs: one long level, scene/channels/game.js `save`): what it keeps, and the
   // moments it is kept at; the game's shell holds it and hands it back on a continue
   if (ways?.save) game.save = ways.save;
-  let pilotPart, seatable = false;
+  let pilotPart, seatable = false, crewable = false;
   if (stage.section === 'airspace' && ends.scroll) {
     // A SCROLL STAGE (scroll-stage/stage-scene.js scrollStagePlay): its ship on the d-pad, the scroll camera, its foes, a
     // hull on the play plane and the physics that breaks it; its HUD and menu in the game's look (scroll-stage/hud.js),
@@ -1195,6 +1319,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       camera: ride.camera ? { rule: 'follow', target: 'car', ...ride.camera } : ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
+    // (a ride two seats crew: soul.dependence=roles, crewPart below)
+    crewable = !ride.racer;
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
     const camRule = look || shoulder ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : steered ? { move: 'camera' } : undefined;
@@ -1299,6 +1425,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // SEATS (the cube's soul.seats): a body per extra seat beside the hero, once the goal has dressed the hero
   let seats = null;
   if (seatable) ({ pilotPart, seats } = seatPart(G, pilotPart, ends, lane));
+  else if (crewable) ({ pilotPart, seats } = crewPart(G, pilotPart));
+  // (a match that brings its fallen back itself, frags': the world leaves a seat downed to it, never a seat's fall)
+  if (seats && game.mechanics.some((m) => m.kind === 'frags')) seats = { ...seats, downs: 'level' };
   // LOOP (the intent's `loop` concern): a low wall down the oval's middle
   if (ends.loop) blocks = [...(blocks ?? []), ...loopBlocks(ends.loop, ends)];
   // ARENA (the intent's `arena` concern): its wall, lanes and cover; the arena is the fight's cover and sightlines, so
@@ -1443,7 +1572,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // (a frame's level: its pilot's armour and generator are the frame's own HUD's, scene/channels/controllable/frame-hud.js;
     // the mana HUD keeps the pilot, so the page's own default panels stay down, but draws no health strip of its own)
     const frameHero = pilotPart.entities?.[0]?.rule?.type === 'frame';
-    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}), ...(frameHero ? { heroBar: false } : {}) } };
+    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}), ...((manifest.game?.mechanics ?? []).some((m) => m?.kind === 'shift') ? { count: true } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}), ...(frameHero ? { heroBar: false } : {}) } };
   }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -1465,20 +1594,44 @@ function seatPart(G, pilotPart, ends, lane) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
   if (!n) return { pilotPart, seats: null };
   const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
-  entities[0] = { ...p0, team: side };
+  // (soul.contest: co-op, every seat on the hero's side; versus and free-for-all, each seat a side of its own, `seat-<n>`,
+  // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`. On a level
+  // of two sides already (a team deathmatch's red and blue), seats against each other take them: the odd the hero's)
+  const rival = soul.contest === 'versus' || soul.contest === 'free-for-all', teams = soul.contest === 'teams';
+  const others = [...new Set(entities.map((e) => e.team).filter((t) => t && t !== p0.team))], sided = !!p0.team && others.length === 1;
+  const sideOf = (k) => (!rival && !teams ? side : sided ? (k % 2 ? p0.team : others[0]) : teams ? (k % 2 ? 'seats-a' : 'seats-b') : `seat-${k}`);
+  entities[0] = { ...p0, team: sideOf(1) };
   const ambient = { type: 'ai', mind: { motivation: 'escort' }, escort: p0.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(p0.rule?.speed) ? { speed: p0.rule.speed } : {}) };
+  // (an empty seat against the hero hunts it, the minds' own motive, never escorting it)
+  const { escort: _e, followDist: _f, ...free } = ambient, hunting = { ...free, mind: { motivation: 'hunt' } };
   const bodies = [];
   for (let k = 2; k <= n; k++) {
     // behind the hero and to either side; run side on, a step ahead each along the lane (behind its start is off it)
     const back = lane ? -(k - 1) : (k - 1) * 1.2, aside = lane ? 0 : (k % 2 ? -1 : 1) * 0.9;
     const at0 = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
     const id = `${p0.id}-${k}`;
-    entities.push({ ...p0, id, team: side, ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
+    entities.push({ ...p0, id, team: sideOf(k), ambient: sideOf(k) !== sideOf(1) ? hunting : ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
     bodies.push(id);
   }
   // lives (soul.pool): each seat three of its own, or three a seat in one count the seats share; a fall costs one
   const lives = soul.pool === 'own' ? { lives: SEAT_LIVES, pool: 'own' } : soul.pool === 'shared' ? { lives: SEAT_LIVES * n, pool: 'shared' } : {};
-  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives } };
+  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives, ...(rival || teams ? { contest: soul.contest } : {}) } };
+}
+
+/** ROLES (soul.dependence=roles, docs/local-multiplayer-principles.md principle 8: each job needed): a ride two seats
+ * crew. Seat 1 drives it on its rule; seat 2 is its gunner, a gun on a turret on its roof (worlds/controllable/turret.js:
+ * the gunner's right stick slews it, its trigger fires; the driver's stick drives), a seat with no body of its own. With
+ * nobody in seat 2 the driver's hand has the gun. Shared lives where the cube says soul.pool shared. Any other ride, or
+ * none said, lays the level as it was. */
+const CREW_TURRET = Object.freeze({ mount: { at: [0, 0, 1.7], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 } });
+const CREW_GUN = Object.freeze({ ...SHOOT.gun, auto: true, cooldown: 0.15, magazine: 40, reload: 2.5, range: 40 });
+function crewPart(G, pilotPart) {
+  const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
+  if (!n || soul.dependence !== 'roles') return { pilotPart, seats: null };
+  const [car, ...rest] = pilotPart.entities;
+  const armed = { ...car, turret: JSON.parse(JSON.stringify(CREW_TURRET)), weapon: car.weapon ?? { ...CREW_GUN } };
+  const lives = soul.pool === 'shared' ? { lives: SEAT_LIVES * 2, pool: 'shared' } : {};
+  return { pilotPart: { ...pilotPart, entities: [armed, ...rest] }, seats: { bodies: [], crew: { 2: { body: car.id, as: 'gunner' } }, max: 2, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives } };
 }
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
@@ -2050,6 +2203,122 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) };
     });
     offers.push(...tasks);
+    // THE SHIFTS (jobsified.js): each a driving job taken on its app, by its mode. A collect or a route is driven in a
+    // vehicle of its fleet from the depot nearest the start that keeps one (its vehicles cabs: cars.js levelCars
+    // `roles`), round its stops or piles (places of the district's, each about a hop from the one before); a collect is
+    // emptied at the district's dump (the depot where it has none), a route brought back to the depot. A haul's truck is
+    // issued at the kerb by its yard (issuedOf; a cab after all others, cars.js levelCars `issue`) and driven to a
+    // building site at least SHIFT.haul off (a far place where none is). A stage with no such depot, or no cars, or no
+    // place to send it lays none of it (advised, never refused: the errand proof says it was not laid)
+    const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt), atHq = [];
+    if (shiftAt.length && driven) {
+      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w)) && !shiftOf(w).foot))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const issue = issuedOf(ends, city.errands ?? [], stage.level), issuedIds = issuedCabs(ends, issue, { roles });
+      // (nothing stood within a stop's reach of the dump: a pile in its yard would be emptied as it is taken)
+      const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at), ...(ends.dump ? [ends.dump.at] : [])];
+      for (const k of shiftAt) {
+        const L = legs[k], S = shiftOf(L.vehicle), yard = YARD_NAMES[S.yard];
+        const task = () => {
+          // (given at a faction's HQ, `given`: taken by checking in there, once its call has come, after the factions
+          // are laid below; told by a call when the errand it waits on pays)
+          if (S.given) { atHq.push({ L, S }); return; }
+          const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
+          offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
+            // (a job that asks for a licence, where the world's forger sells one: taken only with it)
+            ...(paperOf(S) && city.shops?.forger ? { needs: { item: paperOf(S).item, name: paperOf(S).name } } : {}),
+            ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
+        };
+        const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done, ...(S.pitch ? { pitch: S.pitch } : {}) };
+        // A DESK: on foot, clocked in at the office tower's lobby door (geocity `office`, officeDoor), its shift the tower's
+        // own page (temp-agency.js deskCast)
+        if (S.mode === 'desk') {
+          const door = (ends.doors ?? []).find((x) => x.id === 'office');
+          if (!door) { unlaid.add(k); continue; }
+          used.push(door.at);
+          legs[k] = { ...base, depot: door.at.slice(), radius: ERRAND_DRIVE.reach, vehicle: S.vehicle, yard: door.inside.name ?? yard };
+          task();
+          continue;
+        }
+        // A DIG: its machine operated where a building site stages its excavator, its pile and its tipper beside it
+        // (jobsified.js operatedOf; the machine a cab after every car, cars.js carsExtra `operate`)
+        if (S.mode === 'dig') {
+          const O = operatedOf(ends, city.errands ?? [], stage.level).find((x) => x.id === L.id);
+          if (!O) { unlaid.add(k); continue; }
+          used.push(O.at, O.pile.at, O.truck.at);
+          legs[k] = { ...base, depot: O.at.slice(), radius: ERRAND_DRIVE.reach, cabs: [O.cab], vehicle: S.vehicle, yard: 'building site', site: O.site, machine: O.archetype, pile: O.pile, bed: O.bed, truck: O.truckCab, loads: S.loads };
+          task();
+          continue;
+        }
+        // ITS VEHICLE: issued at the kerb by its yard (a row with a fleet: a haul's truck, a route's bus), or one of the
+        // depot's own nearest the start (a collect's garbage trucks)
+        let from;
+        if (issues(S)) {
+          // (each vehicle it is issued, a heavy call's in turn: the first its own spot and words)
+          const js = issue.map((x, j) => (x.id === L.id ? j : -1)).filter((j) => j >= 0);
+          if (!js.length) { unlaid.add(k); continue; }
+          const I = issue[js[0]];
+          from = { at: I.at, cabs: js.map((j) => issuedIds[j]), depot: { depot: I.at.slice(), radius: ERRAND_DRIVE.reach }, vehicle: I.word, ...(I.place ? { place: I.place } : {}), back: I.at.slice(), issued: js.map((j) => ({ ...issue[j], cab: issuedIds[j] })) };
+        } else {
+          const found = depotCabs(ends, L.vehicle, { roles });
+          if (!found.length) { unlaid.add(k); continue; }
+          const { depot: D, ids } = found.reduce((m, x) => (d2(x.depot.at, ends.spawn) < d2(m.depot.at, ends.spawn) - 1e-9 ? x : m));
+          from = { at: D.at, cabs: ids, depot: { depot: D.at.slice(), radius: r3(Math.max(SHIFT.reach, D.radius)), ...(D.half ? { half: D.half.map((h) => r3(Math.max(SHIFT.reach, h))) } : {}) }, vehicle: S.vehicle };
+        }
+        const who = { ...base, ...from.depot, cabs: from.cabs, vehicle: from.vehicle, yard: yard ?? 'yard', ...(from.place ? { place: from.place } : {}) };
+        if (S.mode === 'mow') {
+          // (a round on its park's own lawn: its mower in the shed, its cells of long grass, jobsified.js lawnOf; got
+          // off, the mower goes back in the shed)
+          const lawn = lawnOf(ends);
+          if (!lawn || lawn.cells.length < 8) { unlaid.add(k); continue; }
+          used.push(lawn.spot.at);
+          legs[k] = { ...who, yard: 'park', stops: lawn.cells.map((q) => ({ at: q.at, half: q.half })), shed: lawn.shed, back: from.back, time: MOW_ROUND.time, goal: MOW_ROUND.goal };
+          task();
+          continue;
+        }
+        if (S.mode === 'sweep') {
+          // (its litter: along the streets nearest its yard, jobsified.js sweepRoute)
+          const D = (ends.depots ?? []).find((x) => x.yard === S.yard), heaps = sweepRoute(ends, D ? D.at : from.at);
+          if (heaps.length < 4) { unlaid.add(k); continue; }
+          legs[k] = { ...who, stops: heaps.map((q) => ({ at: q.at, radius: SWEEP.reach })) };
+          task();
+          continue;
+        }
+        if (S.mode === 'haul') {
+          // (its sites: the building sites past SHIFT.haul, farthest first, a call each in turn; else far places)
+          const far = (q) => d2(q.at, from.at), sites = (ends.lots ?? []).filter((q) => q.kind === 'construction' && far(q) >= SHIFT.haul).sort((a, b) => far(b) - far(a) || a.id.localeCompare(b.id));
+          const places = sites.length ? [] : (ends.places ?? []).filter((q) => far(q) >= SHIFT.haul && used.every((u) => d2(q.at, u) >= SHIFT.apart)).sort((a, b) => far(b) - far(a) || a.at[0] - b.at[0]).slice(0, from.issued.length);
+          if (!sites.length && !places.length) { unlaid.add(k); continue; }
+          const siteOf = (j) => { if (sites.length) { const lot = sites[j % sites.length]; return { at: lot.at.slice(), half: [r3((lot.rect[2] - lot.rect[0]) / 2 + SHIFT.site), r3((lot.rect[3] - lot.rect[1]) / 2 + SHIFT.site)], to: S.to }; } const q = places[j % places.length]; return { at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card }; };
+          const calls = from.issued.map((I, j) => ({ cab: I.cab, site: siteOf(j), back: I.at.slice(), vehicle: I.word, ...(I.place ? { place: I.place } : {}) }));
+          used.push(...calls.flatMap((c) => [c.back, c.site.at]));
+          legs[k] = { ...who, site: calls[0].site, back: from.back, ...(calls.length > 1 ? { calls } : {}) };
+          task();
+          continue;
+        }
+        // ITS STOPS (a route's, in order) OR PILES (a collect's): places of the district's, each about a hop from the one
+        // before, apart from the rest
+        const stops = [];
+        let prev = from.at;
+        for (let j = 0; j < L.stops; j++) {
+          const free = (ends.places ?? []).filter((q) => d2(q.at, from.at) >= SHIFT.apart && used.every((u) => d2(q.at, u) >= SHIFT.apart) && stops.every((u) => d2(q.at, u.at) >= SHIFT.apart));
+          if (!free.length) break;
+          const q = free.reduce((m, x) => (Math.abs(d2(x.at, prev) - SHIFT.hop) < Math.abs(d2(m.at, prev) - SHIFT.hop) - 1e-9 ? x : m));
+          // (a route's stop: how many wait there, the row's few to many by the stop's own number)
+          // (a drop-off's last stop: nobody waits there, its riders only get off; a round of none, a fire's or a parcel's)
+          const riders = S.riders ? (S.dropoff && j === L.stops - 1 ? 0 : S.riders[0] + (((j + 1) * 7 + L.id.length * 3) % (S.riders[1] - S.riders[0] + 1))) : null;
+          stops.push({ at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card, ...(riders || (riders === 0 && (S.dropoff || S.riders[1] === 0)) ? { riders } : {}), ...(S.mode === 'route' ? { N: q.N.slice() } : {}) });
+          prev = q.at;
+        }
+        if (stops.length < (S.mode === 'collect' ? S.load : 2)) { unlaid.add(k); continue; }
+        used.push(from.at, ...stops.map((q) => q.at));
+        legs[k] = { ...who, stops, stop: S.stop, ...(S.hold ? { hold: S.hold } : {}),
+          ...(S.mode === 'collect' ? { load: S.load, ...(ends.dump && S.unload !== 'yard' ? { unload: { at: ends.dump.at.slice(), half: ends.dump.half.slice() } } : {}) } : {}),
+          // (what stands at its stops and the words it is said in: jobsified.js `marker`, `says`)
+          ...(S.marker ? { marker: S.marker } : {}), ...(S.says ? { says: { ...S.says } } : {}) };
+        task();
+      }
+    }
+    for (const k of [...unlaid].sort((a, b) => b - a)) legs.splice(k, 1);
     // THE FACTIONS (factions.js): each on its turf, a part of the district its shops stand in. Its contact stands at a
     // shop on its turf, and coming to them is joining it (lowerJoin: one faction at a time). Its board's postings are
     // acts (lowerAct), each with the zone it is done in: its target's turf, a rival's when it names one.
@@ -2091,6 +2360,15 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         }
       }
     }
+    // THE HQ'S ORDERS (a shift `given` at a faction's HQ, jobsified.js: the Dockers' delivery orders): its call, on the
+    // errand it waits on paid (the foreman's), and its check-in where the faction's contact stands, open once the call
+    // has come; a faction not laid here, its task on the app as any shift's
+    for (const { L, S } of atHq) {
+      const hq = offers.find((o) => o.kind === 'join' && o.faction === S.given), told = `told-${L.id}`, story = S.story ?? {};
+      if (L.waits) offers.push({ kind: 'call', id: L.id, flag: told, on: `errand:done:${L.waits}`, from: story.from ?? 'Foreman', says: story.says ?? 'There is work for you.' });
+      if (hq) offers.push({ kind: 'offer', id: L.id, at: hq.at.slice(), flag: `took-${L.id}`, ...(L.waits ? { after: told } : {}), says: story.hq ?? `${hq.name ?? S.given}: orders come to your phone.`, radius: ERRAND_DRIVE.reach, place: hq.place, hq: S.given, name: hq.name ?? S.given });
+      else offers.push({ kind: 'task', id: L.id, app: JOBSIFIED, flag: `took-${L.id}`, name: appTitle(JOBSIFIED, fus), ...(subbed.has(JOBSIFIED) ? {} : { subscribe: true }) });
+    }
     // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
     mechanics.push(...legs, ...offers);
     // (each job told as a STORY MISSION, errand.js `mission`: started as it is taken, its heat as its goods are had,
@@ -2117,12 +2395,43 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop
   // front a short walk off that no one stands at and no job sends the player to; the respray at a street's junction a
   // drive off, clear of the cars parked there
+  // THE CITY'S HIDDEN STARS (hidden-stars.js, a world's `hidden`): tucked in its out-of-the-way places, far apart, each
+  // picked up into the bag where it stands; nothing won by them
+  if (city.hidden && cityStage(stage)) {
+    const spots = hiddenSpots(ends, city.hidden, (city.seed ?? 1) * 7919 + (stage.index ?? 0));
+    if (spots.length) mechanics.push({ kind: 'collect', into: 'bag', pickups: spots.map((q) => ({ item: city.hidden.item, at: q.at.slice(), radius: HIDDEN_PICK })) });
+  }
+  // THE MUNICIPAL OFFICE'S REQUESTS (municipal.js), before the shops (the forger deals in the papers its tasks ask for):
+  // each placed where it is fixed, its material at the works yard, City
+  // Hall's door where its work order is made; taken on the 311 app, asking for a city worker's ID where the forger deals
+  // in papers; a request the district has no place for left out
+  if (city.municipal && cityStage(stage)) {
+    const hall = (ends.doors ?? []).find((x) => x.id === 'cityhall');
+    requestSites(ends, city.municipal.requests).forEach((S, k) => {
+      const Q = city.municipal.requests.find((r) => r.id === S.id), K = REQUEST_KINDS[Q.kind];
+      mechanics.push({ kind: 'request', id: Q.id, job: Q.kind, name: K.thing, title: K.name, from: Q.from, says: Q.says.replace('{where}', S.where), thanks: K.thanks, where: S.where, done: K.done, spots: S.spots, yard: S.yard,
+        material: { ...K.material }, order: { ...MUNICIPAL.order }, reward: [{ item: 'coin', n: Q.reward }], after: `took-${Q.id}`, fix: { hold: { ...K.hold }, tap: { ...K.tap } }, ...(hall ? { hall: hall.at.slice() } : {}) });
+      mechanics.push({ kind: 'task', id: Q.id, app: MUNICIPAL.app, flag: `took-${Q.id}`, name: MUNICIPAL.appName, ...(k === 0 ? { subscribe: true } : {}), ...(city.shops?.forger ? { needs: { item: PAPERS[MUNICIPAL.papers].item, name: PAPERS[MUNICIPAL.papers].name } } : {}) });
+    });
+  }
   if (city.shops && city.bag && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
     const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at);
     const pick = (list, lo) => list.filter((q) => d2(q, ends.spawn) >= lo).sort((a, b) => d2(a, ends.spawn) - d2(b, ends.spawn) || a[0] - b[0] || a[1] - b[1])[0] ?? null;
     if (city.shops.guns) {
       const at = pick((ends.places ?? []).map((q) => q.at).filter((q) => taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.guns);
       if (at) mechanics.push({ kind: 'gunshop', at: at.slice(), price: city.shops.guns.price, rounds: city.shops.guns.rounds });
+    }
+    // (the forger, shops.js: a shop front a drive off, no one standing at it and no job sending the player there, its
+    // papers a licence a driving job may ask for, PAPERS)
+    if (city.shops.forger) {
+      const near = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at), at = pick((ends.places ?? []).map((q) => q.at).filter((q) => near.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.forger);
+      // (where a job asks for papers other than the licence, an office badge: every paper the level's jobs ask for, each
+      // job's paper the one it sells to whoever that job turned away, shop-mechanics.js lowerForgerPapers)
+      const asked = mechanics.filter((m) => m.kind === 'task' && m.needs), kinds = Object.keys(PAPERS).filter((k) => asked.some((m) => m.needs.item === PAPERS[k].item));
+      const several = kinds.some((k) => k !== 'licence');
+      const paper = (k) => ({ item: PAPERS[k].item, name: PAPERS[k].name, price: k === 'licence' ? city.shops.forger.price : PAPERS[k].price, ...(PAPERS[k].says ? { says: PAPERS[k].says } : {}) });
+      if (at && several) mechanics.push({ kind: 'forger', at: at.slice(), papers: kinds.map(paper), asks: Object.fromEntries(asked.map((m) => [m.id, kinds.findIndex((k) => PAPERS[k].item === m.needs.item)])) });
+      else if (at) mechanics.push({ kind: 'forger', at: at.slice(), price: city.shops.forger.price, item: FORGED.item, name: FORGED.name });
     }
     if (city.shops.respray) {
       const parked = ends.parked ?? [], at = pick(roadPosts(ends.roads ?? [], ends).filter((q) => parked.every((c) => d2(c.at, q) > SHOP_AT.clear) && taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.respray);
@@ -2152,7 +2461,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
 const CITY_SAVE = Object.freeze({ vars: Object.freeze(['flag-', 'held:bag:', 'standing-', 'join-open-', 'delivered-', 'mission-done-']), on: Object.freeze(['flag:took-', 'errand:done:', 'mission-passed:', 'join:', 'app:sub:', 'act:', 'gunshop:bought', 'respray:done']) });
 // where a city's shops stand (m): the gun shop at least this far from the start, the respray this far; apart from any
 // place a job uses, and the respray clear of a parked car
-const SHOP_AT = Object.freeze({ guns: 60, respray: 90, apart: 20, clear: 9 });
+const SHOP_AT = Object.freeze({ guns: 60, respray: 90, forger: 140, apart: 20, clear: 9 });
 // the street's health in a played city (game/vitals-mechanics.js): a blow's cost, the mending, and the hospital's bill
 const VITALS_CITY = Object.freeze({ hp: 100, hit: 10, mend: 3, after: 5 }), VITALS_BILL = 25;
 
@@ -2198,7 +2507,7 @@ export function gameStore(world, book) {
   const pk = new Set(powerKeys(G).map((p) => p.id));
   if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
   // a world with errands carries what they fetch in the bag (errand.js)
-  else if (G.errands?.length) slices.push({ name: 'bag', kind: 'inventory' });
+  else if (G.errands?.length || G.hidden) slices.push({ name: 'bag', kind: 'inventory' });
   // a level whose goal collects picks up into the bag (its own goal: quick.js levelGoalMechanics)
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   // a sketched map whose scenario finds things picks them up into the bag (level/map-sketch.js scenario `find`)
@@ -2384,11 +2693,26 @@ export function interiorStage(inside) {
     return { ...S, level: { door: 'out' } };
   }
   return {
-    kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
-    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
-    level: { door: 'out' },
+    // (a use with a look of its own is laid in its kit and composed to it, its things its own: a museum's white panels
+    // under warm light and its plinths alone, programs.js)
+    kind: 'stage', kit: inside.kit ?? (PROGRAMS[inside.use]?.look ? PROGRAMS[inside.use].kit : undefined) ?? roomKitFor(anchor),
+    // (a look given by the door, a walk-in's own, geocity/walkins.js, over its program's)
+    // (`compose: false`: none, a kit not of the bay's, the zoo's open plaza)
+    ...(inside.compose !== false && (inside.compose ?? PROGRAMS[inside.use]?.look) ? { compose: { ...(inside.compose ?? PROGRAMS[inside.use].look) }, ...(inside.exhibits === undefined ? { props: false } : {}) } : {}),
+    ...(inside.reference ? { reference: inside.reference } : {}),
+    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.layouts ? { layouts: inside.layouts } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
+    // (its pieces on their plinths, era/exhibits.js; a building looked round and left by its door has no goal room)
+    ...(inside.exhibits !== undefined ? { exhibits: inside.exhibits } : {}),
+    // (an aquarium's tanks, era/aquarium.js)
+    ...(inside.tanks !== undefined ? { tanks: inside.tanks } : {}),
+    ...(inside.pens !== undefined ? { pens: inside.pens } : {}),
+    level: { door: 'out', ...(inside.exit === false ? { exit: false, mechanics: [{ ...LOOKED_ROUND }] } : {}) },
   };
 }
+
+/** A building only looked round (a museum): no goal room, and a level still needs a way it could be won, so a win on a
+ *  count nothing raises; it is never won, only left by its door (game/mechanic-cards/win-when.md). */
+export const LOOKED_ROUND = Object.freeze({ kind: 'win-when', when: Object.freeze({ var: 'looked-round', gte: 1 }) });
 
 /** The game's door links: each inside's `out` paired with its building's door on the stage outside. */
 export function gameLinks(stages, refs) {

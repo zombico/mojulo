@@ -70,6 +70,9 @@ export const MATERIAL_WORDS = Object.freeze({
     (X) => ({ params: { cut: 'render', stone: [150, 112, 80], mortar: [120, 90, 64], render: [180, 138, 99], rows: 8, cols: 3, ...X.wear, loss: r2(X.loss * 0.25) }, metres: 3 })),
   boards: W('ancient', 'wall', null, 'upright boards, gapped, cupped and weathered',
     (X) => ({ params: { cut: 'boards', stone: X.trim, mortar: X.mortar, cols: 9, ...X.wear }, metres: 2 })),
+  // (painted its style's palette colour where the style gives the surface one, X.paint: PAINTED_WORDS; else the cube's trim)
+  clapboard: W('modern', 'wall', '#f1eee6', 'painted lap siding: narrow boards across the wall, each lapping over the one below',
+    (X) => ({ params: { cut: 'clapboard', stone: X.paint ?? X.trim, mortar: X.mortar, rows: 14, vary: 12, ...X.wear }, metres: 1.5 })),
   'clay-tile': W('either', 'roof', '#a55a40', 'clay tiles in lapped courses',
     (X) => ({ params: { cut: 'tile', stone: [165, 90, 64], mortar: X.mortar, rows: 10, cols: 8, ...X.wear }, metres: 2 })),
   slate: W('either', 'roof', '#4f555e', 'thin slates, half-bonded, each a little askew',
@@ -151,7 +154,16 @@ export const MATERIAL_WORDS = Object.freeze({
     (X) => ({ params: { cut: 'decking', stone: [150, 112, 74], mortar: X.mortar, rows: 7, cols: 2, vary: 18, ...X.wear }, metres: 1.2 })),
   'armour-stone': W('modern', 'ground', '#8c8880', 'armour stone: big quarried blocks dumped against the water, dark gaps between',
     (X) => ({ params: { face: 'floor', stone: [140, 136, 128], mortar: [44, 42, 40], rows: 5, cols: 3, tool: 'pitched', joint: 0.04, vary: 34, ...X.wear }, metres: 5 })),
+  // (a stucco painted: its coat the colour its style's palette gives the surface it is on, `X.paint` (geotown/houses.js
+  // houseDress), a warm white where none is given, rather than the cube's own stone: a West Coast ranch, a tropical
+  // block house)
+  'painted-stucco': W('modern', 'wall', null, 'a floated stucco coat painted its own colour, a control joint, hairline cracks',
+    // (its control joints faint and far apart: a smooth coat, never a panel's seams)
+    (X) => { const c = X.paint ?? [236, 230, 218]; return { params: { cut: 'stucco', stone: c, mortar: c.map((v) => Math.round(v * 0.93)), render: c.map((v) => Math.min(255, Math.round(v * 1.02 + 2))), ...X.machine }, metres: 6 }; }),
 });
+/** The words painted their palette's colour (geotown/houses.js houseDress hands them `X.paint`): every other word paints
+ *  from its cube alone. */
+export const PAINTED_WORDS = Object.freeze(['painted-stucco', 'clapboard']);
 export const MATERIAL_WORD_IDS = Object.freeze(Object.keys(MATERIAL_WORDS));
 const wordsFor = (on) => MATERIAL_WORD_IDS.filter((w) => MATERIAL_WORDS[w].on === on);
 
@@ -394,6 +406,177 @@ export const STYLE_STARTERS = Object.freeze({
     }, compose: { mass: { w: 26, d: 14 }, annex: null } },
     materials: { stone: 'wire-brick', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
     palette: { stone: '#b9875e', paint: '#e6decb' },
+    city: { grain: 'north-american' },
+  },
+  // (a geotown's west coast: geotown/pattern.js west-coast; its houses a type over the ranch, the Spanish revival another)
+  ranch: {
+    read: 'a postwar California ranch: one long storey of stucco under a hip of composition shingle with deep eaves, broad low lights in pairs, a garage door beside its entry, a concrete drive and walk',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a long low stucco house of one storey under a shallow hip, eaves out over its walls', elements: {
+      wall: { storeys: [st('str:plaster', 0.86), st('str:plaster', 0.86)] },
+      roof: { form: 'hip', pitch: 26, eave: 0.8, group: 'str:slate', value: 0.4 },
+      lights: { w: 1.4, h: 1.3, bay: 2.6, sill: 0.9, frame: 0.05, glazing: 'casement', trim: 'str:stone', trimValue: 0.94 },
+      door: { w: 1, h: 2.1, leaf: 'panels', surround: 'frame', steps: 1 },
+      socle: { h: 0.3, group: 'str:plaster', value: 0.72 },
+      sills: null, lintels: null, quoins: null, stack: null, frame: null, shutters: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 15, d: 10 }, annex: null } },
+    // (its composition shingle read as slate: a dark flat-laid cover; `shingle` is the old cedar's, an ancient word;
+    // its trim the stone surface, painted white)
+    materials: { plaster: 'painted-stucco', stone: 'painted-stucco', roof: 'slate', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { plaster: '#ecd3a8', stone: '#f6f3ec', roof: '#6e625a' },
+    city: { grain: 'north-american' },
+  },
+  'spanish-revival': {
+    read: 'a California Spanish revival bungalow: smooth white stucco under a red clay-tiled hip, round-arched lights with dark iron grilles, a heavy plank door under an arch',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a white stucco bungalow under a low clay-tiled hip, its lights round-arched', elements: {
+      wall: { storeys: [st('str:plaster', 0.93), st('str:plaster', 0.93)] },
+      roof: { form: 'hip', pitch: 30, eave: 0.35, group: 'str:tile', value: 0.42 },
+      lights: { form: 'arch', w: 1.3, h: 1.7, bay: 3, sill: 0.8, frame: 0.06, glazing: 'casement', trim: 'str:paint', trimValue: 0.22 },
+      door: { w: 1.1, h: 2.3, leaf: 'boards', surround: 'frame', fanlight: 'arch', steps: 1 },
+      socle: { h: 0.3, group: 'str:plaster', value: 0.82 },
+      sills: null, lintels: null, quoins: null, stack: null, frame: null, shutters: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 13, d: 11 }, annex: null } },
+    materials: { plaster: 'painted-stucco', roof: 'clay-tile', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { plaster: '#f1ece2', paint: '#2b2622' },
+    city: { grain: 'north-american' },
+  },
+  // (a west coast's and a tropical coast's shops: geotown/pattern.js rows; each shop its own stucco, its row's palettes)
+  'strip-mall': {
+    read: 'a strip of stucco shops: one storey or two of smooth stucco, wide shop lights, a flat roof behind a plain parapet, a sign band over each front',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a stucco shop built to its walk or behind its parking, a parapet over a flat roof', elements: {
+      wall: { storeys: [st('str:stone', 0.86), st('str:stone', 0.86)] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.4 },
+      lights: { w: 1.4, h: 1.5, bay: 3, sill: 0.9, frame: 0.05, glazing: 'plate', trim: 'str:plaster', trimValue: 0.9 },
+      door: { w: 1.2, h: 2.2, leaf: 'glazed', surround: 'frame', steps: 0 },
+      cornice: { kind: 'cornice', h: 0.3, proud: 0.1, group: 'str:paint', value: 0.92 },
+      socle: { h: 0.3, value: 0.6 }, sills: null, lintels: null,
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 9, d: 16 }, annex: null } },
+    materials: { stone: 'painted-stucco', plaster: 'painted-stucco', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { stone: '#e8dcc4', plaster: '#f6f3ec', paint: '#2a2d33' },
+    city: { grain: 'north-american' },
+  },
+  // (a west coast's main street, its Rodeo, and a tropical coast's in pastel: geotown/pattern.js rows.shops; each
+  // boutique its own facade, its row's palettes)
+  boutique: {
+    read: 'a luxury shopping street\'s boutique: two storeys of smooth cream stucco over a limestone base, tall display glass in black frames, a string course and a deep cornice before a flat roof',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a two-storey boutique built to its walk, tall display glass under a string course, a cornice over a flat roof', elements: {
+      wall: { storeys: [st('str:stone', 0.9), st('str:stone', 0.9)] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.78 },
+      lights: { w: 1.4, h: 2, bay: 2.6, sill: 0.6, frame: 0.07, glazing: 'plate', trim: 'str:timber', trimValue: 0.12 },
+      door: { w: 1.4, h: 2.5, leaf: 'glazed', surround: 'pilasters', steps: 0 },
+      bands: { kind: 'band', w: 0.22, group: 'str:plaster', value: 0.94 },
+      cornice: { kind: 'cornice', h: 0.45, proud: 0.3, group: 'str:plaster', value: 0.94 },
+      socle: { h: 0.6, group: 'str:plaster', value: 0.82 }, sills: null, lintels: null,
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 10, d: 16 }, annex: null } },
+    // (its frames on the timber surface, painted black: a colour alone leans a face's hue and keeps its light)
+    materials: { stone: 'painted-stucco', timber: 'painted-stucco', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'stucco', pier: 'sawn-stone', banded: 'sawn-stone', road: 'asphalt', walk: 'pavement' },
+    palette: { stone: '#efe8da', plaster: '#e4dac6', timber: '#161616' },
+    city: { grain: 'north-american' },
+  },
+  // (a geotown's San Francisco: geotown/pattern.js san-francisco; its Victorians painted in three colours, their siding
+  // the timber surface's, their trim the stone's, a Queen Anne's upper storey the shell's)
+  italianate: {
+    read: 'a San Francisco Italianate: a flat false front of painted siding under a deep bracketed cornice, tall sash lights under hooded heads, a stoop up to a pilastered door',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a narrow painted wooden house, its flat false front to the street under a deep cornice', elements: {
+      wall: { storeys: [st('str:timber', 0.84, 'boards'), st('str:timber', 0.84, 'boards')] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.5 },
+      lights: { w: 0.9, h: 2, bay: 2.3, sill: 0.7, frame: 0.08, glazing: 'sash', trim: 'str:stone', trimValue: 0.95 },
+      door: { w: 1.1, h: 2.5, leaf: 'panels', surround: 'pilasters', fanlight: 'rect', steps: 3 },
+      cornice: { kind: 'cornice', h: 0.45, proud: 0.3, group: 'str:stone', value: 0.95 },
+      socle: { h: 0.9, group: 'str:stone', value: 0.7 }, sills: { group: 'str:stone', value: 0.94 }, lintels: { group: 'str:stone', value: 0.94 },
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 7.2, d: 16 }, annex: null } },
+    materials: { timber: 'clapboard', stone: 'painted-stucco', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { timber: '#d8b46a', stone: '#f4efe4' },
+    city: { grain: 'north-american' },
+  },
+  stick: {
+    read: 'a San Francisco Stick house: painted siding in tall square-cut lines, a frieze and a bracketed cornice over a flat front, square bays, a stoop up to its door',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a narrow painted wooden house, upright and square-cut, a frieze under its cornice', elements: {
+      wall: { storeys: [st('str:timber', 0.82, 'boards'), st('str:timber', 0.82, 'boards')] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.5 },
+      lights: { w: 0.85, h: 1.9, bay: 2.2, sill: 0.75, frame: 0.09, glazing: 'sash', trim: 'str:stone', trimValue: 0.95 },
+      door: { w: 1.1, h: 2.5, leaf: 'panels', surround: 'frame', fanlight: 'rect', steps: 3 },
+      bands: { kind: 'band', w: 0.24, group: 'str:stone', value: 0.95 },
+      cornice: { kind: 'cornice', h: 0.4, proud: 0.25, group: 'str:stone', value: 0.95 },
+      socle: { h: 0.9, group: 'str:stone', value: 0.7 }, sills: { group: 'str:stone', value: 0.94 }, lintels: { group: 'str:stone', value: 0.94 },
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 7.2, d: 16 }, annex: null } },
+    materials: { timber: 'clapboard', stone: 'painted-stucco', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { timber: '#7d9bb0', stone: '#f2ecde' },
+    city: { grain: 'north-american' },
+  },
+  'queen-anne': {
+    read: 'a San Francisco Queen Anne: painted siding below, its upper storey in another colour, a steep gable to the street, a square bay, a porch at its door up a stoop',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a narrow painted wooden house under a steep gable to its street, its upper storey another colour', elements: {
+      wall: { storeys: [st('str:timber', 0.82, 'boards'), st('str:shell', 0.86, 'boards')] },
+      roof: { form: 'gable', pitch: 50, eave: 0.4, group: 'str:slate', value: 0.34 },
+      lights: { w: 0.9, h: 1.9, bay: 2.3, sill: 0.75, frame: 0.08, glazing: 'sash', trim: 'str:stone', trimValue: 0.95 },
+      door: { w: 1.1, h: 2.4, leaf: 'panels', surround: 'frame', fanlight: 'rect', steps: 3 },
+      socle: { h: 0.9, group: 'str:stone', value: 0.7 }, sills: { group: 'str:stone', value: 0.94 }, lintels: { group: 'str:stone', value: 0.94 },
+      quoins: null, stack: null, frame: null, shutters: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 7.2, d: 15 }, annex: null } },
+    materials: { timber: 'clapboard', shell: 'clapboard', stone: 'painted-stucco', roof: 'slate', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { timber: '#8e9a6a', shell: '#d9a36a', stone: '#f2ead8' },
+    city: { grain: 'north-american' },
+  },
+  // (a geotown's Sunset: geotown/pattern.js sunset; its rows of houses each its own pastel, over its garage)
+  'sunset-row': {
+    read: 'a Sunset District row house: two storeys of smooth pastel stucco over its garage, a flat roof behind a parapet, a picture window over the street, an arched door at the foot of its stair',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a narrow stucco row house of two storeys, flat-roofed behind a parapet, its door under an arch', elements: {
+      wall: { storeys: [st('str:plaster', 0.88), st('str:plaster', 0.88)] },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.6 },
+      lights: { w: 1.4, h: 1.6, bay: 2.6, sill: 0.8, frame: 0.06, glazing: 'casement', trim: 'str:stone', trimValue: 0.95 },
+      door: { form: 'arch', w: 1, h: 2.3, leaf: 'boards', surround: 'hood', steps: 1 },
+      cornice: { kind: 'cornice', h: 0.3, proud: 0.15, group: 'str:stone', value: 0.95 },
+      socle: { h: 0.3, group: 'str:stone', value: 0.75 }, sills: null, lintels: null,
+      quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+    }, compose: { mass: { w: 7.4, d: 14 }, annex: null } },
+    materials: { plaster: 'painted-stucco', stone: 'painted-stucco', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { plaster: '#e9d7c0', stone: '#f6f3ec' },
+    city: { grain: 'north-american' },
+  },
+  // (a geotown's tropical coast: geotown/pattern.js tropical; each house its own pastel)
+  'tropical-block': {
+    read: 'a tropical concrete-block house: pastel stucco over block, raised a step off the ground, under a low hip of white tile with deep eaves for the sun and the rain, louvred shutters folded back, a glazed door',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a pastel stucco block house of one or two storeys under a low white hip, deep eaves, louvred shutters', elements: {
+      wall: { storeys: [st('str:plaster', 0.86), st('str:plaster', 0.86)] },
+      roof: { form: 'hip', pitch: 30, eave: 0.9, group: 'str:tile', value: 0.78 },
+      lights: { w: 1.2, h: 1.5, bay: 2.8, sill: 0.85, frame: 0.05, glazing: 'casement', trim: 'str:stone', trimValue: 0.95 },
+      door: { w: 1, h: 2.2, leaf: 'glazed', surround: 'frame', steps: 2 },
+      socle: { h: 0.5, group: 'str:plaster', value: 0.7 },
+      shutters: { share: 0.7, form: 'persiana' },
+      sills: null, lintels: null, quoins: null, stack: null, frame: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 12, d: 10 }, annex: null } },
+    materials: { plaster: 'painted-stucco', stone: 'painted-stucco', roof: 'clay-tile', plinth: 'concrete', punched: 'stucco', pier: 'stucco', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { plaster: '#e9b7a8', stone: '#f6f3ec', paint: '#3f8f8a' },
+    city: { grain: 'north-american' },
+  },
+  // (a geotown's Northeast suburb builds its houses in it: geotown/pattern.js `northeast`)
+  colonial: {
+    read: 'a New England colonial: two storeys of white clapboard under a side gable, sash lights between black shutters, a panelled door under its fanlight, a brick chimney at the gable end',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a broad clapboard house, its ridge along its street', elements: {
+      wall: { storeys: [{ group: 'str:timber', value: 0.9, bond: 'none' }, { group: 'str:timber', value: 0.9, bond: 'none' }] },
+      roof: { form: 'gable', pitch: 40, eave: 0.35, group: 'str:slate', value: 0.3 },
+      lights: { w: 0.9, h: 1.55, bay: 2.3, sill: 0.8, frame: 0.07, glazing: 'sash', trim: 'str:paint', trimValue: 0.95 },
+      door: { w: 1, h: 2.2, leaf: 'panels', surround: 'pilasters', fanlight: 'rect', steps: 2 },
+      shutters: { share: 0.9, form: 'boards' },
+      socle: { h: 0.45, group: 'str:plaster', value: 0.62 }, sills: null, lintels: null,
+      quoins: null, frame: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 12, d: 8.5 }, annex: null } },
+    materials: { timber: 'clapboard', stone: 'wire-brick', plaster: 'concrete', roof: 'slate', plinth: 'concrete', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { timber: '#f1eee6', paint: '#f4f1ea' },
     city: { grain: 'north-american' },
   },
 });

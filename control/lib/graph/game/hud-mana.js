@@ -97,7 +97,7 @@ export function hudToMana(rows, { register = null, hero = true, heroBar = true, 
       else if (w.as === 'counter') { const icon = iconOf(label) ?? iconOf(w.var); bySlot[w.slot].push({ use: 'counter', props: { label, value, ...(icon ? { icon } : {}) }, ...gate(w, i) }); }
       else bySlot[w.slot].push({ use: 'stat', props: { label, value }, ...gate(w, i) });
     } else if (immersive && (w.kind === 'banner' || w.kind === 'toast')) return;   // (no passing words either: the play says it)
-    else if (w.kind === 'banner') banners.push({ on: w.on, text: w.text, ...cond(w) });
+    else if (w.kind === 'banner') banners.push({ on: w.on, text: w.text, ...(w.sub ? { sub: w.sub } : {}), ...cond(w) });
     else if (w.kind === 'toast') {
       if (!lines[w.slot]) lines[w.slot] = `l${Object.keys(lines).length}`;
       toasts.push({ ...(w.var ? { var: w.var } : { on: w.on }), text: w.text, ttl: w.ttl, line: lines[w.slot], ...cond(w) });
@@ -166,9 +166,9 @@ export function hudToMana(rows, { register = null, hero = true, heroBar = true, 
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */
-export function levelHud(theme, { screen = null, radar = null, style = false, ways = null, vitals = null } = {}) {
+export function levelHud(theme, { screen = null, radar = null, style = false, ways = null, vitals = null, count = false } = {}) {
   const base = typeof theme === 'string' && !THEMES[theme] ? cardTheme(theme) : theme ?? 'console';
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
   const R = readRadarLook(radar);
-  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(R ? { radar: R } : {}), ...(style ? { style: true } : {}), ...(ways ? { ways } : {}), ...(vitals ? { vitals } : {}) };
+  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(R ? { radar: R } : {}), ...(style ? { style: true } : {}), ...(ways ? { ways } : {}), ...(vitals ? { vitals } : {}), ...(count ? { count: true } : {}) };
 }
