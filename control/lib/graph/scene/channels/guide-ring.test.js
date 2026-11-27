@@ -31,12 +31,16 @@ describe('a scan\'s place on the ground', () => {
     expect(D.material.depthTest).toBe(true);
   });
 
-  it('is laid once the land is, its heights the land\'s, never before', async () => {
-    const G = await page({ steps: [STEP], done: '' }, { __formReady: false });
+  it('is laid once the ground answers under it, its heights the land\'s, never before', async () => {
+    let up = false;
+    const G = await page({ steps: [STEP], done: '' }, {});
+    const ask = G.win.__mojCtrl.groundAt;
+    G.win.__mojCtrl.groundAt = (x, y, z) => (up ? ask(x, y, z) : null);
     G.step(0.05, 4);
     expect(G.disc()).toBeUndefined();
-    G.win.__formReady = true; G.step(0.05, 2);
-    expect(G.disc()).toBeTruthy();
+    up = true; G.step(0.05, 2);
+    const p = G.disc().geometry.getAttribute('position');
+    expect(p.getZ(5)).toBeCloseTo(groundAt([p.getX(5)]) + GUIDE_RING.lift, 5);
   });
 
   it('glows over its whole surface while it is stood in, breathing; at rest a faint light; the step passed, it goes', async () => {
