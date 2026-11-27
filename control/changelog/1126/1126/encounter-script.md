@@ -1,8 +1,8 @@
 ### A frame operation's encounter: the alarm, the waves, the split and the duel
 
 - A task's alarm (`goal.operation.tasks[].alarm`, `gameworld/frame-goal.js` `OP_ALARM`): as it begins the enemy is heard
-  coming: its words a banner over the field, the alarm sounded off the SFX shelf, the screen flashed the foe's colour. A
-  level cue, not a scene: the fight goes on under it.
+  coming: a warning (the cue's, below in its own theme), its words under the title WARNING. A level cue, not a scene:
+  the fight goes on under it.
 - A group that comes with a task (`groups[].comes`: a task's number): it stands dormant till that task begins and comes
   then, not that task's to down (a frame that arrives beside the one fought, to be led off in a split).
 - An ally that holds its post till a task begins (`allies[].hold`: true, or a task's number): it stands its ground, turned to

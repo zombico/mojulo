@@ -22,8 +22,8 @@
  *     a group's `wary: true`: a unit that holds its fire until it is hit (a survey drone spotted, pointed out, engaged)
  *     a group's `comes: <task number>`: it stands dormant till that task begins and comes then, not that task's to down
  *     (a frame that comes with the one fought, to be led off by an ally in a split)
- *     any task's `alarm: '<words>'`: as it begins the enemy is heard coming (OP_ALARM: the words as a banner, the alarm
- *     sounded, the screen flashed)
+ *     any task's `alarm: '<words>'`: as it begins the enemy is heard coming (OP_ALARM: a warning, the cue's: a red band
+ *     across the screen, the words under its title, its own klaxon)
  *     allies[].hold   true: it stands its ground, an instructor on the range; <task number>: till that task begins,
  *                     then it fights and keeps by the pilot (the cast's `unhold`, rules-frame.js)
  *     split  { ally, foe: <group id>, at: <task number>, to: [x, y], back?: <task number>, title?, line?: { who, say } }
@@ -203,9 +203,9 @@ function readIntro(v, at) {
   if ((v.line === undefined) !== (v.who === undefined) || (v.who !== undefined && !/^[a-z][a-z0-9-]{0,40}$/.test(v.who))) throw new Error(`${at}: a line needs its who (a speaker's id), and a who its line`);
   return { ...(v.title ? { title: v.title } : {}), ...(v.line ? { line: v.line, who: v.who } : {}) };
 }
-/** A task's ALARM, as it begins: its words a banner over the field, the alarm sounded off the SFX shelf (`sound`), the
- *  screen flashed the foe's colour (`flash`, for `for` s). A level cue: no scene, the fight goes on under it. */
-export const OP_ALARM = Object.freeze({ sound: 'missile-warning', flash: '#e0634f', for: 0.5, ttl: 3 });
+/** A task's ALARM, as it begins: a warning (the cue's `warning`, scene/channels/warning.js: a red band across the screen,
+ *  its `title` over the words, its own klaxon), standing `ttl` s. A level cue: no scene, the fight goes on under it. */
+export const OP_ALARM = Object.freeze({ title: 'WARNING', ttl: 3.2 });
 /** A SPLIT: an ally and a foe leave the field together, a fight of their own off it (a level's economy: it is never
  *  played). As its task begins, a scene: the foe's group in a wide push (its `title` a banner), the ally and the foe in
  *  one frame, its `line` said, then both off toward `to` at `speed` m/s and gone after `leave` s; as task `back` begins,
@@ -452,7 +452,7 @@ export function operationCast(op, ends) {
     ] });
   }
   // (each task's alarm: a level cue as it begins, OP_ALARM)
-  const alarms = op.tasks.map((t, i) => (t.alarm ? { id: `alarm-t${i + 1}`, once: true, when: { on: 'objective:begin', match: { task: `t${i + 1}` } }, then: [{ say: t.alarm, as: 'banner', ttl: OP_ALARM.ttl }, { sound: OP_ALARM.sound }, { screen: { flash: OP_ALARM.flash, for: OP_ALARM.for } }] } : null)).filter(Boolean);
+  const alarms = op.tasks.map((t, i) => (t.alarm ? { id: `alarm-t${i + 1}`, once: true, when: { on: 'objective:begin', match: { task: `t${i + 1}` } }, then: { warning: { say: t.alarm, title: OP_ALARM.title, ttl: OP_ALARM.ttl } } } : null)).filter(Boolean);
   for (const [k, m] of Object.entries(op.marks ?? {})) { const [x, y] = placeOf(ends, m); spots.push({ id: k, at: [x, y, r2(ends.ground(x, y))] }); }
   for (const p of op.props ?? []) {
     const [x, y] = placeOf(ends, p.at), z = r2(ends.ground(x, y)), fig = `prop-${p.unit}`, face = p.face !== undefined ? (p.face * Math.PI) / 180 : toward([x, y]);

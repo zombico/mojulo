@@ -18,7 +18,7 @@ const OP = {
 describe('the encounter\'s script', () => {
   it('a task\'s alarm: its words a banner as it begins, the alarm sounded, the screen flashed; a task without one, nothing', () => {
     const C = operationCast(readOperation(OP), ends).play.cues;
-    expect(C).toEqual([{ id: 'alarm-t2', once: true, when: { on: 'objective:begin', match: { task: 't2' } }, then: [{ say: 'Enemy approach', as: 'banner', ttl: OP_ALARM.ttl }, { sound: OP_ALARM.sound }, { screen: { flash: OP_ALARM.flash, for: OP_ALARM.for } }] }]);
+    expect(C).toEqual([{ id: 'alarm-t2', once: true, when: { on: 'objective:begin', match: { task: 't2' } }, then: { warning: { say: 'Enemy approach', title: OP_ALARM.title, ttl: OP_ALARM.ttl } } }]);
     expect(() => readCues({ cues: C })).not.toThrow();
     const { split, ...bare } = OP;
     expect(operationCast(readOperation({ ...bare, tasks: OP.tasks.map(({ alarm, ...t }) => t), allies: undefined, groups: OP.groups.map(({ comes, ...g }) => g) }), ends).play).toBeUndefined();
