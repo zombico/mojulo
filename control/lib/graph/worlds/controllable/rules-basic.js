@@ -534,7 +534,7 @@ export function buildRulesBasic(E) {
       if (e.gone) continue;
       const n = seatN(e);
       let down = false;
-      if ((n > 1 || state.seatLives) && e.downed) {
+      if ((n > 1 || state.seatLives) && e.downed && !state.seatDownsLevel) {
         if (e.seatDownAt == null) e.seatDownAt = state.time;
         down = state.time - e.seatDownAt >= SEAT_DOWN_HOLD;
       }

@@ -83,7 +83,7 @@ export function synthesizeLevel(manifest) {
   try {
     // (a level with seats: the bodies seats 2 … take, so a mechanic a seat works, the work shift's, gives each its own hands)
     const seats = Array.isArray(manifest.seats?.bodies) && manifest.seats.bodies.length ? manifest.seats.bodies : null;
-    composed = composeMechanics(game.mechanics, { player, spawn, fall: game.fall, ...(seats ? { seats } : {}), ...(seats && manifest.seats.lives > 0 ? { seatLives: true } : {}) });
+    composed = composeMechanics(game.mechanics, { player, spawn, fall: game.fall, ...(seats ? { seats } : {}), ...(seats && manifest.seats.lives > 0 ? { seatLives: true } : {}), ...(seats && manifest.seats.contest ? { seatContest: manifest.seats.contest } : {}) });
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }

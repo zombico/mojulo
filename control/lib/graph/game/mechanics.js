@@ -65,7 +65,8 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
 // ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
 // a mechanic a seat works lowers a hand a seat, the work shift's), seatLives? (true: the seats count lives, so a seat's
-// hp spent is a seat down, rules-basic.js seat-falls, never the level lost) }.
+// hp spent is a seat down, rules-basic.js seat-falls, never the level lost), seatContest? ('versus' | 'free-for-all' |
+// 'teams': the seats against each other, soul.contest; absent, co-op) }.
 // THE BODIES A SHARED ZONE ANSWERS TO (a level with seats): seat 1's and every seat's (a list, the bus's zone `watch`),
 // so any of them takes a pickup or the way out; without seats seat 1's alone, as it was
 const takers = (ctx) => (Array.isArray(ctx.seats) && ctx.seats.length ? [ctx.player, ...ctx.seats.slice(0, 3)] : ctx.player);
@@ -1378,20 +1379,29 @@ const MECHANICS = {
         if (names.length !== 2 || listed.length !== all.length || new Set(listed).size !== listed.length || !all.every((c) => listed.includes(c))) throw new Error(`frags[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player and every rival in one, once`);
         sides = names; side = Object.fromEntries(names.flatMap((k) => T[k].map((c) => [c, k])));
       }
+      // SEATS (a level with seats, docs/local-multiplayer-principles.md): every seat a contender as the player is, its own
+      // hp (`hp:<n>`), its fall, its frags in its corner. Co-op, the seats are the player's own side (none frags another);
+      // against each other (ctx.seatContest versus, free-for-all, teams), each is a foe to the rest (teams: two sides, the
+      // odd seats the player's and the even the other's). With sides the seats join them the same way.
+      const S = seated(ctx) ? ctx.seats.slice(0, 3) : [], seatN = (c) => S.indexOf(c) + 2, against = !!ctx.seatContest;
+      const twoSides = ctx.seatContest === 'teams';
+      if (side && S.length) S.forEach((c) => { side[c] = !against || (twoSides && seatN(c) % 2) ? side[P] : sides.find((k) => k !== side[P]); });
       const spawnList = (L) => Array.isArray(L) && L.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite));
       const spawns = Array.isArray(p.spawns) ? p.spawns : [], spawnsOf = sides && p.spawns && !Array.isArray(p.spawns) ? p.spawns : null;
       if (spawnsOf ? !sides.every((k) => spawnList(spawnsOf[k])) : !spawnList(spawns)) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back${sides ? ' (or { <side>: [[x, y, z?], …] } per side)' : ''}`);
       const guard = p.guard === undefined ? 2 : Number.isFinite(p.guard) && p.guard >= 0 ? p.guard : NaN;
       if (Number.isNaN(guard)) throw new Error(`frags[${i}]: guard is the seconds a body back on its feet is not hurt, 0 or more`);
       const hp = Number.isFinite(p.hp) && p.hp > 0 ? p.hp : 100, hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : 10;
-      const C = [P, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
+      const C = [P, ...S, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
+      // (no sides: the seats' own relation, co-op allies or each against each; teams, odd with odd)
+      const ally = (a, c) => !side && (S.includes(a) || a === P) && (S.includes(c) || c === P) && (!against || (twoSides && (a === P ? 1 : seatN(a)) % 2 === (c === P ? 1 : seatN(c)) % 2));
       const team = (k) => `__team_${i}_${k}`, frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`;
       const tlead = `__tlead_${i}`, over = `__frags_over_${i}`, place = `__place_${i}`, clock = `__frags_t_${i}`, deaths = `__deaths_${i}`, mine = `__pf_${i}`, live = { var: over, eq: 0 };
-      const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0 }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
+      const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0, ...(S.length ? { [`__winner_${i}`]: 0 } : {}) }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
       C.forEach((c) => {
         Object.assign(world.vars, { [frag(c)]: 0, [last(c)]: 0 });
         // who hit it last (0: nobody since it last came back); with sides, only the other side's hits count
-        const foe = (a) => a !== c && (!side || side[a] !== side[c]);
+        const foe = (a) => a !== c && (!side || side[a] !== side[c]) && !ally(a, c);
         C.forEach((a, j) => { if (foe(a)) world.reactions.push({ on: `hit:${c}`, match: { by: a }, do: 'set', var: last(c), to: j + 1 }); });
         // its fall, credited to the last hitter, said as a kill (and counted for the hitter's side)
         C.forEach((a, j) => {
@@ -1401,7 +1411,7 @@ const MECHANICS = {
             { on: fell(c), if: got, do: 'inc', var: frag(a), by: 1 },
             { on: fell(c), if: got, do: 'emit', type: 'kill', killer: a, victim: c },
             ...(side ? [{ on: fell(c), if: got, do: 'inc', var: team(side[a]), by: 1 }, { on: fell(c), if: got, do: 'inc', var: tlead, by: side[a] === side[P] ? 1 : -1 }] : []),
-            { on: fell(c), if: got, do: 'emit', type: a === P ? mine : `__bf_${i}_${a}` },
+            { on: fell(c), if: got, do: 'emit', type: a === P ? mine : S.includes(a) ? `__sf_${i}_${a}` : `__bf_${i}_${a}` },
           );
         });
         world.reactions.push({ on: fell(c), do: 'set', var: last(c), to: 0 });
@@ -1413,13 +1423,19 @@ const MECHANICS = {
         // the limit (a side's, with sides)
         if (!side) {
           world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
-          world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });
+          world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P || S.includes(c) ? 'frags:won' : 'frags:lost' });
+          // (seats: who won it, the seat's number, for the results)
+          if (S.length && (c === P || S.includes(c))) world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'set', var: `__winner_${i}`, to: c === P ? 1 : seatN(c) });
         }
       });
       if (sides) sides.forEach((k) => {
         world.vars[team(k)] = 0;
         world.watches.push({ type: `__ttop_${i}_${k}`, when: { var: team(k), gte: frags } });
-        world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'emit', type: k === side[P] ? 'frags:won' : 'frags:lost' });
+        // (a side a seat plays on wins it for the couch, the side named; a side of bots alone, lost)
+        const ours = k === side[P] || S.some((c) => side[c] === k);
+        world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'emit', type: ours ? 'frags:won' : 'frags:lost' });
+        // (seats: which side won it, 1 the player's, 2 the other, for the results)
+        if (S.length) world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'set', var: `__winner_${i}`, to: k === side[P] ? 1 : 2 });
       });
       // the others fall as the cast says (their hp ran out); the player when the level's hp does, held down by the cast
       who.forEach((c) => world.reactions.push({ on: 'down', match: { entity: c }, do: 'emit', type: fell(c) }));
@@ -1446,6 +1462,19 @@ const MECHANICS = {
         ...(armored ? [{ on: fell(P), do: 'set', var: 'armor', to: 0 }] : []),
         { on: rise(P), do: 'set', var: 'hp', to: hp },
       );
+      // each seat as the player: its hp (a flat `hits` a hit, or what each round dealt), its fall when it runs out, felled
+      // by the cast and its hp whole when it rises; its hp and frags in its corner, in its colour
+      S.forEach((c) => {
+        const k = seatN(c), v = `hp:${k}`, at = { slot: SEAT_CORNERS[k], color: SEAT_COLORS[k - 1] };
+        world.vars[v] = hp;
+        world.watches.push({ type: fell(c), when: { var: v, lte: 0 } });
+        world.reactions.push(
+          ...(p.damage === true ? ['0', '1'].map((h) => ({ on: `hit:${c}`, match: { head: h }, if: live, do: 'inc', var: v, by: 'event.harm', min: 0 })) : [{ on: `hit:${c}`, if: live, do: 'inc', var: v, by: -hits, min: 0 }]),
+          { on: fell(c), do: 'ctrl', op: 'kill', who: c },
+          { on: rise(c), do: 'set', var: v, to: hp },
+        );
+        world.hud.push({ var: v, label: `${SEAT_LABELS[k - 1]} HP`, ...at }, { var: frag(c), label: `${SEAT_LABELS[k - 1]} frags`, as: 'counter', ...(side ? {} : { max: frags }), ...at });
+      });
       // the place: per other, the lead (the player's frags less its own) and an ahead flag (laps' rivals); with sides,
       // the side's lead over the other (`__tlead_<i>`) decides instead
       if (side) world.vars[tlead] = 0;
@@ -1643,6 +1672,7 @@ export function lowerMechanic(kind, params, ctx) {
     hints: (ctx && ctx.hints) || {},
     ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
     ...(ctx && ctx.seatLives === true ? { seatLives: true } : {}),
+    ...(ctx && typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1700,7 +1730,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}), ...(ctx.seatLives === true ? { seatLives: true } : {}) }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}), ...(ctx.seatLives === true ? { seatLives: true } : {}), ...(typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));

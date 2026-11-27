@@ -94,3 +94,28 @@ describe('the sim with the lowered seats', () => {
     expect(() => readSeats({ bodies: ['p2'], lives: 0 }, E)).toThrow(/1 to 99/);
   });
 });
+
+// SEATS AGAINST EACH OTHER (soul.contest): versus and free-for-all, each seat a side of its own (an empty one hunting,
+// never escorting); a deathmatch's frags owns its fallen (`downs: 'level'`), every seat a contender
+describe('seats against each other, lowered from the cube', () => {
+  const DM = (soul) => ({ ...quickWorld({ id: 'dm', quick: { goal: 'deathmatch', camera: 'third-person' }, style: { kit: 'trail-valley' } }), intent: { cube: { soul } } });
+  it('free-for-all: a side a seat, the contest and the match\'s own downs named, frags taking every seat', () => {
+    const w = DM({ seats: 'two', contest: 'free-for-all' }), m = level(w);
+    const [hero, two] = m.entities.filter((e) => e.pilotable);
+    expect([hero.team, two.team]).toEqual(['seat-1', 'seat-2']);
+    expect(two.ambient.mind).toEqual({ motivation: 'hunt' });
+    expect(two.ambient.escort).toBeUndefined();
+    expect(m.seats).toMatchObject({ bodies: ['hero-2'], contest: 'free-for-all', downs: 'level' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+    const { mechEvents } = synthesizeLevel(m);
+    expect(mechEvents.vars['hp:2']).toBeGreaterThan(0);
+    expect(mechEvents.hud.some((r) => r.label === 'P2 frags')).toBe(true);
+  }, 60_000);
+
+  it('co-op, as it was: every seat on the hero\'s side, no contest named', () => {
+    const m = level(DM({ seats: 'two' }));
+    const [hero, two] = m.entities.filter((e) => e.pilotable);
+    expect(two.team).toBe(hero.team);
+    expect(m.seats.contest).toBeUndefined();
+  }, 60_000);
+});

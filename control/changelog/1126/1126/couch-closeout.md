@@ -24,3 +24,7 @@
   ends the level, as before.
 - Every player now works the level, not just the first. Any player picks up coins and items (into the team's count, once
   each, even when two reach one together) and can take the way out. A hazard hurts whoever steps in, in their own health.
+- Players can now play against each other in a third-person deathmatch on one screen. With free-for-all or versus, each
+  player is their own side: every player has their own health, frag count and corner of the screen, a fallen player
+  comes back at a spawn point as the bots do, and the first to the frag limit wins the match, with the winner recorded
+  for the results. In co-op the players are one side against the bots, and a player's hit on a partner scores nothing.
