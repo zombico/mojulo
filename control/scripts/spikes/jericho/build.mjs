@@ -5,7 +5,7 @@
  * the world is read and laid through the real doors; only the writing of the pages is this script's.
  *
  *   cd control
- *   node scripts/spikes/jericho/build.mjs --out /abs/dir [--hero <ref>] [--level <id>]
+ *   node scripts/spikes/jericho/build.mjs --out /abs/dir [--hero <ref>] [--level <id>] [--world <file>]
  *
  * `--hero`: Coral, a hero made through the character door in the database the process reads (MOJULO_DATA_DIR); absent,
  * the stand-in person.
@@ -24,7 +24,7 @@ const { gameStages, stageLevelOrder } = await import('../../../lib/graph/gamewor
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 
-const W = JSON.parse(fs.readFileSync(path.join(here, 'world.json'), 'utf8')), out = path.resolve(opt('--out', 'jericho'));
+const W = JSON.parse(fs.readFileSync(opt('--world') ? path.resolve(opt('--world')) : path.join(here, 'world.json'), 'utf8')), out = path.resolve(opt('--out', 'jericho'));
 const G = readGameworld(W), heroRef = opt('--hero'), only = opt('--level');
 fs.mkdirSync(out, { recursive: true });
 for (const st of gameStages(W)) {
