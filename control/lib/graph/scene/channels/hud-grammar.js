@@ -4,7 +4,8 @@
  *
  *   top-left      VITALS      the hero's health as hearts (a level var over the hp a heart holds: a hit takes a part),
  *                             and under them its stamina, shown only while it is spent
- *   top           NAVIGATION  a compass strip (the camera's heading), the goal's bearing on it, under it the objective in
+ *   top           NAVIGATION  a compass strip (the camera's heading), the goal's bearing on it (and the player's pins,
+ *                             a map's: scene/channels/map-channel.js), under it the objective in
  *                             a line with its distance, and THE CARD LANE: what the level says (its opening, a line
  *                             said, a way held), one at a time on mana-ui's moment queue
  *   top-right     WHAT IS HELD, a row of icons and never words: the weapon in hand, the sidearm, the item held with
@@ -138,6 +139,8 @@ export function hudGrammarPage(cfg, ui, spec, css) {
       S.hud.heading = Math.round(((90 - deg(yaw)) % 360 + 360) % 360);
       const at = GV ? (GV.goal ? GV.goal.at : null) : cfg.goal;
       const marks = at ? [{ bearing: Math.round((deg(Math.atan2(at[0] - me.transform.pos[0], at[1] - me.transform.pos[1])) % 360 + 360) % 360), kind: 'goal' }] : [];
+      // (and the player's own pins, a map's: scene/channels/map-channel.js)
+      for (const q of window.__mojPins || []) marks.push({ bearing: Math.round((deg(Math.atan2(q[0] - me.transform.pos[0], q[1] - me.transform.pos[1])) % 360 + 360) % 360), kind: 'item' });
       if (JSON.stringify(marks) !== JSON.stringify(S.hud.markers)) S.hud.markers = marks;
       // (its stamina, where it sprints on one: shown while it is spent)
       const max = me.rule && me.rule.stamina ? (me.rule.boostMax || 0) : 0;

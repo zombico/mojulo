@@ -176,6 +176,19 @@ describe('the journey: a castle\'s segments carry what she gains', () => {
   });
 });
 
+// THE PINS (a world map's own marks, scene/channels/map-channel.js): each setting and lifting kept as a flag of its name
+describe('the pins: a world map\'s marks carried page to page', () => {
+  it('keeps each pin set and lifted as a flag named for it, in a flags slice the level consumes; the game channel hands them to the map', async () => {
+    const c = composeMechanics([{ kind: 'pins', slice: 'pins' }, { kind: 'reach-exit', at: [9, 0, 0], exit: 'on' }], { player: 'hero', storeSchema: { slices: [{ name: 'pins', kind: 'flags' }] } });
+    for (const k of ['pin:*', 'unpin:*']) expect(c.on[k]).toEqual({ emit: { type: 'setFlag', slice: 'pins', key: '{event}', value: true } });
+    expect(c.consumes).toEqual([{ slice: 'pins' }]);
+    expect(c.pins).toEqual({ slice: 'pins' });
+    const { gameChannelScript } = await import('../scene/channels/game.js');
+    expect(gameChannelScript({ levelRef: 'x', on: c.on, pins: { slice: 'pins' } })).toContain('window.__mojPinsIn');
+    expect(gameChannelScript({ levelRef: 'x', on: { 'goal:reached': { end: 'success' } } })).not.toContain('__mojPinsIn');
+  });
+});
+
 describe('a firefight on the bus: hits cost hp, falls are counted, supplies give', () => {
   const B = buildBus();
   const level = (extra = []) => {

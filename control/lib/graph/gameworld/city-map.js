@@ -23,7 +23,8 @@
  *                                      (a ridden one open country), its ways the roads, its places' buildings, its water;
  *                                      each block named where it stands (a town a house, the walk's goal a star), the
  *                                      names written on the opened map (`names`); the foes awake on it (`foes`), its
- *                                      corner the page's one radar
+ *                                      corner the page's one radar; `pins` (a region's id, levels.js) the player's own
+ *                                      marks set on it (scene/channels/map-channel.js)
  * Pure.
  */
 import { iconOf } from '../../mana-ui/icons.js';
@@ -118,9 +119,9 @@ export function planMap(level, ui = undefined) {
   });
   const radius = U.radius ?? CITY_MAP.radius;
   return {
-    box: [r4(ox), r4(oy)], side: r4(side), shapes, markers, names: true, foes: true,
+    box: [r4(ox), r4(oy)], side: r4(side), shapes, markers, names: true, foes: true, ...(typeof U.pins === 'string' ? { pins: U.pins } : {}),
     corner: U.corner === undefined ? CITY_MAP.corner : U.corner, views: [...(U.views ?? CITY_MAP.views)],
     zoom: r4(Math.max(1, Math.min(16, side / (2 * radius)))), icons, cars: false,
-    key: [{ icon: icons.goal, name: 'Where to go' }, { icon: 'home', name: 'A town' }, { icon: 'star', name: 'The keep' }, { icon: 'pin', name: 'A place' }, { icon: 'skull', name: 'A foe' }],
+    key: [{ icon: icons.goal, name: 'Where to go' }, { icon: 'home', name: 'A town' }, { icon: 'star', name: 'The keep' }, { icon: 'pin', name: 'A place' }, { icon: 'skull', name: 'A foe' }, ...(typeof U.pins === 'string' ? [{ icon: 'pin', name: 'Your pin' }] : [])],
   };
 }

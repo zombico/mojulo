@@ -350,6 +350,12 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       C.carryIn(keys);
     })(0);
   });
+` : ''}${game.pins ? `  // the PINS carried in (the pins mechanic): the marks the player set on this map on its pages before, handed to its
+  // map (scene/channels/map-channel.js reads window.__mojPinsIn)
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.pins.slice], fl = (s && s.flags) || {};
+    window.__mojPinsIn = Object.keys(fl).filter((k) => fl[k] && (k.indexOf('pin:') === 0 || k.indexOf('unpin:') === 0));
+  });
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame
   // and the level's own events move the pilot to that end (deferred, as chapters are: the events channel may load later).
   st.onStart.push(function (params) {

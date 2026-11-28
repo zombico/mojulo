@@ -175,7 +175,13 @@ describe('the approach', () => {
     const L0 = steps.find((x) => x.key === `level-${REGIONS[0].id}-0`).order.manifest;
     expect(L0.mounts).toBeUndefined();
     // (every map page its region's map on M and its radar, in the game's look, gameworld/city-map.js planMap)
-    for (const k of [`level-${APPROACH.id}-0`, `level-${REGIONS[0].id}-0`]) expect(steps.find((x) => x.key === k).order.manifest.mapUi).toMatchObject({ theme: expect.anything() });
+    for (const [k, region] of [[`level-${APPROACH.id}-0`, APPROACH.id], [`level-${REGIONS[0].id}-0`, REGIONS[0].id]]) {
+      const pm = steps.find((x) => x.key === k).order.manifest;
+      // (and the player's pins on it, its region's, kept in the store's pins slice)
+      expect(pm.mapUi).toMatchObject({ theme: expect.anything(), pins: region });
+      expect(pm.game.mechanics).toContainEqual({ kind: 'pins', slice: 'pins' });
+    }
+    expect(gameStore(W).slices).toContainEqual({ name: 'pins', kind: 'flags' });
     expect(L0.entities.some((e) => e.id === 'rhayu')).toBe(true);
   }, 120_000);
 });

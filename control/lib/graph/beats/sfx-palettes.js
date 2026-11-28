@@ -163,6 +163,8 @@ export const MECHANIC_SFX = {
   // (a castle segment's gain kept: its own moment already sounds, the relic's pickup or the boss's fall; the keeping is a
   // step, as quiet as a footfall)
   journey: { 'journey:*': 'step' },
+  // (a pin set or lifted on the map: a mark made, as quiet as a footfall; the map's own screen is silent)
+  pins: { 'pin:*': 'step', 'unpin:*': 'step' },
   trade: { 'pickup:*': 'pickup', 'trade:*:short': 'thud' },
   cargo: { 'cargo:lost:*': 'hit' },
   bounty: { 'bounty:*': 'pickup' },

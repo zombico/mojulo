@@ -119,3 +119,11 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
   - **One radar:** its corner shows the land round her with the foes awake on it, and the HUD grammar's scope is put
     away beside it. A city's map is as it was.
   - **In the game's look:** on a page whose HUD is the grammar's, the map mounts mana-ui of its own in the game's theme.
+- **The player's pins** (`game/mechanics.js` `pins`, `scene/channels/map-channel.js`, `scene/channels/game.js`,
+  `scene/channels/hud-grammar.js`, `gameworld/levels.js` `PINS_SLICE`).
+  - **Set on the map:** on a world map's opened map a cursor starts where she stands; the arrows move it, P (or Enter)
+    sets a pin there or lifts the one under it, up to twelve a map.
+  - **Seen while playing:** each pin on the map and its corner, and its bearing on the compass beside the goal's.
+  - **Kept:** each setting and lifting is a flag of its name in the store's `pins` slice (the closed vocabulary's
+    flags, a pin standing while its latest setting outnumbers its latest lifting), written as the page is left and
+    carried into the region's next page. A world with world maps and an interface declares the slice.

@@ -1598,7 +1598,11 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   }
   // A PLANNED MAP's own map (gameworld/city-map.js planMap): a world map's page in a game with an interface (`ui`) has
   // its radar and its map on M, in the game's look, unless its `ui.map` says false; none on a page that already has one
-  if (stage.section === 'map' && manifest.level?.grid?.plan && G.ui !== undefined && G.ui?.map !== false && !manifest.manaHud?.map) manifest = { ...manifest, mapUi: { ...(G.ui?.map && typeof G.ui.map === 'object' ? G.ui.map : {}), theme: interfaceLook(G).theme ?? null } };
+  // (and the player's PINS on it, its region's: the pins mechanic keeps them in the store's pins slice, game/mechanics.js)
+  if (stage.section === 'map' && manifest.level?.grid?.plan && mapsPinned(G) && !manifest.manaHud?.map) {
+    manifest = { ...manifest, mapUi: { ...(G.ui?.map && typeof G.ui.map === 'object' ? G.ui.map : {}), theme: interfaceLook(G).theme ?? null, pins: stage.level } };
+    if (manifest.game) manifest = { ...manifest, game: { ...manifest.game, mechanics: [...(manifest.game.mechanics ?? []), { kind: 'pins', slice: PINS_SLICE }] } };
+  }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : stage.section === 'mission' ? stage.mission.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says })) : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1806,6 +1810,10 @@ export function stageSpots(ends, lane = null) {
 
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */
 export const STORY_SLICE = 'story';
+/** The flags slice the player's pins on a world map ride in (game/mechanics.js `pins`), and whether a world has them: a
+ * game with an interface whose map is not said off, and a planned map among its levels (city-map.js planMap). */
+export const PINS_SLICE = 'pins';
+export const mapsPinned = (G) => G.ui !== undefined && G.ui?.map !== false && (G.ids ?? Object.keys(G.levels ?? {})).some((id) => !!G.levels?.[id]?.glyphs?.plan);
 export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0)
   || sceneFlags({ scenes: (G.story ?? []).filter((m) => m.slides === undefined).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length
   // (a megaworld's zones are gone back to: what was won in one stays won, rpg.js wonFlag)
@@ -2566,6 +2574,8 @@ export function gameStore(world, book) {
   if (G.ids.some((id) => G.levels[id].airspace?.frame?.garage)) slices.push({ name: PARTS_SLICE, kind: 'inventory' });
   // a megaworld's current map (game/play-shell.js atlas): where the player is and where they have been
   if (G.megaworld) slices.push({ name: ATLAS_SLICE, kind: 'flags' });
+  // the player's pins on a world map's own map (game/mechanics.js `pins`): every region's, carried page to page
+  if (mapsPinned(G)) slices.push({ name: PINS_SLICE, kind: 'flags' });
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here
   if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
   // a castle cut into segments on a map (metroidvania/castle.js segmentsOf): what the hero gains goes on with her

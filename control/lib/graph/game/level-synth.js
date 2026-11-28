@@ -45,6 +45,7 @@ export function mergeContract(game, composed) {
     ...(composed.keep ? { keep: [...(game.keep || []), ...composed.keep] } : {}),
     ...(composed.aftermath ? { aftermath: composed.aftermath } : {}),
     ...(composed.journey ? { journey: composed.journey } : {}),
+    ...(composed.pins ? { pins: composed.pins } : {}),
     ...(composed.bag ? { bag: composed.bag } : {}),
     ...(composed.party ? { party: composed.party } : {}),
   };

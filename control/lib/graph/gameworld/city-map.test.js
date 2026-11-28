@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
 import { cityMap, readMapUi, CITY_MAP, planMap } from './city-map.js';
 import { worldMapLevel } from './world-map.js';
-import { mapScript, mapSpec } from '../scene/channels/map-channel.js';
+import { mapScript, mapSpec, mapPage } from '../scene/channels/map-channel.js';
 import { manaUi } from '../../mana-ui/kernel.js';
 import { readUi } from '../playscape/ui/interface-look.js';
 
@@ -136,5 +136,48 @@ describe('a planned map\'s map', () => {
     const city = mapScript(cityMap(PLAN, LEVEL));
     expect(city).not.toContain('data-kind=poi]>.mana-caption{display:block}');
     expect(city).not.toContain('.moj-hg .mana-place');
+  });
+});
+
+// THE PLAYER'S PINS on a planned map (map-channel.js, `pins`: its region's id): set at the cursor on the opened map and
+// lifted there, each raised on the bus for the pins mechanic to keep, carried back in as the next page opens, and handed
+// to the compass. Run on a stub page: the map's own code, mana-ui, a world with its pilot, a bus queue
+describe('the player\'s pins', () => {
+  const { level: L } = worldMapLevel({ n: 3, town: 'storybook' });
+  const level = { grid: { tile: L.glyphs.tile, plan: L.glyphs.plan, ...(L.glyphs.segments ? { segments: L.glyphs.segments } : {}) }, sketch: L.glyphs.sketch };
+  async function stub(carried = null) {
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM('<!doctype html><body></body>', { pretendToBeVisual: true, runScripts: 'outside-only' }), w = dom.window;
+    const me = { id: 'hero', team: 'hero', transform: { pos: [30, -60, 0], heading: 0 } };
+    w.__mojCtrl = { world: { pilotId: 'hero', byId: { hero: me }, entities: [me] } };
+    if (carried) w.__mojPinsIn = carried;
+    const M = planMap(level, { pins: 'vale' }), queue = [];
+    Object.assign(w, { __M: M, __ui: manaUi, __spec: mapSpec(M), __q: queue });
+    const page = w.eval(`(function (__inputQueue) { return (${mapPage.toString()})(window.__M, window.__ui, window.__spec, ''); })(window.__q)`);
+    const key = (code) => w.dispatchEvent(new w.KeyboardEvent('keydown', { code }));
+    return { w, page, queue, key, M };
+  }
+  it('set at the cursor on the opened map, raised on the bus, drawn on the map and on the compass; lifted where it stands', async () => {
+    const { w, page, queue, key, M } = await stub();
+    expect(M.pins).toBe('vale');
+    key('KeyM'); expect(page.isOpen()).toBe(true);
+    key('ArrowRight'); key('ArrowRight'); key('KeyP');
+    expect(page.pins()).toHaveLength(1);
+    const [x, y] = page.pins()[0];
+    expect(x).toBeGreaterThan(30); expect(y).toBe(-60);
+    expect(queue.map((e) => e.type)).toEqual([`pin:|vale|${x}|${y}|1`]);
+    expect(w.__mojPins).toEqual([[x, y]]);
+    expect(page.state.map.all.some((m) => m.icon === 'pin' && m.kind === 'item')).toBe(true);
+    // (P again on it lifts it; set there again, it is its second setting)
+    key('KeyP'); expect(page.pins()).toEqual([]);
+    key('KeyP');
+    expect(queue.map((e) => e.type)).toEqual([`pin:|vale|${x}|${y}|1`, `unpin:|vale|${x}|${y}|1`, `pin:|vale|${x}|${y}|2`]);
+    // (closed, the arrows and P are the game's again)
+    key('KeyM'); key('KeyP'); expect(queue).toHaveLength(3);
+  });
+  it('carried back in: a pin whose latest setting outnumbers its latest lifting stands, another region\'s is not this map\'s', async () => {
+    const { page } = await stub(['pin:|vale|10|-20|1', 'unpin:|vale|10|-20|1', 'pin:|vale|10|-20|2', 'pin:|vale|50|-50|1', 'unpin:|vale|50|-50|1', 'pin:|hill|0|0|1']);
+    page.open();
+    expect(page.pins()).toEqual([[10, -20]]);
   });
 });

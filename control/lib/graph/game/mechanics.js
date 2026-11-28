@@ -1206,6 +1206,22 @@ const MECHANICS = {
   // (worlds/controllable/held-gates.js: a relic taken, a boss felled, a gate opened, a tile walked, a node learned, a
   // foe's souls) is kept as a flag of that name in a flags slice the game carries; entering the next segment, the page
   // puts each back as it stood (carryIn), so her powers, the map and the castle's fallen go with her.
+  // THE PINS (an emitter): a world map's own marks, set by the player on its map (scene/channels/map-channel.js) and kept
+  // as flags in a flags slice the game carries, so a region's pins stand on every page of it. Each pin is raised as
+  // `pin:|<region>|<x>|<y>|<k>` and lifted as `unpin:|…|<k>` (its k-th setting there: a pin stands while its latest
+  // setting outnumbers its latest lifting); a flag of that name each, put back as the next page opens
+  pins: {
+    role: 'emitter', requires: ['flags'],
+    lower(p, ctx) {
+      const slice = ctx.resolve('flags', p.slice, `pins[${ctx.i}]`);
+      return {
+        produces: [{ type: 'setFlag', slice }],
+        on: { 'pin:*': { emit: { type: 'setFlag', slice, key: '{event}', value: true } }, 'unpin:*': { emit: { type: 'setFlag', slice, key: '{event}', value: true } } },
+        consumes: [{ slice }],
+        pins: { slice },
+      };
+    },
+  },
   journey: {
     role: 'emitter', requires: ['flags'],
     lower(p, ctx) {
@@ -1767,7 +1783,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const audits = [];
   const doors = [];
   const keep = [];
-  let aftermath = null, bag = null, party = null, journey = null;
+  let aftermath = null, bag = null, party = null, journey = null, pins = null;
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -1803,6 +1819,7 @@ export function composeMechanics(mechanics, ctx = {}) {
     for (const c of (low.consumes || [])) consumes.push(c);
     if (low.aftermath) aftermath = low.aftermath;
     if (low.journey) journey = low.journey;
+    if (low.pins) pins = low.pins;
     if (low.bag) bag = low.bag;
     if (low.party) party = low.party;
     for (const k of (low.keep || [])) { if (keep.some((x) => x.var === k.var)) errors.push(`mechanics[${i}] (${m.kind}): var '${k.var}' is kept twice`); else keep.push(k); }
@@ -1872,5 +1889,5 @@ export function composeMechanics(mechanics, ctx = {}) {
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(journey ? { journey } : {}), ...(bag ? { bag } : {}), ...(party ? { party } : {}) };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(journey ? { journey } : {}), ...(pins ? { pins } : {}), ...(bag ? { bag } : {}), ...(party ? { party } : {}) };
 }
