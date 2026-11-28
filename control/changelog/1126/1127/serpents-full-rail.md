@@ -72,3 +72,19 @@
   the player's head) under it. A call raised as a scene ends comes up at once, its keys its own, and holds the world
   1.5 s and 45 frames after the scene's end (a slow page eases its camera a frame at a time), the camera behind the
   player by then.
+- **A military supply ship on the craft shelf** (craft-shelf/boat-odm.js `hull-supply-70`, `superstructure-supply`,
+  `funnel-supply`, `mast-pyramid-supply`, `crane-deck`; boat-archetypes.js `supplyShip`, its role `supply`;
+  boat-drive.js; the registry's `supply ship`): a 70 m logistics vessel built as the shelf's warships are, its fuller
+  hull drawn from its lines with a flush weather deck level to its bow rail, its house aft in tiers to its bridge, a
+  funnel, a mast with its arrays, a deck crane, a sea boat under its davit, twin screws; the naval look's haze grey, no
+  number asked. Floated by its weight (about 4 m draft). The destroyer's tests pick their ship by its escort's role.
+- **A ship's deck to play on** (gameworld/ship-deck.js; an infiltration level's `ground: { ship, speed? }`): a boat of
+  the shelf by its word, held still with its weather deck at the floor and its bow along +y, drawn as a world draws a
+  craft (its form render under the level's sky). Its walk is the hull's outline, its rail a collider deeper than a vault
+  crosses round it, its house a wall to go round by its side decks, its sea boat and davit cover; every place the level
+  names is held to its deck.
+- **The sea under a ship held still** (channels/controllable/boat-water.js `boatWaterScript(ship)`, a level's `shipSea`):
+  the boat water's live sheet, its swell, the hull's Kelvin wake, its foam and its spray, under a ship no one drives, as
+  if it made way at its speed: the swell read where it has come to, the trail and the spray running astern, the sheet at
+  its waterline. At night its look reflects the level's sky, its tint deeper and its foam the moon's grey. The boat
+  level of the prologue stands on the supply ship over it.

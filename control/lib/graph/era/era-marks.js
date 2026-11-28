@@ -57,6 +57,8 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'lesson', 'speedfx',
   // (a level's spoken lines shown as comms, scene/channels/comms.js; its radio calls, the game held, channels/calls.js)
   'comms', 'calls',
+  // (the sea under a ship a level holds still, channels/controllable/boat-water.js)
+  'shipSea',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

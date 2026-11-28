@@ -549,8 +549,8 @@ describe('a navy patrol boat', () => {
 });
 
 describe('a destroyer', () => {
-  // (a ship: a boat whose upperworks are a stepped superstructure)
-  const DD = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.build?.family === 'superstructure'));
+  // (a warship: a boat in the escort's role whose upperworks are a stepped superstructure; a supply ship's are too)
+  const DD = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].role === 'escort' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.build?.family === 'superstructure'));
   const { manifest, readout } = assembleCraft(DD), item = (id) => manifest.items.find((i) => i.id === id), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku], H = hullLines(HR);
   const lay = (fam) => A[DD].layout.filter((e) => CRAFT_ODM[e.sku].build?.family === fam);
   const sOf = (it) => (it.at[1] - hull.at[1] + H.L / 2) / H.L, deckAt = (s) => hull.at[2] + H.at(s).sheer - HR.build.deck.thickness;

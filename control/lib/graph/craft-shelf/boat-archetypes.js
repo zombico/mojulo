@@ -25,6 +25,7 @@ export const BOAT_ROLES = {
   escort: { label: 'escort', mission: 'screen a fleet at sea: its guns and launch cells against air and surface, its helicopter against what is under it', realms: ['water'] },
   flattop: { label: 'aircraft carrier', mission: 'take an air wing to sea: launch it, bring it back aboard, strike it below to its hangar', realms: ['water'] },
   submarine: { label: 'submarine', mission: 'go unseen under the sea: hunt what sails and what dives, watch a coast, slip in a team', realms: ['water'] },
+  supply: { label: 'supply ship', mission: 'carry a base\'s stores, fuel and vehicles over open sea: a cargo deck forward, its crew housed aft, few or none aboard on an automated run', realms: ['water'] },
   landing: { label: 'landing craft', mission: 'put vehicles and troops ashore over a beach: a ramp at its bow, a well deck, a shallow draft', realms: ['water'] },
 };
 
@@ -171,6 +172,26 @@ export const BOAT_ARCHETYPES = {
       { id: 'seaBoat', sku: 'hull-rib-31', at: 'hull.seaBoat' },
       { id: 'seaBoatMotor', sku: 'outboard-20-tiller', at: 'seaBoat.motor' },
       { id: 'davit', sku: 'davit-sea-boat', at: 'hull.davit', yaw: 180 },
+    ],
+  },
+  supplyShip: {
+    // (the naval card's look and haze grey; no number on its bows: a supply run that marks nothing)
+    realm: 'water', role: 'supply', palette: 'navalHaze', look: 'naval', livery: { pattern: 'mono' }, class: 'supply ship', label: '70 m military supply ship', classOf: '70 m military logistics vessel class (twin screws)',
+    // (its stores, its fuel and its cargo)
+    payload: 900000,
+    reference: { span: 15.4, length: 70, height: 31.3, mtow: 2.93e6, draft: 4.0 },
+    bom: { 'boat-hull': 2, 'boat-shaft': 2, 'boat-cabin': 2, 'boat-arch': 4, 'boat-outboard': 1 },
+    layout: [
+      { id: 'hull', sku: 'hull-supply-70' },
+      { id: 'shaft', sku: 'shaft-turbine-ship', at: 'hull.shaftPair', pair: true },
+      { id: 'super', sku: 'superstructure-supply', at: 'hull.house' },
+      { id: 'mast', sku: 'mast-pyramid-supply', at: 'super.top' },
+      { id: 'funnel', sku: 'funnel-supply', at: 'super.funnel' },
+      { id: 'crane', sku: 'crane-deck', at: 'hull.crane', yaw: 90 },
+      // (its sea boat: a RHIB on chocks to starboard, its outboard, its davit outboard of it)
+      { id: 'seaBoat', sku: 'hull-rhib-mil-75', at: 'hull.seaBoat' },
+      { id: 'seaBoatMotor', sku: 'outboard-150-remote-25', at: 'seaBoat.motor' },
+      { id: 'davit', sku: 'davit-ship', at: 'hull.davit', yaw: 180 },
     ],
   },
   destroyer: {

@@ -15,11 +15,18 @@ import { aquaPatchScript } from '../aqua-glsl.js';
 //                a turn leaves its curve
 //   its spray    off its chines and its rooster tails on the plane, off its bow wave displacing
 // Its own frame loop, a frame behind the world's at most; seeded dice for the spray.
-export function boatWaterScript() {
+//
+// A SHIP AT SEA (`ship`, a level's `shipSea`: { at, heading, speed, z, sea }): the same water under a ship the level holds
+// still and plays on (an infiltration level's deck, gameworld/infiltration-level.js), as if it made way at `speed`: the
+// swell and the wake's trail run past it astern, its Kelvin field stands where a moving hull's does, the sheet laid at
+// its waterline `z`. No boat is driven; its numbers are the level's.
+export function boatWaterScript(ship = null) {
   return `${aquaPatchScript()}
 // --- the water under a driven boat ---
 {
-  const __bwG = 9.81, kelvinField = ${kelvinField.toString()};
+  const __bwG = 9.81, kelvinField = ${kelvinField.toString()}, __bwShip = ${ship ? JSON.stringify(ship) : 'null'};
+  // (a ship at sea: its place, heading and speed the level's, its clock the page's)
+  const __bwShipG = __bwShip ? { rule: { type: 'boat' }, transform: { pos: __bwShip.at, heading: __bwShip.heading }, speed: __bwShip.speed, sailT: 0, turret: { range: { sea: __bwShip.sea } } } : null;
   let BW = null;
   function __bwBuild(g) {
     const SEA = g.turret.range.sea, N = SEA.sheet.n, H0 = SEA.sheet.size / 2, E = 4500, du = 2 / (N - 1), d0 = SEA.sheet.size / (N - 1);
@@ -33,7 +40,7 @@ export function boatWaterScript() {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aAqFoam', new THREE.BufferAttribute(fa, 1)); geo.setIndex(idx);
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide, transparent: true, depthWrite: false });
-    const UQ = __aqPatch(mat, SEA.look, { sun: [0.4, 0.3, 0.8], foamCol: [0.94, 0.97, 0.98], refract: 0.04 });
+    const UQ = __aqPatch(mat, SEA.look, { sun: [0.4, 0.3, 0.8], foamCol: SEA.foamCol || [0.94, 0.97, 0.98], refract: 0.04 });
     const sheet = new THREE.Mesh(geo, mat); sheet.renderOrder = 1; sheet.raycast = () => {}; sheet.frustumCulled = false; __aqShared.meshes.push(sheet); scene.add(sheet);
     const SW = SEA.swell.map((w) => ({ ...w, k: 2 * Math.PI / w.length, om: Math.sqrt(__bwG * 2 * Math.PI / w.length), dx: Math.cos(w.dir), dy: Math.sin(w.dir) }));
     const WL = SEA.waterline, LW = WL.length, BEAM = WL.beam;
@@ -49,7 +56,9 @@ export function boatWaterScript() {
     column.frustumCulled = false; scene.add(column);
     BW = { SEA, N, NN, off, d0, pos, nor, fa, Hh, geo, UQ, SW, LW, BEAM, sp, sv, sl, NP, spray, qp, qv, ql, NQ, column, qspawn: 0, spawn: 0, seed: 0x5eb0a7, trail: [], drop: 0, last: null, KP: { k0: 1, a0: 0, reach: 1, lw: LW, lifted: false, app: 0.34, cell: d0 } };
   }
-  const swellAt = (x, y, t) => { let h = 0; for (const w of BW.SW) h += w.amp * Math.sin(w.k * (w.dx * x + w.dy * y) - w.om * t + (w.ph || 0)); return h; };
+  // (under a ship held still the water is read where it has come to, the ship making way: advected along its heading)
+  const __bwAdv = (t) => (__bwShip ? [Math.cos(__bwShip.heading) * __bwShip.speed * t, Math.sin(__bwShip.heading) * __bwShip.speed * t] : [0, 0]);
+  const swellAt = (x, y, t) => { const A = __bwAdv(t); x += A[0]; y += A[1]; let h = 0; for (const w of BW.SW) h += w.amp * Math.sin(w.k * (w.dx * x + w.dy * y) - w.om * t + (w.ph || 0)); return h; };
   const rnd = () => { let s = BW.seed = (BW.seed + 0x6d2b79f5) | 0, t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   // the foam near the hull at a rung of its wake, ξ behind the bow and η across (the seaway's, its stern's run short)
   function foamNear(W, xiB, eta) {
@@ -61,11 +70,13 @@ export function boatWaterScript() {
     if (W.bowWave > 0.05 && xiB > 0 && xiB < 0.3 * LW && ee > -0.05 && ee < 0.15 * BW.BEAM + W.bowWave) f = Math.max(f, 1.1 * (1 - xiB / (0.3 * LW)));
     return f;
   }
-  function emit(x, y, z, vx, vy, vz) { const i = BW.spawn++ % BW.NP; BW.sp[3 * i] = x; BW.sp[3 * i + 1] = y; BW.sp[3 * i + 2] = z; BW.sv[3 * i] = vx; BW.sv[3 * i + 1] = vy; BW.sv[3 * i + 2] = vz; BW.sl[i] = 1.2 + rnd(); }
+  // (spray off a ship held still is thrown without the ship's way on it: it streams aft past the hull)
+  function emit(x, y, z, vx, vy, vz) { if (__bwShip) { vx -= Math.cos(__bwShip.heading) * __bwShip.speed; vy -= Math.sin(__bwShip.heading) * __bwShip.speed; } const i = BW.spawn++ % BW.NP; BW.sp[3 * i] = x; BW.sp[3 * i + 1] = y; BW.sp[3 * i + 2] = z; BW.sv[3 * i] = vx; BW.sv[3 * i + 1] = vy; BW.sv[3 * i + 2] = vz; BW.sl[i] = 1.2 + rnd(); }
   function frame(tm) {
     requestAnimationFrame(frame);
-    const g = __world.pilotId && __world.byId[__world.pilotId];
+    const g = __bwShipG || (__world.pilotId && __world.byId[__world.pilotId]);
     if (!g || !g.rule || g.rule.type !== 'boat' || !g.turret || !g.turret.range || !g.turret.range.sea) return;
+    if (__bwShipG) __bwShipG.sailT = tm / 1000;
     if (!BW) __bwBuild(g);
     const B = BW, SEA = B.SEA, t = g.sailT || 0, tr = g.transform, px = tr.pos[0], py = tr.pos[1], fx = Math.cos(tr.heading), fy = Math.sin(tr.heading);
     let dt = B.last == null ? 0 : (tm - B.last) / 1000; B.last = tm; if (!(dt > 0)) dt = 0; if (dt > 0.1) dt = 0.1;
@@ -76,12 +87,12 @@ export function boatWaterScript() {
     K.k0 = __bwG / Math.max(U, 0.5) ** 2; K.a0 = W.crest * Math.min(1, U / Math.max(W.speed, 0.1)); K.reach = W.reach; K.lifted = lifted; K.app = W.angle * Math.PI / 180;
     const fore = SEA.waterline.fore, waking = U > 0.4;
     // the trail: the stern's white water dropped where it has been, aging
-    for (const p of B.trail) p.age += dt;
+    for (const p of B.trail) { p.age += dt; if (__bwShip) { p.x -= fx * U * dt; p.y -= fy * U * dt; } }
     while (B.trail.length && B.trail[0].age > 25) B.trail.shift();
     B.drop -= dt;
     if (waking && B.drop <= 0) { B.drop = 0.25; const sx = px + fx * SEA.waterline.aft, sy = py + fy * SEA.waterline.aft; B.trail.push({ x: sx, y: sy, age: 0, w: Math.max(0.5, W.sternWake.width / 2), s: Math.min(1, U / 4) }); }
     // the sheet's centre on its finest cells' grid, so the water under the boat never swims
-    const cx = Math.round(px / B.d0) * B.d0, cy = Math.round(py / B.d0) * B.d0, N = B.N, off = B.off, shore = SEA.shore;
+    const cx = Math.round(px / B.d0) * B.d0, cy = Math.round(py / B.d0) * B.d0, N = B.N, off = B.off, shore = __bwShip ? 1e9 : SEA.shore;
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const q = j * N + i, x = cx + off[i], y = cy + off[j];
       B.pos[3 * q] = x; B.pos[3 * q + 1] = y;
@@ -110,7 +121,7 @@ export function boatWaterScript() {
       }
     }
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const q = j * N + i, o = 3 * q; B.pos[o + 2] = B.Hh[q]; B.fa[q] = Math.min(1, B.fa[q]);
+      const q = j * N + i, o = 3 * q; B.pos[o + 2] = B.Hh[q] + (__bwShip ? __bwShip.z : 0); B.fa[q] = Math.min(1, B.fa[q]);
       const il = i > 0 ? q - 1 : q, ir = i < N - 1 ? q + 1 : q, jd = j > 0 ? q - N : q, ju = j < N - 1 ? q + N : q;
       const gx = (B.Hh[ir] - B.Hh[il]) / Math.max(1e-3, B.pos[3 * ir] - B.pos[3 * il]), gy = (B.Hh[ju] - B.Hh[jd]) / Math.max(1e-3, B.pos[3 * ju + 1] - B.pos[3 * jd + 1]);
       const inv = 1 / Math.hypot(gx, gy, 1); B.nor[o] = -gx * inv; B.nor[o + 1] = -gy * inv; B.nor[o + 2] = inv;

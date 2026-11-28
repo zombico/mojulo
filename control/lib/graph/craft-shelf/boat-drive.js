@@ -20,6 +20,7 @@
  *   riverinePatrol  a 10 m riverine patrol boat, twin waterjets of about 440 hp: about 35 knots
  *   landingCraft    a 22 m mechanised landing craft, twin diesels of about 650 hp: about 12 knots
  *   navalPatrol     a 25 m navy patrol boat, twin diesels of about 2,400 hp: about 35 knots
+ *   supplyShip      a 70 m military supply ship, twin diesels of about 6,200 hp: about 14 knots
  *   destroyer       a 150 m destroyer, gas turbines of 100,000 shp: about 30 knots
  *   aircraftCarrier a 300 m carrier, steam turbines of 260,000 shp: about 32 knots
  *   attackSub       a 110 m attack submarine surfaced, its reactor's 30,000 shp: about 15 knots on the surface
@@ -43,6 +44,7 @@ export const BOAT_DRIVE = Object.freeze({
   landingCraft: Object.freeze({ power: 970, top: 12 * KN, drive: 'screw', circle: 5 }),
   navalPatrol: Object.freeze({ power: 3600, top: 35 * KN, drive: 'screw', circle: 5 }),
   destroyer: Object.freeze({ power: 75000, top: 30 * KN, drive: 'screw', circle: 6 }),
+  supplyShip: Object.freeze({ power: 4600, top: 14 * KN, drive: 'screw', circle: 5 }),
   aircraftCarrier: Object.freeze({ power: 194000, top: 32 * KN, drive: 'screw', circle: 6 }),
   attackSub: Object.freeze({ power: 22000, top: 15 * KN, drive: 'screw', circle: 6 }),
 });

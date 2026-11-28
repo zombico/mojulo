@@ -35,6 +35,7 @@
  */
 import { infiltrationRoom, INFILTRATION_LEGEND } from './infiltration-room.js';
 import { floorOf } from './practice-room.js';
+import { shipDeck } from './ship-deck.js';
 import { INFILTRATION, readInfiltration } from './infiltration-words.js';
 
 export const INFILTRATION_TASK = 'obj';
@@ -57,9 +58,31 @@ function boxOf(x0, x1, y0, y1, z0, z1, fill, group) {
 
 /** The stage: the floor walled round (or a ship's deck railed round over its sea), the cover's boxes on it (each a
  *  collider a body hides behind, or crawls under where it is raised), the scenery seen beyond it. */
+// (a ship's deck, read once a ship and a speed: its build is the slow part)
+const SHIPS = new Map();
+function shipOf(P) {
+  const key = `${P.ship.word}|${P.ship.speed}|${!!P.night}`;
+  if (!SHIPS.has(key)) {
+    const S = shipDeck(P.ship.word, { speed: P.ship.speed, night: !!P.night, ...(P.night ? { sky: NIGHT.sky } : {}) });
+    // (every place the level names on its deck: on the walk, inside its rail)
+    const on = (p, w) => { if (!S.inside(p[0], p[1])) throw new Error(`infiltration${w} is off the ${S.label}'s deck (its walk runs ${S.y0} to ${S.yEnd} m along, ${S.halfAt(0).toFixed(1)} m each side amidships)`); };
+    on(P.start, '.start');
+    P.tasks.forEach((t, i) => t.at && on(t.at, `.tasks[${i}]`));
+    if (P.exit) on(P.exit.at, '.exit.at');
+    P.cover.forEach((c, i) => on(c.at, `.cover[${i}].at`));
+    SHIPS.set(key, S); if (SHIPS.size > 4) SHIPS.delete(SHIPS.keys().next().value);
+  }
+  return SHIPS.get(key);
+}
+
 export function infiltrationStage(G, P) {
   const k = P.night ? NIGHT.dim : 1, faces = [], colliders = [];
-  if (P.deck) {
+  const S = P.ship ? shipOf(P) : null;
+  if (S) {
+    // (A SHIP: its walk under its own deck, its rail, its house and what stands on it, from the shelf's build; the ship
+    // drawn as a body of the cast, infiltrationCast)
+    faces.push(...S.faces); colliders.push(...S.colliders);
+  } else if (P.deck) {
     const { length, beam, rail } = P.deck, X = beam / 2, Y = length / 2, C = DECK.cell, side = DECK.side;
     // (the deck in cells of steel, its hull's sides down to the water, a rail round its edge: a body is never off it)
     for (let x = -X; x < X - 1e-6; x += C) for (let y = -Y; y < Y - 1e-6; y += C) {
@@ -88,13 +111,15 @@ export function infiltrationStage(G, P) {
   }
   // (the sea: one plane to the horizon under the deck's edge)
   // (lower than a vault lands, free-run.js: the deck's edge is never a way down to it)
-  if (P.sea) { const S = 2400, z = DECK.sea; faces.push(quad([-S, -S, z], [S, -S, z], [S, S, z], [-S, S, z], P.sea.colour, 'sea', true)); }
+  // (a ship's sea is the boat water, live: shipSea below)
+  if (P.sea && !S) { const W = 2400, z = DECK.sea; faces.push(quad([-W, -W, z], [W, -W, z], [W, W, z], [-W, W, z], P.sea.colour, 'sea', true)); }
   // (the scenery: seen, never walked; at night its lit faces (a window, a lamp) keep their colour)
   for (const b of P.scenery ?? []) {
     const [x, y, z] = b.at, [w, d, h] = b.size;
     faces.push(...boxOf(r2(x - w / 2), r2(x + w / 2), r2(y - d / 2), r2(y + d / 2), z, r2(z + h), b.lit ?? dimmed(b.colour, k), `scenery:${b.id}`));
   }
-  return { kind: 'controllable', title: 'infiltration', bg: P.night ? NIGHT.bg : '#1b1d22', faces, colliders, ...(P.night ? { sky: { ...NIGHT.sky } } : {}) };
+  return { kind: 'controllable', title: 'infiltration', bg: P.night ? NIGHT.bg : '#1b1d22', faces, colliders, ...(P.night ? { sky: { ...NIGHT.sky } } : {}),
+    ...(S ? { shipSea: { at: [0, 0], heading: S.heading, speed: S.speed, z: S.seaZ, sea: S.sea } } : {}) };
 }
 
 /** Where the level starts and ends (levels.js reads a stage's ends). */
@@ -132,5 +157,9 @@ export function infiltrationCast(G, P, { refs = {}, stunt = false } = {}) {
   const backup = backupIds.map((id) => ({ ...guard0, id, dormant: true, transform: { pos: from.slice(), heading: -Math.PI / 2 }, rule: { ...guard0.rule, alarm } }));
   // (the guards' figure is the yard's guard's, one figure every guard shares; the yard's targets left out)
   const figures = Object.fromEntries(Object.entries(M.figures).filter(([k]) => !/^target/.test(k)));
-  return { figures, entities: [hero, ...guards, ...backup], camera: M.camera, events: M.events, fxStyle: M.fxStyle, figureGrade: M.figureGrade, castLight: M.castLight, legend: INFILTRATION_LEGEND, guards: [...guards.map((g) => g.id), ...backupIds] };
+  // (a SHIP under the level: its figure as the shelf draws it, a body that stands still with its deck at the floor)
+  const S = P.ship ? shipOf(P) : null;
+  if (S) figures.ship = S.figure;
+  const ship = S ? [{ id: 'ship', rule: { type: 'static' }, body: { type: 'figure-rig', figure: 'ship' }, transform: { pos: S.at.slice(), heading: S.heading } }] : [];
+  return { figures, entities: [hero, ...guards, ...backup, ...ship], camera: M.camera, events: M.events, fxStyle: M.fxStyle, figureGrade: M.figureGrade, castLight: M.castLight, legend: INFILTRATION_LEGEND, guards: [...guards.map((g) => g.id), ...backupIds] };
 }

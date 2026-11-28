@@ -19,37 +19,19 @@
       },
       "infiltration": {
         "ground": {
-          "deck": {
-            "length": 70,
-            "beam": 16
-          }
+          "ship": "supply ship",
+          "speed": 10
         },
         "night": true,
-        "sea": {
-          "colour": "#07121a"
-        },
         "kit": [
           "dart"
         ],
         "start": [
           0,
-          -29
+          -32
         ],
         "heading": 90,
         "cover": [
-          {
-            "id": "bridge",
-            "at": [
-              0,
-              -24
-            ],
-            "size": [
-              10,
-              5,
-              6
-            ],
-            "colour": "#596066"
-          },
           {
             "id": "pipe-run",
             "at": [
@@ -57,7 +39,7 @@
               -8
             ],
             "size": [
-              15.7,
+              14.6,
               0.6,
               0.35
             ],
@@ -71,7 +53,7 @@
               3
             ],
             "size": [
-              15.7,
+              14.4,
               1.2,
               1
             ],
@@ -84,7 +66,7 @@
               11
             ],
             "size": [
-              15.7,
+              14.2,
               6,
               2.1
             ],
@@ -93,11 +75,11 @@
           {
             "id": "stack-port",
             "at": [
-              -5.5,
-              22
+              -4.3,
+              21
             ],
             "size": [
-              4,
+              3.2,
               6,
               2.6
             ],
@@ -106,11 +88,11 @@
           {
             "id": "stack-starboard",
             "at": [
-              5.5,
-              22
+              4.3,
+              21
             ],
             "size": [
-              4,
+              3.2,
               6,
               2.6
             ],
@@ -123,7 +105,7 @@
             "at": [
               -180,
               950,
-              -2
+              -6
             ],
             "size": [
               700,
@@ -203,31 +185,17 @@
             ],
             "colour": "#2b3036",
             "lit": "#d6b25a"
-          },
-          {
-            "id": "mast",
-            "at": [
-              0,
-              -24,
-              6
-            ],
-            "size": [
-              0.4,
-              0.4,
-              7
-            ],
-            "colour": "#596066"
           }
         ],
         "marks": {
           "stern": [
             0,
-            -30,
+            -33,
             1.6
           ],
           "bow": [
             0,
-            33,
+            32,
             1
           ],
           "fortress": [
@@ -237,7 +205,7 @@
           ],
           "package": [
             0,
-            30,
+            27,
             0.5
           ]
         },
@@ -251,28 +219,29 @@
               0,
               -13
             ],
+            "radius": 8,
             "text": "Head for the bow"
           },
           {
             "reach": [
               0,
-              -2
+              1
             ],
-            "radius": 3,
+            "radius": 7.6,
             "text": "Under the pipe run"
           },
           {
             "reach": [
               0,
-              16
+              18
             ],
-            "radius": 3,
+            "radius": 3.5,
             "text": "Over the cargo"
           },
           {
             "take": [
               0,
-              30
+              27
             ],
             "text": "The package at the bow"
           },

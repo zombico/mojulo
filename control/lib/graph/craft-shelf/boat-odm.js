@@ -432,6 +432,41 @@ export const BOAT_ODM = {
       },
     },
   },
+  // ===== a 70 m military supply ship's hull: a fuller body for its load, a flush weather deck level to its bow ========
+  'hull-supply-70': {
+    kind: 'boat-hull', realm: 'water', label: '70 m supply ship hull', classOf: '70 m military logistics vessel class (twin screws)',
+    aliases: ['supply ship hull', 'cargo ship hull', 'logistics ship hull', 'freighter hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 70, beam: 15, depth: 7.5 }, mass: 1400000, mount: 'keel',
+    perf: { persons: 12, load: 2400000, maxPower: 4600 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        // (full amidships for its load: a flat floor, a short run aft to its screws, a raked stem; its weather deck level
+        // from its stern to the bow rail, so a body walks it on one height)
+        keel: [[0, 1.8], [0.12, 0.5], [0.2, 0], [0.86, 0], [0.95, 0.9], [1, 3.4]],
+        sheer: [[0, 7.5], [0.9, 7.5], [0.96, 7.8], [1, 8.4]],
+        sheerHalf: [[0, 6.4], [0.15, 7.4], [0.6, 7.5], [0.8, 6.9], [0.92, 4.4], [1, 0]],
+        chine: [[0, 3.4], [0.2, 1.3], [0.4, 0.9], [0.75, 1.0], [0.9, 2.4], [1, 4.2]],
+        chineHalf: [[0, 6.0], [0.2, 7.0], [0.5, 7.2], [0.75, 6.5], [0.9, 3.5], [1, 0]],
+      },
+      // (welded, its hull and its deck in the paint; a flush weather deck the whole length)
+      tint: { liner: 'paint' },
+      skin: 0.05, liner: 0.05, flare: 0.2, stations: { mid: 0.008, bow: 0.005 },
+      transom: { rake: 0, thickness: 0.3 },
+      deck: { from: 0.02, thickness: 0.3 }, aftDeck: { to: 0.02, z: 7.2 },
+      gunwale: 0.12, keelStrip: 0,
+      shafts: { spacing: 5.0, at: 0.24 },
+      // (its house aft, its crane amidships over the cargo deck, its sea boat and davit to starboard abaft the crane)
+      points: { house: [0.17, 0, 'deck'], crane: [0.52, 0, 'deck'], seaBoat: [0.31, 5.0, 'deck'], davit: [0.31, 6.6, 'deck'] },
+      fittings: {
+        cleats: 0.04,
+        rails: { from: 0.02, to: 0.9, step: 0.015, height: 1.1 },
+        bowRail: { from: 0.9, to: 0.98, posts: 4, height: 1.1 },
+        rafts: [[0.36, 6.6], [0.36, -6.6], [0.375, 6.6], [0.375, -6.6]],
+      },
+    },
+  },
   // ===== an aircraft carrier's hull ============================================================
   'hull-carrier-300': {
     kind: 'boat-hull', realm: 'water', label: '300 m aircraft carrier hull', classOf: '300 m fleet aircraft carrier class (four screws)',
@@ -761,6 +796,43 @@ export const BOAT_ODM = {
     aliases: ['funnel', 'smokestack', 'stack'],
     dims: { width: 5.2, length: 7.0, height: 6.5 }, mass: 60000, mount: 'deck',
     build: { family: 'funnel', height: 6.0, taper: 0.8, rake: 1.2 },
+  },
+  // ===== a supply ship's upperworks: its house aft, its bridge over it with wings, its funnel, its mast, its crane ======
+  'superstructure-supply': {
+    kind: 'boat-cabin', realm: 'water', label: 'supply ship house', classOf: '70 m military logistics vessel class',
+    aliases: ['ship house', 'deckhouse', 'accommodation block'],
+    dims: { width: 11.2, length: 13.0, height: 8.6 }, mass: 260000, mount: 'deck',
+    build: {
+      family: 'superstructure',
+      // (tiers bow to stern from its middle, near upright as a working ship's are, each narrower than the one under it;
+      // the top tier the bridge)
+      tiers: [
+        { y: [-6, 6.5], width: 11.2, height: 2.9, lean: 0.15, front: { rake: 0.5, k: 0.92 } },
+        { y: [-4.5, 5.5], width: 10.4, height: 2.8, lean: 0.15, front: { rake: 0.5, k: 0.9 } },
+        { y: [-1.5, 5.0], width: 9.6, height: 2.9, lean: 0.25, front: { rake: 1.2, k: 0.72 }, bridge: { panes: 7, side: 2 } },
+      ],
+      doors: [-3.5, 0.5, 3.5],
+      mastAt: 2.0,
+      points: { funnel: [0, -4.2, 0] },
+    },
+  },
+  'funnel-supply': {
+    kind: 'boat-cabin', realm: 'water', label: 'supply ship funnel', classOf: '70 m military logistics vessel class',
+    aliases: ['ship funnel', 'stack'],
+    dims: { width: 3.0, length: 4.0, height: 4.4 }, mass: 18000, mount: 'deck',
+    build: { family: 'funnel', height: 4.0, taper: 0.85, rake: 0.6 },
+  },
+  'mast-pyramid-supply': {
+    kind: 'boat-arch', realm: 'water', label: 'supply ship mast', classOf: '70 m military logistics vessel class',
+    aliases: ['ship mast', 'radar mast'],
+    dims: { width: 2.6, length: 2.6, height: 10 }, mass: 9000, mount: 'deck',
+    build: { family: 'pyramid', height: 4.0, widths: [2.6, 1.2], arrays: { at: 0.5, size: 1.1 }, topmast: { height: 5.5, yard: 3.0 } },
+  },
+  'crane-deck': {
+    kind: 'boat-arch', realm: 'water', label: 'deck crane', classOf: 'ship\'s cargo crane class',
+    aliases: ['deck crane', 'cargo crane', 'ship crane'],
+    dims: { width: 2.0, length: 6.6, height: 7.6 }, mass: 22000, mount: 'deck',
+    build: { family: 'davit', height: 7.0, reach: 6.0, drop: 2.2 },
   },
   'hangar-destroyer': {
     kind: 'boat-cabin', realm: 'water', label: 'helicopter hangar', classOf: '150 m guided-missile destroyer class',
