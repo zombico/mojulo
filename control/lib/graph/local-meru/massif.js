@@ -166,6 +166,22 @@ export const MASSIF_CARDS = f({
     craters: f({ count: 80, diameter: f([8, 170]), slope: 1.1, fresh: 0.6, within: 520,
       at: f([f({ at: f([120, 140]), diameter: 230, fresh: 0.9 }), f({ at: f([-220, -160]), diameter: 190, fresh: 0.7 })]),
       clusters: f({ count: 4, members: f([8, 16]), length: f([70, 180]), width: f([16, 40]), diameter: f([6, 28]), fresh: 0.8 }) }) }),
+  // a rock in the belt BROKEN UP: tall spurs and blocks thrown up round a cratered floor, benched to climb, clefts
+  // between them; the cover a frame needs from what fights it from overhead (a ship over the field), a ring of it round
+  // an open middle where what is defended stands, and more past it
+  crag: f({ ...CARD, id: 'crag', reads: 'A broken rock in the belt: tall spurs and blocks of rock round a cratered floor, benches to climb and clefts between them, cover from what is overhead',
+    beds: f([f({ top: 5, bench: 3 }), f({ top: 20, bench: 5 }), f({ top: 46, bench: 6 }), f({ top: 90, bench: 6 })]),
+    blocks: f([B([-200, 140], [64, 28], 30, 34, 4), B([210, 120], [56, 26], 140, 28, 4), B([-150, -170], [52, 22], 160, 26, 4), B([170, -190], [62, 30], 70, 38, 4),
+      B([0, 250], [76, 28], 90, 44, 4), B([-330, -40], [70, 36], 20, 52, 3), B([330, 20], [64, 34], 110, 48, 3), B([-60, -320], [56, 30], 0, 30, 4),
+      B([100, 330], [44, 26], 45, 24, 4), B([-300, 300], [56, 34], 60, 40, 4), B([300, -320], [60, 32], 130, 42, 4), B([-320, -300], [48, 30], 40, 36, 4),
+      B([-110, 30], [30, 14], 75, 18, 4), B([120, -40], [28, 14], 15, 16, 4), B([40, -140], [34, 14], 100, 20, 4), B([-20, 150], [26, 12], 160, 15, 4)]),
+    cap: f({ form: 'flat', height: 0, run: 30 }), clefts: f({ per: 0.8, width: f([5, 12]), reach: 0.6 }),
+    outcrops: f({ count: 70, height: f([4, 11]), size: f([6, 18]), within: 480 }),
+    scatter: f({ clusters: 34, per: f([3, 8]), spread: 18, size: f([2, 5]) }),
+    horizon: f({ count: 0, radius: 545, length: f([90, 170]), depth: f([40, 70]), height: f([50, 140]) }),
+    craters: f({ count: 70, diameter: f([8, 130]), slope: 1.2, fresh: 0.6, within: 520,
+      at: f([f({ at: f([-60, -70]), diameter: 130, fresh: 0.8 })]),
+      clusters: f({ count: 3, members: f([6, 12]), length: f([60, 140]), width: f([14, 32]), diameter: f([6, 22]), fresh: 0.8 }) }) }),
   // a smelter's floor (under its works, local-meru/works.js): slag heaped at its repose against the walls, low concrete
   // plinths, casting pits by the ladles; nothing of a sandstone's: no lobes, no flutes, no clefts, no beds pushed
   smelter: f({ ...CARD, id: 'smelter', reads: 'A melt shop\'s floor: slag heaps at their repose, concrete plinths, casting pits',

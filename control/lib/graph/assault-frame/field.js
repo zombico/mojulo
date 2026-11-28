@@ -10,7 +10,8 @@
  *                              floor (local-meru/massif.js): wadi (sheer jebels round an open floor), gorge (a canyon
  *                              through a plateau, a river down it), scree (a scarp over its fans and fallen blocks),
  *                              craters (a stony plain struck by meteorites), oasis (a lake among jebels); asteroid (a
- *                              rock in the belt, airless, its gravity the space ground's)
+ *                              rock in the belt, airless, its gravity the space ground's); crag (a rock in the belt broken
+ *                              up: tall spurs and blocks round an open floor, cover from what is overhead)
  *   frameFieldCube(form, { world? }) → the cube spec in the seventh generation, its outside the form's: a massif field's
  *                              own battlefield cube (assault-frame/geocubes.js) unless a world is named, else a Sol world's
  *                              (`mars` by default) with its air thinned for a field a kilometre wide
@@ -33,7 +34,7 @@ const f = Object.freeze;
 // (the island a field is grown from: its land 4 m quads, broad, a narrow strand, its rim raised the whole way round so
 // the field reads as a bowl of country and its sea is never seen; open, its ground rolling right round, no trail's apron)
 // (the massif fields' forms and the battlefield cube each is cut from)
-export const MASSIF_FORMS = f({ wadi: 'sandstone-wadi', gorge: 'sandstone-gorge', scree: 'scree-scarp', craters: 'crater-plain', oasis: 'wadi-oasis', smelter: 'smelter-hall', refinery: 'refinery-works', asteroid: 'belt-asteroid' });
+export const MASSIF_FORMS = f({ wadi: 'sandstone-wadi', gorge: 'sandstone-gorge', scree: 'scree-scarp', craters: 'crater-plain', oasis: 'wadi-oasis', smelter: 'smelter-hall', refinery: 'refinery-works', asteroid: 'belt-asteroid', crag: 'belt-crag' });
 const ISLAND = f({ geology: true, walk: 'none', open: true, seabed: 'merged', cell: 4, scale: 3, cover: 'soil', beach: 10, sea: 2.1, depth: 9, shore: 560 });
 export const FRAME_FIELDS = f({
   plain: f({
