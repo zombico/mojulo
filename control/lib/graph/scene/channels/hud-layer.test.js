@@ -57,9 +57,10 @@ describe('events channel — the HUD widget layer', () => {
     }
   });
 
-  it('the result card reads the tokens with the old literals as fallbacks, and game.complete shapes it', () => {
+  // (the results screen, game-screens.js, replaced the old card: its panel reads the same token, its own plate the fallback)
+  it('the result screen reads the tokens with literals as fallbacks, and game.complete shapes it', () => {
     const html = emitThreeWorld(fixture('game'));
-    expect(html).toContain('var(--moj-panel-a,rgba(12,16,26,.92))');
+    expect(html).toContain('var(--moj-panel-a,rgba(13,17,20,.82))');
     expect(html).toContain('__applyStyle(d.theme)');
     expect(html).toContain("__GAME.complete !== false");
   });

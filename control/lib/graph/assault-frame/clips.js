@@ -134,10 +134,15 @@ const pack = (body, keys) => {
 
 // a leg's reach: what the stride and the tuck are measured in
 const reachOf = (body) => body.rig.legs.L1 + body.rig.legs.L2;
+// THE STEP: how far a foot swings ahead of the hip and behind it, a share of the leg's reach (a long, heavy step: each
+// one some 0.84 of a leg), and the ground a whole cycle covers, two steps, so a planted foot holds where it landed: the
+// frame rule's `stride` (rules-frame.js: the walk's phase on by the ground gone over)
+export const FRAME_STEP = 0.42;
+export const frameStride = (body, scale = 1) => Math.round(4 * FRAME_STEP * reachOf(body) * scale * 100) / 100;
 
 /** The frame's clips (see the head of this file). */
 export function frameClips(body) {
-  const reach = reachOf(body), S = 0.17 * reach;
+  const reach = reachOf(body), S = FRAME_STEP * reach;
   // (the airborne poses read off the rest stance: how far the ankle stands below the hip and ahead of it, so a
   // crouched reverse-joint stance tucks and reaches from where it stands)
   const Lr = body.rig.legs, drop = Lr.hip[2] - Lr.ankle[2], fore = Lr.ankle[1] - Lr.hip[1];
@@ -153,10 +158,10 @@ export function frameClips(body) {
       const q = ((ph % 1) + 1) % 1;
       if (q < 0.5) return { at: [0, S * (1 - 4 * q), 0], pitch: 0 };
       const t = (q - 0.5) / 0.5, e = t * t * (3 - 2 * t);
-      return { at: [0, -S + 2 * S * e, 0.16 * reach * Math.sin(Math.PI * t)], pitch: -16 * DEG * Math.sin(2 * Math.PI * t) };
+      return { at: [0, -S + 2 * S * e, 0.22 * reach * Math.sin(Math.PI * t)], pitch: -20 * DEG * Math.sin(2 * Math.PI * t) };
     };
     return {
-      root: { off: [0.1 * Math.sin(2 * Math.PI * p), 0, -0.22 - 0.09 * Math.cos(4 * Math.PI * p)], pitch: -4 * DEG, roll: 2.2 * DEG * Math.sin(2 * Math.PI * p), yaw: 3 * DEG * Math.cos(2 * Math.PI * p) },
+      root: { off: [0.12 * Math.sin(2 * Math.PI * p), 0, -0.3 - 0.13 * Math.cos(4 * Math.PI * p)], pitch: -4 * DEG, roll: 2.2 * DEG * Math.sin(2 * Math.PI * p), yaw: 3 * DEG * Math.cos(2 * Math.PI * p) },
       core: { yaw: -5 * DEG * Math.cos(2 * Math.PI * p), pitch: -1.5 * DEG },
       arms: arms(2 * DEG * Math.sin(4 * Math.PI * p), 0),
       feet: { R: foot(p), L: foot(p + 0.5) },

@@ -28,6 +28,9 @@
  *            { sound: '<word>' }                                              a sound off the SFX shelf by its word (sfx-shelf/),
  *                                                                       played as it fires (`sfx:<word>` on the bus: the
  *                                                                       level's sound sheet voices it, beats/beats-world.js)
+ *            { warning: '<words>' | { say, title?, ttl? } }                    a boss coming: a red band across the screen,
+ *                                                                       its title over the words, its own klaxon
+ *                                                                       (scene/channels/warning.js)
  *            { screen: { fade?: out | in, tint?: '#rrggbb' | none, flash?: '#rrggbb', for? } }   the screen itself: a fade to
  *                                                                       black (and back in), the world washed in a colour, a
  *                                                                       flash; `for` seconds, or until the cue ends, then as it was
@@ -101,6 +104,7 @@ export const CUE_THEN = Object.freeze({
   sound: 'a sound off the SFX shelf by its word (a chime, a door, a roar), played as it fires: the level\'s sound sheet voices it',
   music: 'the music changes, crossfaded: a mood off the score in the level\'s key in place of the place\'s (\'sorrow\', \'tension\'…), \'stop\' (silence) or \'place\' (the place\'s own again)',
   screen: 'the screen itself: { fade: out | in, tint: "#rrggbb" | "none", flash: "#rrggbb", for? } (a fade to black and back, the world washed in a colour, a flash; for `for` seconds, or until the cue ends, then as it was)',
+  warning: 'a boss coming: { warning: words | { say, title?, ttl? } } a red band across the screen, its title (WARNING; CAUTION) over the words, and its own klaxon',
   weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
   ...STAT_THEN,
@@ -115,6 +119,9 @@ export const WEATHER_VAR = 'weather-force', WEATHER_BLEND_VAR = 'weather-blend';
 /** The bus vars the page's screen layer reads (scene/channels/screen-fx.js): faded to black (1), the tint ('' none), the
  *  flashes counted and the last one's colour. */
 export const SCREEN_VARS = Object.freeze({ fade: 'screen-fade', tint: 'screen-tint', flash: 'screen-flash', flashColour: 'screen-flash-colour' });
+/** The bus vars the page's warning reads (scene/channels/warning.js): the warnings counted, the last one's words, its
+ *  title and its seconds. */
+export const WARNING_VARS = Object.freeze({ n: 'warning-n', text: 'warning-text', title: 'warning-title', ttl: 'warning-ttl' });
 const HEX = /^#[0-9a-f]{6}$/i;
 /** The bus event a cue's `sound` raises: the level's sound sheet voices `sfx:<word>` (beats/beats-world.js). */
 export const SOUND_EVENT = 'sfx:', soundEvent = (word) => `${SOUND_EVENT}${word}`;
@@ -241,6 +248,14 @@ export function readEffect(t, where, ctx = {}) {
   if (k === 'music') {
     if (!(typeof t.music === 'string' && (MUSIC_WORDS.includes(t.music) || musicMood(t.music)))) throw new Error(`${where}.music is a mood of the score (${Object.keys(SCORE_MOODS).filter(musicMood).join(', ')}; or the club's: ${Object.keys(CLUB_MOODS).join(', ')}), 'stop' or 'place'`);
     return { kind: 'music', word: t.music, page: true };
+  }
+  if (k === 'warning') {
+    const o = typeof t.warning === 'string' ? { say: t.warning } : t.warning;
+    if (!isObj(o) || !isStr(o.say) || o.say.length > 60) throw new Error(`${where}.warning is the words (up to 60 letters), or { say, title?, ttl? }`);
+    for (const x of Object.keys(o)) if (!['say', 'title', 'ttl'].includes(x)) throw new Error(`${where}.warning.${x} is not part of a warning (say, title, ttl)`);
+    if (o.title !== undefined && !(isStr(o.title) && o.title.length <= 16)) throw new Error(`${where}.warning.title is its title, up to 16 letters (WARNING, CAUTION)`);
+    if (o.ttl !== undefined && !(Number.isFinite(o.ttl) && o.ttl > 0 && o.ttl <= 12)) throw new Error(`${where}.warning.ttl is the seconds it stands, up to 12`);
+    return { kind: 'warning', say: o.say, title: o.title ?? null, ttl: o.ttl ?? null, page: true };
   }
   if (k === 'screen') {
     const o = t.screen;
@@ -419,6 +434,13 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     if (t.kind === 'use') { const { ok } = lowerMove({ item: t.item, from: 'bag', to: NOWHERE, on, deny: `No ${t.item.replace(/-/g, ' ')} left` }, frag); frag.reactions.push({ on: ok, do: 'emit', type: `used:${t.item}` }); continue; }
     if (t.kind === 'sound') { frag.reactions.push({ on, do: 'emit', type: soundEvent(t.word) }); continue; }
     if (t.kind === 'music') { frag.reactions.push({ on, do: 'emit', type: musicEvent(t.word) }); continue; }
+    if (t.kind === 'warning') {
+      // the page's warning reads its vars (warning.js): the words, the title and the seconds set, then the count, its cue
+      const V = WARNING_VARS;
+      frag.vars[V.n] ??= 0; frag.vars[V.text] ??= ''; frag.vars[V.title] ??= ''; frag.vars[V.ttl] ??= 0;
+      frag.reactions.push({ on, do: 'set', var: V.text, to: t.say }, { on, do: 'set', var: V.title, to: t.title ?? '' }, { on, do: 'set', var: V.ttl, to: t.ttl ?? 0 }, { on, do: 'inc', var: V.n, by: 1 });
+      continue;
+    }
     if (t.kind === 'screen') {
       // the page's screen layer reads its vars (screen-fx.js); what a cue faded or tinted is undone after `for`, or when it ends
       const V = SCREEN_VARS;

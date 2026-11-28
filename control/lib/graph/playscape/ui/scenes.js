@@ -14,7 +14,8 @@
  *     once?: false            (a scene plays the first time its happening comes and its conditions hold, unless false)
  *     names?: { <who>: '<name the box shows>' },
  *     beats: [
- *       { shot: { frame, on: [who], move?, side?, lerp?, cut? }, for?: s }   the camera directs (rules-basic `shot`):
+ *       { shot: { frame, on: [who], move?, side?, lerp?, cut?, away? }, for?: s }   the camera directs (rules-basic `shot`;
+ *                                                  away: a character kept out of it, the camera stood off its line):
  *                                                  frame: SHOT_FRAMES; on: the characters, or spots, it frames (a
  *                                                  lone spot is seen from where the pilot stands); `for` holds it
  *       { do: effect | [effect] }                  the cast and the world, as a cue's then (walk, spawn, say, set…)
@@ -89,7 +90,7 @@ export const SHOT_FRAMES = Object.freeze({
   close: 'a face',
   over: 'over one shoulder at the other (the first is framed, the second is the shoulder)',
 });
-export const SHOT_MOVES = Object.freeze({ hold: 'stands where it cut, turning with them', track: 'keeps its place beside them', push: 'closes in over the shot', orbit: 'circles them' });
+export const SHOT_MOVES = Object.freeze({ hold: 'stands where it cut, turning with them', track: 'keeps its place beside them', push: 'closes in over the shot', pull: 'opens out from them over the shot, the place round them coming into the frame', orbit: 'circles them' });
 export const SCENE_BEATS = Object.freeze({
   shot: 'the camera directs: { frame, on: [who], move? }, for? s',
   do: 'the cast and the world, as a cue\'s then',
@@ -141,7 +142,7 @@ function readCond(c, at) {
 
 function readShot(s, at) {
   if (!isObj(s)) throw err(`${at}.shot is { frame, on: [who], move?, side?, lerp?, cut? }`);
-  for (const k of Object.keys(s)) if (!['frame', 'on', 'move', 'side', 'lerp', 'cut', 'rate', 'fov', 'lookH'].includes(k)) throw err(`${at}.shot.${k} is not part of a shot (frame, on, move, side, lerp, cut, rate, fov, lookH)`);
+  for (const k of Object.keys(s)) if (!['frame', 'on', 'move', 'side', 'lerp', 'cut', 'rate', 'fov', 'lookH', 'away'].includes(k)) throw err(`${at}.shot.${k} is not part of a shot (frame, on, move, side, lerp, cut, rate, fov, lookH)`);
   const frame = s.frame ?? 'wide';
   if (!SHOT_FRAMES[frame]) throw err(`${at}.shot.frame is one of ${Object.keys(SHOT_FRAMES).join(', ')}`);
   const on = typeof s.on === 'string' ? [s.on] : s.on;
@@ -149,6 +150,8 @@ function readShot(s, at) {
   if (frame === 'over' && on.length !== 2) throw err(`${at}.shot: an over-the-shoulder frames two, [the one seen, the shoulder]`);
   if (s.move !== undefined && !SHOT_MOVES[s.move]) throw err(`${at}.shot.move is one of ${Object.keys(SHOT_MOVES).join(', ')}`);
   if (s.side !== undefined && s.side !== 1 && s.side !== -1) throw err(`${at}.shot.side is 1 or -1 (which side of the line the camera stands)`);
+  // (away: a body kept out of the shot, the camera stood well off the line from it to the subjects, past them)
+  if (s.away !== undefined && !(typeof s.away === 'string' && s.away)) throw err(`${at}.shot.away is a character kept out of the shot (its id: 'player')`);
   for (const k of ['lerp', 'rate', 'fov', 'lookH']) if (s[k] !== undefined && !Number.isFinite(s[k])) throw err(`${at}.shot.${k} is a number`);
   if (s.cut !== undefined && typeof s.cut !== 'boolean') throw err(`${at}.shot.cut is true (a cut, the default) or false (eased in)`);
   return { ...s, frame, on };

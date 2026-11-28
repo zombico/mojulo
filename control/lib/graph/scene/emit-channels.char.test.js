@@ -1,3 +1,27 @@
+// Re-pinned 2026-11-27 (1116-rc merged into the frame rail): the fixtures whose emission both lines moved (the
+// controllable runtime and the game channel): the eighteen this line re-pinned below, and the candidate's new seat-lobby
+// fixture, which embeds the controllable runtime this line changed. Each is the two lines' emissions together, each
+// checked on its own line; the merge itself emits nothing new.
+// Re-pinned 2026-11-27 (a shot that pulls out): every fixture that embeds the controllable runtime. The shot rule gained
+// `pull` (rules-basic.js: opening out from its subjects over its time), taken only by a shot that names it (no
+// fixture's does). Checked: with rules-basic.js as it was, every moved hash is back to its pin.
+// Re-pinned 2026-11-27 (a shot's away; the screens' second pass): every fixture that embeds the controllable runtime, for
+// the shot rule's `away` (rules-basic.js: a body kept out of the frame, taken only by a shot that names it, no fixture's
+// does), and the game fixtures (game, kitchen-sink and its capture) for game-screens.js (the results screen no longer says
+// the game's title; the opening's loading draws every object once, emitted only with an opening, no fixture's has one).
+// Checked: with rules-basic.js as it was only the three game fixtures move, each the screens' source alone.
+// Re-pinned 2026-11-27 (the game's screens): the fixtures that carry the game channel (game, kitchen-sink and its
+// capture). Its result card is now the results screen (game-screens.js resultsScript, drawn as a level ends, never in a
+// capture), and a level with an `opening` carries its title screen (no fixture's does). Checked: with game.js as it was,
+// every moved hash is back to its pin.
+// Re-pinned 2026-11-27 (a wide shot on big subjects far apart): every fixture that embeds the controllable runtime. The
+// shot rule's aim under big subjects is capped at half their height (rules-basic.js), taken only by a scene's shot (no
+// fixture's has one). Checked: with rules-basic.js as it was, every moved hash is back to its pin.
+// Re-pinned 2026-11-27 (a scene's shot on big subjects): every fixture that embeds the controllable runtime. The shot
+// rule (rules-basic.js) sizes its framing by a subject's `big` and `tall`, keeps clear of bodies between it and its
+// subjects, aims under big subjects and, tracking, looks again each second (cast.js resets that check as a shot is
+// set). Each is taken only by a scene's shot (no fixture's has one). Checked: with those two files as they were, every
+// moved hash is back to its pin; their worlds step as before.
 // Re-pinned 2026-11-26 (the chase eased through a turn): every fixture that embeds the controllable runtime. The follow
 // rule gained `lookEase` (rules-basic.js: the look ahead swings to a new heading at an eased rate, not at once), taken
 // only by a camera that names it (the cab's, gameworld/cars.js; no fixture's does): their worlds step as before.
@@ -1241,3 +1265,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // alternating game) is read into `turnOf` (core.js), the pilot driven by its turn's seat (seatInput), and the 'seat-falls'
 // pass passes the turn on a fall, a down or its clock (rules-basic.js: passTurn, its dt). The page's chip marks the turn
 // on a page with seats (`seat-lobby`). No fixture takes turns.
+// Re-pinned 2026-11-28 (1127-split-screen merged with 1116-rc after #156): the candidate's pins, then this branch's
+// emission over them: every fixture that embeds the controllable runtime (the seat cameras, the group frame's gate,
+// turns) and `seat-lobby` (the same runtime). Every other page is the candidate's, byte for byte.
