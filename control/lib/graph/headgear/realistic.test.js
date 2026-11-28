@@ -64,6 +64,20 @@ describe('headwear on the realistic head', () => {
     const reach = (pts) => Math.max(...pts.map((p) => Math.hypot(p[0], p[1])));
     expect(reach(B.M.vertices)).toBeLessThan(reach(skull) + 0.04);
   });
+  it('the aviators: a lens at each eye, open between them under the bridge, in their rims; clear of the face', () => {
+    const W = HEADWEAR.aviators, B = buildHeadwear(H.cloud, { ...H, face }, W), skull = H.cloud.skull;
+    expect(volumes(B.M).every((v) => v > 0)).toBe(true);
+    const lens = inGroup(B.M, W.group), rim = inGroup(B.M, W.trimGroup).filter((p) => p[1] > 0);
+    // (two lenses, left and right of the midline, nothing of the lens over the nose's bridge)
+    expect(lens.some((p) => p[0] > 0.02) && lens.some((p) => p[0] < -0.02)).toBe(true);
+    expect(lens.some((p) => Math.abs(p[0]) < 0.004)).toBe(false);
+    // (the lenses about the eyes' height; the rims round them, in front)
+    expect(Math.max(...lens.map((p) => p[2]))).toBeLessThan(face.nasion + W.span.hi + 0.002);
+    expect(Math.min(...lens.map((p) => p[2]))).toBeGreaterThan(face.nasion + W.span.lo - 0.002);
+    expect(rim.length).toBeGreaterThan(0);
+    const gap = Math.min(...lens.map((p) => Math.min(...skull.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])))));
+    expect(gap).toBeGreaterThan(0.002);
+  });
   it('the cracked welding mask: no glass, and the plate open across the eyes in front', () => {
     const W = HEADWEAR.weldingMaskCracked, { M } = buildHeadwear(H.cloud, { ...H, face }, W);
     expect(W.visorGroup).toBeUndefined();

@@ -62,6 +62,11 @@ export const HEADWEAR = Object.freeze({
   shooterWrap: Object.freeze({ kind: 'shield', front: -0.3, back: -0.05, ease: 0.011, arc: 1.5, span: Object.freeze({ lo: -0.024, hi: 0.02 }), thick: 0.0025,
     strap: Object.freeze({ h: 0.006, thick: 0.002, gap: 0.0008 }), wrap: Object.freeze({ lo: -0.14, hi: -0.03, arc: 3.05, ease: 0.006, thick: 0.004, group: 'Helmet' }),
     group: 'HelmetVisor', trimGroup: 'HelmetTrim' }),
+  // the aviators: a dark lens band across the eyes, narrower than the shooter's (to the outer corners of the eyes, not
+  // round to the temples), shallow, its arms a thin gold strap back to the ears; no scarf
+  aviators: Object.freeze({ kind: 'shield', front: -0.3, back: -0.05, ease: 0.009, arc: 1.12, span: Object.freeze({ lo: -0.036, hi: 0.016 }), thick: 0.0018,
+    lenses: Object.freeze({ at: 0.33, half: 0.29, up: 0.013, down: 0.03, mid: -0.004, rim: 0.0016 }),
+    strap: Object.freeze({ h: 0.0032, thick: 0.0016, gap: 0.0008 }), group: 'HelmetVisor', trimGroup: 'HelmetTrim' }),
   // the bandana: the circlet's band in cloth, wide over the brow, no gem; a knot at the back and two tails hanging from it
   bandana: Object.freeze({ kind: 'circlet', front: 0.5, back: 0.12, gap: 0.0004, h: 0.034, peak: 1, thick: 0.0016, gem: 0,
     tails: Object.freeze({ len: 0.2, w: 0.028, thick: 0.0016, spread: 0.22, back: 0.3, knot: 0.012 }), group: 'Helmet' }),
@@ -319,6 +324,21 @@ function shield(M, cloud, c, zOf, W, k, face) {
     const upper = (b) => (Math.abs(b) >= C.arc ? zTop : face.nasion + C.hi * k + jag * tooth(b, 5));
     piece(-arc, arc, flat(zBot), lower, 0, T, W.group);
     piece(-C.arc, C.arc, (b) => Math.max(upper(b), lower(b) - 0.002 * k), flat(zTop), 0, T, W.group);
+  } else if (W.lenses) {
+    // (LENSES, a pair of glasses: a teardrop at each eye (`at` its bearing, `half` its half-width in bearing, `up` and
+    // `down` its top and its foot from its middle, `mid` from the nasion), its foot fuller toward the outside, each in a
+    // rim of the trim a little larger behind it; a bridge of the trim across the top between them; the strap its arms)
+    const Ls = W.lenses, zc = face.nasion + Ls.mid * k, rim = Ls.rim * k;
+    for (const sd of [-1, 1]) {
+      const bc = sd * Ls.at, u = (b) => Math.max(-1, Math.min(1, (b - bc) / Ls.half)), out = (b) => Math.max(0, u(b) * sd);
+      const top = (b, g) => zc + (Ls.up * k + g) * Math.pow(Math.max(0, 1 - u(b) ** 2), 0.35);
+      const foot = (b, g) => zc - (Ls.down * k + g) * Math.sqrt(Math.max(0, 1 - u(b) ** 2)) * (0.8 + 0.3 * out(b));
+      const wide = Ls.half * 1.06;
+      piece(bc - wide, bc + wide, (b) => foot(b, rim), (b) => top(b, rim), 0, T, W.trimGroup);
+      piece(bc - Ls.half, bc + Ls.half, (b) => foot(b, 0), (b) => top(b, 0), T, T * 0.6, W.group);
+    }
+    const inner = Ls.at - Ls.half * 0.95, zb = zc + Ls.up * k * 0.7;
+    piece(-inner, inner, flat(zb - rim * 1.4), flat(zb), 0, T, W.trimGroup);
   } else {
     piece(-arc, arc, flat(zBot), flat(zTop), 0, T, W.group);
     if (W.slot) { const S = W.slot; piece(-S.arc, S.arc, flat(face.nasion + S.lo * k), flat(face.nasion + S.hi * k), T, S.thick * k + S.proud * k, W.visorGroup); }

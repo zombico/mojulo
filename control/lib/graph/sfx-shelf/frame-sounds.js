@@ -50,6 +50,11 @@ export const FRAME_UNITS = freeze({
   turret: { shot: ['machine-gun-shot'], every: 0.3, down: ['explosion'] },
   tank: { shot: ['bazooka-shot'], hum: ['tank-tracks'], down: ['explosion'] },
   walker: { shot: ['machine-gun-shot'], every: 0.2, down: ['explosion'] },
+  // (a spider bot: its cutter's crackle as it cuts, its legs' servos whining as it comes, a small blast)
+  crawler: { shot: ['electric-crackle'], every: 0.2, hum: ['servo-whine'], down: ['grenade-blast'] },
+  // (the patrol ship's parts: a lift pod's drive held under it, a turret's heavy rounds, each a wreck as it goes)
+  'patrol-pod': { hum: ['ion-drive'], down: ['frame-wreck'] },
+  'patrol-gun': { shot: ['railgun-shot'], down: ['explosion'] },
   hammer: { missile: ['missile-launch'], hum: ['tank-tracks'], down: ['explosion'] },
   bastion: { shot: ['railgun-shot'], down: ['explosion'] },
   gnat: { shot: ['vulcan-burst'], every: 0.5, hum: ['drone-motors'], down: ['grenade-blast'] },
