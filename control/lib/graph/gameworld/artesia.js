@@ -27,6 +27,8 @@ import { stampMegaworld } from './megaworld.js';
 const f = Object.freeze;
 export const CERES = f({
   land: 'Ceres', heroine: 'Artesia', foe: 'Olric', relic: 'the Royal Amber', capital: 'Imperial City', silent: true,
+  // (her horse, ridden across the plains and called to her there: the world's `mounts`, worlds/mount-units.js)
+  steed: f({ name: 'Seimos', coat: 'grey' }),
   premise: 'Artesia, chief of the royal guard and second in line to the throne of Ceres, is cast out of the kingdom by a facsimile of her brother, the prince, whom the wizard Olric holds in a crystal prison. Olric dominates the dragons of Ceres through the Royal Amber. She journeys region by region to free them, break his power, and reform the Amber from the freed dragons.',
 });
 
@@ -36,19 +38,21 @@ export const CERES = f({
 // its cube, so a block's own shift never reaches the ground)
 export const REGIONS = f([
   f({ id: 'lagoona', name: 'Lagoona', says: 'a lagoon coast at noon: white sand, turquoise shallows, a harbour town; where Artesia comes ashore, cast out', hour: 'noon', biocube: 'coast',
-    shift: f({ chroma: 1.2, turn: 22 }), blocks: f(['the harbour village', 'the shore road', 'the drowned ruins', 'the lagoon town', 'the storm reef']), dragon: 'storm', shard: 'storm-shard' }),
+    shift: f({ chroma: 1.2, turn: 22 }), blocks: f(['the harbour village', 'the shore road', 'the drowned ruins', 'the dune plains', 'the reed flats', 'the lagoon town', 'the storm reef']), dragon: 'storm', shard: 'storm-shard' }),
   f({ id: 'athlan', name: 'Athlan', says: 'green highland terraces in a warm afternoon, old ruins on them, fens below', hour: 'afternoon', biocube: 'upland',
-    shift: f({ warm: 0.3, chroma: 1.1 }), blocks: f(['the terrace village', 'the highland road', 'the old ruins', 'Athlan town', 'the fen heights']), dragon: 'venom', shard: 'venom-shard' }),
+    shift: f({ warm: 0.3, chroma: 1.1 }), blocks: f(['the terrace village', 'the highland road', 'the old ruins', 'the high meadows', 'the fen fields', 'Athlan town', 'the fen heights']), dragon: 'venom', shard: 'venom-shard' }),
   f({ id: 'letzo', name: 'Letzo', says: 'cold peaks and pines in a pale morning, a frozen pass', hour: 'morning', biocube: 'alpine', snow: 'cover',
-    shift: f({ warm: -0.6, chroma: 0.65, light: 0.2 }), blocks: f(['the pine hamlet', 'the frozen road', 'the ice ruins', 'Letzo town', 'the high pass']), dragon: 'rime', shard: 'rime-shard' }),
+    shift: f({ warm: -0.6, chroma: 0.65, light: 0.2 }), blocks: f(['the pine hamlet', 'the frozen road', 'the ice ruins', 'the white plains', 'the frost fields', 'Letzo town', 'the high pass']), dragon: 'rime', shard: 'rime-shard' }),
   f({ id: 'khabar', name: 'Khabar', says: 'desert and volcanic badlands under a golden hour', hour: 'golden', biocube: 'desert',
-    shift: f({ warm: 0.6, chroma: 1.2, turn: -18 }), blocks: f(['the oasis', 'the dune road', 'the sunken ruins', 'the Khabar bazaar', 'the ember crater']), dragon: 'ember', shard: 'ember-shard' }),
+    shift: f({ warm: 0.6, chroma: 1.2, turn: -18 }), blocks: f(['the oasis', 'the dune road', 'the sunken ruins', 'the salt flats', 'the red steppe', 'the Khabar bazaar', 'the ember crater']), dragon: 'ember', shard: 'ember-shard' }),
   // (the capital at night under Olric's veil: the false prince on the throne; the Amber reformed opens it, Olric's last
   // beast at its height, the family's boss: the hydra)
   f({ id: 'imperial-city', name: 'Imperial City', says: 'the capital of Ceres at night under Olric\'s veil, the false prince on its throne', hour: 'night', biocube: 'bare',
-    shift: f({ chroma: 0.75, warm: -0.3 }), blocks: f(['the outer gate', 'the city road', 'the old quarter', 'the imperial square', 'Olric\'s spire']), boss: 'hydra' }),
+    shift: f({ chroma: 0.75, warm: -0.3 }), blocks: f(['the outer gate', 'the city road', 'the old quarter', 'the crown fields', 'the king\'s road', 'the imperial square', 'Olric\'s spire']), boss: 'hydra' }),
 ]);
 export const REGION_IDS = f(REGIONS.map((R) => R.id));
+/** The open country between each region's first zone and its town (world-map.js PLAINS): ridden across on Seimos. */
+export const REGION_PLAINS = 2;
 /** A region's dragon as the bestiary names it (foe-casting.js: a beat naming `dragon-<id>` is cast as that dragon). */
 export const dragonKind = (id) => `dragon-${id}`;
 
@@ -64,7 +68,7 @@ export function regionCube(geocube, R) {
  * first region alone teaching the controls), lit at its hour, on its own cube (regionCube: the world's `geocube` given). */
 export function regionLevel(R, i = 0, { geocube } = {}) {
   if (R.dragon !== undefined && !DRAGONS[R.dragon]) throw new Error(`ceres: ${R.id}'s dragon is one of ${Object.keys(DRAGONS).join(', ')}`);
-  const { level } = worldMapLevel({ n: 3, town: 'storybook', names: R.blocks, opening: i === 0, ...(R.dragon ? { climax: { [dragonKind(R.dragon)]: 1 } } : {}) });
+  const { level } = worldMapLevel({ n: 3, plains: REGION_PLAINS, town: 'storybook', names: R.blocks, opening: i === 0, ...(R.dragon ? { climax: { [dragonKind(R.dragon)]: 1 } } : {}) });
   const cube = regionCube(geocube, R);
   return { ...level, name: R.name, style: { hour: R.hour, ...(cube ? { geocube: cube } : {}) } };
 }
@@ -86,6 +90,8 @@ export function ceresWorld(world = {}) {
   const { levels: _l, links: _k, start: _s, megaworld: _m, ...kept } = world;
   return stampMegaworld({
     ...kept, ...(geocube !== world.style?.geocube ? { style: { ...world.style, geocube } } : {}), levels,
+    // (Seimos, on every ridden page: a region's plains)
+    mounts: world.mounts ?? [{ coat: CERES.steed.coat, name: CERES.steed.name, call: true }],
     megaworld: { shape: 'chain', rings: REGIONS.map((R) => [R.id]), gates },
     // (the world map the readout walks is the first region's: its opening block, its first zone)
     brief: { ...(world.brief ?? {}), ...(world.brief?.worldMap ? { worldMap: { level: REGIONS[0].id, blocks: levels[REGIONS[0].id].glyphs.plan.route.length, opening: levels[REGIONS[0].id].glyphs.plan.route.slice(0, 1), firstZone: levels[REGIONS[0].id].glyphs.zoned[0] } } : {}), ceres: { premise: CERES.premise, regions: REGIONS.map((R) => ({ id: R.id, name: R.name, hour: R.hour, ...(R.dragon ? { dragon: R.dragon } : { boss: R.boss }) })) } },

@@ -1,7 +1,7 @@
 // CERES (gameworld/artesia.js): the world of Fable of Artesia, the rail's game, a megaworld chain of regions, each its own light,
 // each opened by the shard freed from the dragon of the one before.
 import { describe, it, expect } from 'vitest';
-import { CERES, REGIONS, REGION_IDS, regionLevel, regionCube, ceresWorld, dragonKind } from './artesia.js';
+import { CERES, REGIONS, REGION_IDS, REGION_PLAINS, regionLevel, regionCube, ceresWorld, dragonKind } from './artesia.js';
 import { DRAGONS } from '../boss/dragons.js';
 import { readGameworld } from './world.js';
 import { megaworldLaws } from './megaworld.js';
@@ -17,7 +17,7 @@ describe('the land of Ceres', () => {
   it('its regions a chain: each its own hour, each but the last a dragon of the shelf and its shard, the last its capital', () => {
     expect(new Set(REGION_IDS).size).toBe(REGIONS.length);
     expect(new Set(REGIONS.map((R) => R.hour)).size).toBe(REGIONS.length);
-    for (const R of REGIONS) { expect(() => readHour(R.hour)).not.toThrow(); expect(R.blocks).toHaveLength(5); }
+    for (const R of REGIONS) { expect(() => readHour(R.hour)).not.toThrow(); expect(R.blocks).toHaveLength(5 + REGION_PLAINS); }
     for (const R of REGIONS.slice(0, -1)) { expect(DRAGONS[R.dragon], R.id).toBeTruthy(); expect(R.shard).toBeTruthy(); }
     expect(REGIONS.at(-1).name).toBe(CERES.capital);
   });
@@ -25,7 +25,7 @@ describe('the land of Ceres', () => {
     const [R0, R1] = REGIONS, L0 = regionLevel(R0, 0), L1 = regionLevel(R1, 1);
     expect(L0.name).toBe(R0.name); expect(L0.style).toEqual({ hour: R0.hour });
     const K = L1.glyphs.plan.key;
-    expect(Object.values(K).map((k) => k.name).slice(0, 5)).toEqual([...R1.blocks]);
+    expect(L1.glyphs.plan.route.map((S) => K[S].name)).toEqual([...R1.blocks]);
     // (its own cube: the world's, its land and its palette moved; a world with no cube, none)
     const geo = { from: 'island-noon', palette: { seed: 3 } }, C = regionLevel(R1, 1, { geocube: geo }).style.geocube;
     expect(C).toEqual({ ...geo, ...(R1.biocube ? { biocube: R1.biocube } : {}), ...(R1.snow ? { snow: R1.snow } : {}), palette: { seed: 3, shift: { ...R1.shift } } });

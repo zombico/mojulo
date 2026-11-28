@@ -490,7 +490,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
 
   // a controllable world's MOUNTS (worlds/mount-units.js readMounts): its horses, read here and laid once its figures are;
   // the solve that teaches its hero to ride them (the hero's pack's hook) kept for them. Absent ⇒ null, byte-identical
-  const mountsSpec = sketch.manifest?.kind === 'controllable' && sketch.manifest.mounts != null ? (await import('@/lib/graph/worlds/mount-units.js')).readMounts(sketch.manifest.mounts) : null;
+  // (and a map's page, its ridden blocks', gameworld/levels.js)
+  const mountsSpec = (sketch.manifest?.kind === 'controllable' || sketch.manifest?.kind === 'map') && sketch.manifest.mounts != null ? (await import('@/lib/graph/worlds/mount-units.js')).readMounts(sketch.manifest.mounts) : null;
   let mountRide = null;
 
   // declarative scene lighting — same normalization the /scene route uses.

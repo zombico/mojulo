@@ -1244,7 +1244,9 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   const faunaPets = Object.fromEntries(entityList.filter((e) => e.pet && typeof e.id === 'string').map((e) => [e.id, e.pet]));
   const faunaPetBlock = hasControllable && Object.keys(faunaPets).length ? faunaPetScript({ pets: faunaPets }) : '';
   // a level's MOUNTS (channels/mount-ride.js: a horse's `mount`), its reach and its getting on and off; none ⇒ no bytes
-  const mountRideBlock = hasControllable && entityList.some((e) => e && e.mount) ? mountRideScript(entityList.some((e) => e && e.mount && e.mount.cab) ? { cab: true } : {}) : '';
+  // (a horse that comes when called, `mount.call`: the whistle and its name, mount-ride.js; else as it was)
+  const callable = entityList.find((e) => e && e.mount && e.mount.call);
+  const mountRideBlock = hasControllable && entityList.some((e) => e && e.mount) ? mountRideScript({ ...(entityList.some((e) => e && e.mount && e.mount.cab) ? { cab: true } : {}), ...(callable ? { call: { name: callable.mount.name ?? null } } : {}) }) : '';
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? shadowToLight(PL, shadows && typeof shadows === 'object' ? shadows : null) : null;

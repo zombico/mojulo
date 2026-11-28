@@ -67,6 +67,10 @@ export const WORLD_MAP = Object.freeze({ size: 5, tile: 24, opening: 1, first: 3
   // (a shortcut's band: how many hold a side way, against a block's own fight of three)
   shortcut: Object.freeze({ grunt: 5, elite: 2 }),
   fills: Object.freeze({ road: 'loop', ruins: 'crossroads', town: 'crossroads', zones: Object.freeze(['loop', 'round', 'spur']), goal: 'loop' }) });
+/** THE PLAINS (`plains`, a region's open country, gameworld/artesia.js): open blocks between the first zone and the town,
+ * a road straight across each (`fill`), and a band camped beside it, off the road, to fight or to ride past (`band`);
+ * each RIDDEN (`ride`: the world's horses on its pages, gameworld/levels.js). */
+export const PLAINS = Object.freeze({ most: 3, fill: 'through', names: Object.freeze(['the {land} plains', 'the long fields', 'the open downs']), band: Object.freeze({ grunt: 3, harrier: 1 }) });
 // (the blocks' names, by their place on the walk: the first zone's three, the zones between, the goal's)
 const MIDDLE_NAMES = ['the river town', 'the high pass', 'the old outpost', 'the marsh crossing', 'the watchtower'];
 /** EACH PLACE ITS OWN LIGHT, DERIVED: the world's palette is home's (the village and its road, unmoved), and every
@@ -161,14 +165,17 @@ export function wildsLevel({ landscape = 'meadow', at = 0 } = {}) {
 }
 
 /** The world map's level for n levels' worth of world (1 to 6): its plan, its blocks' rows, its scenario. */
-export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', 'harrier', 'elite', 'boss'], town = null, names = null, climax = null, opening = true } = {}) {
-  const k = WORLD_MAP.first + Math.max(0, Math.min(6, n) - 1), size = WORLD_MAP.size, letters = LETTERS.slice(0, k).split('');
-  const [A, B, C] = letters, last = letters[k - 1], middles = letters.slice(WORLD_MAP.first, -1), F = WORLD_MAP.fills;
+export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', 'harrier', 'elite', 'boss'], town = null, names = null, climax = null, opening = true, plains = 0 } = {}) {
+  // (`plains`: open blocks laid between the first zone and the town, PLAINS: none unless asked)
+  const p = Math.max(0, Math.min(PLAINS.most, plains | 0)), k = WORLD_MAP.first + Math.max(0, Math.min(6, n) - 1) + (n > 1 ? p : 0), size = WORLD_MAP.size, letters = LETTERS.slice(0, k).split('');
+  const [A, B, C] = letters, last = letters[k - 1], middles0 = letters.slice(WORLD_MAP.first, -1), F = WORLD_MAP.fills;
+  const flats = middles0.slice(0, middles0.length > p ? p : 0), middles = middles0.slice(flats.length);
   const has = (r) => roles.includes(r), grunt = has('grunt') ? 'grunt' : roles[0], harrier = has('harrier') ? 'harrier' : grunt;
   const elite = has('elite') ? 'elite' : grunt, boss = has('boss') ? 'boss' : elite;
   // (each block its name and its template of the trail library: the opening the plain way through, its street)
   const key = { [A]: { name: 'the village' }, [B]: { name: `the ${landscape} road`, fill: F.road }, [C]: { name: 'the old ruins', fill: F.ruins } };
   middles.forEach((S, i) => { key[S] = { name: MIDDLE_NAMES[i % MIDDLE_NAMES.length], fill: i === 0 ? F.town : F.zones[(i - 1) % F.zones.length] }; });
+  flats.forEach((S, i) => { key[S] = { name: PLAINS.names[i % PLAINS.names.length].replace('{land}', landscape), fill: PLAINS.fill, ride: true }; });
   key[last] = { ...(key[last] ?? {}), name: last === C ? 'the old ruins' : 'the castle heights', fill: F.goal, goal: { use: 'keep' } };
   // (a REGION's own names, `names`: a block's name by its place on the walk, each one given over the map's own)
   if (names) letters.forEach((S, i) => { if (typeof names[i] === 'string' && names[i]) key[S] = { ...key[S], name: names[i] }; });
@@ -222,6 +229,11 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   else {
     beats.push({ id: 'gate-fight', at: C, tile: heart(C), kind: 'fight', say: `The first zone's captain holds ${key[C].name}`, foes: { [elite]: 1 }, pace: 'peak', opens: true },
       ...(findAt(C) ? [{ id: 'ruins-find', at: C, tile: findAt(C), kind: 'find', say: `The captain's spoils in ${key[C].name}: a healing draught`, item: 'healing draught', pace: 'rest' }] : []));
+    // (THE PLAINS: open land a road runs straight across, ridden; a band beside the road, off it, fought or ridden past:
+    // it holds no way shut)
+    for (const S of flats) beats.push(
+      { id: `${S.toLowerCase()}-ride`, at: S, tile: inOf(S), kind: 'traverse', say: `Across ${key[S].name}`, pace: 'calm' },
+      ...(landBeside(G[S], [], mid) ? [{ id: `${S.toLowerCase()}-band`, at: S, tile: landBeside(G[S], [], mid), kind: 'fight', say: `A band camps beside the road across ${key[S].name}`, foes: { [grunt]: PLAINS.band.grunt, [harrier]: PLAINS.band.harrier }, pace: 'tension' }] : []));
     for (const S of middles) beats.push(
       { id: `${S.toLowerCase()}-vista`, at: S, tile: inOf(S), kind: 'vista', say: `${key[S].name[0].toUpperCase()}${key[S].name.slice(1)} below`, pace: 'calm' },
       { id: `${S.toLowerCase()}-fight`, at: S, tile: heart(S), kind: 'fight', say: `Foes hold ${key[S].name}`, foes: { [grunt]: 2, [elite]: 1 }, pace: 'peak', opens: true },

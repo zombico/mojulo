@@ -155,14 +155,15 @@ export function readGrid(g, at = 'grid') {
   return { tile, rows: rows.length, cols, cells, at: at2, ...(R ? { regions: R.key, rise: { tile, cols, rows: rows.length, z: cells.map((x) => (x.region ? R.key[x.region].rise ?? 0 : 0)), ...(towned ? { flat: cells.map((x) => (x.region && R.key[x.region].town !== undefined ? 1 : 0)) } : {}) } } : {}) };
 }
 
-/** What a region may say: its name, its rise (metres, the land's height there over the level's own), its TOWN (a village's
+/** What a region may say: its name, its rise (metres, the land's height there over the level's own), whether it is RIDDEN
+ *  (`ride: true`: open country, the world's horses on its pages, gameworld/levels.js), its TOWN (a village's
  *  look, era/village-look.js VILLAGE_LOOKS: its land laid level, its buildings in a palette of their own and dressed, the
  *  ground round them cleared), and the stage's own words every tile in it is built with (its look, what grows there, its
  *  grass, wind and snow). */
-export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette', 'path', 'shore', 'hats', 'town']);
+export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette', 'path', 'shore', 'hats', 'town', 'ride']);
 // (the words a region says of the MAP, never handed to a tile's stage: its name, its rise, its ways' rank
 // (level/path-ranks.js) and its water's edge (era/out-tile-water.js))
-export const MAP_WORDS = Object.freeze(['name', 'rise', 'path', 'shore', 'town']);
+export const MAP_WORDS = Object.freeze(['name', 'rise', 'path', 'shore', 'town', 'ride']);
 export const REGION_RISE = Object.freeze({ lo: -24, hi: 60 });
 
 function readRegions(g, nr, nc, at) {
@@ -176,6 +177,7 @@ function readRegions(g, nr, nc, at) {
     for (const w of Object.keys(v)) if (!REGION_WORDS.includes(w)) throw new Error(`level: ${at}.key.${k}.${w} is not a region's word (words: ${REGION_WORDS.join(', ')})`);
     if (v.rise !== undefined && !(Number.isFinite(v.rise) && v.rise >= REGION_RISE.lo && v.rise <= REGION_RISE.hi)) throw new Error(`level: ${at}.key.${k}.rise is metres over the level's land, ${REGION_RISE.lo} to ${REGION_RISE.hi}`);
     if (v.town !== undefined && !VILLAGE_LOOK_IDS.includes(v.town)) throw new Error(`level: ${at}.key.${k}.town is a village's look (${VILLAGE_LOOK_IDS.join(', ')})`);
+    if (v.ride !== undefined && v.ride !== true) throw new Error(`level: ${at}.key.${k}.ride is true: the land is ridden, the world's horses on its pages (gameworld/levels.js)`);
   }
   for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) {
     const k = rows[r][c];

@@ -7,13 +7,18 @@ import { REACH_CSS } from './interact-channel.js';
 // bus, when the page has one, hears the runtime's `mounting`, `mounted` and `dismounted` { rider, mount }: a game counts
 // them. Absent a mount ⇒ NOT emitted. With a CAB among them (`cab`, a car: mount.js), any walker is offered it, the words
 // "get in" and "get out"; a page with none is as it was, byte for byte.
-export function mountRideScript({ cab = false } = {}) {
+// With a horse that comes when called (`call: { name? }`, a mount's `call`): H whistles for it (`mountCall`, mount.js), and
+// on foot with no horse in reach the prompt offers it, by name. Absent, not a byte of it.
+export const CALL_KEY = Object.freeze({ code: 'KeyH', label: 'H' });
+export function mountRideScript({ cab = false, call = null } = {}) {
   return `
 // --- mounts: the reach of a horse, getting on and off ---
 (function () {
   const el = document.createElement('div'); el.className = 'moj-reach'; (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(el);
   if (!window.__mojUses) { const st = document.createElement('style'); st.textContent = ${JSON.stringify(REACH_CSS)}; document.head.appendChild(st); }
-  let prevN = null, shown = '';
+  let prevN = null, shown = '';${call ? `
+  // (the whistle: the nearest free horse comes, mount.js)
+  addEventListener('keydown', function (ev) { if (ev.code === ${JSON.stringify(CALL_KEY.code)} && !ev.repeat && !window.__mojMenuOpen) { const C = window.__mojCtrl; if (C && C.world) C.world.mountCall = 1; } });` : ''}
   (function tick() {
     requestAnimationFrame(tick);
     const C = window.__mojCtrl; if (!C || !C.world || !C.world.byId) return;
@@ -30,13 +35,16 @@ export function mountRideScript({ cab = false } = {}) {
         if (Math.hypot(h.transform.pos[0] - pilot.transform.pos[0], h.transform.pos[1] - pilot.transform.pos[1]) < (h.mount.reach || 2.6)) { ask = ${cab ? "h.mount.cab ? 'get in' : 'ride'" : "'ride'"}; break; }
       }
 ${cab ? "      if (!ask && W.trafficOffer) ask = 'get in';   // (a vehicle of the traffic's in reach: channels/cab-pool.js)\n" : ''}    }
-    const n = C.interacts ? C.interacts() : 0;
+${call ? `    // (on foot, a rider, no horse in reach: the call offered, by name)
+    let calling = '';
+    if (!ask && pilot.rides && !pilot.mountedOn && !pilot.mount && W.entities.some((h) => h.mount && h.mount.call && !h.riderId && !h.calledBy)) calling = ${JSON.stringify(`call ${call.name ?? 'your horse'}`)};
+` : ''}    const n = C.interacts ? C.interacts() : 0;
     if (prevN !== null && n !== prevN && ask && !window.__mojMenuOpen && !window.__mojReach) W.mountPress = 1;
     prevN = n;
     // the runtime's moments, to the bus
     if (W.mountEvents && W.mountEvents.length) { for (const ev of W.mountEvents.splice(0)) if (typeof __inputQueue !== 'undefined') __inputQueue.push(ev); }
     const key = ask && C.label ? C.label('interact') : '';
-    const h = ask && !window.__mojMenuOpen && !window.__mojReach ? '<b>' + (key || 'E').replace(/[<&]/g, '') + '</b>' + ask : '';
+    const h = ask && !window.__mojMenuOpen && !window.__mojReach ? '<b>' + (key || 'E').replace(/[<&]/g, '') + '</b>' + ask${call ? ` : calling && !window.__mojMenuOpen && !window.__mojReach ? '<b>${CALL_KEY.label}</b>' + calling` : ''} : '';
     if (h !== shown) { shown = h; el.innerHTML = h; el.style.display = h ? 'block' : 'none'; }
   })();
 })();

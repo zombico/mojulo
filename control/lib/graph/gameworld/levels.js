@@ -1040,6 +1040,15 @@ function withClimbs(stage, L) {
   return ladders.length ? { ...L, args: { ...L.args, manifest: { ...m, entities: [...m.entities, ...ladders] } } } : L;
 }
 
+// (the world's HORSES stand on a stage of open ground: on a map, only on a page whose blocks are RIDDEN, `ride: true`,
+// level/grid.js: a region's plains; every other stage as it was)
+function riddenStage(stage) {
+  if (stage.section !== 'map') return true;
+  const L = stage.manifest?.level, P = L?.grid?.plan;
+  if (!P) return true;
+  const segs = stage.zone !== undefined ? [].concat(stage.zone) : P.route ?? Object.keys(P.key ?? {});
+  return segs.some((S) => P.key?.[S]?.ride === true);
+}
 export function stageLevelOrder(G, stage, opts = {}) {
   const laid0 = withClimbs(stage, levelOrder(G, stage, opts));
   // a stage the style's hour does not reach (gameStages `unlit`): advice, never a refusal
@@ -1549,7 +1558,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // THE DAMAGE RING (damage-ring.js): a quick shooter's level on foot and a deathmatch say where each hit came from, round
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts && riddenStage(stage) ? { mounts: G.mounts } : {}), game });
   // A FLEET in it (a sortie's capital ships and stations, fleet/): its blocks the airspace's to draw, the level under
   // destructible physics, weightless (matter.g 0), its blows at a space fight's power (FLEET_POWER: a fighter's bolt
   // dents armour and holes a hull's thin plate, a torpedo breaches a reactor's casing)

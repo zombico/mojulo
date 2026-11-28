@@ -14,6 +14,8 @@
  *     pulls it up (its speed what it covered: a fence above its jump refused). Unridden it stands
  *     at ease, its loose clips (no carriage, the reins on the neck), its idle looping. Ground followed (the probe cast from
  *     its height), walls by the shared footprint eject.
+ *   CALLED (the page's `state.mountCall`, a whistle): the nearest free horse comes to the one on foot who rides, on its own
+ *     stick (turned toward them, checked by its stopping distance: `rule.come.stop`, else inside its own reach) and stands at their side.
  *   GETTING ON AND OFF (wraps stepWorld): the pilot (a body that `rides`: its figure carries the riding clips, mount/game.js)
  *     standing within a horse's `reach` presses interact (`input.interact`, or the page's `state.mountPress`): it walks to
  *     the horse's near side (`stand`, in the horse's frame, facing the horse) and gets on (both bodies play `mount`
@@ -128,7 +130,21 @@ export function buildMount(E) {
     // getting on or off: the clip the wrapper names, halted
     if (e.mountClip) { e.locomotion = e.mountClip; e.gaitPhase = Math.min(0.999, e.mountU || 0); e.moving = true; e.speed = 0; e.jumpT = null; ground(); return; }
     const ridden = !!e.riderId && world && world.pilotId === e.id;
-    const inp = ridden ? input : ZERO_INPUT, clip = (g) => (ridden ? g.clip : (g.loose || g.clip));
+    // CALLED (its rider's call, the wrapper's `calledBy`): it comes to its rider on its own stick, turned toward them and
+    // urged on, down to a walk as it nears, and stands at their side
+    const caller = !ridden && e.calledBy && world && world.byId ? world.byId[e.calledBy] : null;
+    let come = null;
+    if (caller && !caller.mountedOn) {
+      const dx = caller.transform.pos[0] - t.pos[0], dy = caller.transform.pos[1] - t.pos[1], d = Math.hypot(dx, dy), stop = r.come ? r.come.stop : Math.max(1.2, (e.mount && e.mount.reach ? e.mount.reach : 2.6) - 0.6);
+      // (checked in time to stand at their side: its stopping distance at its speed, and arrived only once halted there)
+      const v0 = Math.max(0, e.speed || 0), brakeAt = stop + (v0 * v0) / (2 * (r.brake ?? 7)) + 0.5;
+      if (d <= stop && v0 < 0.3) e.calledBy = null;
+      else {
+        let a = Math.atan2(dy, dx) - t.heading; a = ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+        come = { forward: d <= brakeAt ? (v0 > 0.3 ? -1 : d > stop ? 0.3 : 0) : Math.abs(a) > 1.2 ? 0.15 : 1, turn: clamp(-a * 2, -1, 1), jump: false };
+      }
+    } else if (e.calledBy) e.calledBy = null;
+    const inp = ridden ? input : come || ZERO_INPUT, clip = (g) => (ridden ? g.clip : (g.loose || g.clip));
     let v = e.speed || 0;
     const top = G[G.length - 1].v;
     // the jump in flight: its clip once, carried at its own speed, steered a little
@@ -212,6 +228,15 @@ export function buildMount(E) {
     const pilot = state.byId[state.pilotId];
     // the rider of the piloted horse, or the pilot itself on foot
     const P = pilot && pilot.mount ? state.byId[pilot.riderId] : pilot;
+    // CALLED (the page's `mountCall`, a whistle): the nearest free horse comes to the one on foot who rides
+    if (state.mountCall) {
+      state.mountCall = 0;
+      if (P && P.rides && !P.mount && !P.mountedOn) {
+        let best = null, bd = Infinity;
+        for (const h of horses) { if (h.riderId || h.downed || h.gone || h.mount.cab) continue; const d = Math.hypot(h.transform.pos[0] - P.transform.pos[0], h.transform.pos[1] - P.transform.pos[1]); if (d < bd) { bd = d; best = h; } }
+        if (best) { best.calledBy = P.id; event(state, { type: 'called', rider: P.id, mount: best.id }); }
+      }
+    }
     if (press && P && !P.mount && !P.mountedOn && !busy(P)) {
       // GET ON: the nearest free horse in reach (a body that rides), or the nearest free cab (any walker)
       let best = null, bd = Infinity;

@@ -163,3 +163,30 @@ describe('a mount', () => {
     expect(emissionSource({ mount: true })).toContain('stepWithMounts');
   });
 });
+
+// CALLED (the page's whistle, `state.mountCall`): the nearest free horse comes to its rider on its own stick and stands at
+// their side; a rider on horseback, or one who does not ride, calls none
+describe('a horse called', () => {
+  it('comes from afar to its rider on foot, turning toward them, and stands within reach to be got on', () => {
+    const st = E.createWorld({ entities: [
+      { id: 'hero', pilotable: true, rides: true, rule: { type: 'platform', speed: 5 }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0], heading: 0 } },
+      horse('far', [40, 25, 0], Math.PI), { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero', dist: 5.5 } },
+    ] });
+    run(st, 3);
+    expect(Math.hypot(...st.byId.far.transform.pos.slice(0, 2))).toBeGreaterThan(40);
+    st.mountCall = 1; run(st, DT);
+    expect(st.byId.far.calledBy).toBe('hero');
+    expect(st.mountEvents.some((e) => e.type === 'called' && e.mount === 'far')).toBe(true);
+    run(st, 30);
+    const d = Math.hypot(...st.byId.far.transform.pos.slice(0, 2));
+    expect(d).toBeLessThan(st.byId.far.mount.reach + 1);
+    expect(st.byId.far.calledBy).toBeNull();
+    // (and stands: got on from there)
+    run(st, DT, { interact: 1 }); run(st, 7);
+    expect(st.pilotId).toBe('far');
+  });
+  it('a rider already up, or one who does not ride, calls none', () => {
+    const st = world(false); st.mountCall = 1; run(st, DT);
+    expect(['bay', 'grey'].every((id) => !st.byId[id].calledBy)).toBe(true);
+  });
+});

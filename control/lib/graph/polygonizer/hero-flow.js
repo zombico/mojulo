@@ -313,6 +313,8 @@ const radiusAt = (cap, t) => (cap.r0 ?? cap.r) + ((cap.r1 ?? cap.r) - (cap.r0 ??
  */
 export function flowSimulation(H, { substep = 1 / 240, iterations = 3, floor = null } = {}) {
   const { R, strings, form, pairs } = H; const rest = R.joints;
+  // (the body as it plays: a clip solved clamped, a rider's legs to the irons, is replayed clamped, never refused)
+  const Rc = R.reach === 'clamp' ? R : { ...R, reach: 'clamp' };
   const ground = (floor ?? Math.min(...Object.values(R.legs).flatMap((L) => [rest[L.toeBase][2], rest[L.toeTip][2]]))) + NODE_R;
   const G = [0, 0, -9.81];
   // the most each joint may come within each capsule's axis: never closer than it lay at rest (CLEAR short of it), and
@@ -345,7 +347,7 @@ export function flowSimulation(H, { substep = 1 / 240, iterations = 3, floor = n
   }
   const ride = (f, p) => add(f.head, mv(f.m, sub(p, f.restHead)));
   const posed = (pose) => {
-    const { nodes } = rigNodesAt(R, { ...pose, flow: undefined }); const F = boneFrames(R, rest, nodes);
+    const { nodes } = rigNodesAt(Rc, { ...pose, flow: undefined }); const F = boneFrames(R, rest, nodes);
     const caps = form.map((c) => { const fb = F[R.boneIndex[c.bone]]; return { r: c.r, r0: c.r0, r1: c.r1, a: ride(fb, c.a), b: ride(fb, c.b) }; });
     // each joint's target: its rest place carried by its own blend
     const targets = strings.map((st) => st.rest.map((p, j) => st.blends[j].reduce((o, [b, w]) => add(o, mul(ride(F[b], p), w)), [0, 0, 0])));

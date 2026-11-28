@@ -50,3 +50,25 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
   - **The regions** are joined by their gates.
   - **Its trees by its biocube:** a coast's palms, an alpine land's conifers, a desert's or a bare land's few trees
     and more stones.
+- **The plains between the towns** (`gameworld/world-map.js` `plains`, `PLAINS`): a world map may lay open blocks
+  between its first zone and its town.
+  - **The ground:** a road runs straight across each. A band camps beside the road, off it, and holds no way shut:
+    fought, or ridden past.
+  - **In Ceres:** each region lays two (Lagoona's dune plains and reed flats; Letzo's white plains and frost fields;
+    Khabar's salt flats and red steppe), so its towns stand further apart. None asked, the map as it was.
+- **Seimos on the plains** (`level/grid.js` region word `ride`, `gameworld/levels.js`, `worlds/world-scene.js`,
+  `worlds/mount-units.js`).
+  - **A ridden land:** a region that says `ride: true` is open country. The world's horses stand on a map's pages
+    only where their blocks are ridden (the plains), and a map's page now lowers them as a controllable world's
+    does. Ceres's world keeps one: Seimos, grey, who comes when called.
+  - **Fighting on foot:** riding hands the stick to the horse, so a band is engaged only on foot, Seimos left
+    standing.
+- **A horse called** (`worlds/controllable/mount.js`, `scene/channels/mount-ride.js`).
+  - **The rule:** a mount may say its `name` and `call: true`. H whistles (`mountCall`): the nearest free horse
+    comes to its rider on foot on its own stick, turned toward them, checked by its stopping distance, and stands
+    inside its reach to be got on.
+  - **The prompt** offers the call by name ("H call Seimos") when no horse is in reach. A page with no horse that
+    comes when called emits as it did.
+- **A rider's cloth on any body** (`polygonizer/hero-flow.js`): the cape's cloth replays a clip the body plays
+  clamped, a rider's legs stretched to the irons, never refusing it. A clip that reached as solved is replayed as it
+  was.

@@ -277,3 +277,23 @@ describe('a region of a chain (`names`, `climax`, `opening`)', () => {
     expect(beats.find((b) => b.at === 'A' && b.kind === 'arrival').say).toMatch(/the shore/);
   });
 });
+
+import { PLAINS } from './world-map.js';
+describe('a region\'s plains (`plains`)', () => {
+  it('open blocks between the first zone and the town, a road straight across, a band beside it that holds nothing shut; none asked, as before', () => {
+    expect(worldMapLevel({ n: 3, plains: 0 }).level).toEqual(worldMapLevel({ n: 3 }).level);
+    const base = worldMapLevel({ n: 3 }).level.glyphs, g = worldMapLevel({ n: 3, plains: 2 }).level.glyphs, P = g.plan;
+    expect(P.route.length).toBe(base.plan.route.length + 2);
+    const [, , , F1, F2, T] = P.route;
+    for (const S of [F1, F2]) { expect(P.key[S].fill).toBe(PLAINS.fill); expect(P.key[S].name).toMatch(/plains|fields|downs/); }
+    // (the town after them, its tavern laid)
+    expect(P.key[T].fill).toBe(base.plan.key[base.plan.route[3]].fill);
+    expect(Object.values(g.segments[T].key).map((k) => k.use)).toContain('tavern');
+    const beats = g.sketch.scenario.beats, band = beats.find((b) => b.id === `${F1.toLowerCase()}-band`);
+    expect(band).toMatchObject({ kind: 'fight', at: F1 }); expect(band.opens).toBeUndefined();
+    // (beside the road, off it)
+    const rows = g.segments[F1]?.rows ?? null;
+    if (rows) expect(rows[band.tile[0]].replace(/\s+/g, '')[band.tile[1]]).not.toBe('#');
+    for (const l of lawsOf(worldMapLevel({ n: 3, plains: 2 }).level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+});

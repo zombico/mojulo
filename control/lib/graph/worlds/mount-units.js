@@ -6,7 +6,8 @@
  * riding clips, solved on its own rig to this horse's tack, and marked as one that `rides`. The solve is built here, not
  * stored, once per rider and coats, and kept.
  *
- *   readMounts(raw)                   → the key read: [{ at: [x, y, z?], heading?, coat? }] (a bare count lays that many
+ *   readMounts(raw)                   → the key read: [{ at: [x, y, z?], heading?, coat?, name?, call? }] (`call`: it comes
+ *                                       when its rider whistles, `name` said in the prompt; a bare count lays that many
  *                                       bays beside the spawn), or a thrown error saying what is wrong; absent ⇒ null
  *   mountRider(mounts, { R, dz })     → the riding clips for a hero's rig (its layered pack's `ride` hook), the solve kept
  *   lowerMounts(payload, mounts, sol) → the horses laid after the world's own entities, their figures beside them, the
@@ -33,7 +34,9 @@ export function readMounts(raw) {
     if (m.at !== undefined && !(Array.isArray(m.at) && (m.at.length === 2 || m.at.length === 3) && m.at.every(Number.isFinite))) throw bad(`[${i}].at is [x, y] or [x, y, z] in metres`);
     if (m.heading !== undefined && !Number.isFinite(m.heading)) throw bad(`[${i}].heading is radians (0 faces +x)`);
     if (m.coat !== undefined && !COATS[m.coat]) throw bad(`[${i}].coat is one of ${Object.keys(COATS).join(', ')}`);
-    return { ...(m.at ? { at: m.at.slice() } : { beside: i }), ...(m.heading !== undefined ? { heading: m.heading } : {}), ...(m.coat ? { coat: m.coat } : {}) };
+    if (m.name !== undefined && !(typeof m.name === 'string' && m.name.trim() && m.name.length <= 24)) throw bad(`[${i}].name is the horse's name, a word or two`);
+    if (m.call !== undefined && m.call !== true) throw bad(`[${i}].call is true: the horse comes when its rider calls (a whistle)`);
+    return { ...(m.at ? { at: m.at.slice() } : { beside: i }), ...(m.heading !== undefined ? { heading: m.heading } : {}), ...(m.coat ? { coat: m.coat } : {}), ...(m.name ? { name: m.name.trim() } : {}), ...(m.call ? { call: true } : {}) };
   });
 }
 
@@ -64,7 +67,8 @@ export async function lowerMounts(payload, mounts, sol = null, { riderId = null 
     const at = m.at ?? (() => { const r = [Math.cos(h0 - Math.PI / 2), Math.sin(h0 - Math.PI / 2)], f = [Math.cos(h0), Math.sin(h0)], d = 3 + 2 * (m.beside ?? i); return [s0[0] + r[0] * d + f[0] * 1.5, s0[1] + r[1] * d + f[1] * 1.5, s0[2] ?? 0]; })();
     return {
       // (no one to ride them: they stand loose, never offered, reach 0)
-      id: `mount-${i + 1}`, mount: S.mount ?? { reach: 0 }, rule: S.rule,
+      // (a horse that comes when called, `call`, and its `name`: the page's whistle, channels/mount-ride.js)
+      id: `mount-${i + 1}`, mount: { ...(S.mount ?? { reach: 0 }), ...(m.call ? { call: true } : {}), ...(m.name ? { name: m.name } : {}) }, rule: S.rule,
       body: { type: 'figure-rig', figure: `mount:${m.coat ?? 'bay'}` },
       transform: { pos: [at[0], at[1], at[2] ?? 0], heading: m.heading ?? h0 },
     };
