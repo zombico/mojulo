@@ -56,6 +56,9 @@
  *     seconds of a target that neither moves nor dodges. The engine's hit reaction would freeze it where
  *     it stood (a rooted clip that suppresses the rule); a frame reels on its own physics, so the break is taken here.
  *     Pressure it until it breaks, then punish it: the fight's loop.
+ *   • A SQUAD (a mind's `squad` { id, way: 'pack' | 'team-aware' }, the cosmos mind facet's): frames that fight as one,
+ *     squadPlan: a pack on the pilot from both sides, one pressing and one keeping its range; team-aware, split one to each
+ *     of the pilot's side; either way a mate that reels covered by the nearest, going in on whoever is over it.
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
@@ -156,6 +159,9 @@ export function buildRulesFrame(E) {
     // (an ALLY, a wingman on the pilot's side: it fights the nearest foe awake near it; with none, it leads the pilot)
     let P = P0;
     if (M.ally) { const F = allyFoe(e, world, M.engage ?? 500); if (!F) return escortKeys(e, dt, M, P0, out); P = F; }
+    // (a SQUAD, the cosmos mind facet's squad: its frames fight as one, SQUAD below: whom it fights and how it goes at them)
+    const SQ = M.squad && !M.ally ? squadPlan(e, M.squad, world, P0) : null;
+    if (SQ) P = SQ.target;
     const t = e.transform, q = P.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1], dz = q[2] - t.pos[2], d = Math.hypot(dx, dy);
     e.mindFace = Math.atan2(dy, dx); e.mindPitch = Math.atan2(dz, d || 1);
     // (an ace's phase, by its armour's share: its reach, its press and its dodge; crossing into one calls its reserve in
@@ -180,9 +186,44 @@ export function buildRulesFrame(E) {
     if (e.locked) { out.fire = d < 420 ? 1 : 0; out.alt = blade ? (d < blade.range * 0.9 ? 1 : 0) : d < 320 && dice(e) < 0.5 ? 1 : 0; out.backR = dice(e) < dt * 0.6 ? 1 : 0; out.backL = dice(e) < dt * 0.3 ? 1 : 0; }
     if (!PH && blade && e.locked && d > blade.range && d < range * 2.2 && (M.aggression ?? 0.6) > 0.5) { out.forward = 1; out.strafe = 0; if (!e.ab && dice(e) < dt * 0.8) out.ab = 1; }
     if (PH) aceKeys(e, PH, out, d, dt, blade);
+    // (its squad's shape: round the foe from its own side, the nearer pressing in while the other keeps its range; one
+    // covering a squadmate that reels goes in on whoever is over it, everything it has)
+    if (SQ) {
+      e.squadRole = SQ.role; e.squadTarget = P.id;
+      if (SQ.role === 'cover') { out.forward = d > range * 0.5 ? 1 : 0; out.boost = 1; out.qb = 0; if (e.locked) { out.fire = 1; out.backR = out.backL = dice(e) < dt * 2 ? 1 : 0; } }
+      else {
+        out.strafe = SQ.side;
+        out.forward = SQ.role === 'press' ? (d > range * 0.75 ? 1 : d < range * 0.45 ? -1 : 0) : d > range * 1.4 ? 1 : d < range * 1.05 ? -1 : 0;
+      }
+    }
     // (the pilot reeling: the moment to punish it, everything it has, in close)
     if (e.locked && P.stagger > 0) { out.fire = out.alt = 1; out.backR = out.backL = 1; out.forward = d > range * 0.6 ? 1 : 0; out.qb = 0; out.kick = d < ((e.rule.kick && e.rule.kick.range) ?? 80) ? 1 : 0; }
     return out;
+  }
+
+  // ── A SQUAD of frames (a mind's `squad` { id, way }, the cosmos mind facet's squad: gameworld/frame-goal.js a group's
+  // `squad`): its mates are the frames of its id standing, in the order of their ids. WAY `pack`: every one on the one
+  // foe, the pilot, each from its own side of it (the first left, the next right), the nearer pressing in and the other
+  // keeping its range, so a pilot that turns on one gives its back to the other. WAY `team-aware`: the pilot's side split
+  // between them, one each (the pilot, then its wingmen in turn), the nearer to its own pressing. Either way a mate
+  // that REELS is covered: the one nearest it turns on whoever is closest over it and goes in, everything it has. ──
+  function squadPlan(e, S, world, P0) {
+    const mates = [];
+    for (const id in world.byId) { const b = world.byId[id], m = b.rule && b.rule.mind; if (b.rule && b.rule.type === 'frame' && m && m.squad && m.squad.id === S.id && !b.downed && !b.gone && !b.dormant) mates.push(b); }
+    mates.sort((a, b) => (a.id < b.id ? -1 : 1));
+    const k = Math.max(0, mates.indexOf(e)), side = k % 2 ? 1 : -1;
+    const foes = [P0];
+    for (const id in world.byId) { const b = world.byId[id], m = b.rule && b.rule.mind; if (b.rule && b.rule.type === 'frame' && m && m.ally && !b.downed && !b.gone && !b.dormant) foes.push(b); }
+    const at = (a, b) => Math.hypot(a.transform.pos[0] - b.transform.pos[0], a.transform.pos[1] - b.transform.pos[1]);
+    // (a mate reeling, and this the one nearest it: cover it)
+    const reeling = mates.find((m) => m !== e && m.stagger > 0);
+    if (reeling && mates.filter((m) => m !== reeling).sort((a, b) => at(a, reeling) - at(b, reeling))[0] === e) {
+      const over = foes.slice().sort((a, b) => at(a, reeling) - at(b, reeling))[0];
+      return { target: over, role: 'cover', side };
+    }
+    const target = S.way === 'team-aware' ? foes[k % foes.length] : P0;
+    const near = mates.filter((m) => (S.way === 'team-aware' ? foes[mates.indexOf(m) % foes.length] === target : true)).sort((a, b) => at(a, target) - at(b, target))[0];
+    return { target, role: near === e ? 'press' : 'keep', side };
   }
 
   // a lunge begun: onto the locked foe if it is within the reach, else straight ahead; `by` the kick or the slot

@@ -30,6 +30,8 @@
  *     the pilot's side's (its rounds go through it, its lock passes it over); a group's `target: <prop id> | [ids]` sends a
  *     unit's mind at it (the nearest standing, the pilot once they are down); a task's `guard: [prop ids]` keeps it up
  *     (game/objectives.js `keep`: one down while the task is in hand fails it, or with `retry` begins it again, whole)
+ *     a frame group's `squad: { id, way: 'pack' | 'team-aware' }`: frames that fight as one (the cosmos mind facet's squad,
+ *     SQUAD_WAYS; rules-frame.js squadPlan), a mate that reels covered
  *     crew   [{ id, name?, hero, at, raise?, face?, set? }] people off the field for its scenes (CREW: a captain on a bridge,
  *            drawn live in the talk box as they speak)
  *     ship   { id, name?, at, alt?, heading?, guns?, regen?, comes? } a patrol ship over the field (SHIP), fought in two
@@ -112,6 +114,8 @@ export const OPERATION = Object.freeze({
 // (the enemy's rounds: a hot red-orange in the shot's look, scene/channels/controllable/index.js foeLooks)
 const FOE_ROUND = Object.freeze({ color: 0xff5a36, size: 0.42 });
 export const OPERATION_LEGEND = 'mouse  turn & aim · W A S D  move · Shift  boost · C  quick boost · X  assault boost · F  kick · Space  jump, hold to climb · click / right click  hands · Q / E  shoulders';
+// (the ways a squad of frames fights as one: the cosmos mind facet's squad that coordinates)
+export const SQUAD_WAYS = Object.freeze(['pack', 'team-aware']);
 const KINDS = ['turret', 'tank', 'walker', 'crawler', 'gnat', 'wasp', 'kite', 'harrow', 'thunderhead', 'hammer', 'bastion', 'frame'];
 
 export function readOperation(v, at = 'goal.operation') {
@@ -147,9 +151,13 @@ export function readOperation(v, at = 'goal.operation') {
     // (its target: the props it is sent at, an asset to defend (a prop with armour, checked once the props are read):
     // a unit's mind takes the nearest of them standing for its foe, the pilot once they are down; not a frame's)
     if (g.target !== undefined && (g.kind === 'frame' || !(Array.isArray(g.target) ? g.target : [g.target]).every((x) => typeof x === 'string' && x))) throw new Error(`${gat}.target is a prop's id or ids, an asset it is sent at (a unit's, not a frame's)`);
+    // (its squad: frames that fight as one, the cosmos mind facet's squad (cosmos/facets/mind.js): { id (shared by every
+    // group of it), way: 'pack' (one foe, from both sides) | 'team-aware' (split one to each of the pilot's side) }, a mate
+    // that reels covered (rules-frame.js squadPlan); a frame's)
+    if (g.squad !== undefined && !(g.kind === 'frame' && isObj(g.squad) && typeof g.squad.id === 'string' && /^[a-z][a-z0-9-]{0,23}$/.test(g.squad.id) && SQUAD_WAYS.includes(g.squad.way))) throw new Error(`${gat}.squad is a frame's: { id, way: ${SQUAD_WAYS.join(' | ')} } (the cosmos mind facet's squad)`);
     // (an intro: a short scene as it first comes, FOE_INTRO)
     const intro = g.intro === undefined || g.intro === false ? null : readIntro(g.intro, `${gat}.intro`);
-    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}), ...(g.comes ? { comes: g.comes } : {}) , ...(g.target !== undefined ? { target: [].concat(g.target) } : {}) };
+    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}), ...(g.comes ? { comes: g.comes } : {}) , ...(g.target !== undefined ? { target: [].concat(g.target) } : {}) , ...(g.squad ? { squad: { id: g.squad.id, way: g.squad.way } } : {}) };
   });
   // (its ship: a patrol ship over the field, SHIP; its pods and its guns two groups of its own, `<id>-pods` and
   // `<id>-guns`, a task's to down, each part riding at its place on the hull)
@@ -544,7 +552,8 @@ export function operationCast(op, ends) {
         figures[fig] = { assault: { build: g.build, palette: g.palette ?? 'ash', ...(T ? { scale: T.scale } : {}) } };
         // (an ace: its phases on its mind, its armour its row's share over its build's, its name on it for the HUD)
         const A = g.ace ? ACES[g.ace] : null;
-        const mind = A ? { range: A.phases[0].range, aggression: A.phases[0].aggression, dodge: A.phases[0].dodge, phases: A.phases } : T ? { ...T.mind } : { range: OPERATION.frameRange };
+        const mind0 = A ? { range: A.phases[0].range, aggression: A.phases[0].aggression, dodge: A.phases[0].dodge, phases: A.phases } : T ? { ...T.mind } : { range: OPERATION.frameRange };
+        const mind = g.squad ? { ...mind0, squad: { ...g.squad } } : mind0;
         const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ...(T ? { scale: T.scale, ap: T.ap } : {}), ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
         if (A) { const hp = Math.round(e.body.hp * A.ap); e.body = { ...e.body, hp, hpMax: hp }; e.ace = { id: g.ace, name: A.name }; }
         entities.push({ ...e, ...(dormant ? { dormant: true } : {}) });
