@@ -172,7 +172,7 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a level with a seat for each player and a contest of their presses',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && (m.seats.max ?? 0) >= 2 && mechanicsOf(m).includes('mash')),
     reference: { quick: { goal: 'mash', players: 4 } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'roles', genre: 'driver-and-gunner', prompt: 'a driver and gunner game: one drives the truck, one shoots the turret',

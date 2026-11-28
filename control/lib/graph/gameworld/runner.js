@@ -604,7 +604,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // level's: fail-on-death and the hazards on the body, a touch's cost the same share of its hp; foes.js onBody)
     // (a world on lives, mechanics.lives, has no hp to bind: a touch costs a life, the level's lives mechanic's)
     // (a deathmatch keeps its own hp, its falls and its comebacks: frags', never the body's)
-    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && G.levels[s.level]?.deathmatch === undefined && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
+    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && G.levels[s.level]?.deathmatch === undefined && G.levels[s.level]?.mash === undefined && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
     const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
@@ -755,6 +755,12 @@ const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.s
 function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   // A DEATHMATCH (levels.<id>.deathmatch, a book level form): the quick door's match from the level's own words, its bots
   // the world's gunner (gunnerStep), its pilot armed as the quick deathmatch's
+  // A PARTY ROUND (levels.<id>.mash): mechanics.js mash, its window (10 s) or its race the level's
+  const MS = G.levels[s.level]?.mash;
+  if (MS !== undefined) {
+    const M = MS === true ? {} : MS;
+    return { goal: () => [{ kind: 'mash', seconds: M.seconds ?? 10, ...(M.to !== undefined ? { to: M.to } : {}) }], legend: 'A / Space  mash' };
+  }
   const DM = G.levels[s.level]?.deathmatch;
   if (DM !== undefined) {
     const D = { goal: 'deathmatch', ...(DM === true ? {} : DM), ...(G.camera ? { camera: G.camera } : {}) }, bots = childRef(ref, 'foe-gunner');

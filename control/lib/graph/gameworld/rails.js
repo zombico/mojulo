@@ -273,7 +273,7 @@ export const RAILS = Object.freeze({
     words: list(['cooking', 'cooking sim', 'kitchen', 'restaurant', 'shift', 'orders', 'co-op kitchen', 'co-op cooking', 'cooking together', 'cook together', 'overcooked']) }),
   // (11-27, the couch's: a party round, two to four on one screen, each mashing to out-press the others)
   'party-round': row({ name: 'Party Round', like: 'a party game for two to four on one screen: each mashes to out-press the others before the horn, or races to a count (quick.players)',
-    handles: row({ genres: list(['party-mash']), quick: list(['mash']) }), sizes: list(['quick']), level1: 'a round: the most presses at the horn wins',
+    handles: row({ genres: list(['party-mash']), quick: list(['mash']) }), sizes: list(['quick', 'designed']), level1: 'a round: the most presses at the horn wins',
     words: list(['party game', 'party round', 'button mash', 'mash', 'minigame', 'mini-game', 'couch party']) }),
   farming: row({ name: 'Farming', like: 'a farm: plant, let the days ripen it, harvest and sell',
     handles: row({ genres: list(['farming']), quick: list(['farm']) }), sizes: list(['quick']), level1: 'a day: the gold made before it ends' }),

@@ -8,3 +8,7 @@
   of the quick door before. No foes stand on a match beside its bots.
 - The hill-climb page now reads "yes" from a sentence for the arena shooter and the split-screen deathmatch, and the arena
   shooter's rail (Infinity Crisis) is offered as a designed game as well as a quick one.
+- A party round is a level form of the game book too (`levels.<id>.mash: { seconds?, to? }`, on a walk). A sentence asking
+  for a party game now lays three rounds for four friends in a lobby, each against each: a mash, a race to a count, and a
+  mash. The hill-climb page reads "yes" from a sentence for party mash, and the Party Round rail is offered as a designed
+  game as well as a quick one.

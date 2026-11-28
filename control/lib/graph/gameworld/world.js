@@ -342,7 +342,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'deathmatch', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'deathmatch', 'mash', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -770,6 +770,15 @@ export function readGameworld(W) {
       if (isObj(D) && D.mode !== undefined && !['free-for-all', 'team', 'control'].includes(D.mode)) throw new Error(`gameworld: ${at}.deathmatch.mode is free-for-all, team or control`);
       if (L.walk === undefined || L.arena === undefined) throw new Error(`gameworld: ${at}.deathmatch is fought on the level's arena: give it a walk and an arena`);
       if (L.goal !== undefined) throw new Error(`gameworld: ${at}.deathmatch is the level's goal: no goal beside it`);
+    }
+    // A PARTY ROUND (a book level form, 11-28): mechanics.js mash on the level's walk, its window or its race the level's
+    if (L.mash !== undefined) {
+      const M = L.mash;
+      if (M !== true && !(isObj(M) && Object.keys(M).every((k) => ['seconds', 'to'].includes(k)))) throw new Error(`gameworld: ${at}.mash is true or { seconds?, to? }: a party round on the level`);
+      if (isObj(M) && M.seconds !== undefined && !(Number.isInteger(M.seconds) && M.seconds >= 3 && M.seconds <= 120)) throw new Error(`gameworld: ${at}.mash.seconds is the window, 3 to 120`);
+      if (isObj(M) && M.to !== undefined && !(Number.isInteger(M.to) && M.to >= 5 && M.to <= 200)) throw new Error(`gameworld: ${at}.mash.to is a race's count, 5 to 200`);
+      if (L.walk === undefined) throw new Error(`gameworld: ${at}.mash is played on the level's ground: give it a walk`);
+      if (L.goal !== undefined || L.deathmatch !== undefined) throw new Error(`gameworld: ${at}.mash is the level's goal: no goal or deathmatch beside it`);
     }
     if (L.kitchen !== undefined) {
       // a kitchen level (gameworld/kitchen-shifts.js, laid by kitchen-level.js): its own room, its layout, its menu, its

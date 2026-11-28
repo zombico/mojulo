@@ -60,6 +60,9 @@ export const GENRE_FORMS = Object.freeze({
   // fill the arena, a view each (the cube's soul: split, seats)
   'arena-shooter': Object.freeze({ form: 'deathmatch', name: 'Match', hero: Object.freeze({}), screen: 'screen', level: () => matchLevel(DEATHMATCH.bots) }),
   'split-deathmatch': Object.freeze({ form: 'deathmatch', name: 'Match', hero: Object.freeze({}), screen: 'screen', level: () => matchLevel(2) }),
+  // a round a level (11-28, a book party round: world.js levels.<id>.mash): a ground to stand on, the round on it, the
+  // couch's heroes its players (the cube's soul: four, each against each, a window, a lobby)
+  'party-mash': Object.freeze({ form: 'mash', name: 'Round', hero: Object.freeze({}), screen: 'screen', level: (i) => ({ walk: { nodes: { square: { trail: {} } } }, mash: i % 2 ? { seconds: 20, to: 40 } : { seconds: 10 } }) }),
 });
 
 /** A book deathmatch level (world.js levels.<id>.deathmatch): the quick door's long trail, its arena in words, a match on
@@ -86,18 +89,18 @@ export const PENDING = Object.freeze({
   'tower-defense': 'form', rts: 'form', tactics: 'form', farming: 'form', rhythm: 'form', roguelike: 'form', 'block-puzzle': 'form',
   'pixel-puzzle': 'form', 'versus-fighter': 'form', 'athletics-meet': 'form', 'net-game': 'form', 'turn-sport': 'form', 'team-goal-game': 'form',
   'co-op-kitchen': 'form',
-  // (the couch's: a party round and a crewed ride, each one level of the quick door's for now)
-  'party-mash': 'form', 'driver-and-gunner': 'ride',
+  // (the couch's crewed ride, one level of the quick door's for now)
+  'driver-and-gunner': 'ride',
 });
 // the one level a pending genre plays alone today (quick.js QUICK_GOALS, the one-level door), said beside its refusal
 const ONE_LEVEL = Object.freeze({
   racing: 'race', 'kart-racer': 'race', shooter: 'shoot', 'tower-defense': 'defend', rts: 'conquer',
   farming: 'farm', rhythm: 'rhythm', 'block-puzzle': 'puzzle', 'versus-fighter': 'fight', 'athletics-meet': 'meet', 'net-game': 'contest',
   'turn-sport': 'contest', 'team-goal-game': 'contest', 'endless-runner': 'runner', 'co-op-kitchen': 'work',
-  'party-mash': 'mash', 'driver-and-gunner': 'reach',
+  'driver-and-gunner': 'reach',
 });
 // (and the words that make it what the genre is, where the goal alone does not: the cooks a co-op kitchen seats)
-const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }), 'party-mash': Object.freeze({ players: 4 }), 'driver-and-gunner': Object.freeze({ ride: 'car', players: 2 }) });
+const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }), 'driver-and-gunner': Object.freeze({ ride: 'car', players: 2 }) });
 /** The quick door that plays a pending genre's one level alone, as the producer says it: `{ goal: 'work', cooks: 2 }`. */
 export const oneLevelCall = (id) => (ONE_LEVEL[id] ? `{ goal: '${ONE_LEVEL[id]}'${Object.entries(ONE_WITH[id] ?? {}).map(([k, v]) => `, ${k}: ${JSON.stringify(v)}`).join('')} }` : null);
 

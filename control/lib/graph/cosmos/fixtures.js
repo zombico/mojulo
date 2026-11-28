@@ -614,7 +614,7 @@ export const FIXTURES = Object.freeze([
       reality: { medium: '3d' },
       space: { camera: 'fixed', levelForm: 'arena' },
       power: { mechanics: ['score', 'clock'] },
-      soul: { seats: 'four', contest: 'free-for-all', dependence: 'parallel', frame: 'fixed', input: 'window', pool: 'own', join: 'lobby' },
+      soul: { hero: 'hero', seats: 'four', contest: 'free-for-all', dependence: 'parallel', frame: 'fixed', input: 'window', pool: 'own', join: 'lobby' },
     },
   },
   {
