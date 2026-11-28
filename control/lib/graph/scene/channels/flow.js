@@ -138,7 +138,9 @@ export function readFlow(flow) {
 
 /** The page's script: `stepFlow(t)` (t in ms, the world clock), `window.__mojFlow` its probe. */
 export function flowChannelScript(flow, { play = false, coat = false, cast = false, hubs = false } = {}) {
-  const F = { T: flow.T, signals: flow.signals, near: flow.near ?? 320, kinds: flow.kinds.map((k) => ({ model: k.model, ...(k.extra ? { extra: k.extra } : {}), len: k.len, ...(play ? { wid: k.wid ?? 1.9 } : {}) })), tints: flow.tints, lanes: flow.lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, ground: L.ground })), cars: flow.cars, ...(flow.lod ? { lod: flow.lod } : {}) };
+  // (a beat patrol among the traffic, geocity/flow.js `beat`: its hull says it is the law's, cab-pool.js's witness; none, not a byte)
+  const police = play && flow.kinds.some((k) => k.police);
+  const F = { T: flow.T, signals: flow.signals, near: flow.near ?? 320, kinds: flow.kinds.map((k) => ({ model: k.model, ...(k.extra ? { extra: k.extra } : {}), len: k.len, ...(play ? { wid: k.wid ?? 1.9 } : {}), ...(play && k.police ? { police: true } : {}) })), tints: flow.tints, lanes: flow.lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, ground: L.ground })), cars: flow.cars, ...(flow.lod ? { lod: flow.lod } : {}) };
   return `
 // ---- flow channel (a metro's traffic: lanes stepped and vehicles drawn near the camera only) ----
 let stepFlow = () => {};
@@ -262,7 +264,7 @@ ${play ? '    const __flB = __flBlocks(L); __flNB += __flB.length;\n    if (__fl
       // that tick, never more than a tick, so it moves every frame and not every few; the model is unchanged)
       const c = lane.cars[k], kind = FLOW.kinds[c[1]], s = __flNow(m, k, L, sec), u = sg > 0 ? L.lo + s : L.hi - s;
       const x = L.axis === 'y' ? L.cross : u, y = L.axis === 'y' ? u : L.cross, dx = x - p.x, dy = y - p.y;
-${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world now, drawn and held there)\n      if (window.__mojTaken && window.__mojTaken[__flLanes.indexOf(lane) + \':\' + k]) continue;\n      // (near the pilot, seen or not: a hull the world holds its bodies out of)\n      if (__flHulls && (x - __flPil[0]) * (x - __flPil[0]) + (y - __flPil[1]) * (y - __flPil[1]) < 1600) __flHulls.push({ p: [x, y, __flZ(L.ground, u)], heading: heading + Math.PI / 2, hull: [kind.wid / 2, kind.len / 2], v: m.cars[k].v, id: __flLanes.indexOf(lane) + \':\' + k, model: kind.model, tint: FLOW.tints[c[2]] });\n' : ''}      // (within reach, and not behind the camera)
+${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world now, drawn and held there)\n      if (window.__mojTaken && window.__mojTaken[__flLanes.indexOf(lane) + \':\' + k]) continue;\n      // (near the pilot, seen or not: a hull the world holds its bodies out of)\n      if (__flHulls && (x - __flPil[0]) * (x - __flPil[0]) + (y - __flPil[1]) * (y - __flPil[1]) < 1600) __flHulls.push({ p: [x, y, __flZ(L.ground, u)], heading: heading + Math.PI / 2, hull: [kind.wid / 2, kind.len / 2], v: m.cars[k].v, id: __flLanes.indexOf(lane) + \':\' + k, model: kind.model, tint: FLOW.tints[c[2]]' + (police ? ', ...(kind.police ? { police: true } : {})' : '') + ' });\n' : ''}      // (within reach, and not behind the camera)
       if (dx * dx + dy * dy > R * R || dx * fx + dy * fy < -kind.len) continue;
       const h = kind.len * 0.35, zf = __flZ(L.ground, u + sg * h), zr = __flZ(L.ground, u - sg * h), dz = (zf + zr) / 2 - p.z;
       if (dx * dx + dy * dy + dz * dz > R * R) continue;

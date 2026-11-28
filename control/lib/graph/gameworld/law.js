@@ -29,7 +29,7 @@
  */
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const WORD = /^[a-z][a-z0-9-]{0,31}$/;
-const KEYS = ['police', 'stars', 'per', 'cars', 'armed', 'calm', 'busted', 'fine'];
+const KEYS = ['police', 'stars', 'per', 'cars', 'armed', 'calm', 'busted', 'fine', 'drivers'];
 
 export const LAW = Object.freeze({
   stars: 5, per: 2, cars: 3, armed: 3, calm: 12, busted: 6, fine: 20, most: 8,
@@ -44,6 +44,12 @@ export const LAW = Object.freeze({
   chase: Object.freeze({ run: 0.92, sight: 45 }),
   // its cars: the fleets' police car (geocity/fleets.js) in its livery, set down this far from the player (m)
   car: Object.freeze({ fleet: 'police', ring: Object.freeze([45, 90]) }),
+  // A TAKEN CAR'S DRIVERS (`drivers: true`, worlds/controllable/drivers.js): someone of the city's own (a person rolled in
+  // its setting, no crew's dress), a pursuer's fists when they fight; how many stand ready to get out with their hands up,
+  // and how many to fight
+  driver: Object.freeze({ class: 'pursuer', skin: Object.freeze({ people: 'human' }) }),
+  driverId: 'driver',
+  drivers: Object.freeze({ flee: 2, fight: 2 }),
 });
 
 const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
@@ -63,20 +69,21 @@ export function readLaw(spec, foes = null) {
   if (S.calm !== undefined && !(Number.isFinite(S.calm) && S.calm >= 3 && S.calm <= 120)) no('.calm is the seconds clear of trouble that take a star off, 3 to 120');
   if (S.busted !== undefined && !whole(S.busted, 1, 40)) no('.busted is the police blows that take the player down, 1 to 40');
   if (S.fine !== undefined && !whole(S.fine, 0, 100000)) no('.fine is the coin a bust costs, a whole number');
+  if (S.drivers !== undefined && typeof S.drivers !== 'boolean') no('.drivers is true: a car taken from the traffic has its driver, who gets out (hands up at a gun, else fighting)');
   // (the maker's own police entry, or the patrol, named apart from any foe the maker wrote)
   const own = S.police !== undefined;
   const police = own ? S.police : foes && Object.hasOwn(foes, LAW.id) ? 'police-patrol' : LAW.id;
   const armedId = own ? S.police : foes && Object.hasOwn(foes, LAW.armedId) ? 'police-tactical' : LAW.armedId;
-  return { police, armedId, armed: S.armed === false ? null : S.armed ?? LAW.armed, stars: S.stars ?? LAW.stars, per: S.per ?? LAW.per, cars: Math.min(S.cars ?? LAW.cars, S.stars ?? LAW.stars), calm: S.calm ?? LAW.calm, busted: S.busted ?? LAW.busted, fine: S.fine ?? LAW.fine, own };
+  return { police, armedId, armed: S.armed === false ? null : S.armed ?? LAW.armed, stars: S.stars ?? LAW.stars, per: S.per ?? LAW.per, cars: Math.min(S.cars ?? LAW.cars, S.stars ?? LAW.stars), calm: S.calm ?? LAW.calm, busted: S.busted ?? LAW.busted, fine: S.fine ?? LAW.fine, own, ...(S.drivers ? { drivers: { id: foes && Object.hasOwn(foes, LAW.driverId) ? 'driver-civilian' : LAW.driverId, ...LAW.drivers } } : {}) };
 }
 
 export function lawBestiary(law, foes) {
   if (!law || law.own) return foes;
   const entry = (E) => ({ ...E, skin: { ...E.skin, dress: { ...E.skin.dress } } });
-  return { ...(foes ?? {}), [law.police]: entry(LAW.police), ...(law.armed ? { [law.armedId]: entry(LAW.armedPolice) } : {}) };
+  return { ...(foes ?? {}), [law.police]: entry(LAW.police), ...(law.armed ? { [law.armedId]: entry(LAW.armedPolice) } : {}), ...(law.drivers ? { [law.drivers.id]: { ...LAW.driver, skin: { ...LAW.driver.skin } } } : {}) };
 }
 
-export const lawFoeIds = (law) => (law ? [...new Set([law.police, ...(law.armed ? [law.armedId] : [])])] : []);
+export const lawFoeIds = (law) => (law ? [...new Set([law.police, ...(law.armed ? [law.armedId] : []), ...(law.drivers ? [law.drivers.id] : [])])] : []);
 
 export const policeCount = (law) => (law ? Math.min(LAW.most, law.stars * law.per) : 0);
 

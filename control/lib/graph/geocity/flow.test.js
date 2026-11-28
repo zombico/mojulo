@@ -125,3 +125,21 @@ describe('the metro\'s traffic, driven as the page drives it', () => {
     }
   });
 });
+
+describe('beat patrols in the traffic (`beat`)', () => {
+  const B = flowOf(designGeocity({ ...geocity, beat: 2 }, { seed: 2 }), { seed: 2 });
+  it('puts that many police cars among the streets\' vehicles, their kind the law\'s, and says how far they see', () => {
+    const k = B.kinds.findIndex((x) => x.police);
+    expect(k).toBeGreaterThanOrEqual(0);
+    expect(B.kinds[k].extra).toBe('lightbar-rb');
+    const on = B.cars.filter((c) => c[1] === k);
+    expect(on).toHaveLength(2);
+    // (on two different lanes, spread over the streets)
+    expect(new Set(on.map((c) => c[0])).size).toBe(2);
+    expect(B.witness).toBe(40);
+  });
+  it('none asked, none: the traffic as it was', () => {
+    expect(F.kinds.some((x) => x.police)).toBe(false);
+    expect(F.witness).toBeUndefined();
+  });
+});

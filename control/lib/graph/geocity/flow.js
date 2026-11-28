@@ -132,6 +132,20 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     for (let k = 0; k < want * 2 && list.length < want; k++) { const p = pick(R, mix); if (p) list.push(p); }
     return { list, start: R(), i };
   });
+  // BEAT PATROLS (the geocity's `beat`: the law's cars cruising the district before anyone is wanted, gameworld/law.js):
+  // that many of its streets' lanes, spread evenly over them, each a patrol car at the head of its queue, its kind
+  // flagged `police` (a carjack within its sight is seen: channels/cab-pool.js); none asked, none
+  const beat = Number.isInteger(d.spec?.beat) && d.spec.beat > 0 ? d.spec.beat : 0;
+  if (beat) {
+    const streets = picks.filter((P) => !raw[P.i].tram && P.list.length).sort((a, b) => (raw[a.i].line < raw[b.i].line ? -1 : raw[a.i].line > raw[b.i].line ? 1 : raw[a.i].cross - raw[b.i].cross));
+    const V = fleetOf('police')[0], key = `${V.model}|${V.extra ?? ''}|police`;
+    if (V && streets.length) {
+      if (!kindOf.has(key)) { const M = carModel(V.model); kindOf.set(key, kinds.length); kinds.push({ model: V.model, ...(V.extra ? { extra: V.extra } : {}), len: r2(M.L), wid: r2(M.W), police: true }); }
+      const paint = V.paints?.[0] ?? V.paint ?? '#f1f1ee';
+      if (!tintOf.has(paint)) { tintOf.set(paint, tints.length); tints.push(lin(paint)); }
+      for (let k = 0; k < Math.min(beat, streets.length); k++) streets[Math.floor(((k + 0.5) * streets.length) / Math.min(beat, streets.length))].list[0] = { kind: kindOf.get(key), tint: tintOf.get(paint) };
+    }
+  }
   const streetKinds = new Set(picks.flatMap((P) => P.list.map((p) => p.kind)));
   // the highways' lanes (highways.js): each way its lanes on the right of its median by the metro's hand, on its deck,
   // nothing crossing them; their vehicles chosen with the rest (the longest of all sizes the boxes)
@@ -179,6 +193,8 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
   });
   return {
     T, signals, near, kinds, tints,
+    // (the beat patrols' sight: a carjack this near one is seen, channels/cab-pool.js; within the hulls' 40 m)
+    ...(beat ? { witness: 40 } : {}),
     lanes: lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: r2(L.lo), hi: r2(L.hi), dir: L.dir, total: r2(L.total), speed: L.speed, line: L.line, cars: L.cars, crossings: L.crossings.map((c) => ({ sig: c.sig, sigs: c.sigs, sIn: r2(c.sIn), sOut: r2(c.sOut), sStop: r2(c.sStop) })), ground: L.ground })),
     cars,
   };

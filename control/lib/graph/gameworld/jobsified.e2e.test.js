@@ -219,3 +219,19 @@ describe('the movers, laid', () => {
     expect((house.game?.mechanics ?? house.level.mechanics).find((x) => x.kind === 'movers')).toMatchObject({ load: 12 });
   });
 });
+
+describe('a taken car\'s drivers, and the beat', () => {
+  it('stands a few drivers asleep for the cars the traffic gives up, those at a gun with their hands up; two patrols cruise the streets', async () => {
+    const { HIJACK_BEAT } = await import('./hijack-city.js');
+    expect(level.drivers.flee.length).toBeGreaterThan(0);
+    expect(level.drivers.fight.length).toBeGreaterThan(0);
+    for (const id of [...level.drivers.flee, ...level.drivers.fight]) {
+      const e = level.entities.find((x) => x.id === id);
+      expect(e).toMatchObject({ dormant: true, gone: true });
+      expect(!!e.body.layers?.surrender).toBe(level.drivers.flee.includes(id));
+    }
+    // (a fighter's fists a pursuer's: it seeks and swings)
+    expect(level.entities.find((x) => x.id === level.drivers.fight[0]).rule.type).toBe('ai');
+    expect(level.geocity.beat).toBe(HIJACK_BEAT);
+  });
+});

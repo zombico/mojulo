@@ -11,7 +11,9 @@
 // (`window.__mojTaken`), and the runtime gets the driver in. With none spare, the farthest one left standing is reused.
 // MAYHEM (`mayhem`: a page whose bus listens for it, the law's wanted level, game/law-mechanics.js): a car taken from
 // the traffic presses `mayhem:carjack`; driven into one of the traffic's vehicles at speed, `mayhem:crash` (once a
-// while). Absent, not one byte.
+// while). Absent, not one byte. SEEN (`witness`, m: a city with beat patrols in its traffic, geocity/flow.js `beat`): a
+// carjack presses `mayhem:carjack` only where a patrol in the traffic, or an officer or a patrol car out, is this near
+// the take, else `carjack:unseen`, which raises nothing.
 // THE LAW'S CARS (`patrol`: entities with a `carBody`, gameworld/cars.js patrolCar): drawn the same way from the pooled
 // templates, in their livery, a light bar on the roof flashing red and blue. Absent, not one byte.
 // THE VIEW FROM BEHIND IT (`cabView`): a cab's follow camera framed by its size, so a big vehicle never hides the road
@@ -35,7 +37,15 @@ export function cabView(size, base, V = { see: 25, clear: 0.35, back: 3.5, look:
   const height = Math.max(base.height, ((H + V.clear) * (g + dist)) / (g + L / 2));
   return { dist: r3(dist), height: r3(height), lookH: r3(Math.max(base.lookH, H * V.look)) };
 }
-export function cabPoolScript({ mayhem = false, patrol = false, coat = false, gate = false } = {}) {
+/** Is a carjack at `at` SEEN (cab-pool's \`witness\`): a beat patrol among the traffic's hulls (`police`, geocity/flow.js
+ *  `beat`), or one of the law's bodies out (an officer, `police-<n>`, or a patrol car, a `carBody`), within `witness` m.
+ *  Pure; the page runs this source. */
+export function carjackSeen(hulls, entities, at, witness) {
+  const near = (p) => Math.hypot(p[0] - at[0], p[1] - at[1]) <= witness;
+  return (hulls || []).some((h) => h && h.police && near(h.p)) || (entities || []).some((e) => e && !e.gone && !e.dormant && (e.carBody || /^police-/.test(e.id)) && near(e.transform.pos));
+}
+
+export function cabPoolScript({ mayhem = false, patrol = false, coat = false, gate = false, witness = null } = {}) {
   return `
 // --- the city's cars as bodies: drawn from the pooled templates; one taken from the traffic ---
 (function () {
@@ -165,8 +175,12 @@ ${patrol ? `    // the law's cars: placed, turned, their lamps flashing turn abo
       if (spare.mount.camera) { spare.mount.base = spare.mount.base || { ...spare.mount.camera }; spare.mount.camera = Object.assign({}, spare.mount.base, cabView({ length: 2 * x.hull[1], height: tp && tp.boundingBox ? tp.boundingBox.max.z : 1.5 }, spare.mount.base, CAB_VIEW)); }
       spare.transform.pos[0] = x.p[0]; spare.transform.pos[1] = x.p[1]; spare.transform.pos[2] = x.p[2]; spare.transform.heading = x.heading;
       spare.speed = 0; spare.gone = false; spare.riderId = null;
-      W.mountPress = 1;${mayhem ? `
-      if (window.__mojBus && window.__mojBus.press) window.__mojBus.press('mayhem:carjack');` : ''}
+      W.mountPress = 1;${mayhem ? (witness ? `
+      // (SEEN or not, \`witness\`: a beat patrol in the traffic, or an officer or a patrol car out, this near the take; unseen,
+      // nothing is raised: geocity/flow.js beat)
+      const seen = (${carjackSeen.toString()})(W.trafficHulls, W.entities, pilot.transform.pos, ${witness});
+      if (window.__mojBus && window.__mojBus.press) window.__mojBus.press(seen ? 'mayhem:carjack' : 'carjack:unseen');` : `
+      if (window.__mojBus && window.__mojBus.press) window.__mojBus.press('mayhem:carjack');`) : ''}
     }
     prevN = n;${mayhem ? `
     // (driven into the traffic at speed: a crash, once a while)

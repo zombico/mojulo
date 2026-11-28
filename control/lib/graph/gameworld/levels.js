@@ -899,7 +899,17 @@ function policeCast(G, L, refs, hero) {
     const V = fleetOf(LAW.car.fleet)[0];
     for (const id of L.cars.ids) part.entities.push(patrolCar({ id, at: L.at, heading: L.heading, model: V.model, paint: V.paints[0], target: 'hero', roads: L.cars.roads, posts: L.cars.posts }));
   }
-  return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
+  // (A TAKEN CAR'S DRIVERS, law.js `drivers`: people of the city asleep and gone at the start, some to get out with their
+  // hands up and some to fight; worlds/controllable/drivers.js wakes one at a taken car's door)
+  let drivers = null;
+  if (L.drivers) {
+    const D = L.drivers, ids = { flee: Array.from({ length: D.flee }, (_, k) => `driver-flee-${k + 1}`), fight: Array.from({ length: D.fight }, (_, k) => `driver-fight-${k + 1}`) };
+    for (const id of [...ids.flee, ...ids.fight]) standFoe(G, part, { id, eid: D.eid, entry: B[D.eid], at: L.at, heading: L.heading }, { ref: refs?.[D.eid] ?? null, more: { dormant: true, gone: true, modeRefs: refs ?? {} }, ctx });
+    // (those who get out at a gun: their hands up and their heads down, the page's pose layer, POSE_LAYERS.surrender)
+    for (const e of part.entities) if (ids.flee.includes(e.id) && e.body) e.body = { ...e.body, layers: { ...(e.body.layers ?? {}), surrender: POSE_LAYERS.surrender.map((o) => ({ ...o, chain: [...o.chain], axis: [...o.axis] })) } };
+    drivers = ids;
+  }
+  return { ...part, ...(drivers ? { drivers } : {}), pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
 }
 
 // a job's giver: how far from the start it stands at the least (a short drive), how far from another giver, what it
@@ -1543,6 +1553,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // (a course with no hero to follow is run from the eye: said, since its tells and its thirds are laid for a chase)
   const eyed = stage.section === 'obstacles' && !((pilotPart.camera?.dist ?? 6) >= 1) ? [{ concern: 'obstacles', law: 'followed', holds: false, says: 'an obstacle course is read from behind its hero (the far end, the way coming, the figure: thirds of the screen); this world names no hero, so it is run from the eye. Name a hero and the camera follows it' }] : [];
   const allLaws = [...(course ? [...laws, ...course.laws.map((x) => ({ ...x, id: `course:${x.id}` }))] : laws), ...eyed];
+  // (a taken car's drivers, the law's: worlds/controllable/drivers.js reads them off the world)
+  if (lawPart?.drivers) manifest = { ...manifest, drivers: lawPart.drivers };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(allLaws.length ? { laws: allLaws } : {}), ...(course ? { course: course.plan } : {}) };
 }
 
@@ -1977,6 +1989,13 @@ export const POSE_LAYERS = Object.freeze({
     { pivot: 'upperArmL', chain: ARM('L'), axis: [1, 0, 0], deg: 25 }, { pivot: 'foreArmL', chain: [`handL`, ...FINGERS('L')], axis: [1, 0, 0], deg: 30 },
     { pivot: 'thighR', chain: LEG('R'), axis: [0, 1, 0], deg: -9 }, { pivot: 'thighL', chain: LEG('L'), axis: [0, 1, 0], deg: 9 },
   ],
+  // HANDS UP, HEAD DOWN (a taken car's driver at a gun, worlds/controllable/drivers.js `surrender`): each upper arm out to
+  // its side, its forearm up, so the hands stand over the shoulders; the head bowed
+  surrender: [
+    { pivot: 'upperArmR', chain: ARM('R'), axis: [0, 1, 0], deg: -80 }, { pivot: 'foreArmR', chain: [`handR`, ...FINGERS('R')], axis: [0, 1, 0], deg: -85 },
+    { pivot: 'upperArmL', chain: ARM('L'), axis: [0, 1, 0], deg: 80 }, { pivot: 'foreArmL', chain: [`handL`, ...FINGERS('L')], axis: [0, 1, 0], deg: 85 },
+    { pivot: 'neck', chain: ['head', 'jaw'], axis: [1, 0, 0], deg: -28 },
+  ],
 });
 /** The SHEATHED HERO an action hero's world makes beside the equipped one (gameworld/runner.js `hero-sheathed`): its spec
  * with the right hand's blade on its back (polygonizer/hero-gear.js `back`: hilt up over the right shoulder; at the
@@ -2355,7 +2374,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     const ids = Array.from({ length: policeCount(law) }, (_, k) => `police-${k + 1}`);
     // (its cars: one a star while the law has them, kept to the district's streets, set down at their junctions)
     const roads = ends.roads ?? [], nc = roads.length >= 2 ? policeCars(law) : 0, cars = Array.from({ length: nc }, (_, k) => `police-car-${k + 1}`);
-    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(law.armed ? { armed: { from: law.armed, per: law.per, eid: law.armedId } } : {}), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
+    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(law.armed ? { armed: { from: law.armed, per: law.per, eid: law.armedId } } : {}), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}), ...(law.drivers ? { drivers: { eid: law.drivers.id, flee: law.drivers.flee, fight: law.drivers.fight } } : {}) };
     mechanics.push({ kind: 'wanted', police: ids, ...(nc ? { cars } : {}), per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
   }
   // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop

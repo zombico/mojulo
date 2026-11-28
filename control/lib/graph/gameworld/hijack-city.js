@@ -98,6 +98,10 @@ export const HIJACK_REQUESTS = Object.freeze([
   Object.freeze({ id: 'park-litter', kind: 'park', from: 'The Residents\' Association (all three of them)' }),
 ]);
 
+/** The law's cars cruising the district before anyone is wanted (geocity/flow.js `beat`): a carjack within their sight
+ *  raises the wanted level, and one out of it is got away with. */
+export const HIJACK_BEAT = 2;
+
 /** How many stars are hidden round the district (gameworld/hidden-stars.js): found by looking, kept in the bag. */
 export const HIJACK_HIDDEN = 10;
 
@@ -163,7 +167,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
   // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
   const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
-  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, office: true, cityhall: true, enter: [...HIJACK_ENTER], ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
+  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, office: true, cityhall: true, beat: HIJACK_BEAT, enter: [...HIJACK_ENTER], ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
   if (district.museum === undefined) delete district.museum;
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
@@ -201,7 +205,8 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
     // streets walked to shady lo-fi with the chase over it, its screens to the mirror, vibrant: beats/club-score.js)
     minigames: HIJACK_MINIGAMES.map((g) => ({ ...g })),
     sound: { bed: 'block' }, music: { cues: { 'level:district': 'shady', title: 'vibrant', menu: 'vibrant' } },
-    law: true,
+    // (a car taken from the traffic has its driver, who gets out: hands up at a gun, else fists up; worlds/controllable/drivers.js)
+    law: { drivers: true },
     // (a forger too: the papers the heavy vehicle call asks for, HIJACK_SHIFTS)
     shops: { respray: true, guns: true, forger: true },
     municipal: { requests: HIJACK_REQUESTS.map((R) => ({ ...R })) },

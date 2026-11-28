@@ -1479,6 +1479,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and a land's: a trail's rockfall, its trees' fallen wood, its drifts, a cave's heaps, each named on its faces)
     const looseLand = destruction && destruction !== 'none' ? landLoose(payload.faces || []) : null;
     if (looseLand) { payload.faces = looseLand.faces; payload.loose = [...(payload.loose || []), ...looseLand.loose]; }
+    // (A TAKEN CAR'S DRIVERS, worlds/controllable/drivers.js: the level's pool of them, its world's own)
+    if (sketch.manifest.drivers) payload.drivers = sketch.manifest.drivers;
     // A MOVER'S HOUSE (worlds/controllable/heave.js, a stage's `heave`): every piece of its rooms liftable, each its
     // collider's box and its faces a render group of its own (`heave:<id>`, the page moves it as the runtime carries it);
     // `pieces: 'props'` every solid prop the stage stood (but its plot's own: a find, a prize, a sign), else the ids named.

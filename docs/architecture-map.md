@@ -207,6 +207,11 @@ Pointers only; each target carries its own design notes.
   a zoo's pens, `era/zoo.js`, a row each of `geocity/walkins.js`): the front `geocity/museum.js`, the program
   `era/programs.js` `museum`, the plinths [era/exhibits.js](../control/lib/graph/era/exhibits.js), the door
   `gameworld/levels.js` `museumDoor`: [docs/museum.md](museum.md).
+- A taken car's driver (out of the open door as a car stopped in the traffic is taken: hands up and running off at a
+  gun, fists up without one): [worlds/controllable/drivers.js](../control/lib/graph/worlds/controllable/drivers.js), an
+  opt-in runtime builder after the mount; the pool of them the law's (`gameworld/law.js` `drivers`, `levels.js`
+  policeCast), the hands-up pose `levels.js` POSE_LAYERS `surrender`; beat patrols among the traffic (`geocity/flow.js`
+  `beat`) and the witness a carjack is seen by (`scene/channels/cab-pool.js` carjackSeen).
 - The movers (a house emptied into a moving truck: any piece lifted whole and carried in the hands, through any door, up
   and down any stair): the lifting [worlds/controllable/heave.js](../control/lib/graph/worlds/controllable/heave.js), an
   opt-in runtime builder, and its page view `scene/channels/controllable/heave-view.js`; the house `era/programs.js`
