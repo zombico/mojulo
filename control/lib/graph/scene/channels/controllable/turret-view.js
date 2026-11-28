@@ -270,6 +270,8 @@ function __tvAimPip(g) {
   __tvPV.project(camera);
   const on = __tvPV.z < 1 && Math.abs(__tvPV.x) <= 1 && Math.abs(__tvPV.y) <= 1;
   __tvPip.style.display = on ? 'block' : 'none';
+  // (a gunner seat's aim, turret.js seats.crew: the pip in the gunner's seat colour, so the couch reads whose gun it is)
+  if (__world.crewGun && typeof __SK !== 'undefined' && !__TV.pipTint) { __TV.pipTint = true; __tvPip.style.borderColor = __SK.SEAT_COLORS[__world.crewGun - 1]; }
   if (on) { const x = (__tvPV.x + 1) / 2 * innerWidth, y = (1 - __tvPV.y) / 2 * innerHeight; __tvPip.style.left = x + 'px'; __tvPip.style.top = y + 'px'; __TV.pip = [Math.round(x), Math.round(y)]; } else __TV.pip = null;
 }
 // THE BASE HEARD (the world's audio.base, the artillery range's): its engine held and driven by its speed (idling

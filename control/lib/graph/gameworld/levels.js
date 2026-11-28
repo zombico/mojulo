@@ -1626,7 +1626,8 @@ function seatPart(G, pilotPart, ends, lane) {
  * the gunner's right stick slews it, its trigger fires; the driver's stick drives), a seat with no body of its own. With
  * nobody in seat 2 the driver's hand has the gun. Shared lives where the cube says soul.pool shared. Any other ride, or
  * none said, lays the level as it was. */
-const CREW_TURRET = Object.freeze({ mount: { at: [0, 0, 1.7], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 } });
+// (the one screen is the driver's: the chase behind the hull, the gun's aim a pip in the gunner's colour, turret-view.js)
+const CREW_TURRET = Object.freeze({ mount: { at: [0, 0, 1.7], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 }, look: { view: 'chase', size: 2 } });
 const CREW_GUN = Object.freeze({ ...SHOOT.gun, auto: true, cooldown: 0.15, magazine: 40, reload: 2.5, range: 40 });
 function crewPart(G, pilotPart) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
