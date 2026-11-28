@@ -34245,6 +34245,116 @@ for an object, `create_character({ from })` for a character. Mojulo reads the fi
 - A frame operation's task alarm (`tasks[].alarm`) is a warning now, where it was a banner, a borrowed missile beep and a
   flash.
 
+### The crag: a rock in the belt broken up, cover from what is overhead
+
+- A frame field's form `crag` (`assault-frame/field.js`; its battlefield cube `belt-crag`, `assault-frame/geocubes.js`;
+  its card `crag`, `local-meru/massif.js`): the belt asteroid's charcoal rock and black sky, broken up into tall spurs
+  and blocks of rock, benched to climb, clefts between them, ledges and scatter on the floor, round an open middle with a
+  crater in it. The cover a frame needs from a ship fighting it from overhead: some nine percent of it stands over 25 m
+  above the floor (the asteroid's, under half a percent), its tallest rock near 57 m, its middle open for what is
+  defended there.
+
+### A frame operation's crew, the Iron Rose, and aviators on the realistic head
+
+- An operation's crew (`gameworld/frame-goal.js` `CREW`): people off the field for its scenes, each a character from the
+  hero door's words (inline, built by the world as any figure is), stood at a place and raised high over it (out of the
+  fight's sight), turned, on a bridge set where it has one (groundforce/ `bridge-set`: a back wall of three dark
+  viewports in their frames, lit consoles each side, a chair), so the live face the talk box draws as they speak
+  (scene/channels/talk-face.js) has the bridge behind it. Each a speaker in the script under its name, and a spot of its
+  own for the scenes' shots. Captain Quattro Petersen is the first: the realistic head, long blonde hair, aviators.
+- The Iron Rose (groundforce/ `iron-rose`, a prop that flies): the company's mining tender, some 160 m as drawn, an
+  off-white hull banded in steel blue, a raised bridge forward with its windows lit warm, two cable gantries amidships
+  with their drums and cables, cradles under its belly, radiator fins, three drive bells aft.
+- Aviators (headgear/ `aviators`): two broad dark lenses in a thin gold frame, a bridge between them, arms back to the
+  ears. On the stylized heads the eyegear kit's (a goggles outline, no strap, arms); on the realistic head a pair of
+  teardrop lenses cut from the face shield (headgear/realistic.js, a shield's `lenses`: each at its eye, its foot fuller
+  toward the outside, in a rim of the trim, a bridge across between them, the strap its arms). Before this no eyewear
+  fitted the realistic head but the shooter's wrap.
+- A speaker's portrait (`gameworld/script.js`, a script speaker's `portrait`: a small still of their face, a data URI of
+  at most 60 KB carried in the recipe): the comms box draws it in place of the initials on their colour
+  (`scene/channels/comms.js`). A captain heard over the radio costs a few kilobytes, not a character's twelve megabytes:
+  Captain Quattro speaks so in level 2, his still a screenshot of his realistic hero.
+
+### Defend the asset: a frame operation's props with armour, the foes sent at them, a task that keeps them up
+
+- An asset (`gameworld/frame-goal.js` `GUARD`): a frame operation's prop given armour (`props[].hp`, and its `name` for
+  the HUD) is the foes' to hit: it is a ward (`body.ward`), so the pilot's side's rounds and blasts go through it
+  (`worlds/controllable/combat-ranged.js`) and the pilot's lock passes it over. The Roman Candles burning on a rock
+  being pushed are the first.
+- Foes sent at it: a group's `target: <prop id> | [ids]` sets its units' minds on the nearest of them standing
+  (`worlds/controllable/mind.js`: a target policy of ids, falling back to the pilot once they are all down), and a flier
+  sent at one flies on it (`rules-frame.js` frame flight).
+- A task that keeps it up: a task's `guard: [prop ids]` lowers to the objectives' `keep` (`game/objectives.js`, on any
+  task): one of them down while the task is in hand loses the level, or, where the level retries, begins the task again
+  with the assets stood up whole, the task's foes back where they stood.
+- The frame HUD shows what is guarded (`scene/channels/controllable/frame-hud.js`): each asset's name and armour down the
+  left, flashing red as it is hit and struck through when it is lost, and a mark over each on the screen.
+- The world keeps a frame field's own fields on a body (`rules-frame.js`, a normalizer): an asset's `guard`, so the HUD
+  finds it in play (the world drops what no module names, and had dropped it), a ship's `ship`, a part's `perch`, and
+  `shielded`.
+
+### Frames that fight as one: the cosmos mind facet's squad on the frame rule
+
+- A squad of enemy frames (`worlds/controllable/rules-frame.js` `squadPlan`; a mind's `squad` { id, way }, the cosmos
+  mind facet's squad; a frame group's `squad`, `gameworld/frame-goal.js` `SQUAD_WAYS`): its mates the frames of its id
+  standing. A `pack` goes at one foe, the pilot, from both sides of it, the nearer pressing in and the other keeping its
+  range, so a pilot that turns on one gives its back to the other. A `team-aware` squad splits the pilot's side between
+  it, one to the pilot and one to each wingman. Either way a mate that reels (a broken bar, the stagger build-up) is
+  covered: the mate nearest it turns on whoever is closest over it and goes in boosting, everything it has. The pair's
+  focus: break one and the other comes for you.
+
+### The patrol ship: a building-sized boss over a frame's field, fought in two steps
+
+- A frame operation's `ship` (`gameworld/frame-goal.js` `SHIP`): a Rock Hydra patrol ship, some 110 m long as drawn,
+  hanging on four lift pods over the field (`groundforce/` cards `patrol`, `patrol-pod`, `patrol-gun`: parts of one
+  boss, never on a stage's shelf). Its pods and its gun turrets are bodies of their own perched at their places on the
+  hull and carried with it (`worlds/controllable/rules-frame.js` `frame-perch`, a body's `perch`).
+- Fought in two steps, each a task's, by its two groups `<id>-pods` and `<id>-guns`: its pods first; with them all down
+  it sinks, listing, to a fraction of its height over `fall` s (crippled, `frame-ship`); then its guns, shielded until
+  the task that downs them begins (the cast's `expose` op) and each rebuilt after the ship's `regen` s unless every one
+  is down together. It comes with its task (`comes`), asleep till then. Its bar on the HUD under its name, its armour
+  the sum of its pods' and guns' standing, falling with them and rising as a gun comes back; the pilot's lock never
+  takes the hull (a body's `noLock`), only its parts.
+- A clear's `regen` (`game/objectives.js`, on any clear): each foe it downs comes back whole after its seconds while the
+  task is in hand, its count taken back, so the task is met only by every one of them down together.
+- Heard: a lift pod's drive held under it, a turret's heavy rounds, each a wreck as it goes (`sfx-shelf/frame-sounds.js`).
+- The frame HUD's boss bar reads a body with no rule of its own (the ship's hull).
+- The holo table's briefing knows the ship's two groups (`gameworld/frame-map.js`: a part group's bodies by its ship's
+  names) and draws them, a lift pod as a gunship and a turret as a turret (`campaign/holo-minis.js`); a spider bot has its
+  own miniature, a low body on six splayed legs.
+- The hull's hover over the field is a body's `overfield`, not `ship`: a starfighter carries its systems as `ship`
+  (rules-starfighter.js), and the hover had pinned a flown level's craft over the ground (a cockpit sortie's foes out of
+  its pilot's reach).
+
+### Spider bots: a crawler on the ground of a frame's field
+
+- A spider bot (`groundforce/` `crawler`): a low armoured crawler on six high-kneed legs, a red-eyed wedge of a head
+  with mandibles and a lit plasma cutter between them (the end it leads with), an orange abdomen behind so it reads on
+  grey rock. Each leg is its own bone; the figure's stride clip swings them about their hips in two tripods half a
+  stride apart and lifts each as it comes forward (`CRAWL`, `crawlClip`): a card with `legs` walks.
+- On a frame operation (`gameworld/frame-goal.js` `OPERATION.units.crawler`, the group kind `crawler`): quick on the
+  ground, closing right in to cut at what it is sent at (a group's `target`) with short hot plasma, cutting upward at a
+  tall thing's middle from under it (a unit's own `fireArc`). Kept on the land under it as it goes over the hills, its
+  legs walked by the ground it covers (`worlds/controllable/rules-frame.js` `frame-crawl`).
+- Heard (`sfx-shelf/frame-sounds.js` `FRAME_UNITS.crawler`): its cutter crackling as it cuts, its legs' servos whining
+  as it comes, a small blast as it goes.
+
+### Stagger build-up: a frame's bar kept under pressure, and two seconds of a frame stood still
+
+- A frame's stability bar builds under fire (`worlds/controllable/rules-frame.js`, `STAB`; a built frame's
+  `stab.hold`, `assault-frame/assemble.js`): it comes back on its own only once the frame has gone `hold` s unhit (1 s),
+  so fire kept on a frame breaks it where scattered hits never did (the bar had come back the moment a round landed,
+  faster than a rifle could chip it).
+- Broken, a frame reels for 2 s (it was 1.6) stood still: braked where it broke (`stab.brake`, its way checked by 8 a
+  second), no keys, no guns, no dodge, still coming down if it was in the air; every hit on it lands 1.5 times as hard
+  as before. Two seconds of a target that neither moves nor dodges, the moment to land everything.
+- How a weapon hits (`assault-frame/parts.js` `IMPACTS`, a weapon's `impact`): ballistic rounds (rifle, shotgun,
+  gatling, bazooka, mortar, missiles) build the bar fastest, a rifle or a gatling kept on breaking a medium frame in two
+  to four seconds; energy weapons (the laser, the plasma cannon) build a fraction of that for their damage; a blade's blow
+  shoves (melee); `stun` is reserved for weapons made to break the bar. The shelf's numbers are retuned to it.
+- Every frame on every level plays by it: the pilot's, an enemy frame's, an ally's, a level 1 survey's and a Warlords
+  operation's.
+
 ### Couch doors: the couch games asked for by name
 
 - A party round is a quick game of its own (`goal: 'mash'`): two to four players in an arena, each mashing to out-press
