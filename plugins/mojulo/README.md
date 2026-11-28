@@ -18,12 +18,10 @@ lockfile the plugin ships, `package-lock.json`, when you add or update the plugi
 that tells Claude to start from mojulo's routing index, and a skill for each way in: make a character,
 design a game, design an object, make a 3D exhibit, design a building and design an interior, each
 loaded when you ask for that thing in your own words (or by name, as `/mojulo:design-game`). It also
-adds two subagents that make your
-usage limits go further: `mojulo-runner` runs light, decided calls (exports, measures, lists) on
-Haiku, and `mojulo-maker` writes or revises one recipe on Sonnet, while design (games, plans,
-publications) stays with your main session. Each subagent can call only the mojulo tools its tier
-allows. A third skill, `/mojulo:inference-worker`, answers light inference tasks for your mojulo apps
-on Haiku when you start it with `/loop`. Nothing in this folder runs code of its own: no hooks, no scripts. The server is the npm package built from
+adds two subagents that make your usage limits go further: `mojulo-runner` runs light, decided
+calls (exports, measures, lists) on Haiku, and `mojulo-maker` writes or revises one recipe on
+Sonnet, while design (games, plans, publications) stays with your main session. Each subagent can
+call only the mojulo tools its tier allows. Nothing in this folder runs code of its own: no hooks, no scripts. The server is the npm package built from
 [github.com/zombico/mojulo](https://github.com/zombico/mojulo). It works in Claude Code and in
 Cowork sessions on your computer, and needs Node.js 22.14 or newer.
 
@@ -66,7 +64,9 @@ claude mcp remove mojulo -s user
 - **About 350 MB of disk**: about 260 MB installed in Claude Code's plugin cache (the package and its
   dependencies) and the npm cache beside it. Adding the plugin downloads about 85 MB from
   registry.npmjs.org, the 11.6 MB package included (measured for 3.1.1 on Linux x64); Claude Code
-  installs it once per plugin version, and later sessions start at once.
+  installs it once per plugin version, and later sessions start at once. The 3.2 package is about
+  twice that size (an estimate from source; it is measured again when 3.2.0 is published), so on a
+  slow link see [If the install doesn't finish](#if-the-install-doesnt-finish).
 - **For renders** (motion, proving a game level can be finished, a PNG still): a Chrome, Chromium,
   Microsoft Edge or Brave you already have, or `MOJULO_CHROMIUM` naming one. **For MP4**: an ffmpeg
   you already have, or `MOJULO_FFMPEG`. The plugin never downloads either; without one, the tool
@@ -75,6 +75,9 @@ claude mcp remove mojulo -s user
   installs them.
 
 ## Try it
+
+With nothing in mind yet, ask "what is this?": Claude offers five ways to start (a character, a game, an
+object, a 3D exhibit, or a home or a room) and the skill for each takes it from there.
 
 Each of these works on a fresh install. The result names the file it wrote under
 `~/.mojulo/data/`.

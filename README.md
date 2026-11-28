@@ -14,13 +14,24 @@ You talk to the agent you already use: Claude Code, Codex, the Claude app, ChatG
 
 ## Get started
 
+**In Claude Code**, add the plugin:
+
+```
+/plugin marketplace add zombico/mojulo
+/plugin install mojulo@mojulo
+```
+
+Claude Code installs mojulo itself, and the plugin adds a skill for each way in ([plugins/mojulo](plugins/mojulo/README.md)). In the Claude app it is under **Customize > Plugins**.
+
+**Any other agent** (Codex, Claude Desktop, Hermes, any MCP host):
+
 ```bash
 npx mojulo init
 ```
 
-You need **Node 22.14+** and an agent that speaks MCP. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Then start a fresh agent session and ask for something: **"build a plywood chest of drawers"**, **"a longsword and a shield"**, **"a lake in the hills at sunset"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour.
+You need **Node 22.14+**. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Use the plugin or `init`, not both. In ChatGPT: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
 
-In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo` ([plugins/mojulo](plugins/mojulo/README.md)). Use the plugin or `init`, not both. In ChatGPT: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
+Then start a fresh agent session and ask for something: **"build a plywood chest of drawers"**, **"a longsword and a shield"**, **"a lake in the hills at sunset"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour: with nothing in mind yet, it offers five ways to start (a character, a game, an object, a 3D exhibit, or a home or a room).
 
 Nothing on your machine at all? In the Claude app, Grok chat, Google AI Studio or Meta Muse, tell the agent: *Open a Linux box and install the mojulo npm package in it.* In ChatGPT, say the same in work mode. [More on where it runs.](#where-it-runs)
 
@@ -28,7 +39,7 @@ Nothing on your machine at all? In the Claude app, Grok chat, Google AI Studio o
 <summary>Wire it by hand</summary>
 
 ```bash
-# Claude Code (--scope user makes mojulo available in every project):
+# Claude Code without the plugin (--scope user makes mojulo available in every project):
 claude mcp add --scope user mojulo -- npx -y mojulo
 
 # Codex: add to ~/.codex/config.toml
@@ -45,9 +56,14 @@ args = ["-y", "mojulo"]
 
 Open the dashboard on its own with `npx -y mojulo-ui`.
 
-**Upgrading from 2.x?** Read [Upgrading from 2.x](control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.x on its next start, and 3.x re-encrypts saved provider keys so 2.x can no longer read them. The 2.x versions are unmaintained and have known security issues ([SECURITY.md](SECURITY.md#known-issues-in-2x)).
-
 </details>
+
+## How a session goes
+
+- **Say what you want, or pick a start.** A thing asked for plainly is made at once.
+- **Bring what you have.** Sketches, a floor plan, a document, a photo, lore, rules, a 3D model you already own. Each one is used, or you are told why it was set aside; nothing is quietly dropped, and you are not asked again what it already said.
+- **For a game, a home or an exhibit, a few questions first.** One at a time, only what you alone can answer, then it says back what it will make before it makes anything.
+- **Look, play, change it by asking.** Everything that uses what you changed changes with it.
 
 ---
 
@@ -61,7 +77,7 @@ Start small and go as far as you like: an object, the gear a hero carries, the h
 
 <sub>"Build a plywood chest of drawers, 900 wide, four drawers."</sub>
 
-Anything you can describe, at its real size, down to the pieces it is made of. Furniture you can actually build, with its cut list, hardware list and assembly order; a bracket for your shelf, or a Raspberry Pi case with standoffs on its mounting holes and cutouts for its ports. Print it at true size, or keep it as an OpenSCAD program you go on editing.
+Anything you can describe, at its real size, down to the pieces it is made of: furniture you can build, with its cut list, hardware and assembly order; a bracket for your shelf; a Raspberry Pi case. Print it at true size, or keep it as an OpenSCAD program you go on editing.
 
 ### Game items
 
@@ -69,41 +85,21 @@ Anything you can describe, at its real size, down to the pieces it is made of. F
 
 <sub>"A longsword, a mage's staff, a shield and a bow" · "a revolver, a pulse rifle, a railgun and a vibroblade."</sub>
 
-The gear a hero carries: swords, staffs, shields and bows, in a historical, elven or dwarven style; handguns, rifles, shotguns and knives, modern or from the near and far future, in the finish you name. The vehicles they drive: karts, supercars and race machines, aircraft and boats, trains, walking mecha. The props that fill a level. Every item comes ready for a hero's hand or a level's floor. More: [flight](docs/flight-games.md).
+Swords, staffs, shields and bows in a historical, elven or dwarven style; guns and knives, modern or from the future, in the finish you name. Karts, supercars, aircraft, spacecraft, boats, trains and walking mecha. The props that fill a level.
 
 ### Characters
 
-Heroes in a realistic, cartoon or anime look, with faces that act. Hair, clothes, armour, shoes and the gear they carry, all fitted to the body. Named heroes with their emblems, enemy crews, and animals mid-stride. Every character comes rigged and animated, ready for a game or for your 3D tools. More: [the realistic body](docs/realistic-body.md), [garments](docs/garment-principles.md), [armour](docs/plating.md).
+Heroes in a realistic, cartoon or anime look, with faces that act; hair, clothes, armour and gear fitted to the body; creatures and animals mid-stride. Every character comes rigged and animated, ready for a game or your 3D tools. Bring a model of your own (GLB, VRM, glTF, OBJ, STL) and it is read, measured and rigged as a body or a mascot. More: [the realistic body](docs/realistic-body.md), [garments](docs/garment-principles.md).
 
-### Environments and levels
+### Homes and rooms
 
 ![A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it. The house is built from the picture, and the living room, the dining room and the big bedroom are designed; asked for sage green walls and the sofa facing the windows, the living room is repainted and rearranged, shown from eye level before and after; then a walkthrough of the three rooms is filmed](docs/images/decor-demo.gif)
 
 <sub>"We just moved in, here's our floor plan! Some ideas for how we could live in it?"</sub>
 
-**Rooms.** Send a picture of your floor plan and you get your house, built to the inch, each room designed in a style, a palette and furniture at true size, with the walkways kept clear. Ask for sage green walls and you see the room before and after.
+A room to redo, the home you moved into, a house from nothing, a shop or a café to fit out. Send a picture of your floor plan and you get your house built to the inch, each room designed in a style and a palette with furniture at true size. Ask for sage green walls and you see the room before and after. Bigger buildings are planned before they are built: a multi-level base, an office, a torch-lit dungeon ([the long tour](docs/tour.md#a-facility-planned-before-it-is-built) shows one).
 
-**Interiors, planned before they are built.** Ask for a facility, say a military base with a hangar, barracks, an armoury and a reactor plant at its heart, each unlike the last, and you see the plan first: the way in from level to level, and each level's walls, floors, paint and light as the build will lay them. Nothing is built until you say yes.
-
-| | |
-|---|---|
-| ![The plan's "To the core" page: the four levels drawn as rings around the reactor at the centre, each stair or door on its join, beside a table of each level's look as colour swatches and the design rules the plan holds](docs/images/wcd-demo-book.png) | ![One level's finishes, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band, each a tile of its material with its size, and the colours of its lights](docs/images/wcd-demo-finishes.png) |
-
-<sub>The plan you approve: the way in, level by level, and one level's materials and light.</sub>
-
-Then it is built to that plan, each level in its own materials, and stocked for what it is: bunks and footlockers in the barracks, weapon racks in the armoury, sandbags at the guard posts, an extinguisher by every door.
-
-| | |
-|---|---|
-| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
-| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor: board-formed concrete, yellow and green steel on its columns, a cable along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) |
-| ![The reactor plant's generator hall: white panels, a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](docs/images/wcd-demo-reactor-corridor.jpg) |
-
-<sub>"I'm making a stealth game. Build me a multi-level military base to infiltrate": the hangar, the barracks, the armoury and the reactor plant, as built.</sub>
-
-Or start from a sentence: a six-storey building with a penthouse, an office, a warehouse, a torch-lit dungeon.
-
-**Terrain.** Grown from a sentence, with its hills, rock, water, grass and trees, at any hour of the day. Choose how real it looks, from the painted look of a sixth-generation console game to the grass, leaves and textured rock of a seventh. Rock, sand or snow underfoot; caverns, islands, planets, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)), cities at real scale in the style of New York, Paris, London or Tokyo. Ask for the same place again and you get the same place, on any machine.
+### Worlds
 
 | | |
 |---|---|
@@ -111,19 +107,24 @@ Or start from a sentence: a six-storey building with a penthouse, an office, a w
 
 <sub>"A lake in the hills at sunset," in a sixth-generation look and a seventh.</sub>
 
-### Interactive worlds
+Terrain from a sentence, from the painted look of a sixth-generation console game to the grass, leaves and rock of a seventh; caverns, islands, planets; a historic city in its period; cities at real scale in the style of New York, Paris, London or Tokyo. Walk them in the browser, and turn on destruction: glass shatters, brick blasts apart, and what loses its support comes down under its own weight. Give them a score and sound made from scratch, and film them: flythroughs and cutscenes with actors who play a role from a script. More: [destructible environments](docs/rupa.md), [cinematics](docs/cinematics.md).
 
-Worlds you walk through in the browser, and worlds that react. Turn on destructible environments and things break by what they are made of: glass shatters, brick and concrete blast apart, timber chips and steel dents, and what loses its support comes down under its own weight, crushing what it lands on. Explosions crater the ground, and you can dig it. Buildings, walls, trees and terrain all take part, and the same blast gives the same collapse every time.
+### 3D exhibits
 
-Give your worlds music and sound: a score and sound effects made from scratch, with no samples. Film them: flythroughs, a walkthrough of your rooms, and cutscenes with actors who play a role from a script, talk to each other and hit their marks, shot the way a director would cover them. More: [destructible environments](docs/rupa.md), [cinematics](docs/cinematics.md).
+A concept to show a class or a gallery, fitted to who comes and how long they have: one exhibit, a guided tour, or a gallery of rooms. Science demos run on real laws; your knowledge stays yours, and nothing is claimed for you.
 
-### Playable games
+---
 
-Ask for a game and you get one you can play: its levels, its hero, its enemies, how it plays and sounds, its cutscenes. You see the plan first and approve it. Stealth, racing, shooters, flight, fighting, rhythm, sports, board and strategy games, and a pen-and-paper RPG with its printed game book. Controls that feel right, enemies from grunts to a boss at the end, and two to four players on one screen. Every level is played through to its win before you get it.
+## Games: from an idea to a first level you play
 
-It plays in the browser as it is, or as a desktop app that runs offline. For a team, its levels and assets open in Godot, Unity, Unreal or Blender, and handing it over again after a change keeps the team's own work in the scene. More: [foes](docs/foes.md), [local multiplayer](docs/local-multiplayer-principles.md), [the table RPG](docs/table-rpg.md), [sports broadcasts](docs/broadcast.md).
+Bring an idea, a sketch, a map or a design document. In one session the agent takes it to a first level: who is in it, what the player does again and again, the level built, how it feels. Every level is played through to its win by the machine before you get it; whether it is the game you want is yours to say, by playing it.
 
-**Also:** a science world, a room's layout from a photo, a picture of anything you are making from any angle. More in [docs/tour.md](docs/tour.md).
+- **Start from a kind of game you know.** A platformer, a side-scrolling run and gun or beat-em-up, a metroidvania, a party RPG or an action RPG, a stealth mission, a first-person or arena shooter, flight and space combat, mech action, racing, fighting, sports, rhythm, puzzle, farming, tower defence, strategy, a board game, a pen-and-paper RPG with its printed game book. It is a template; the game is yours. [What can be made today](docs/tool-surface/hillclimb.md#the-genre-probes).
+- **Or say it in one sentence** and get a whole first game to change: "a split screen deathmatch for four friends", "a stealth game: sneak past the guards to reach the exit".
+- **It comes as a game:** a start screen, menus, a HUD, pause, results between levels and the next level after. Enemies from grunts to a boss; two to four players on one screen or split screen.
+- **Take it where you need it.** Play it in the browser, ship it to the web or as a desktop app that runs offline. For a team, its levels, characters and animation open in Godot, Unity, Unreal or Blender, and handing it over again after a change keeps the team's own work in the scene.
+
+More: [from nothing to a first level](docs/zero-to-level-one.md), [foes](docs/foes.md), [local multiplayer](docs/local-multiplayer-principles.md).
 
 ---
 
@@ -169,6 +170,8 @@ It is for one person on their own machine, reachable only from localhost; don't 
 ## How it works
 
 Everything you make is kept as a small recipe, not a heavy file. Your agent writes it; mojulo builds the real thing from it, the same way every time. That is why you can change anything by asking, why every place a piece shows up stays in step, and why something made in a throwaway box rebuilds the same at home. For the details: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md), [docs/tech-requirements.md](docs/tech-requirements.md), [AGENTS.md](AGENTS.md) (non-Claude hosts).
+
+**Upgrading from 2.x?** Read [Upgrading from 2.x](control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.x on its next start, and 3.x re-encrypts saved provider keys so 2.x can no longer read them. The 2.x versions are unmaintained and have known security issues ([SECURITY.md](SECURITY.md#known-issues-in-2x)).
 
 ## Where the defaults come from
 
