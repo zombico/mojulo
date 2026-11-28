@@ -76,6 +76,9 @@ claude mcp remove mojulo -s user
 
 ## Try it
 
+With nothing in mind yet, ask "what is this?": Claude offers five ways to start (a character, a game, an
+object, a 3D exhibit, or a home or a room) and the skill for each takes it from there.
+
 Each of these works on a fresh install. The result names the file it wrote under
 `~/.mojulo/data/`.
 
