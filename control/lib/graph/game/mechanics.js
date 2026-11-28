@@ -470,9 +470,13 @@ const MECHANICS = {
         // (taken once, by any seat into the one count: its reactions while its zone is on, the zone shut last; walked back
         // over, nothing more, 11-28) (the coin heard: its chime)
         const g = whileOn(zone);
-        world.reactions.push({ on: 'enter', match: { zone }, ...g, do: 'emit', type: 'coin' }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: 'coins', by: 1 }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: run, by: 1 }, { on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+        world.reactions.push({ on: 'enter', match: { zone }, ...g, do: 'emit', type: 'coin' }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: 'coins', by: 1 }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: run, by: 1 });
+        // (seats, 11-28: each coin its taker's too, `coins:<n>`, beside the one count: a score a seat)
+        if (seated(ctx)) takers(ctx).forEach((ent, k) => world.reactions.push({ on: 'enter', match: { zone, entity: ent }, ...g, do: 'inc', var: `coins:${k + 1}`, by: 1 }));
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
       });
       world.reactions.push({ on: 'oneup', do: 'set', var: run, to: 0 });
+      if (seated(ctx)) takers(ctx).forEach((_, k) => { world.vars[`coins:${k + 1}`] = 0; world.hud.push({ var: `coins:${k + 1}`, label: `${SEAT_LABELS[k]} coins`, as: 'counter', slot: SEAT_CORNERS[k + 1], color: SEAT_COLORS[k] }); });
       return { world, emits: ['coin', 'oneup'] };
     },
   },
