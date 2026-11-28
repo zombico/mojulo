@@ -260,6 +260,7 @@ export const QUICK_GOALS = Object.freeze({
   reach: 'reach the stage\'s end: a trail\'s exit, or a climb\'s top',
   collect: 'collect what lies along the way (on the trail\'s beats), and reach the end',
   survive: 'stay on the stage until the clock runs out',
+  mash: 'a party round for two to four players (players): each mashes A to out-press the others before the horn, seen from overhead; or a race to a count (to)',
   avoid: 'reach the end past its hazards (the water a trail crosses), with hp to spare',
   race: 'run the trail\'s checkpoints in order (its beats) to the finish (its end), against the clock; the best time is kept. On a loop (track), laps round it; with rivals, finish on the podium',
   sneak: 'reach the end past guards who keep the trail, sweeping their gaze: seen, and it is over',
@@ -315,7 +316,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'cooks', 'kitchen', 'shifts', 'armed', 'guns', 'street', 'heroes'];
+const KEYS = ['to', 'mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'cooks', 'kitchen', 'shifts', 'armed', 'guns', 'street', 'heroes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -432,6 +433,15 @@ export function readQuick(Q) {
     if (Q.climb || Q.building !== undefined) throw fail('.ride drives a trail: no climb, no building');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.ride is followed from behind (camera third-person)');
   }
+  // THE PLAYERS (a couch game on one level: the seats, docs/local-multiplayer-principles.md; intent.js cubeOfWorld seats
+  // them): a party round's, a deathmatch's (each against each; split in first person), a ride's (a driver and a gunner)
+  if (Q.players !== undefined && Q.goal !== 'meet' && Q.goal !== 'contest' && Q.goal !== 'tabletop') {
+    if (!(Number.isInteger(Q.players) && Q.players >= 2 && Q.players <= 4)) throw fail('.players is 2 to 4: the couch\'s seats, a controller each');
+    if (Q.goal !== 'mash' && Q.goal !== 'deathmatch' && Q.ride === undefined) throw fail('.players seats a party round (mash), a deathmatch or a ride (a driver and a gunner)');
+    if (Q.ride !== undefined && Q.players !== 2) throw fail('.players on a ride is 2: one drives, one is its gunner');
+  }
+  if (Q.goal === 'mash' && (Q.ride !== undefined || Q.climb || Q.building !== undefined || Q.run !== undefined)) throw fail('.mash is a round in an arena: no ride, climb, building or run');
+  if (Q.to !== undefined && (Q.goal !== 'mash' || !(Number.isInteger(Q.to) && Q.to >= 5 && Q.to <= 200))) throw fail('.to is a party round\'s race: the count (5 to 200) the first to it wins');
   // the tier the ride is drawn at (vehicle-registry/tier.js: stamped at mint from what the game says, or the operator's)
   if (Q.tier !== undefined) {
     if (!TIER_IDS.includes(Q.tier)) throw fail(`.tier is one of ${TIER_IDS.join(', ')}`);
@@ -507,7 +517,7 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
-  if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.goal !== 'contest' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals, and a contest\'s periods');
+  if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.goal !== 'contest' && Q.goal !== 'mash' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals, and a contest\'s periods');
   // the RUNNER (worlds/controllable/runner.js): its settings, and a distance that wins it (absent: endless)
   if (Q.goal !== 'runner' && Q.goal !== 'meet' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal (a meet\'s distance is its event\'s)');
   if (Q.goal === 'runner') {
@@ -647,7 +657,7 @@ export function readQuick(Q) {
   if (Q.play !== undefined && Q.goal !== 'brawl') throw fail('.play belongs to the brawl goal');
   if (Q.goal === 'fight') readFight(Q);
   // (a fight's register is its own word: its one look, versus-levels.js FIGHT_REGISTERS)
-  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && !((Q.goal === 'fight' || Q.goal === 'brawl') && k === 'register') && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(k === 'players' && (Q.goal === 'mash' || Q.goal === 'deathmatch' || Q.ride !== undefined)) && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && !((Q.goal === 'fight' || Q.goal === 'brawl') && k === 'register') && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
   for (const k of ['game', 'human', 'lift']) if (Q.goal !== 'tabletop' && Q[k] !== undefined) throw fail(`.${k} belongs to the tabletop goal`);
   if (Q.venue !== undefined && !['meet', 'contest', 'tabletop'].includes(Q.goal)) throw fail('.venue belongs to the meet, contest and tabletop goals (the stadium round the arena)');
   if (Q.goal === 'meet' || Q.goal === 'contest') readSport(Q);
@@ -1463,7 +1473,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // the creator names a camera, a hero, or no hero)
   const shift = quick.goal === 'work' && quick.hero !== false;
   if (quick.goal === 'work' && quick.hero === undefined) quick.hero = { mascot: true };
-  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : shift ? 'top-down' : undefined);
+  // a party round is played by the seats' heroes, seen from overhead (the hero the producer's, unless the creator names one)
+  if (quick.goal === 'mash' && quick.hero === undefined) quick.hero = {};
+  // (a couch deathmatch's seats are bodies: each player's a hero, seen out of its own eyes on a split screen)
+  if (quick.goal === 'deathmatch' && quick.players > 1 && quick.hero === undefined) quick.hero = {};
+  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : shift || quick.goal === 'mash' ? 'top-down' : undefined);
   // played in a headset: the world's own setting (each level carries it)
   const xr = xrNamed === false ? undefined : xrNamed;
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -1536,6 +1550,9 @@ export function goalMechanics(quick, ends) {
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
+    // a party round (mechanics.js mash): each seat's presses over its window, or a race to a count
+    case 'mash':
+      return [{ kind: 'mash', seconds: quick.seconds ?? 10, ...(quick.to !== undefined ? { to: quick.to } : {}) }];
     case 'runner':
       return [{ kind: 'runner', ...(quick.distance !== undefined ? { distance: quick.distance } : {}) }];
     case 'fly': {

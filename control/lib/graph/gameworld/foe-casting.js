@@ -144,7 +144,8 @@ export function castingCall(world) {
   const G = readGameworld(world);
   if (G.foes !== undefined || world.quick) return null;
   // (where a foe can stand: a walk's trails, a building's rooms)
-  const walks = G.ids.filter((id) => G.levels[id].walk !== undefined || (G.levels[id].building !== undefined && G.levels[id].building?.ref === undefined));
+  // (a deathmatch's level is fought by its bots, the match's own: no foe stands on it, world.js levels.<id>.deathmatch)
+  const walks = G.ids.filter((id) => G.levels[id].deathmatch === undefined && (G.levels[id].walk !== undefined || (G.levels[id].building !== undefined && G.levels[id].building?.ref === undefined)));
   // (and a world map's scenario: its fights' beats, gameworld/world-map.js)
   const mapped = G.ids.filter((id) => G.levels[id].glyphs?.plan && G.levels[id].glyphs?.sketch?.scenario);
   if (!walks.length && !mapped.length) return null;

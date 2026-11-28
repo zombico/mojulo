@@ -178,15 +178,18 @@ const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave
  * does (its AI, or held still), the height below which a seated body is brought back, and the lives its falls cost (each
  * seat's own, or one count shared). Throws, teaching. */
 export function readSeats(seats, entities, pilot = null) {
-  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared', contest?: 'versus' | 'free-for-all' | 'teams', downs?: 'level', crew?: { <seat>: { body: the pilot, as: 'gunner' } } }, the bodies seats 2 to 4 take`);
+  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number, lives?: 1-99, pool?: 'own' | 'shared', contest?: 'versus' | 'free-for-all' | 'teams', downs?: 'level', crew?: { <seat>: { body: the pilot, as: 'gunner' } }, frame?: 'split', turns?: { seconds? } }, the bodies seats 2 to 4 take`);
   if (!seats || typeof seats !== 'object' || Array.isArray(seats)) throw bad('');
-  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool', 'contest', 'downs', 'crew'].includes(k)) throw bad(`.${k} is not a seats key`);
+  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor', 'lives', 'pool', 'contest', 'downs', 'crew', 'frame', 'turns'].includes(k)) throw bad(`.${k} is not a seats key`);
   const list = Array.isArray(entities) ? entities : [], first = pilot ?? list.find((e) => e && e.pilotable)?.id;
   // (crew: a seat that works the pilot's gun, a gunner, with no body of its own: seats.crew { 2: { body, as: 'gunner' } })
   const crew = seats.crew === undefined ? null : seats.crew;
   if (crew !== null && (typeof crew !== 'object' || Array.isArray(crew))) throw bad('.crew is { <seat 2-4>: { body, as: \'gunner\' } }');
   const crewN = crew ? Object.keys(crew).length : 0;
-  if (!Array.isArray(seats.bodies) || (!seats.bodies.length && !crewN) || seats.bodies.length + crewN > 3) throw bad('.bodies names one to three bodies (none, with a crew)');
+  // (turns: the seats taking turns at the pilot's body, no bodies of their own: seats.turns { seconds? })
+  const turns = seats.turns === undefined ? null : seats.turns;
+  if (turns !== null && (typeof turns !== 'object' || Array.isArray(turns) || (turns.seconds !== undefined && !(Number.isFinite(turns.seconds) && turns.seconds > 0)))) throw bad('.turns is { seconds? }: the seats take turns at the pilot, a fall or the clock passing the turn');
+  if (!Array.isArray(seats.bodies) || (!seats.bodies.length && !crewN && !turns) || seats.bodies.length + crewN > 3) throw bad('.bodies names one to three bodies (none, with a crew or turns)');
   seats.bodies.forEach((id, i) => {
     const e = list.find((x) => x && x.id === id);
     if (!e || !e.pilotable) throw bad(`.bodies[${i}] '${id}' is not a pilotable entity of this world`);
@@ -197,7 +200,7 @@ export function readSeats(seats, entities, pilot = null) {
     const c = crew[k], n = Number(k);
     if (!Number.isInteger(n) || n < 2 || n > 4 || !c || c.as !== 'gunner' || c.body !== first) throw bad(`.crew['${k}'] is { body: '${first}', as: 'gunner' }: seat 2 to 4 working the pilot's gun`);
   }
-  const all = seats.bodies.length + crewN + 1, max = seats.max ?? all;
+  const all = turns ? 4 : seats.bodies.length + crewN + 1, max = seats.max ?? (turns ? 2 : all);
   if (!Number.isInteger(max) || max < 2 || max > all) throw bad(`.max is 2 to ${all} (one more than the bodies and the crew)`);
   if (seats.join !== undefined && !['drop-in', 'lobby'].includes(seats.join)) throw bad('.join is drop-in or lobby');
   if (seats.drop !== undefined && !['ai', 'pause'].includes(seats.drop)) throw bad('.drop is ai or pause');
@@ -206,8 +209,9 @@ export function readSeats(seats, entities, pilot = null) {
   if (seats.pool !== undefined && !['own', 'shared'].includes(seats.pool)) throw bad('.pool is own (each seat its lives) or shared (one count for all)');
   if (seats.pool !== undefined && seats.lives === undefined) throw bad('.pool shares or splits lives: give lives');
   if (seats.contest !== undefined && !['versus', 'free-for-all', 'teams'].includes(seats.contest)) throw bad('.contest is versus, free-for-all or teams (the seats against each other; absent, co-op)');
+  if (seats.frame !== undefined && seats.frame !== 'split') throw bad('.frame is split (a view a seat; absent, one shared screen)');
   if (seats.downs !== undefined && seats.downs !== 'level') throw bad('.downs is level (the level\'s mechanics bring a downed seat back, a match\'s frags)');
-  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}), ...(seats.contest ? { contest: seats.contest } : {}), ...(seats.downs ? { downs: seats.downs } : {}), ...(crew ? { crew: JSON.parse(JSON.stringify(crew)) } : {}) };
+  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}), ...(seats.contest ? { contest: seats.contest } : {}), ...(seats.downs ? { downs: seats.downs } : {}), ...(crew ? { crew: JSON.parse(JSON.stringify(crew)) } : {}), ...(seats.frame ? { frame: seats.frame } : {}), ...(turns ? { turns: JSON.parse(JSON.stringify(turns)) } : {}) };
 }
 
 /** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip, aimClip), and the fighting stances: those
@@ -2615,6 +2619,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // an assault frame's operation told on the holo table over its field (campaign/operation-brief.js): its level carries
   // the table's data whole, made as the level was. Absent ⇒ nothing
   else if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.briefing?.data && typeof sketch.manifest.briefing.data === 'object') payload.briefing = { data: sketch.manifest.briefing.data };
+  // (a geocube level with a guide of its own, a frame's: the way to its tasks' places and what it teaches as it is played,
+  // channels/guide.js)
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.guide && Array.isArray(sketch.manifest.guide.steps) && !payload.guide) payload.guide = sketch.manifest.guide;
+  // (and its spoken lines, shown as they are said: gameworld/script.js, channels/comms.js)
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.comms && sketch.manifest.comms.lines) payload.comms = sketch.manifest.comms;
+  // (and its finds, each scan's specimen revealed as it is met: channels/find-reveal.js)
+  if (payload && sketch.manifest.kind === 'geocube' && Array.isArray(sketch.manifest.finds) && sketch.manifest.finds.length) payload.finds = sketch.manifest.finds;
+  // (and its plumes, a prop's drive lit: channels/plume.js)
+  if (payload && sketch.manifest.kind === 'geocube' && Array.isArray(sketch.manifest.plumes) && sketch.manifest.plumes.length) payload.plumes = sketch.manifest.plumes;
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
   // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {

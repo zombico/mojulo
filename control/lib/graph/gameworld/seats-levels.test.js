@@ -152,3 +152,29 @@ describe('roles on a ride', () => {
     expect(car.turret).toBeUndefined();
   }, 60_000);
 });
+
+describe('a split screen, lowered from the cube', () => {
+  const DM = (soul) => ({ ...quickWorld({ id: 'split', quick: { goal: 'deathmatch', camera: 'first-person', hero: {} }, style: { kit: 'trail-valley' } }), intent: { cube: { soul } } });
+  const levelOf = (w) => runSteps(w, { ref: 'split' }).find((x) => x.key.startsWith('level-')).order.manifest;
+  it('first person, split: a body a seat, the seats\' frame split, every seat a contender; the page reads it', () => {
+    const m = levelOf(DM({ seats: 'four', frame: 'split', contest: 'free-for-all' }));
+    expect(m.camera).toMatchObject({ rule: 'eye', hideTarget: true });
+    expect(m.seats).toMatchObject({ bodies: ['hero-2', 'hero-3', 'hero-4'], frame: 'split', contest: 'free-for-all' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+    expect(synthesizeLevel(m).mechEvents.hud.some((r) => r.label === 'P4 frags')).toBe(true);
+  }, 60_000);
+
+  it('first person on one screen seats one, as it was', () => {
+    const m = levelOf(DM({ seats: 'two' }));
+    expect(m.seats).toBeUndefined();
+  }, 60_000);
+});
+
+describe('turns, lowered from the cube', () => {
+  it('soul.input=turns: no seat bodies, the seats taking turns at the hero, each its own lives; the page reads it', () => {
+    const m = level(W({ soul: { seats: 'two', input: 'turns' } }));
+    expect(m.entities.filter((e) => e.pilotable)).toHaveLength(1);
+    expect(m.seats).toEqual({ bodies: [], turns: {}, max: 2, join: 'drop-in', lives: 3, pool: 'own' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+  }, 60_000);
+});

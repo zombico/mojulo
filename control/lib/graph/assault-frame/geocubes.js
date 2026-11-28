@@ -6,7 +6,7 @@
  * elements; buildings come after.
  *
  *   FIELD_GEOCUBES            the cubes (era/geocube.js GEOCUBE_PRESETS carries them): sandstone-wadi, sandstone-gorge,
- *                             scree-scarp, crater-plain, wadi-oasis
+ *                             scree-scarp, crater-plain, wadi-oasis, the works' halls, and the space ground's belt-asteroid
  *   FIELD_GEOCUBE_PALETTES    each one's palette spec (a seeded variant is solved from it)
  *   FIELD_GEOCUBE_BUILDINGS   the outposts each plausibly has (a recommendation, never a placement)
  *   FIELD_ROCK                each field's rock colour by its column (form/rock-colour.js, a geocube's `outside.rock`)
@@ -90,6 +90,18 @@ const SOOT = f({ beds: f([f({ to: 5, value: -0.3 }), f({ to: 14, value: -0.12 })
 const HALL_LIGHT = (lamps, glow, haze, sky = DESERT_SKY) => f({ reference: 'island-noon', outsideFog: 0.3, sun: f({ color: lamps }), sky,
   interior: f({ void: '#0b0908', haze: f({ colour: haze, density: 0.0016 }), lamps: f({ colour: lamps, power: 1.2, spacing: 88, height: 70 }), glow: f({ colour: glow, power: 1.5 }) }) });
 
+// THE SPACE GROUND: a rock in the belt, airless, played at the space ground's gravity (assault-frame/pilot.js
+// FRAME_GRAVITY.space). Its sky black with the stars out at noon, the Sun small and hard at the belt's distance (about
+// two and three quarter times ours: a third of its width), a neighbouring rock of the same cluster hanging in it
+const BELT_SKY = f({ zenith: '#010102', horizon: '#04050a', fog: '#08090c' });
+const BELT = f({ reference: 'gothic-night', moon: f({ color: '#fff8ee', elevation: 30, azimuth: 235, gain: 1.75 }), outsideFog: 0.04, sky: BELT_SKY,
+  heavens: f({ void: f({ stars: 1, glow: 0.35 }), disc: f({ size: 0.45, glow: 0.6 }), companion: f({ azimuth: 150, elevation: 26, size: 2.4, phase: 0.55, color: '#5c564e' }) }) });
+// (a dark carbonaceous rock: charcoal regolith, its fresh crater walls a shade paler, no varnish where nothing weathers)
+const REGOLITH = f({ stone: '#3e3a36', floor: '#55504a', trim: '#7a736a', accent: '#d07a2a', grass: '#605a52', foliage: '#47423c', water: '#55504a', sand: '#6a645c', shade: 220 });
+const BELT_ROCK = f({ beds: f([f({ to: 6, value: -0.1 }), f({ to: 40 }), f({ to: 2000, toward: 'trim', mix: 0.3, value: 0.05 })]), blend: 3, thin: false, wear: f({ edge: 0.3, crease: 0.35, reach: 1.4 }), sections: f({ size: 30, value: 0.08, hue: 0.06 }) });
+// (no wind has ever moved it: its floor broken and rolling, never dunes)
+const BROKEN = f({ from: 'rolling', height: 3.5, scale: 70, finest: 6 });
+
 export const FIELD_GEOCUBES = f({
   'sandstone-wadi': f({
     id: 'sandstone-wadi', title: 'Sandstone wadi', reads: 'Sheer red sandstone jebels round an open sand floor, a siq between two, under a hard desert sun',
@@ -113,6 +125,17 @@ export const FIELD_GEOCUBES = f({
     light: DESERT(0.27), colour: f({ ...SANDSTONE, stone: '#86503a', floor: '#bd8a60', sand: '#cc9a6c' }), register: f({ steps: 0, key: 0.52 }), surfaces: SURFACES, inside: INSIDE,
     outside: FIELD_OUTSIDE('craters', { dry: true }), wind: f({ speed: 5, dir: 250 }),
     why: f([WHY[1], 'The craters are the ground: bowls to drop into and fight across, their rims cover, the great one a field of its own.', 'Young craters sharp and strewn with their thrown blocks; old ones worn shallow and filled with sand.']),
+  }),
+  'belt-asteroid': f({
+    id: 'belt-asteroid', title: 'Belt asteroid', reads: 'A dark rock in the asteroid belt: charcoal regolith struck by craters of every size under a black sky, the Sun small and hard, a neighbouring rock hanging over it',
+    light: BELT, colour: REGOLITH, register: f({ steps: 0, key: 0.42 }), surfaces: SURFACES, inside: INSIDE,
+    outside: f({ ...FIELD_OUTSIDE('asteroid', { dry: true, rock: BELT_ROCK, seed: 'belt' }), relief: BROKEN }),
+    why: f([
+      'The sky is the darkest thing: black at noon, the stars out, the Sun a small white disc a third of ours.',
+      'Hard low light and no air: every rim and block throws a long shadow, its shade the regolith leaned blue, never black.',
+      'Charcoal rock in value steps, no hue: the colour is kept for what was made, a frame and its paint.',
+      'The craters are the ground: bowls to drop into and fight across, their rims the cover.',
+    ]),
   }),
   'smelter-hall': f({
     id: 'smelter-hall', title: 'Smelter hall', reads: 'A steelworks melt shop half a kilometre across: furnaces glowing under their hoods, decks and ramps, a crane overhead, slag on a concrete floor',
@@ -151,6 +174,7 @@ export const FIELD_GEOCUBE_PALETTES = f({
   'sandstone-wadi': f({ intent: 'red sandstone walls over an orange sand floor under a deep desert sky', key: 'high', heat: 0.6, weight: 0.1, activity: 0, scheme: 'complementary', hues: f({ sky: 214, rock: 18, soil: 26, ground: 30, foliage: 62, accent: '#2f7fd0' }) }),
   'sandstone-gorge': f({ intent: 'a red sandstone canyon, its floor and its river under a deep desert sky', key: 'mid', heat: 0.55, weight: 0.2, activity: 0, scheme: 'complementary', hues: f({ sky: 212, rock: 16, soil: 24, ground: 30, foliage: 64, accent: '#2f7fd0' }) }),
   'scree-scarp': f({ intent: 'a brown scarp over pale scree fans in a hard dry light', key: 'mid', heat: 0.45, weight: 0.2, activity: -0.1, scheme: 'analogous', hue: '#8e5a40', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
+  'belt-asteroid': f({ intent: 'a charcoal asteroid under a black sky, one warm accent', key: 'low', heat: -0.1, weight: 0.5, activity: -0.4, scheme: 'mono-accent', hues: f({ rock: 30 }), lock: f({ accent: '#d07a2a' }) }),
   'crater-plain': f({ intent: 'a stony desert plain struck by meteorites under a deep sky', key: 'mid', heat: 0.5, weight: 0.2, activity: 0.1, scheme: 'analogous', hue: '#86503a', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
   'smelter-hall': f({ intent: 'a steelworks melt shop: dark steel and concrete in smoke, lit by lamps and molten metal', key: 'low', heat: 0.4, weight: 0.5, activity: 0.2, scheme: 'mono-accent', hues: f({ rock: 210 }), lock: f({ accent: '#ff7a1a' }) }),
   'refinery-works': f({ intent: 'a refinery under its enclosure: grey steel and gravel in sodium light, heaters glowing', key: 'low', heat: 0.5, weight: 0.5, activity: 0.3, scheme: 'mono-accent', hues: f({ rock: 205 }), lock: f({ accent: '#ffb000' }) }),

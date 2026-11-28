@@ -425,6 +425,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // (a massif's land, a frame's field, LEAN: its painted groups never sent, the form's meshes the page's ground,
     // scene/scene-three.js; a world on it waits for them, controllable landHold)
     lean: !!C.outside?.massif,
+    // (an airless cube, its heavens' void: its sky holds no air, channels/form-sky.js)
+    airless: !!(C.light && C.light.heavens && C.light.heavens.void),
     // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
     relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
@@ -436,8 +438,9 @@ export function formPayload(R) {
     hides: [...new Set(P.faces.filter((f, i) => L.faces[i].cls).map((f) => f.group))].sort(),
     // (the stage's far ring, its ridges past the level, which the form draws as its far land: channels/form-land.js FAR_LAND)
     far: [...new Set(P.faces.filter((f, i) => !L.faces[i].cls && FAR_GROUPS.has(f.group)).map((f) => f.group))].sort(),
-    // (an underground page, a cavern, has no sky: null, and the page draws none)
-    sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon, ...hazeUnder(light) } : null, box, waterZ: L.waterZ, deep: L.deep,
+    // (an underground page, a cavern, has no sky: null, and the page draws none; an airless cube's, its heavens' void, a
+    // sky with no air in it: channels/form-sky.js)
+    sun, sky: P.sky && Array.isArray(P.sky.zenith) && Array.isArray(P.sky.horizon) ? { zenith: P.sky.zenith, horizon: P.sky.horizon, ...hazeUnder(light), ...(R.airless ? { void: true } : {}) } : null, box, waterZ: L.waterZ, deep: L.deep,
     seabed: hasSea ? { x: [seaX.reduce((a, v) => Math.min(a, v), Infinity), seaX.reduce((a, v) => Math.max(a, v), -Infinity)], y: [seaY.reduce((a, v) => Math.min(a, v), Infinity), seaY.reduce((a, v) => Math.max(a, v), -Infinity)], z: L.waterZ - DEEP_FADE - 1 } : null,
     // (a class only some lands draw, OPT_CLASSES, listed only where one of its faces stands: none of it on a land without)
     classes: Object.fromEntries(Object.entries(LAND_CLASSES).filter(([k]) => !OPT_CLASSES.has(k) || L.faces.some((F) => F.cls === k)).map(([k, K]) => [k, K.rough])),

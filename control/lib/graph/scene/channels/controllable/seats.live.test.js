@@ -211,4 +211,34 @@ describe('seats on the World page', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 60000);
+
+  it('a split screen: two pads, two views, each its own eye on its own body', async () => {
+    const eyeHero = (id, x, col) => ({ ...hero(id, x), rule: { type: 'platform', eye: 1.6, speed: 6, turnMode: 'look' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6], color: col } });
+    const html = emitThreeWorld({ faces: [floor], entities: [eyeHero('p1', 0, '#e5483b'), eyeHero('p2', 6, '#3b7be5')], camera: { rule: 'eye', target: 'p1', height: 1.6, hideTarget: true }, seats: { bodies: ['p2'], frame: 'split' }, inline: true });
+    expect(html).toMatch(/__splitViews/);
+    expect(world({ bodies: ['p2'] })).not.toMatch(/__splitViews/);
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html.replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats && window.__mojSplit, { timeout: 20000 });
+    const frames = (n) => page.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    const tap = async (i) => { await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: true, value: 1 }; }, i); await frames(3); await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: false, value: 0 }; }, i); await frames(3); };
+    expect((await page.evaluate(() => window.__mojSplit())).views).toBeLessThan(2);   // nobody, or one seat: the one view
+    await tap(0); await tap(1);
+    await frames(6);
+    expect(await page.evaluate(() => window.__mojSplit())).toEqual({ views: 2, cams: [2] });
+    // seat 2's eye where its body stands, at its eye's height, looking its way
+    const eye = await page.evaluate(() => { const w = window.__mojCtrl.world, c = w.seatCams[2], b = w.byId.p2; return [c.transform.pos[0] - b.transform.pos[0], c.transform.pos[2] - b.transform.pos[2], c.transform.heading - b.transform.heading]; });
+    expect(eye[0]).toBeCloseTo(0, 6); expect(eye[1]).toBeCloseTo(1.6, 6); expect(eye[2]).toBeCloseTo(0, 6);
+    // seat 2's right stick turns its own body, and its view with it; seat 1's stays
+    const h0 = await page.evaluate(() => [window.__mojCtrl.world.byId.p1.transform.heading, window.__mojCtrl.world.byId.p2.transform.heading]);
+    await page.evaluate(() => { window.__pads[1].axes[2] = 1; }); await frames(20); await page.evaluate(() => { window.__pads[1].axes[2] = 0; });
+    const h1 = await page.evaluate(() => [window.__mojCtrl.world.byId.p1.transform.heading, window.__mojCtrl.world.byId.p2.transform.heading]);
+    expect(Math.abs(h1[1] - h0[1])).toBeGreaterThan(0.2);
+    expect(h1[0]).toBeCloseTo(h0[0], 6);
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
 });

@@ -12,6 +12,9 @@
  *       | { walk: { who, to, speed?, then?, face?, pose?, find? } }   a path through places: straight lines (the world's
  *                                                      walls push it out), or with `find` each leg walked round what
  *                                                      stands in the way (worlds/controllable/route-find.js)
+ *       | { glide: { who, to, seconds? | speed?, face? } }   a body CARRIED along straight lines, its height with it (a
+ *                                                      place [x, y, z]): a ship come in, a pod lowered on its cables, a
+ *                                                      lift; no ground, walls or gait, each leg eased; it holds at the last
  *       | { blast: { at, radius?, hurt? } } | { collapse: group | { group, how?, storey?, stagger? } } | { break: id }
  *       | { dig: who | { who? | at, to?, scoop? } }   the shovel, in a physical level's ground
  *                                                    the world's breaks, set off (worlds/controllable/trigger.js)
@@ -65,6 +68,7 @@ export const CAST_THEN = Object.freeze({
   heal: '{ heal: who | { who, by? } } gives back body.hp (no by: all of it)',
   rearm: '{ rearm: who | { who, by? } } rounds for the weapon in its hand: by more in its reserve, or (no by, or no reserve) a full magazine',
   walk: "{ walk: { who, to: place | [places], speed?, then?: 'stay' | 'loop' | 'back', face?, pose?, find? } } a path: straight lines, the world's walls push it out; find: true walks each leg round what stands in the way",
+  glide: '{ glide: { who, to: place | [places], seconds? | speed?, face? } } a body carried along straight lines, its height with it (a point [x, y, z], a spot\'s z; [x, y] keeps the height it has: a ship come in, a pod lowered on its cables, a lift): no ground, walls or gait, each leg eased in and out, over seconds (the whole way) or at speed m/s (4); it holds at the last; arrive fires at each point',
   stop: 'end a walk, or a hold at a spot',
   status: `{ status: { who, is, look?, for?, color? } } the character carries a status: is is any name you give it; look is how it shows on the body as it moves (a preset: ${LOOK_NAMES.join(', ')}; a name in play.looks; or its layers), defaulting to the look called is; for seconds, until lifted, or until the cue ends`,
   lift: '{ lift: who | { who, is? } } take a status off (no is: all of them)',
@@ -210,7 +214,7 @@ export function readCastEffect(k, t, where, ctx = {}) {
     return { kind: 'cast', op: 'shake', who: null, k: o.k, ...(o.for !== undefined ? { for: o.for } : {}), page: true };
   }
   const who = isStr(v) ? v : isObj(v) && isStr(v.who) ? v.who : null;
-  if (!who) throw new Error(k === 'hurt' || k === 'walk' || k === 'status' ? `${w}.who is a character's id` : `${w} is a character's id, or { who, … }`);
+  if (!who) throw new Error(k === 'hurt' || k === 'walk' || k === 'glide' || k === 'status' ? `${w}.who is a character's id` : `${w} is a character's id, or { who, … }`);
   const o = isObj(v) ? v : {};
   const out = { kind: 'cast', op: k, who, page: true };
   if (k === 'hurt') {
@@ -271,6 +275,17 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (o.pose !== undefined) { if (!SPOT_POSES.includes(o.pose)) throw new Error(`${w}.pose is one of: ${SPOT_POSES.join(', ')}`); out.pose = o.pose; }
     if (o.find !== undefined) { if (o.find !== true) throw new Error(`${w}.find is true: each leg walked round what stands in the way`); out.find = true; }
   }
+  // (carried: a ship's pass, a pod lowered, a lift; through the air, its height with it)
+  if (k === 'glide') {
+    if (o.to === undefined) throw new Error(`${w}.to is a place or a list of places (a point [x, y, z] sets its height)`);
+    // (a point keeps its own height, [x, y] none: the body's as it starts)
+    out.to = (isPt(o.to) || !Array.isArray(o.to) ? [o.to] : o.to).map((p, i) => (isPt(p) ? [p[0], p[1], p[2] ?? null] : readPlace(p, `${w}.to${Array.isArray(o.to) && !isPt(o.to) ? `[${i}]` : ''}`)));
+    if (!out.to.length) throw new Error(`${w}.to names at least one place`);
+    if (o.seconds !== undefined && o.speed !== undefined) throw new Error(`${w} is carried over seconds or at a speed, not both`);
+    if (o.seconds !== undefined) { if (!(Number.isFinite(o.seconds) && o.seconds >= 0.2 && o.seconds <= 120)) throw new Error(`${w}.seconds is how long the whole way takes, 0.2 to 120`); out.seconds = o.seconds; }
+    if (o.speed !== undefined) { if (!(Number.isFinite(o.speed) && o.speed > 0 && o.speed <= 400)) throw new Error(`${w}.speed is metres a second (to 400)`); out.speed = o.speed; }
+    if (o.face !== undefined) { if (!Number.isFinite(o.face)) throw new Error(`${w}.face is degrees`); out.face = o.face; }
+  }
   return out;
 }
 
@@ -325,6 +340,16 @@ export function lowerCastEffect(t, on, frag, places = []) {
     if (Number.isFinite(face)) r.face = face;
     if (pose) r.pose = pose;
   }
+  // (a glide keeps a place's height: a spot's or a point's z, else the body's own as it starts)
+  if (t.op === 'glide') {
+    const ps = t.to.map((x) => placeAt(x, places));
+    if (ps.some((p) => !p)) return frag;
+    r.points = ps.map((p) => [p.at[0], p.at[1], Number.isFinite(p.at[2]) ? p.at[2] : null]);
+    r.names = t.to.map((x, i) => (Array.isArray(x) ? String(i) : x));
+    for (const k of ['seconds', 'speed']) if (t[k] !== undefined) r[k] = t[k];
+    const face = t.face ?? ps[ps.length - 1].face;
+    if (Number.isFinite(face)) r.face = face;
+  }
   frag.reactions.push(r);
   return frag;
 }
@@ -340,7 +365,7 @@ export function castRefs(effects, whens) {
     if (t.op === 'transfigure') { who.add(t.into); spawns.add(t.into); }
     if ((t.op === 'puff' || t.op === 'blast' || t.op === 'dig') && isStr(t.at)) places.add(t.at);
     if (t.op === 'dig' && isStr(t.to)) places.add(t.to);
-    if (t.op === 'walk') for (const p of t.to) if (isStr(p)) places.add(p);
+    if (t.op === 'walk' || t.op === 'glide') for (const p of t.to) if (isStr(p)) places.add(p);
   }
   // a cast happening's character, and the one a zone watches in place of the player
   // (a building's breach or fall names a group of blocks, not a character)

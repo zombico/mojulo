@@ -107,7 +107,7 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map', 'facilities', 'briefing'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map' or 'facilities'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map', 'facilities', 'briefing', 'script'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map', 'facilities', 'briefing' or 'script'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
         // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
@@ -216,6 +216,11 @@ export async function GET(request, { params }) {
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-map`;
       // the facility maps (lib/graph/gameworld/facility-maps.js): this game's buildings and the facilities shelf drawn
       // from above, each laid room's laws beside its map: the maps a stealth or action game's interiors are built of
+      // the script book (lib/graph/gameworld/script-book.js): every spoken line by its id, level by level, for its voices
+      } else if (book === 'script') {
+        const { scriptBookHtml } = await import('@/lib/graph/gameworld/script-book');
+        try { html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:script`, () => scriptBookHtml(world)); } catch (err) { return NextResponse.json({ error: err.message }, { status: 400 }); }
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-script`;
       } else if (book === 'facilities') {
         const { facilityBookHtml } = await import('@/lib/graph/gameworld/facility-maps');
         try { html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:facilities`, () => facilityBookHtml(world)); } catch (err) { return NextResponse.json({ error: err.message }, { status: 400 }); }
