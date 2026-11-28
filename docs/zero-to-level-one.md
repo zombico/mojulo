@@ -91,6 +91,15 @@ Its play is the stages' own, the ship on the d-pad and its pods, so the play goa
 `check: true` proves each stage by its bot, which meets the first level's goalpost. The shell plays it on mana-ui: the
 title, each stage under its HUD, the result between stages, and the end card when the reactor falls.
 
+Couch games are level forms of the book too: a match against bots (`levels.<id>.deathmatch`) and a party round
+(`levels.<id>.mash`). A sentence asking for an arena shooter lays three matches against bots, one asking for a
+split-screen deathmatch lays three matches for four players on a split screen, and one asking for a party game lays
+three rounds for four in a lobby. Which families a sentence answers today is the genre-probe table of
+[hillclimb.md](tool-surface/hillclimb.md#the-genre-probes).
+
+A model file the person brings (a character, a prop) is an intake kind like a drawing: it is imported by its path,
+`create_character({ from })` or `mint_solid({ kind: 'model', spec: { from } })`, and recorded on the world's `intake`.
+
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as
 `unread` are the agent's to write in.
 

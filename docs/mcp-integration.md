@@ -220,7 +220,7 @@ Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the ar
 
 **Why this surface, not a catalyst.** Recipes 1–4 all end in a mojulo artifact. Recipe 5 produces none — it's MCP-to-MCP wiring with mojulo as the deliberation anchor (operator KYC, composition log, contextmap commit) rather than the runtime. Both composers above add a new MCP to the library with O(1) marginal work, and combinations across triggers / patterns / idempotency strategies come for free.
 
-See [docs/mcp-orbit.md](mcp-orbit.md) for both composers' full specs, the five typed component kinds, the four primitives + their affordance vocabularies, the constraint table, and the authoring guide.
+See [docs/mcp-orbit.md](archive/mcp-orbit.md) for both composers' full specs, the five typed component kinds, the four primitives + their affordance vocabularies, the constraint table, and the authoring guide.
 
 ---
 

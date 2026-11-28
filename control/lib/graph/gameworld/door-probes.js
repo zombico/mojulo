@@ -40,7 +40,7 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a level whose hero drives a ride, won by laps',
     holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some((e) => e.rule?.type === 'drive') && mechanicsOf(m).includes('laps')),
     reference: { quick: { goal: 'race', ride: 'car', vehicle: 'kart', rivals: 3 } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'shoot', genre: 'shooter', prompt: 'a first-person shooter: clear a warehouse of armed guards',
@@ -165,27 +165,36 @@ export const DOOR_PROBES = Object.freeze([
     reference: { quick: { goal: 'work', cooks: 4 } },
     now: 'not',
   },
-  // THE COUCH'S (11-27): each is one level of the quick door's for now (genre-forms.js PENDING): said, not laid
+  // THE COUCH'S (11-27): a party round and a crewed ride one level of the quick door's for now (genre-forms.js PENDING):
+  // said, not laid; a split deathmatch a book of matches (genre-forms.js GENRE_FORMS)
   {
     family: 'party', genre: 'party-mash', prompt: 'a party game: four friends mash buttons, most presses wins',
     concept: 'a level with a seat for each player and a contest of their presses',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && (m.seats.max ?? 0) >= 2 && mechanicsOf(m).includes('mash')),
     reference: { quick: { goal: 'mash', players: 4 } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'roles', genre: 'driver-and-gunner', prompt: 'a driver and gunner game: one drives the truck, one shoots the turret',
     concept: 'a ride with a seat that works its gun',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && isObj(m.seats.crew) && Object.keys(m.seats.crew).length > 0),
     reference: { quick: { goal: 'reach', ride: 'car', players: 2 } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'split', genre: 'split-deathmatch', prompt: 'a split screen deathmatch for four friends',
     concept: 'a level whose seats each see it from their own view',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && m.seats.frame === 'split'),
     reference: { quick: { goal: 'deathmatch', players: 4 } },
-    now: 'not',
+    now: 'type',
+  },
+  // (11-27: a deathmatch is a book level form, world.js levels.<id>.deathmatch: a sentence lays a game of matches)
+  {
+    family: 'match', genre: 'arena-shooter', prompt: 'an arena shooter: a deathmatch against bots',
+    concept: 'a level that is a match against bots, first to the frag limit',
+    holds: ({ steps }) => someLevel(steps, (m) => mechanicsOf(m).includes('frags') && (m.entities ?? []).some((e) => e && /^bot-/.test(e.id))),
+    reference: { quick: { goal: 'deathmatch' } },
+    now: 'type',
   },
 ]);
 

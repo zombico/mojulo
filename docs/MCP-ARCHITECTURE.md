@@ -198,7 +198,7 @@ Writes happen at **structural events only**, never at outcome events — outcome
 
 Adapter-delegated verification runs before each commit ([meta-context/verification.js](../control/lib/mcp/meta-context/verification.js)): claude-code/generic require `existsSync` against the materialized path; codex accepts opaque automation handles on the agent's assertion (deliberate MVP relaxation).
 
-Source: [meta-context.js](../control/lib/mcp/tools/meta-context.js). Full spec: [meta-context.md](meta-context.md).
+Source: [meta-context.js](../control/lib/mcp/tools/meta-context.js). Full spec: [meta-context.md](archive/meta-context.md).
 
 ### 4b. Inventory — `meta_context_declare_inventory`
 
@@ -226,7 +226,7 @@ Sits **on top of** contextmap + inventory + capabilities through a consolidated 
 
 Five composer states per chosen provider (`research` / `seed` / `inventory_only` / `capabilities_only` / `none`) each surface as their own warning tag so the agent routes remediation directly. Every recommendation persists as a `proposed` composition row so the deliberation log itself is auditable; on materialization, `meta_context_commit` records the composition ref in an artifact-scope principle as the durable link between the artifact and the components it was built from.
 
-Source: [mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js). Full spec: [mcp-orbit.md](mcp-orbit.md).
+Source: [mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js). Full spec: [mcp-orbit.md](archive/mcp-orbit.md).
 
 ### 4e. Primitive binding — `bind_primitives`
 
@@ -339,7 +339,7 @@ All Ring 6 state lives in the control plane SQLite at [control/data/mojulo-lite.
 
 | Table | Owner | Semantics |
 |---|---|---|
-| `meta_nodes`, `meta_edges`, `meta_principles` | contextmap | Append-only; the durable graph of structural decisions. See [meta-context.md](meta-context.md). |
+| `meta_nodes`, `meta_edges`, `meta_principles` | contextmap | Append-only; the durable graph of structural decisions. See [meta-context.md](archive/meta-context.md). |
 | `meta_mcp_inventory` | inventory | Replace-semantic. Per-tool `input_schema_json` + `introspection_confidence` columns for richer-snapshot mode. |
 | `meta_mcp_providers` | shared identity | The "what's a Gmail" layer — both inventory and capabilities write into it. One logical provider regardless of arrival path. |
 | `meta_mcp_capabilities` | capabilities | Transactional supersession via `superseded_by`. Unique-partial index on `current` rows per provider. History preserved. |
@@ -411,8 +411,8 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 **The control surface:**
 
 - [mcp-integration.md](mcp-integration.md) — client setup (Claude Desktop, Claude Code, Codex), enabling `/api/mcp`, the bearer-key model
-- [meta-context.md](meta-context.md) — full spec for the contextmap layer (the bright line, write triggers, the graph)
-- [mcp-orbit.md](mcp-orbit.md) — full spec for the vendor-shaped composer and the primitive-binding companion
+- [meta-context.md](archive/meta-context.md) — full spec for the contextmap layer (the bright line, write triggers, the graph)
+- [mcp-orbit.md](archive/mcp-orbit.md) — full spec for the vendor-shaped composer and the primitive-binding companion
 - [catalysts.md](catalysts.md) — what a catalyst is, the frontmatter contract, the author spec
-- [app-runtime.md](app-runtime.md) — Ring 7 app runner daemon: lifecycle, reconciliation, env CRUD, daemon posture
+- [app-runtime.md](archive/app-runtime.md) — Ring 7 app runner daemon: lifecycle, reconciliation, env CRUD, daemon posture
 

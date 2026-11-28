@@ -1,5 +1,7 @@
 # mcp-orbit — the component store and composer
 
+> Archived: this page describes a surface retired from the tool list in 3.1.0 (`RETIRED_PACKS` in `control/lib/mcp/packs.js`). Kept for installs that still hold its data.
+
 mcp-orbit is mojulo's surface for **MCP-to-MCP workflows** — wiring where the operator wants to read from one MCP (Gmail, Linear, a CRM) and write to another (Drive, Notion, Slack) on a schedule or signal. The connecting agent assembles the workflow from a small library of typed components; mojulo provides the components, the constraint validation, and the audit trail.
 
 If a catalyst is "one curated recipe per problem," mcp-orbit is "one curated component per part-of-a-problem, agent composes the recipe." Server-stored, agent-composed.
@@ -10,7 +12,7 @@ Two companion composers live under mcp-orbit: the **vendor-shaped composer** (`r
 
 Both surfaces synthesize runnable artifacts. The split is about how much is already decided:
 
-- **Catalysts** ([docs/catalysts.md](catalysts.md)) — one curated recipe per problem. The body already carries the mapping judgement, the idempotency strategy and the pitfalls; the agent fills in the operator's specifics.
+- **Catalysts** ([docs/catalysts.md](../catalysts.md)) — one curated recipe per problem. The body already carries the mapping judgement, the idempotency strategy and the pitfalls; the agent fills in the operator's specifics.
 - **mcp-orbit** — the agent composes the workflow from typed components against the **operator's installed MCPs** (Linear, Gmail, etc.), writing to other installed MCPs (Drive, Notion, Slack).
 
 The two paths share the same downstream — both end in a host-adapter materialization (a Claude Code skill, a Codex automation, a generic workflow), with the MCP calls bound through `bind_primitives` and sealed via `meta_context_commit({type:'primitive_artifact_materialization', ...})`. The difference is what flows into the synthesis. (Until 3.0 the catalyst side read a deployed mojulo bot and sealed with `artifact_materialization`; both left with the chatbot factory.)
@@ -31,11 +33,11 @@ Every mcp-orbit composition picks one component from at least the first four cat
 
 ## Where components live
 
-Shipped components are repo-side markdown under [control/lib/mcp/mcp-orbit-components/](../control/lib/mcp/mcp-orbit-components/) in the layout `<kind>/<ref>.md`. The directory name *is* the schema — a file misplaced under the wrong kind is a loader error, not a silent reclassification.
+Shipped components are repo-side markdown under [control/lib/mcp/mcp-orbit-components/](../../control/lib/mcp/mcp-orbit-components/) in the layout `<kind>/<ref>.md`. The directory name *is* the schema — a file misplaced under the wrong kind is a loader error, not a silent reclassification.
 
-At server startup, [loader.js](../control/lib/mcp/mcp-orbit-components/loader.js) parses every file and writes it into the `mcp_orbit_components` table with `source='builtin'`. The runtime authoritative source is the table, not disk; disk is the editable source of truth for the curated library. User-registered components (`source='custom'`, deferred to v1) coexist with builtins in the same table.
+At server startup, [loader.js](../../control/lib/mcp/mcp-orbit-components/loader.js) parses every file and writes it into the `mcp_orbit_components` table with `source='builtin'`. The runtime authoritative source is the table, not disk; disk is the editable source of truth for the curated library. User-registered components (`source='custom'`, deferred to v1) coexist with builtins in the same table.
 
-The composer's rulebook — the **meta-catalyst** — lives at [control/lib/mcp/mcp-orbit-components/meta-catalyst.md](../control/lib/mcp/mcp-orbit-components/meta-catalyst.md). Fetched via `get_meta_catalyst`; the agent reads it once per session before composing.
+The composer's rulebook — the **meta-catalyst** — lives at [control/lib/mcp/mcp-orbit-components/meta-catalyst.md](../../control/lib/mcp/mcp-orbit-components/meta-catalyst.md). Fetched via `get_meta_catalyst`; the agent reads it once per session before composing.
 
 ## The composition flow
 
@@ -76,7 +78,7 @@ The weights aren't load-bearing in v0; they get retuned by watching real composi
 
 ## Schema
 
-Two tables in [control/data/mojulo-lite.db](../control/data/), defined in [control/lib/db/index.js](../control/lib/db/index.js):
+Two tables in [control/data/mojulo-lite.db](../../control/data/), defined in [control/lib/db/index.js](../../control/lib/db/index.js):
 
 ```sql
 CREATE TABLE mcp_orbit_components (
@@ -126,7 +128,7 @@ CREATE INDEX idx_mcp_orbit_provider_artifacts_server ON mcp_orbit_provider_artif
 CREATE INDEX idx_mcp_orbit_provider_artifacts_primitive ON mcp_orbit_provider_artifacts(primitive_ref, role);
 ```
 
-Session-scoped — each `bind_primitives` call writes a row; the artifact's `ref` is the stable handle the agent threads through to `meta_context_commit({type:'primitive_artifact_materialization', ...})`. Repository in [control/lib/db/repositories/mcp-orbit-provider-artifacts.js](../control/lib/db/repositories/mcp-orbit-provider-artifacts.js).
+Session-scoped — each `bind_primitives` call writes a row; the artifact's `ref` is the stable handle the agent threads through to `meta_context_commit({type:'primitive_artifact_materialization', ...})`. Repository in [control/lib/db/repositories/mcp-orbit-provider-artifacts.js](../../control/lib/db/repositories/mcp-orbit-provider-artifacts.js).
 
 ## File format — authoring a new component
 
@@ -202,18 +204,18 @@ Sections that pay rent:
 
 ## MCP surface
 
-Vendor-shaped composer — the Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding → semantic-search:
+Vendor-shaped composer — the Ring 6 tools in [control/lib/mcp/tools/mcp-orbit.js](../../control/lib/mcp/tools/mcp-orbit.js), registered after meta-context, inventory, and capabilities so the natural reading order is contextmap → inventory → capabilities → composer → primitive-binding → semantic-search:
 
 - `list_mcp_orbit_components({ kind?, ref_pattern? })` — discovery. Returns kind / ref / version / summary; bodies omitted (fetched separately).
 - `get_mcp_orbit_component({ kind, ref, version? })` — fetch one row with full body and structured payload.
 - `get_meta_catalyst()` — the composer rulebook. Singleton.
 - `recommend_mcp_orbit_compositions({ intent, inventory? })` — pre-filter + rank + log as `proposed`. The agent does the composition; this tool just gets it started. Reads the consolidated provider view (identity layer + inventory + capabilities); each chosen provider is tagged with one of five states (`research` / `seed` / `inventory_only` / `capabilities_only` / `none`) and warning tags route the agent to the right remediation tool (`record_mcp_capabilities`, `meta_context_declare_inventory`, etc.).
 
-Primitive-binding composer — one Ring 6 tool in [control/lib/mcp/tools/mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js):
+Primitive-binding composer — one Ring 6 tool in [control/lib/mcp/tools/mcp-primitive-binding.js](../../control/lib/mcp/tools/mcp-primitive-binding.js):
 
 - `bind_primitives({ primitive, role, server, bindings })` — given one of the four primitives, a composition role, a server from declared inventory, and an affordance→tool bindings map, runs the deterministic generator and persists the result as a session-scoped provider artifact (`prov_<id>`). Returns `{ ok, artifact: { ref, primitiveRef, role, server, snapshotConfidence, body, manifest }, warnings? }`. The `body` is the primitive's role template filled with the **actual bound tool names + schemas from the operator's installed MCP**, not a curated guess. See [The primitive-binding layer](#the-primitive-binding-layer) below.
 
-Semantic recall — one Ring 6 tool in [control/lib/mcp/tools/semantic-search.js](../control/lib/mcp/tools/semantic-search.js), registered last so the reading order ends with the fuzzy-recall layer that sits across every prior reader:
+Semantic recall — one Ring 6 tool in [control/lib/mcp/tools/semantic-search.js](../../control/lib/mcp/tools/semantic-search.js), registered last so the reading order ends with the fuzzy-recall layer that sits across every prior reader:
 
 - `semantic_search({ query, kinds?, limit? })` — cosine retrieval over the `meta_embeddings` sidecar across the seven indexed source kinds (including `orbit_component`, `orbit_composition`, and `orbit_artifact`). Returns ranked `{ source_kind, source_ref, score, snippet }` rows — *retrieve, don't resolve*. The composer flow uses it for the recall direction the structured readers above don't cover: "is there a prior composition near this intent?" → `semantic_search({ query: intent, kinds: ['orbit_composition'] })` → resolve hits via the typed composition readers before re-proposing. See [docs/meta-context.md](meta-context.md#what-sits-on-top-composers--capabilities) for the cross-surface picture.
 
@@ -223,7 +225,7 @@ Parallel to the vendor-shaped composer, the primitive-binding layer composes MCP
 
 ### The four primitives
 
-Each primitive ships as a body + source-role template + destination-role template under [control/lib/mcp/mcp-orbit-components/primitive/](../control/lib/mcp/mcp-orbit-components/primitive/):
+Each primitive ships as a body + source-role template + destination-role template under [control/lib/mcp/mcp-orbit-components/primitive/](../../control/lib/mcp/mcp-orbit-components/primitive/):
 
 | Primitive | Shape | Typical backends |
 |---|---|---|
@@ -236,7 +238,7 @@ The bodies teach the **vendor-agnostic shape** — the affordance vocabulary, th
 
 ### The deterministic generator
 
-[control/lib/mcp/mcp-orbit-components/generator.js](../control/lib/mcp/mcp-orbit-components/generator.js) is the runtime fill engine — no LLM in the path. Given a primitive ref, a role, a capability snapshot (the per-tool subset of declared inventory), and an affordance→tool bindings map, it loads the role template, fills the slot markers with the bound tool names and JSON schemas, computes a three-tier snapshot confidence (`tools_list_full` > `names_only` > `agent_inferred`), and returns a structured artifact with a body the agent can read in full + a manifest naming each affordance / bound tool / confidence. The generator is deterministic so two agents calling `bind_primitives` against the same primitive + snapshot + bindings produce byte-identical bodies.
+[control/lib/mcp/mcp-orbit-components/generator.js](../../control/lib/mcp/mcp-orbit-components/generator.js) is the runtime fill engine — no LLM in the path. Given a primitive ref, a role, a capability snapshot (the per-tool subset of declared inventory), and an affordance→tool bindings map, it loads the role template, fills the slot markers with the bound tool names and JSON schemas, computes a three-tier snapshot confidence (`tools_list_full` > `names_only` > `agent_inferred`), and returns a structured artifact with a body the agent can read in full + a manifest naming each affordance / bound tool / confidence. The generator is deterministic so two agents calling `bind_primitives` against the same primitive + snapshot + bindings produce byte-identical bodies.
 
 ### Artifact persistence
 
@@ -263,13 +265,13 @@ The commit auto-writes a summary principle on the artifact node recording the co
 
 Parallel to the primitive-binding layer above, the trigger-binding layer operationalizes the `trigger` axis of mcp-orbit. Where `bind_primitives` makes the `mcp` axis operational by resolving a typed primitive ref against an operator's runtime-introspected tools, `bind_trigger` does the same for activation: a typed trigger component (e.g. `trigger/scheduled@0.1.0`) becomes the materialization target for a runtime daemon that fires at the operator's declared cadence.
 
-The same posture applies to both binding layers — **composer-anchored runtime**. The bind tool resolves `component_ref` against the composer's component store, not against an internal enum. Adding a new trigger kind = ship a typed component in [control/lib/mcp/mcp-orbit-components/trigger/](../control/lib/mcp/mcp-orbit-components/trigger/) plus its runtime daemon; the bind tool needs no per-kind code branch beyond the schema validator the component declares.
+The same posture applies to both binding layers — **composer-anchored runtime**. The bind tool resolves `component_ref` against the composer's component store, not against an internal enum. Adding a new trigger kind = ship a typed component in [control/lib/mcp/mcp-orbit-components/trigger/](../../control/lib/mcp/mcp-orbit-components/trigger/) plus its runtime daemon; the bind tool needs no per-kind code branch beyond the schema validator the component declares.
 
 ### What ships in Phase 1
 
 | Component | Runtime daemon | Status |
 |---|---|---|
-| `trigger/scheduled@0.1.0` | Scheduler daemon ([control/lib/triggers/scheduler.js](../control/lib/triggers/scheduler.js)), croner-backed, UTC scheduling math | Shipped |
+| `trigger/scheduled@0.1.0` | Scheduler daemon ([control/lib/triggers/scheduler.js](../../control/lib/triggers/scheduler.js)), croner-backed, UTC scheduling math | Shipped |
 | `trigger/signal-polled@0.1.0` | Watch daemon | Component shipped (since 0.5.0); runtime deferred |
 | `trigger/webhook@0.1.0` | Webhook receiver | Deferred — needs deployment-posture decision (mojulo on localhost can't receive an internet POST without a tunnel) |
 

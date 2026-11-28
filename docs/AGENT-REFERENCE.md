@@ -2,7 +2,21 @@
 
 Dense agent-facing reference for details that used to live in `CLAUDE.md`. This doc is intentionally more specific than the fast orientation file, but still points to source-of-truth docs and code for the deepest details.
 
-Mojulo is a **3D compiler for agents**: the agent makes things to **Play**, **Print**, **Read**, **Hear** and **Observe** by conversation, and each one is a deterministic recipe (the recipe is the source, renders are derived). **Workflows** orchestrate the rest for batches and variations. The canonical self-description is the `get_substrate` drawer in [context.js](../control/lib/mcp/tools/context.js). The office wing (apps, daemons, the contextmap, MCP-to-MCP binding) left the tool surface in 3.1.0 (see [The retired office surface](#the-retired-office-surface)); the chatbot factory left in 3.0.0 (see [The chatbot factory](#the-chatbot-factory)).
+Mojulo is a **3D compiler for agents**: the agent makes things to **Play**, **Print**, **Read**, **Hear** and **Observe** by conversation, and each one is a deterministic recipe (the recipe is the source, renders are derived). **Workflows** orchestrate the rest for batches and variations. The canonical self-description is the `get_substrate` drawer in [context.js](../control/lib/mcp/tools/context.js). What the person is sold is the studio, not the compiler: a person with no ask is offered five starts, and a game is taken from the idea to a first level they play. What left the surface is one paragraph at the end ([Retired surfaces](#retired-surfaces)).
+
+## The starts and their producers
+
+The `initialize` preamble ([server.js](../control/lib/mcp/server.js) `SERVER_INSTRUCTIONS`) offers a person with no ask five starts. Each has an entry door, and the three that make something of the person's own have a **producer**: a `start` call that builds nothing, answers the one question to ask this turn, and drops each question once answered. A plain ask (a kart racer, "show me fission", a two-storey house) is made at once, with nothing asked first. Under the Claude plugin each start is a skill ([plugins/mojulo/skills](../plugins/mojulo/skills/), generated from the routing cards by `scripts/plugin-skills.mjs`), and `forward_context` is read only when no skill covers the ask.
+
+| Start | Door | Producer | Material read |
+|---|---|---|---|
+| A character | `create_character({ as, spec })` | none: ask what it is and what it is for | a photo (card `photo-reference`); a model file, `create_character({ from })` |
+| A game | `design_game` | `design_game({ world: { name } })`: `producer.ask`, the rail and the size, then the goalposts ([gameworld/rails.js](../control/lib/graph/gameworld/rails.js), [goalposts.js](../control/lib/graph/gameworld/goalposts.js)) | drawings, plans, documents, lore, a bestiary: each recorded on the world's `intake` as placed or set aside ([intake.js](../control/lib/graph/gameworld/intake.js)) |
+| An object | `mint_solid` (`fabricate_solid` for standard parts) | none: ask what it is for and its sizes | a model file, `mint_solid({ kind: 'model', spec: { from } })` |
+| A 3D exhibit | `create_exhibit` | `create_exhibit({ start })`: what people should leave understanding, who, how long, what they bring; the fit said back ([exhibit/fit.js](../control/lib/graph/exhibit/fit.js)) | their material, recorded; never a claim or a source written for them |
+| A home or a room | `mint_building`, `design_interior` | `mint_building({ start })`: the home rail, then its questions ([home/rails.js](../control/lib/graph/home/rails.js)) | a plan, measurements or a photo, read, never asked for |
+
+**The game rail** is the deep one; its map is [zero-to-level-one.md](zero-to-level-one.md). A game is placed on a rail (a template the person's game starts from, never the game; the `gameworld-rails` card lists them) and sized least first (`SIZES` in `rails.js`: a pixelizer game, a quick game, a table game, a designed game; `sizeCall` makes the call). The first session's goalposts run from the idea to a first level: the machine gate proves it can be won, and the person approves it by playing. Most games are levels played as a turn (`game/turn.js`, drawn by mana-ui: start screen, menus, HUD, pause, results, the next level); an open world is laid differently and is said to be. The sentence door (`design_game({ compose: { prompt } })`) lays a whole first game for most families; which ones is the genre-probe table of [hillclimb.md](tool-surface/hillclimb.md#the-genre-probes).
 
 ## How the surface is organized: ring → pack → tool line
 
@@ -74,27 +88,16 @@ The control plane exposes an HTTP MCP server at `/api/mcp` with bearer auth. Pro
 
 Auth is local-user only. MCP calls are scoped to the single control-plane user: the MCP route ([app/api/mcp/route.js](../control/app/api/mcp/route.js)) mints the execution context's `userId` — `'local'` for the operator's key, or a delegate's id when the opt-in roles pack resolves an operator-issued key ([lib/roles/keys.js](../control/lib/roles/keys.js)). There is no multi-tenant identity model.
 
-## Plan mode and the retired research book
+## Plan mode
 
-Plan mode lives in [plan-mode.js](../control/lib/mcp/tools/plan-mode.js). Plans are rows in the `plans` table: proposed reality, not contextmap commits. `compile_plan` validates manifest tool calls against the live registry; `execute_plan` requires confirmation and invokes registered tools through the same handler path as remote MCP calls. When execution materializes artifacts, [plan-release.js](../control/lib/mcp/meta-context/plan-release.js) writes `plan_release` principles onto artifact histories and archives the plan.
+Plan mode lives in [plan-mode.js](../control/lib/mcp/tools/plan-mode.js). Plans are rows in the `plans` table. `compile_plan` validates manifest tool calls against the live registry; `execute_plan` requires confirmation and invokes registered tools through the same handler path as remote MCP calls. When execution materializes artifacts, [plan-release.js](../control/lib/mcp/meta-context/plan-release.js) writes `plan_release` principles onto artifact histories and archives the plan.
 
-The research book lives in [research-mode.js](../control/lib/mcp/tools/research-mode.js): an accretive book upstream of plans, storing research items and append-only abstracts. Its tools are retired (`RETIRED_PACKS` in `packs.js`): callable by name for books already made, never listed, and `/research` still shows the books. Gathering goes through the stash (`mint_stash`, `gather`, `cook`), and the `numerical-experiment-notebook` catalyst keeps its lab notebook in a stash over `run_experiment_sweep`, which is homed in `pack_plan`. The stash link tools (`bind_stash`, `unbind_stash`, `list_stash_bindings`) are retired the same way: nothing read a link.
+## Retired surfaces
 
-## The retired office surface
+Nothing below is listed or routed to; an agent never needs it to make anything.
 
-The office wing's packs (`RETIRED_PACKS` in packs.js) left the tool surface in 3.1.0: the app runner and runtime daemons, the contextmap (`meta_context_*`), declared skills, the mcp-orbit composer, and primitive and trigger binding. The MCP inventory and capability reads and the agent-task queue stayed, in `pack_catalysts`, for the Workflows that reach other workers and MCPs. Their tools stay registered, unlisted and unrouted (see above for what that means for reach; a plan step that names one compiles with a deprecation warning), and their code and tables stay. `forward_context({ mode: 'office' })` answers with the studio body and a line saying so. Their design notes stay in the docs that describe them: [app-runtime.md](app-runtime.md), [meta-context.md](meta-context.md), [mcp-orbit.md](mcp-orbit.md), and [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) §4 and §6.
-
-## The chatbot factory
-
-The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. [SECURITY.md](../SECURITY.md#known-issues-in-2x) lists those issues.
-
-What stays behind in mojulo, and why:
-
-- **Its old tool names are unknown.** A call to one is an unknown tool, the names never list, `mojulo install chatbot` is an unknown pack (exit 1), and a `chatbot` token in `MOJULO_PACKS` is skipped as any unknown token is.
-- **Its tables stay, inert.** A 2.x install keeps `deployments`, `modular_sessions`, `mcp_jobs` and their rows; nothing reads or drops them, and a fresh install does not create them. The `documents` table stays for the stash media route's legacy `doc_…` reads; nothing writes it.
-- **`'bot'` stays a readable value.** `stash_bindings.bound_kind` and the brief's scope kinds keep it for stored rows; nothing writes it.
-- **The agent-task queue stays.** `envelope_inference` (app inference) is the queue's kind; the chat builder's `chat_turn` relay left with the factory.
-- **No reach remains.** Core has no Docker, Fly, GHCR, webhook or uploaded-document path.
+- **The office wing** left in 3.1.0 (`RETIRED_PACKS` in [packs.js](../control/lib/mcp/packs.js)): the app runner and runtime daemons, the contextmap (`meta_context_*`), declared skills, the mcp-orbit composer, primitive and trigger binding, the research book and the stash link tools. Their tools stay registered and callable by name for data already made (a plan step naming one compiles with a deprecation warning); their code and tables stay. The MCP inventory, capability reads and the agent-task queue stayed in `pack_catalysts` for the Workflows. `forward_context({ mode: 'office' })` answers with the studio body and says so. Design notes: [archive/](archive/), and [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) §4 and §6.
+- **The chatbot factory** left in 3.0.0 for its own project; the 2.x line that carries it is unmaintained ([SECURITY.md](../SECURITY.md#known-issues-in-2x)). Its tool names are unknown tools and `chatbot` is an unknown pack. A 2.x install keeps its tables (`deployments`, `modular_sessions`, `mcp_jobs`) inert; `documents` stays for the stash media route's legacy `doc_…` reads, and `'bot'` stays a readable `bound_kind`. Core has no Docker, Fly, GHCR, webhook or uploaded-document path.
 
 ## Data layout
 

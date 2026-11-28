@@ -487,7 +487,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // levels are laid (a co-op platformer's side camera, its walks laid without climbs); the hero it asks is the creator's
   const fills = genre ? composerFills(cubeOfWorld({ intent: { from: genre.id } }).cube) : {};
   const frame = genre && (!form || form.hero) ? heroFrameOf(genre.id, null) : null, camera = fills.camera ?? frame?.camera ?? null;
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(camera ? { camera } : {}), ...(frame || form ? { screen: form?.screen ?? frame?.screen ?? 'screen' } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(camera ? { camera } : {}), ...(frame || form ? { screen: form?.screen ?? frame?.screen ?? 'screen' } : {}), ...(form?.ride ? { ride: { ...form.ride } } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
   // the words that named the genre are read: they decide the intent
   for (const w of genre?.matched ?? []) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);

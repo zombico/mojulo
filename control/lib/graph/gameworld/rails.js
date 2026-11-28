@@ -203,7 +203,7 @@ export const RAILS = Object.freeze({
   conscription: row({ name: 'Conscription', like: 'a first-person shooter: a soldier\'s run, cover, the guns',
     handles: row({ pole: 'conscription', genres: list(['shooter', 'military-sim']), quick: list(['shoot']) }), sizes: list(['quick', 'designed']), level1: 'a level: armed foes behind cover, shot through to the end' }),
   'infinity-crisis': row({ name: 'Infinity Crisis', like: 'an arena shooter: movement first, a deathmatch against bots',
-    handles: row({ pole: 'infinity-crisis', genres: list(['arena-shooter']), quick: list(['deathmatch']) }), sizes: list(['quick']), level1: 'a match: first to the frag limit' }),
+    handles: row({ pole: 'infinity-crisis', genres: list(['arena-shooter']), quick: list(['deathmatch']) }), sizes: list(['quick', 'designed']), level1: 'a match: first to the frag limit' }),
   'cogs-of-combat': row({ name: 'Cogs of Combat', like: 'a third-person cover shooter: heavy bodies, a roadie run, an evade roll',
     handles: row({ pole: 'cogs-of-combat', genres: list([]) }), sizes: list(['designed']), level1: 'a level: armed foes behind cover, from over the shoulder',
     lacks: list(['no genre cube of its own: a designed game names its feel over the shooter\'s cube']) }),
@@ -230,7 +230,7 @@ export const RAILS = Object.freeze({
     seen: list(['side']) }),
   // ── off their feet: named for their type (they have no house title yet) ──
   racing: row({ name: 'Racing', like: 'a race: a track or a road, checkpoints, rivals, the best time kept',
-    handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick']), level1: 'a race: the laps, the podium' }),
+    handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick', 'designed']), level1: 'a race: the laps, the podium' }),
   flight: row({ name: 'Flight', like: 'flying: a gate course, a dogfight, a sector of space',
     handles: row({ genres: list(['air-combat']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
   // a licence earned lesson by lesson (pilot-school.js: its starter, the lessons on one airfield, each graded)
@@ -273,7 +273,7 @@ export const RAILS = Object.freeze({
     words: list(['cooking', 'cooking sim', 'kitchen', 'restaurant', 'shift', 'orders', 'co-op kitchen', 'co-op cooking', 'cooking together', 'cook together', 'overcooked']) }),
   // (11-27, the couch's: a party round, two to four on one screen, each mashing to out-press the others)
   'party-round': row({ name: 'Party Round', like: 'a party game for two to four on one screen: each mashes to out-press the others before the horn, or races to a count (quick.players)',
-    handles: row({ genres: list(['party-mash']), quick: list(['mash']) }), sizes: list(['quick']), level1: 'a round: the most presses at the horn wins',
+    handles: row({ genres: list(['party-mash']), quick: list(['mash']) }), sizes: list(['quick', 'designed']), level1: 'a round: the most presses at the horn wins',
     words: list(['party game', 'party round', 'button mash', 'mash', 'minigame', 'mini-game', 'couch party']) }),
   farming: row({ name: 'Farming', like: 'a farm: plant, let the days ripen it, harvest and sell',
     handles: row({ genres: list(['farming']), quick: list(['farm']) }), sizes: list(['quick']), level1: 'a day: the gold made before it ends' }),
