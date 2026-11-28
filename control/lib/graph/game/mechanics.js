@@ -78,8 +78,8 @@ const sidesOf = (T, P, rivals = []) => (P !== 'player' && !rivals.includes('play
 // so any of them takes a pickup or the way out; without seats seat 1's alone, as it was
 const takers = (ctx) => (Array.isArray(ctx.seats) && ctx.seats.length ? [ctx.player, ...ctx.seats.slice(0, 3)] : ctx.player);
 const seated = (ctx) => Array.isArray(ctx.seats) && ctx.seats.length > 0;
-// (a pickup with seats is taken once: its reactions only while its zone is on, the zone shut last; two seats in it on one
-// frame, or one walking back over it, take nothing more)
+// (a pickup is taken once: its reactions only while its zone is on, the zone shut last; two seats in it on one frame, or
+// one walking back over it, take nothing more)
 const whileOn = (zone) => ({ if: { entity: zone, field: 'on', eq: true } });
 
 // FAIL-ON-DEATH WITH SEATS (a level with seats keeping the level's hp, docs/local-multiplayer-principles.md principle 4):
@@ -262,16 +262,11 @@ const MECHANICS = {
         world.entities.push({ id: zone, on: true, position: pk.at || [0, 0, 0] });
         // planar unless the pickup says otherwise (one raised on a ledge is reached by climbing to it, not by walking under it)
         world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: takers(ctx) });
-        if (seated(ctx)) {
-          // (seats: any seat takes it, into the one bag, once)
-          world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'emit', type: 'pickup:' + item });
-          world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'inc', var: heldVar('bag', item), by: 1 });
-          world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
-          return;
-        }
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'pickup:' + item });
+        // (taken once, by any seat into the one bag: its reactions while its zone is on, the zone shut last; walked back
+        // over, nothing more, 11-28)
+        world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'emit', type: 'pickup:' + item });
+        world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'inc', var: heldVar('bag', item), by: 1 });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: heldVar('bag', item), by: 1 });
       });
       for (const item of items) { world.vars[heldVar('bag', item)] = 0; world.hud.push({ var: heldVar('bag', item), label: itemKey(item).replace(/-/g, ' ') }); }
       const on = {};
@@ -472,16 +467,10 @@ const MECHANICS = {
         const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
         world.entities.push({ id: zone, on: true, position: at });
         world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: takers(ctx) });
-        if (seated(ctx)) {
-          // (seats: any seat takes it, into the one count, once)
-          const g = whileOn(zone);
-          world.reactions.push({ on: 'enter', match: { zone }, ...g, do: 'emit', type: 'coin' }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: 'coins', by: 1 }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: run, by: 1 }, { on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
-          return;
-        }
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'coin' });   // (heard: its chime)
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'coins', by: 1 });
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: run, by: 1 });
+        // (taken once, by any seat into the one count: its reactions while its zone is on, the zone shut last; walked back
+        // over, nothing more, 11-28) (the coin heard: its chime)
+        const g = whileOn(zone);
+        world.reactions.push({ on: 'enter', match: { zone }, ...g, do: 'emit', type: 'coin' }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: 'coins', by: 1 }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: run, by: 1 }, { on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
       });
       world.reactions.push({ on: 'oneup', do: 'set', var: run, to: 0 });
       return { world, emits: ['coin', 'oneup'] };
