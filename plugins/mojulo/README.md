@@ -76,20 +76,21 @@ claude mcp remove mojulo -s user
 
 ## Try it
 
-Each of these works on a fresh install. The result names the file it wrote under
-`~/.mojulo/data/`.
+Start a new session and say what you want, or ask "what is this?" and pick one of the five starts: a character, a
+game, an object, a 3D exhibit, or a home or a room. Each works on a fresh install:
 
-- "Model a ceramic coffee mug about 9 cm tall with a handle, and export a print-ready STL."
-  Claude mints a measured object study and exports `model.stl` at true scale (and `model.glb` if
-  you ask).
-- "Compose a small walkable harbour town and export it as one HTML page I can open offline."
-  You get `world.html`, which opens from your disk with no server and no network.
-- "Make a tiny level with a few coins to collect and export it as a Godot project."
-  Claude mints the level as a world with a collect-then-exit rule, proves it can be finished by
-  playing it through in your installed browser, and writes a Godot 4 project folder.
+- "Make me a hero in an anime style, for a game." Claude makes a rigged, animated character and shows you its page;
+  ask for a skinned GLB to take it into your 3D tools.
+- "Design a game with me. I have some sketches." Claude asks a few questions first, one at a time, takes in what you
+  bring, and works toward a first level you can play in your browser. A plain ask ("make me a kart racer") is made at
+  once.
+- "Here's our floor plan. Some ideas for living in it?" Claude builds the house from the picture and designs the rooms
+  you name, with furniture at true size.
+- "Model a ceramic coffee mug about 9 cm tall with a handle, and export a print-ready STL." You get `model.stl` at
+  true scale under `~/.mojulo/data/`.
 
-Then keep going in the same conversation: "make the handle thicker", "add a lighthouse", "move the
-exit further away". Claude edits the stored recipe in place and re-exports.
+Then keep going in the same conversation: "make the handle thicker", "give the hero a red coat", "move the exit
+further away". Claude edits the stored recipe in place and re-exports.
 
 ## What it installs, fetches, runs and writes
 
