@@ -4,7 +4,8 @@
  * each build binds every moment again, and one that can no longer find its place is UNPLACED, reported with what is
  * missing, while the rest of the world builds.
  *
- *   story: [{ id,
+ *   story: [{ id,                                (or a GAME SLOT's slideshow: { id, when: { slot }, slides: [{ say, art? }],
+ *                                                sets? }, played over the game by its flow, game/flow.js)
  *     who?:   [cast id],                         the cast in the moment (characters.cast); the hero is always there
  *     where:  { level, stage?, place? }          the level, its stage (its first by default), the place it is about
  *     stand?: { <who>: place },                  where each of them stands (else the moment's place, else beside the
@@ -54,11 +55,12 @@ import { readQuests } from '../playscape/ui/quests.js';
 import { lowerScript, scriptsIn } from '../playscape/ui/scene-script.js';
 import { directorsNotes } from '../actor/notes.js';
 import { coverScene } from '../actor/coverage.js';
+import { readSlides } from '../game/flow.js';
 
 const ID = /^[a-z][a-z0-9-]*$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: story${m}`);
-const MOMENT_KEYS = ['id', 'who', 'where', 'stand', 'when', 'if', 'sets', 'once', 'beats'];
+const MOMENT_KEYS = ['id', 'who', 'where', 'stand', 'when', 'if', 'sets', 'once', 'beats', 'slides'];
 const SCENE_KEYS = ['id', 'when', 'if', 'sets', 'once', 'beats'];
 
 /** A moment's scene: the scene keys, with the cast's names for the box. */
@@ -99,6 +101,15 @@ export function readStory(S) {
     if (slot !== undefined && (Object.keys(m.when).length !== 1 || ![...LEVEL_SLOTS, ...EPOCH_SLOTS, ...GAME_SLOTS].includes(slot))) throw err(`${at}.when.slot is ${[...LEVEL_SLOTS, ...EPOCH_SLOTS, ...GAME_SLOTS].map((x) => `'${x}'`).join(', ')}, alone in when: the story slot it plays in`);
     if (GAME_SLOTS.includes(slot) && gameSlot[slot]) throw err(`${at}.when.slot '${slot}': the game has one ${slot}, and '${gameSlot[slot]}' is it`);
     if (GAME_SLOTS.includes(slot)) gameSlot[slot] = m.id;
+    // A SLIDESHOW (`slides`: the story in beats over pictures, game/flow.js): a game slot's, played over the game by its
+    // flow, on no level's page; it has no level, no people and no beats
+    if (m.slides !== undefined) {
+      if (!GAME_SLOTS.includes(slot)) throw err(`${at}.slides is a game slot's slideshow: when: { slot: ${GAME_SLOTS.map((x) => `'${x}'`).join(' | ')} }`);
+      for (const k of ['where', 'who', 'stand', 'beats', 'if', 'once']) if (m[k] !== undefined) throw err(`${at}.${k}: a slideshow plays over the game, on no level's page (it has slides in place of where, who and beats)`);
+      const bad = readSlides(m.slides, `${at}.slides`);
+      if (bad.length) throw err(bad[0]);
+      return { ...m };
+    }
     if (isObj(m.where) && epoch !== undefined) {
       for (const k of Object.keys(m.where)) if (k !== 'epoch') throw err(`${at}.where is { epoch } alone for an epoch's moment (its ${k} is a level's)`);
       if (!((typeof epoch === 'string' && epoch.trim()) || (Number.isInteger(epoch) && epoch >= 1))) throw err(`${at}.where.epoch is the epoch's name or its number, from 1`);
@@ -192,6 +203,8 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
   const moments = G.story ?? [], cast = G.characters?.cast ?? {}, gates = questGates(G.quests);
   const byStage = {}, byEpoch = {}, bound = [], unplaced = [], notes = [], actors = storyActors(G) ?? {};
   for (const m of moments) {
+    // (a slideshow is the game's flow's to play, over the game: bound to no stage, game-flow.js storyCinematics)
+    if (m.slides !== undefined) continue;
     // an epoch's moment: its map's begin, or its last level's end
     if (m.where.epoch !== undefined) {
       if (!epochs?.length) { unplaced.push({ id: m.id, why: 'an epoch\'s moment is a tactics book\'s (battles: { on: \'board\' }): this book has no epochs' }); continue; }
@@ -266,7 +279,7 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
   }
   // a step's flag that nothing in the story sets (a moment's sets, an answer's): a cue may set it; said, not refused
   // (and the battles' boss's fall, battles.sets: the flag its pack's win sets)
-  const sets = new Set([...readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]), ...(typeof G.battles?.sets === 'string' ? [G.battles.sets] : [])]);
+  const sets = new Set([...readScenes({ scenes: moments.filter((m) => m.slides === undefined).map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]), ...(typeof G.battles?.sets === 'string' ? [G.battles.sets] : [])]);
   const unset = [];
   for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done) && s.on === undefined) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
   return { byStage, byEpoch, bound, unplaced, ...(G.quests ? { unset } : {}), ...(notes.length ? { notes } : {}) };

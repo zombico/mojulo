@@ -1,7 +1,7 @@
 // CERES (gameworld/artesia.js): the world of Fable of Artesia, the rail's game, a megaworld chain of regions, each its own light,
 // each opened by the shard freed from the dragon of the one before.
 import { describe, it, expect } from 'vitest';
-import { CERES, REGIONS, REGION_IDS, REGION_PLAINS, regionLevel, regionCube, ceresWorld, dragonKind, APPROACH, RHAYU, CERES_STORY, CERES_QUESTS, ceresApproach } from './artesia.js';
+import { CERES, REGIONS, REGION_IDS, REGION_PLAINS, regionLevel, regionCube, ceresWorld, dragonKind, APPROACH, RHAYU, CERES_STORY, CERES_QUESTS, CERES_OPENING, ceresApproach } from './artesia.js';
 import { DRAGONS } from '../boss/dragons.js';
 import { readGameworld } from './world.js';
 import { megaworldLaws } from './megaworld.js';
@@ -144,6 +144,8 @@ describe('the approach', () => {
     expect(() => readGameQuests(W.quests, W.story)).not.toThrow();
     const B = bindStory(G, gameStages(G), { castRefs: { rhayu: 'r' }, layout: { stageEnds, stageSpots, stageLane } });
     expect(B.unplaced).toEqual([]); expect(B.unset).toEqual([]);
+    // (the opening a slideshow: the flow's, bound to no stage)
+    expect(CERES_STORY[0]).toMatchObject({ when: { slot: 'opening' }, slides: CERES_OPENING });
     expect(B.bound).toEqual([
       { id: 'rhayu-thanks', level: APPROACH.id, node: 'A', place: 'ambush' },
       { id: 'rhayu-harbour', level: REGIONS[0].id, node: 'A', slot: 'before' },
@@ -166,6 +168,10 @@ describe('the approach', () => {
     expect(m.play.cues.filter((c) => /^won-foe-/.test(c.id)).map((c) => c.when.down).sort()).toEqual(rest.sort());
     expect(m.entities.some((e) => e.id === 'rhayu')).toBe(true);
     // (the region after it: no horse on its first page, Rhayu at its start)
+    // (the game opens on the premise, a slideshow over it, then the coast road)
+    const game = steps.find((x) => x.order?.flow?.steps?.opening).order;
+    expect(game.flow.start).toBe('opening');
+    expect(game.flow.steps.opening).toMatchObject({ kind: 'cutscene', slides: [...CERES_OPENING] });
     const L0 = steps.find((x) => x.key === `level-${REGIONS[0].id}-0`).order.manifest;
     expect(L0.mounts).toBeUndefined();
     expect(L0.entities.some((e) => e.id === 'rhayu')).toBe(true);

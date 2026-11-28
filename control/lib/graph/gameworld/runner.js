@@ -660,7 +660,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const S0 = onBoard ? stages : C.stages, R0 = onBoard ? levelRefs : C.refs;
     const boundRef = (id) => { const b = (told?.bound ?? []).find((x) => x.id === id && x.level); const k = b ? S0.findIndex((st) => st.level === b.level && st.node === b.node) : -1; return k >= 0 ? R0[k] : null; };
     const firstRef = (level) => { const k = S0.findIndex((st) => st.level === level); return k >= 0 ? R0[k] : null; };
-    const cinematics = Object.fromEntries(Object.entries(storyCinematics(G)).map(([slot, c]) => [slot, { scene: c.scene, stage: boundRef(c.scene) }]).filter(([, c]) => c.stage));
+    const cinematics = Object.fromEntries(Object.entries(storyCinematics(G)).map(([slot, c]) => [slot, c.slides ? { slides: c.slides } : { scene: c.scene, stage: boundRef(c.scene) }]).filter(([, c]) => c.stage || c.slides));
     let flow = null;
     if (G.flow === FLOW_IN_PLAY) {
       // STARTED IN PLAY (flow.js startInPlay): the flow this game's own front, levels, links and map make, begun at an

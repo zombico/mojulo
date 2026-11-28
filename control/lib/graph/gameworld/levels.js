@@ -1804,7 +1804,7 @@ export function stageSpots(ends, lane = null) {
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */
 export const STORY_SLICE = 'story';
 export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0)
-  || sceneFlags({ scenes: (G.story ?? []).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length
+  || sceneFlags({ scenes: (G.story ?? []).filter((m) => m.slides === undefined).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length
   // (a megaworld's zones are gone back to: what was won in one stays won, rpg.js wonFlag)
   || !!G.megaworld
   // (a townsperson's pages read the story's flags, folk/pages.js)

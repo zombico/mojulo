@@ -19,7 +19,9 @@
  *                           approachLevel). Artesia comes up it on Seimos and gets down (the controls taught), goblins
  *                           have the merchant Rhayu at the road's far end (the first fight taught), and he leads her on
  *                           to Lagoona's harbour village (the story and its quest, below)
- *   RHAYU, CERES_STORY, CERES_QUESTS   the merchant (a cast member in words), his moments, the quest they make
+ *   CERES_OPENING         the premise in six slides: the game's opening, played over it before the coast road
+ *   RHAYU, CERES_STORY, CERES_QUESTS   the merchant (a cast member in words), the opening and his moments, the quest
+ *                           they make
  *   ceresApproach(geocube?) → the approach's gameworld level, in Lagoona's light and on its cube
  *   ceresWorld(world)     → the world laid as Ceres: the approach then its regions for its levels, the chain for its
  *                           links, Rhayu in its cast and his story, under every key the creator wrote but its levels and
@@ -88,7 +90,17 @@ export const RHAYU = f({ name: 'Rhayu', looks: f({ body: f({ cast: 'male', tune:
 const HARBOUR = REGIONS[0].blocks[0];
 /** His moments: he stands among the goblins at the ambush; won, he thanks her (she is silent) and walks on to the road's
  * end; at the harbour village he says where they are. Each finds its place as the world is bound (story.js). */
+// (THE OPENING: the premise in beats, a slideshow played over the game before the coast road, game/flow.js `slides`)
+export const CERES_OPENING = f([
+  f({ say: 'Ceres. A kingdom kept by its dragons, and its dragons kept by the Royal Amber.' }),
+  f({ say: 'Artesia, chief of the royal guard and second in line to the throne, kept its peace.' }),
+  f({ say: 'Then the wizard Olric took the Amber, and with it the dragons.' }),
+  f({ say: 'He shut the prince, her brother, in a prison of crystal, and set a facsimile of him on the throne.' }),
+  f({ say: 'The false prince cast her out of the kingdom.' }),
+  f({ say: 'Now she rides home: to free the dragons one by one, gather their shards, and reform the Amber.' }),
+]);
 export const CERES_STORY = f([
+  f({ id: 'ceres-opening', when: f({ slot: 'opening' }), slides: CERES_OPENING }),
   f({ id: 'rhayu-thanks', who: ['rhayu'], where: f({ level: APPROACH.id, place: 'ambush' }), stand: f({ rhayu: 'ambush' }), when: f({ won: 'ambush-rest' }), sets: ['met-rhayu'], beats: f([
     f({ line: f({ who: 'rhayu', say: 'Gone, all of them. I owe you my life, and my cart.' }) }),
     f({ line: f({ who: 'rhayu', say: `I am Rhayu, a merchant of ${HARBOUR}. Goblins never came down the coast before the dragons turned.` }) }),

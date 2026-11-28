@@ -6,10 +6,11 @@
  * this: no kernel, no sheet, no theme, no host.
  *
  *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
- *   shellManaSpec(ui, { picks, gameOver, naming }) → (naming: the game's, a `name` screen on mana-ui's keyboard) (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
+ *   shellManaSpec(ui, { picks, gameOver, naming, slides }) → (slides: a story slideshow's `story` screen) (naming: the game's, a `name` screen on mana-ui's keyboard) (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
  *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
- *   shellManaCss(ui)             → the sheet and the theme, scoped to the mana root
+ *   shellManaCss(ui, { slides? }) → the sheet and the theme, scoped to the mana root (slides: the story screen's ground
+ *                                  left clear, the slide's picture under it)
  *   shellManaScript()            → the page's code: the kernel, the controls host, and `__mojMana`
  *   shellManaConfig(ui, opts)    → cfg.mana: { spec, glyphs, controls: { keys, pad } }
  *   playShellManaRuntime(cfg, api) → (inlined) { draw(name), close(), loading(place), loaded(), pause(), unpause(),
@@ -43,7 +44,7 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver = false, naming = null } = {}) {
+export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver = false, naming = null, slides = false } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
   // the name enters letter by letter in its look's way (theme.js titleLetters; a look that says still: at once); on a
   // staged start screen the stage draws the name, and the menu is words with no window behind (front-stage-page.js)
@@ -93,6 +94,13 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver
   if (naming) screens.name = { use: 'screen', props: { title: B('name.label'), place: 'center' }, children: [{ use: 'window', children: [
     { use: 'textentry', props: { value: B('name.value'), max: Math.min(24, naming.max || 12), min: Math.max(1, naming.min || 1), charset: 'name' }, on: { done: { emit: 'name:done', name: { input: true } }, cancel: { emit: 'name:back' } } },
   ] }] };
+  // A STORY SLIDESHOW (flow.js `slides`, play-cine.js plays it): a slide's words in the lower third, over its picture
+  // (drawn under the screen by the player), which slide of how many under them; no window behind, no legend (any key or
+  // a tap goes on, play-cine.js); a game whose flow has none has no such screen
+  if (slides) screens.story = { use: 'screen', props: { layer: 'overlay', place: 'bottom', legend: 'none' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
+    { use: 'text', props: { value: B('story.say'), role: 'body' } },
+    { use: 'text', props: { value: B('story.step'), role: 'caption' } },
+  ] }] }] };
   if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
   // and the way into the pause while a level is the player's: a button in the corner, tapped or clicked (it takes no
@@ -111,7 +119,7 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver
 // wireframe would; a backdrop keeps its ground, the theme's own)
 // (and the shell's own pause button gives way to mana-ui's: it stays in the page as the shell's word for whether a level
 // is the player's, never seen or pressed)
-export const shellManaCss = (ui = {}) => `${manaCss()}\n${lettersCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}${ui.immersive === true ? immersiveCss('#mana') : ''}`;
+export const shellManaCss = (ui = {}, { slides = false } = {}) => `${manaCss()}\n${lettersCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}${ui.immersive === true ? immersiveCss('#mana') : ''}${slides ? '\n#mana .mana-root[data-open=story] .mana-screen::after{background:none}' : ''}`;
 export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
   // (its menus' sounds, `ui.sounds`: the set, the recorded library's over it; none recorded here, none at all)

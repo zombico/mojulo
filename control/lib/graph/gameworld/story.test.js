@@ -344,6 +344,21 @@ describe('a moment on a fight won', () => {
   });
 });
 
+// A SLOT'S SLIDESHOW (`slides`): the story in beats over pictures, a game slot's, played over the game by its flow
+// (game/flow.js), bound to no stage
+describe('a slideshow in a game slot', () => {
+  it('is a game slot\'s, with no level, people or beats; the flow takes it as the slot\'s cutscene', async () => {
+    const { readStory } = await import('./story.js');
+    const { storyCinematics } = await import('./game-flow.js');
+    const show = { id: 'tale', when: { slot: 'opening' }, slides: [{ say: 'Once.' }] };
+    expect(readStory([show])).toEqual([show]);
+    expect(() => readStory([{ ...show, when: { slot: 'before' } }])).toThrow(/slides is a game slot's slideshow/);
+    expect(() => readStory([{ ...show, where: { level: 'gate' } }])).toThrow(/where: a slideshow plays over the game/);
+    expect(() => readStory([{ ...show, slides: [] }])).toThrow(/list of 1 to/);
+    expect(storyCinematics({ story: [show] })).toEqual({ opening: { slides: show.slides } });
+  });
+});
+
 describe('the game\'s slots: an opening, a prologue, an ending', () => {
   const line = [{ line: { who: 'hero', say: 'On.' } }];
   const at = (m) => ({ id: 'm', beats: line, ...m });

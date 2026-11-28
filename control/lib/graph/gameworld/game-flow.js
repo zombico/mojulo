@@ -10,7 +10,8 @@
  * (story.js GAME_SLOTS), and the main quest's ending when that beat is a story moment (`as: { scene }`) and the story
  * has no ending of its own.
  *
- *   storyCinematics(G)       → { opening?, prologue?, ending?: { scene, level } }   (level: the moment's level id)
+ *   storyCinematics(G)       → { opening?, prologue?, ending?: { scene, level } | { slides } }   (level: the moment's level
+ *                              id; slides: a slot's slideshow, over the game)
  *   worldFlow(G)             → { flow, source: 'own' | 'default' | 'play' } in the world's level ids, or null (nothing
  *                              to say: no flow of its own, no cinematics and no set-up); a world's `setup` (setup.js)
  *                              is asked on every level step that asks nothing of its own. `flow: 'play'` (flow.js FLOW_IN_PLAY) is
@@ -32,7 +33,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The story's cinematics: its moments in the game's slots, and the main quest's ending as a moment. */
 export function storyCinematics(G) {
   const out = {};
-  for (const m of G.story ?? []) if (GAME_SLOTS.includes(m.when?.slot) && m.where?.level) out[m.when.slot] = { scene: m.id, level: m.where.level };
+  // (a slot's slideshow, `slides`: played over the game, on no level's page)
+  for (const m of G.story ?? []) if (GAME_SLOTS.includes(m.when?.slot) && (m.where?.level || m.slides)) out[m.when.slot] = m.slides ? { slides: m.slides } : { scene: m.id, level: m.where.level };
   // the main quest's ending, played as a story moment (its beat's `as: { scene }`): the game's ending, unless the story
   // has one of its own
   const Q = G.mainQuest, beat = Q?.ending && [...(Q.acts ?? []), ...(Q.chapters ?? [])].flatMap((a) => a.beats ?? []).find((b) => b.id === Q.ending.beat);
@@ -54,7 +56,7 @@ function flowAsSaid(G) {
   const C = storyCinematics(G), play = G.flow === FLOW_IN_PLAY;
   if (!play && !Object.keys(C).length && !G.setup) return null;
   const ids = G.ids ?? Object.keys(G.levels ?? {});
-  const cinematics = Object.fromEntries(Object.entries(C).map(([k, c]) => [k, { scene: c.scene, stage: c.level }]));
+  const cinematics = Object.fromEntries(Object.entries(C).map(([k, c]) => [k, c.slides ? { slides: c.slides } : { scene: c.scene, stage: c.level }]));
   const game = { levels: ids, ...(G.front !== undefined ? { front: G.front } : {}), ...(isObj(G.quick) && G.quick.run ? { run: { length: G.quick.run } } : {}) };
   // (STARTED IN PLAY, `flow: 'play'`: the story's opening moment, where it has one, is what the opening cutscene plays;
   // its ending stays where a game plays it)
@@ -86,8 +88,8 @@ export function flowStoryboard(flow, { scripted = [] } = {}) {
   for (const id of Object.keys(flow.steps)) if (!order.includes(id)) order.push(id);
   return order.map((id) => {
     const s = flow.steps[id];
-    const what = s.kind === 'screen' ? `the ${s.screen} screen` : s.kind === 'cinematic' ? `the scene ${s.scene}${scripted.includes(s.scene) ? ' (a script, blocked and shot by the director)' : ''}, on ${s.stage}${s.keep ? ', kept into play' : ''}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'cutscene' ? `a cutscene: ${s.video ? `the video ${s.video}` : s.scene ? `the scene ${s.scene}, on ${s.stage}` : 'its slot, empty (passed at once until it is given a video or a scene)'}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'level' ? (s.level === '$any' ? 'any level it is given' : `the level ${s.level}`) : `a hold${s.for ? ` of ${s.for} s` : ''}${s.until ? ` until ${s.until}` : ''}`;
-    const waits = s.kind === 'screen' ? `the player (${Object.keys(s.on ?? {}).join(', ') || 'next'})${s.idle ? `, or ${s.idle.after} s left alone` : ''}` : s.kind === 'cinematic' ? 'its scene to end' : s.kind === 'cutscene' ? (s.video || s.scene ? 'it to end, or a skip' : 'nothing') : s.kind === 'level' ? `its end (${Object.keys(s.on ?? {}).join(', ')})` : s.until ? `the event ${s.until}` : 'its time';
+    const what = s.kind === 'screen' ? `the ${s.screen} screen` : Array.isArray(s.slides) ? `a slideshow of ${s.slides.length} slide${s.slides.length === 1 ? '' : 's'}, over the game${s.skip === false ? ', unskippable' : ''}` : s.kind === 'cinematic' ? `the scene ${s.scene}${scripted.includes(s.scene) ? ' (a script, blocked and shot by the director)' : ''}, on ${s.stage}${s.keep ? ', kept into play' : ''}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'cutscene' ? `a cutscene: ${s.video ? `the video ${s.video}` : s.scene ? `the scene ${s.scene}, on ${s.stage}` : 'its slot, empty (passed at once until it is given a video or a scene)'}${s.skip === false ? ', unskippable' : ''}` : s.kind === 'level' ? (s.level === '$any' ? 'any level it is given' : `the level ${s.level}`) : `a hold${s.for ? ` of ${s.for} s` : ''}${s.until ? ` until ${s.until}` : ''}`;
+    const waits = s.kind === 'screen' ? `the player (${Object.keys(s.on ?? {}).join(', ') || 'next'})${s.idle ? `, or ${s.idle.after} s left alone` : ''}` : Array.isArray(s.slides) ? 'the player through its slides, or a skip' : s.kind === 'cinematic' ? 'its scene to end' : s.kind === 'cutscene' ? (s.video || s.scene ? 'it to end, or a skip' : 'nothing') : s.kind === 'level' ? `its end (${Object.keys(s.on ?? {}).join(', ')})` : s.until ? `the event ${s.until}` : 'its time';
     const goes = Object.fromEntries([...Object.entries(s.on ?? {}), ...(s.next !== undefined ? [['next', s.next]] : []), ...(s.idle ? [['idle', s.idle.go]] : [])].map(([e, t]) => [e, targets(t).join(' | ')]));
     // (a level step's turn, game/turn.js: what is asked before it loads, what plays as play starts and as it ends)
     const turn = s.kind === 'level' ? { ...(s.picks ? { asks: s.picks.map((p) => p.id) } : {}), ...(s.start ? { start: s.start.scene ?? s.start.video } : {}), ...(s.end ? { end: s.end.scene ?? s.end.video } : {}) } : {};

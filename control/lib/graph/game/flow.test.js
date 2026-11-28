@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFlow, defaultFlow, startInPlay, withNaming, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
+import { readFlow, defaultFlow, startInPlay, withNaming, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS, FLOW_SLIDES } from './flow.js';
 import { validateGameManifest } from './game-manifest.js';
 
 // A GAME'S FLOW: what plays when, from the first screen to the credits, as data. The reader teaches every fault; a game
@@ -201,6 +201,15 @@ describe('the flow is stepped, and walked headless', () => {
     bad({ stage: 'vale' }, /stage is a directed scene's/);
     bad({ scene: 'nowhere', stage: 'vale' }, /no scene 'nowhere'/);
     bad({ video: 7 }, /video is the video it plays/);
+    // (a story slideshow: its slides, each its words and a picture or none; no more than FLOW_SLIDES.most)
+    expect(readFlow(flow({ slides: [{ say: 'Once.' }, { say: 'Then.', art: 'a.png' }] }), { levels: LEVELS })).toEqual([]);
+    bad({ slides: [] }, /list of 1 to \d+ slides/);
+    bad({ slides: Array.from({ length: FLOW_SLIDES.most + 1 }, () => ({ say: 'x' })) }, /list of 1 to \d+ slides/);
+    bad({ slides: [{ say: '' }] }, /\.say is its words/);
+    bad({ slides: [{ say: 'x', music: 'y' }] }, /a slide is \{ say, art\? \}/);
+    bad({ slides: [{ say: 'x' }], video: 'a.mp4' }, /a video, a directed scene or a slideshow, one of them/);
+    expect(readFlow({ start: 'a', steps: { a: { kind: 'cinematic', slides: [{ say: 'x' }], stage: 'vale', next: 'v' }, v: { kind: 'level', level: 'vale', on: { won: 'a' } } } }, { levels: LEVELS }).join('\n')).toMatch(/a slideshow plays over the game, on no level's page; it has no stage/);
+    expect(defaultFlow({ levels: LEVELS.map((ref) => ({ ref })), front: {}, cinematics: { opening: { slides: [{ say: 'x' }] } } }).steps.opening).toMatchObject({ kind: 'cinematic', slides: [{ say: 'x' }] });
     expect(readFlow({ start: 'a', steps: { a: { kind: 'cutscene' } } }, { levels: LEVELS }).join('\n')).toMatch(/next: where it goes as it ends/);
     // a loop of cutscenes alone is nothing for the player to press
     expect(readFlow({ start: 'a', steps: { a: { kind: 'cutscene', next: 'b' }, b: { kind: 'cutscene', next: 'a' } } }, { levels: LEVELS }).join('\n')).toMatch(/loops with nothing for the player/);

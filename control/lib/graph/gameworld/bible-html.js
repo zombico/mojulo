@@ -466,6 +466,8 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
   // (a script's director's notes, as it is blocked on its stage: advice with its fix, actor/notes.js)
   const notesOf = (id) => { const N = (told?.notes ?? []).filter((n) => n.id === id).flatMap((n) => n.notes); return N.length ? `<ul class="muted">${N.map((x) => `<li>${esc(x.says)} <em>${esc(x.try)}</em></li>`).join('')}</ul>` : ''; };
   const momentHtml = told ? (G.story ?? []).map((m) => {
+    // (a game slot's slideshow: its slides, played over the game by the flow)
+    if (m.slides) return `<article class="card"><div class="card-h"><span class="eyebrow">Slides · the ${esc(m.when.slot)}</span><h3>${esc(m.id)}</h3></div><ol class="muted">${m.slides.map((x) => `<li>${esc(x.say)}</li>`).join('')}</ol></article>`;
     const b = told.bound.find((x) => x.id === m.id), u = told.unplaced.find((x) => x.id === m.id);
     return `<article class="card${u ? ' open' : ''}"><div class="card-h"><span class="eyebrow">${u ? 'Unplaced' : `Bound · ${esc(where(b))}`}</span><h3>${esc(m.id)}</h3></div><p class="muted">${esc((m.who ?? []).map((w) => cast?.[w]?.name ?? w).join(', ') || 'the hero')}${m.sets?.length ? ` · sets ${esc(m.sets.join(', '))}` : ''}</p>${u ? `<p class="muted">${esc(u.why)}</p>` : ''}${notesOf(m.id)}</article>`;
   }).join('') : '';

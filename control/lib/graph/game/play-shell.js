@@ -127,12 +127,14 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   // (a name asked is typed on mana-ui's keyboard, so a pad can type it: in the greybox too where the game says no ui)
   const ui = manifest.ui || (hasPicks || manifest.naming ? {} : null);
+  // (a STORY SLIDESHOW in the flow, flow.js `slides`: mana-ui's story screen to draw it on, play-cine.js to play it)
+  const slidesIn = Object.values(flow.steps || {}).some((s) => s && Array.isArray(s.slides));
   const stageCard = manifest.front && manifest.front.stage && frontStage ? FRONT_CARDS[manifest.front.stage.composition] || null : null;
   // (the screens in mana-ui, and their sounds where the game's ui names a set the recorded library voices: the sounds are
   // the page script's, play-shell-mana.js shellManaScript, never the cfg's)
   // (the pick screen too where the turns ask for picks, or the title asks which save: `slots`; the game over's screen,
   // a game's with gameOver; the name asked, a game's naming)
-  const manaAll = ui ? shellManaConfig(ui, { ...(hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}), ...(manifest.gameOver === true ? { gameOver: true } : {}), ...(manifest.naming ? { naming: manifest.naming } : {}) }) : null;
+  const manaAll = ui ? shellManaConfig(ui, { ...(hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}), ...(manifest.gameOver === true ? { gameOver: true } : {}), ...(manifest.naming ? { naming: manifest.naming } : {}), ...(slidesIn ? { slides: true } : {}) }) : null;
   const { sounds: manaSounds = null, soundsK = null, soundsOf = null, ...manaRest } = manaAll || {};
   const cfg = {
     manifest,
@@ -165,7 +167,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
   // A CUTSCENE PLAYED AS A VIDEO (flow.js: a cinematic's `film` or `video`, play-cine.js): its player is inlined only in
   // a game whose flow has one. Absent: not a byte of it
-  const cine = Object.values(cfg.flow.steps || {}).some((s) => s && s.kind === 'cinematic' && (s.film !== undefined || s.video !== undefined));
+  const cine = slidesIn || Object.values(cfg.flow.steps || {}).some((s) => s && s.kind === 'cinematic' && (s.film !== undefined || s.video !== undefined));
   // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
   // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
   // Absent: no attribute, no rule, the page as it was
@@ -240,7 +242,7 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
   #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
   ${SCREEN_CSS}` : ''}${front ? `
   ${FRONT_CSS}` : ''}${mana ? `
-  ${shellManaCss(ui)}` : ''}${mana && screen ? `
+  ${shellManaCss(ui, { slides: slidesIn })}` : ''}${mana && screen ? `
   ${manaFrameCss(screen)}` : ''}${stageCard ? `
   ${stageCss(stageCard, { mana, live: !!cfg.stage.three, treatment: cfg.stage.treatment, background: !!cfg.stage.background })}` : ''}
 </style>${stageCard && cfg.stage.three ? `<script type="importmap">${stageImportmap(frontStage.three)}</script>` : ''}</head>

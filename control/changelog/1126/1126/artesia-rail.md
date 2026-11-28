@@ -97,3 +97,15 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
     a moment stands its people at one.
   - **A fight won:** a moment's `when: { won: '<beat id>' }` starts it as that fight's foes are all down; the page
     counts their falls and raises `won:<beat>`.
+- **The opening: the story in slides** (`game/flow.js` `slides`, `game/play-cine.js`, `game/play-shell-mana.js`,
+  `gameworld/story.js`, `gameworld/game-flow.js`).
+  - **A slideshow cinematic:** a flow's cinematic or cutscene may say `slides: [{ say, art? }]` in place of a video or
+    a scene. It plays over the game: each slide's picture fills the screen (none: black), its words in the lower
+    third with which slide of how many. Any key, a click or a tap goes on, the last into the game; Esc or its button
+    skips the rest, unless the step says `skip: false`.
+  - **On mana-ui:** a shell with mana-ui draws the words on its `story` screen, in the game's theme; one without
+    draws a plain line. A game whose flow has no slideshow carries none of it.
+  - **From the story:** a moment in a game slot (opening, prologue, ending) may say `slides` in place of a level and
+    beats; the flow plays it in that slot.
+  - **Ceres opens on its premise:** six slides (the dragons and the Amber, Artesia, Olric's theft, the prince in
+    crystal and his facsimile, her exile, her return), then the coast road.

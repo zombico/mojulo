@@ -29,7 +29,11 @@
  *                A level step is a TURN (turn.js): `picks` what the player chooses before it loads, `start` and `end`
  *                a scene or a video played as play starts and as it ends; a step that says none plays as it always has
  *     hold       { for?: seconds, until?: '<event>', next }   a beat, or a wait for an event
- *     cutscene   { video?, scene?, stage?, next, skip? }
+ *     cinematic  { slides, next, skip? }
+ *                a STORY SLIDESHOW over the game, on no level's page: `slides` [{ say, art? }] (FLOW_SLIDES), each a beat of
+ *                the story in words over its picture (`art`, an image's address, else the theme's ground), drawn on the
+ *                shell's mana-ui where it has it (play-cine.js); a key or a tap goes on, Esc or its button skips the rest
+ *     cutscene   { video?, scene?, stage?, slides?, next, skip? }
  *                THE CUTSCENE AFFORDANCE: an encapsulated sequence the game hands to (its opening), whatever it is made
  *                of: a `video` (a url or a path, played over the shell) or a directed `scene` on a level's page (`stage`,
  *                run as a cinematic is); skipped by a key or a tap (`skip: false`: not). With neither yet, the slot
@@ -53,10 +57,10 @@
  *   defaultFlow(game)                            → the flow a play-shell game has always had (its front, its levels,
  *                                                  its run, its map, its final level), so a game that says none
  *                                                  plays as it did; with game.cinematics ({ opening?, prologue?,
- *                                                  ending?: { scene, stage } }) the story's placed in it
+ *                                                  ending?: { scene, stage } | { slides } }) the story's placed in it
  *   FLOW_IN_PLAY                                 'play': a gameworld's `flow` said in one word (gameworld/game-flow.js)
  *   startInPlay(flow, cutscene?)                 → that flow STARTING IN PLAY: an `opening` cutscene (the slot, or
- *                                                  the `{ video } | { scene, stage }` given it), then straight into
+ *                                                  the `{ video } | { scene, stage } | { slides }` given it), then straight into
  *                                                  the game (the save's level, else the first), its title only where
  *                                                  quitting goes back to; no prologue: the opening is the one
  *                                                  sequence before play
@@ -103,11 +107,25 @@ export const FLOW_CINEMATICS = Object.freeze(['opening', 'prologue', 'ending']);
 
 const KEYS = {
   screen: ['kind', 'screen', 'on', 'next', 'idle'],
-  cinematic: ['kind', 'scene', 'stage', 'film', 'video', 'next', 'keep', 'skip'],
+  cinematic: ['kind', 'scene', 'stage', 'film', 'video', 'slides', 'next', 'keep', 'skip'],
   level: ['kind', 'level', 'on', ...TURN_KEYS],
   hold: ['kind', 'for', 'until', 'next'],
-  cutscene: ['kind', 'video', 'scene', 'stage', 'next', 'skip'],
+  cutscene: ['kind', 'video', 'scene', 'stage', 'slides', 'next', 'skip'],
 };
+/** A STORY SLIDESHOW's measure: how many slides, how long a slide's words, how long its picture's address. */
+export const FLOW_SLIDES = Object.freeze({ most: 24, say: 400, art: 2048 });
+/** A slideshow as written: every fault said. */
+export function readSlides(S, at = 'slides') {
+  if (!Array.isArray(S) || !S.length || S.length > FLOW_SLIDES.most) return [`${at} is a list of 1 to ${FLOW_SLIDES.most} slides, [{ say, art? }]: the story in beats`];
+  const out = [];
+  S.forEach((x, i) => {
+    if (!isObj(x)) { out.push(`${at}[${i}] is { say, art? }`); return; }
+    for (const k of Object.keys(x)) if (k !== 'say' && k !== 'art') out.push(`${at}[${i}].${k}: a slide is { say, art? }`);
+    if (!(isStr(x.say) && x.say.trim() && x.say.length <= FLOW_SLIDES.say)) out.push(`${at}[${i}].say is its words, up to ${FLOW_SLIDES.say} characters`);
+    if (x.art !== undefined && !(isStr(x.art) && x.art.length <= FLOW_SLIDES.art)) out.push(`${at}[${i}].art is its picture, an image's address`);
+  });
+  return out;
+}
 // (a step that plays a scene on a level's page: a cinematic, or a cutscene made of a directed scene)
 const staged = (s) => !!s && (s.kind === 'cinematic' || (s.kind === 'cutscene' && s.scene !== undefined));
 const ID = /^[a-z][a-z0-9-]{0,40}$/;
@@ -168,6 +186,12 @@ export function readFlow(flow, { levels = [], scenes = null, consumes = null, wh
       if (s.next !== undefined && evs.length > 1 && !isObj(s.on)) errors.push(`${at}.next stands for a screen's one event; the ${s.screen} screen has ${evs.length} (${evs.join(', ')}): say them in on`);
       if (s.idle !== undefined && !(isObj(s.idle) && num(s.idle.after, 5, 600) && s.idle.go !== undefined && Object.keys(s.idle).every((k) => k === 'after' || k === 'go'))) errors.push(`${at}.idle is { after: 5 to 600 seconds, go: target }: where the screen goes when the player leaves it alone`);
       if (s.on === undefined && s.next === undefined) errors.push(`${at}: a screen needs a way out (on, or next for its one event)`);
+    } else if (s.kind === 'cinematic' && s.slides !== undefined) {
+      // a story slideshow over the game
+      errors.push(...readSlides(s.slides, `${at}.slides`));
+      for (const k of ['film', 'video', 'scene', 'stage', 'keep']) if (s[k] !== undefined) errors.push(`${at}.${k}: a slideshow plays over the game, on no level's page; it has no ${k}`);
+      if (s.next === undefined) errors.push(`${at}.next: where it goes as it ends`);
+      if (s.skip !== undefined && typeof s.skip !== 'boolean') errors.push(`${at}.skip is true or false`);
     } else if (s.kind === 'cinematic' && (s.film !== undefined || s.video !== undefined)) {
       // a cutscene played as a video: a film's ref, or a video's address
       if (s.film !== undefined && s.video !== undefined && !isStr(s.film)) errors.push(`${at}.film is a film's ref`);
@@ -197,6 +221,7 @@ export function readFlow(flow, { levels = [], scenes = null, consumes = null, wh
     } else if (s.kind === 'cutscene') {
       if (s.video !== undefined && !isStr(s.video)) errors.push(`${at}.video is the video it plays (a url or a path)`);
       if (s.video !== undefined && s.scene !== undefined) errors.push(`${at}: a cutscene is a video or a directed scene, one or the other`);
+      if (s.slides !== undefined) { errors.push(...readSlides(s.slides, `${at}.slides`)); if (s.video !== undefined || s.scene !== undefined) errors.push(`${at}: a cutscene is a video, a directed scene or a slideshow, one of them`); }
       if (s.scene !== undefined) {
         if (!isStr(s.scene)) errors.push(`${at}.scene names the scene it plays (a story moment's id)`);
         else if (scenes && !scenes.includes(s.scene)) errors.push(`${at}.scene: no scene '${s.scene}' (${scenes.join(', ') || 'none'})`);
@@ -298,7 +323,7 @@ export function defaultFlow(game) {
   // gameworld/story.js GAME_SLOTS), each where a game plays it
   const C = isObj(game.cinematics) ? game.cinematics : {}, first = steps.attract ? 'attract' : home;
   // (a slot given a film or a video plays that, over the game; else its scene on its stage)
-  const cine = (c) => (c.film !== undefined ? { film: c.film } : c.video !== undefined ? { video: c.video } : { scene: c.scene, stage: c.stage });
+  const cine = (c) => (c.slides !== undefined ? { slides: c.slides } : c.film !== undefined ? { film: c.film } : c.video !== undefined ? { video: c.video } : { scene: c.scene, stage: c.stage });
   let start = first;
   // the opening: before the first screen on a first boot (unseen), and again as the attract loop when the first screen
   // is left alone
@@ -310,7 +335,7 @@ export function defaultFlow(game) {
   // the prologue: after New Game (the title's play), before control; on the first level's own page it hands that page
   // straight on to the level (keep), elsewhere the first level follows it
   if (C.prologue && !run && steps.title && steps.title.on && steps.title.on.play === '$first') {
-    const keep = C.prologue.stage !== undefined && C.prologue.film === undefined && C.prologue.video === undefined && C.prologue.stage === levels[0];
+    const keep = C.prologue.stage !== undefined && C.prologue.film === undefined && C.prologue.video === undefined && C.prologue.slides === undefined && C.prologue.stage === levels[0];
     steps.prologue = { kind: 'cinematic', ...cine(C.prologue), next: keep ? 'play' : '$first', ...(keep ? { keep: true } : {}) };
     steps.title = { ...steps.title, on: { ...steps.title.on, play: 'prologue' } };
   }

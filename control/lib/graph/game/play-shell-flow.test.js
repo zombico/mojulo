@@ -245,6 +245,50 @@ describe('the play shell runs the game\'s flow', () => {
     expect(U.level()).toBe('vale');
   });
 
+  it('a story slideshow plays over the shell: a key or a tap goes on, the last goes into the game; Esc skips the rest unless it may not', async () => {
+    const SLIDES = [{ say: 'Once, a kingdom.', art: 'media/one.png' }, { say: 'Then, a wizard.' }, { say: 'Now, the road home.' }];
+    const boot = (cut, more = {}) => page({ flow: startInPlay(defaultFlow(game()), cut), ...more });
+    const P = boot({ slides: SLIDES }), pic = () => P.d.querySelector('[data-slides]'), words = () => P.d.querySelector('[data-cine-words]');
+    await wait(20);
+    expect(pic().getAttribute('data-slides')).toBe('3');
+    expect(pic().style.backgroundImage).toContain('media/one.png');
+    expect(words().textContent).toContain('Once, a kingdom.');
+    expect(words().textContent).toContain('1 / 3');
+    // (the key that started the game is no press)
+    P.w.dispatchEvent(new P.w.KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(pic().getAttribute('data-slide')).toBe('0');
+    await wait(450);
+    P.w.dispatchEvent(new P.w.KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(words().textContent).toContain('Then, a wizard.');
+    expect(pic().style.backgroundImage).toBe('none');
+    P.w.dispatchEvent(new P.w.Event('pointerdown'));
+    expect(words().textContent).toContain('Now, the road home.');
+    expect(words().textContent).toContain('3 / 3');
+    expect(P.level()).toBeNull();
+    P.w.dispatchEvent(new P.w.KeyboardEvent('keydown', { key: ' ' }));
+    expect(pic()).toBeNull(); expect(words()).toBeNull();
+    expect(P.level()).toBe('vale');
+    // Esc skips the rest; unskippable, it does not, and has no skip button
+    const Q = boot({ slides: SLIDES });
+    await wait(450);
+    Q.w.dispatchEvent(new Q.w.KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(Q.level()).toBe('vale');
+    const U = boot({ slides: SLIDES, skip: false });
+    await wait(450);
+    expect(U.d.querySelector('[data-cine-skip]')).toBeNull();
+    U.w.dispatchEvent(new U.w.KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(U.level()).toBeNull();
+    // on mana-ui: its story screen draws the words, in the game's theme
+    const M = boot({ slides: SLIDES }, { ui: {} });
+    await wait(20);
+    expect(M.w.__mojManaUi.state().screen).toBe('story');
+    expect(M.w.__mojManaState.ui.story).toEqual({ say: 'Once, a kingdom.', step: '1 / 3' });
+    expect(M.d.querySelector('[data-cine-words]')).toBeNull();
+    // a game whose flow has no slideshow carries none of it
+    const html = emitPlayShell(game(), REFS.map((ref) => ({ ref, contract: contract(ref) })));
+    expect(html).not.toContain('data-slides');
+  });
+
   it('a cutscene made of a directed scene is staged as a cinematic is, and the game goes on as its scene ends', async () => {
     const P = page({ flow: startInPlay(defaultFlow(game()), { scene: 'dawn', stage: 'gate' }) });
     await wait(20);
