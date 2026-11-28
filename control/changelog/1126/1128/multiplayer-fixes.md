@@ -12,3 +12,4 @@
 - On a split screen every player's camera pulls in against a wall as player 1's does, and the views follow the players'
   corners (player 1 bottom left, 2 bottom right, 3 top right, 4 top left), so each player's HUD sits in their own view.
   The camera's own effect passes (the creases, the occlusion, the fog) still show in player 1's view only.
+- The hill-climb registry dates the Hijack City movers' `movers` mechanic (11-27), which came in without a date.

@@ -12,7 +12,8 @@ export const POWER = Object.freeze({
       // woken by distance (wake.js), the space sim's sortie; built 11-23 (1123 castle segments): the journey carrying the
       // hero's gains from one segment of a metroidvania castle to the next
       // built 11-26 (1126-hijack-city-activities): a driving job's shift (Jobsified), the forger's fake ID, City Hall's requests
-      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', since: { work: '2026-11-13', crash: '2026-11-23', grade: '2026-11-23', wake: '2026-11-23', sortie: '2026-11-23', journey: '2026-11-23', shift: '2026-11-26', forger: '2026-11-26', request: '2026-11-26' } },
+      // built 11-27 (1127-hijack-city-movers): a house emptied into a moving truck
+      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', since: { work: '2026-11-13', crash: '2026-11-23', grade: '2026-11-23', wake: '2026-11-23', sortie: '2026-11-23', journey: '2026-11-23', shift: '2026-11-26', forger: '2026-11-26', request: '2026-11-26', movers: '2026-11-27' } },
       // built 10-25 (battle city): a sport is two layers, what happens at the ball (the movement stack and a free
       // body) and the game state (a contest kernel, deterministic as a board game's: who may stand where, who has the
       // ball, the clock and its stoppages, the score, the fouls and the restart each one triggers). Three shapes of

@@ -5,7 +5,7 @@
  * steps on the way out. What is inside composes with the rest of the game: an arcade's floor keeps the world's
  * minigames (gameworld/minigames.js ROOMS_KEPT), a library's reading room one too. A new kind is a row.
  *
- *   enter: ['arcade' | 'library' | 'aquarium', …]   on the geocity's spec (and 'zoo') (metro.js reads it); none ⇒ the city as it was
+ *   enter: ['arcade' | 'library' | 'aquarium', …]   on the geocity's spec (and 'zoo', 'house') (metro.js reads it); none ⇒ the city as it was
  *   WALKINS         { <use>: { name, front, program, kit, least, compose?, hall, colours, tanks? } }   (`tanks`: an
  *                   aquarium's collections, era/aquarium.js)   (`least`: its block's narrower
  *                   side at least this, m)
@@ -54,6 +54,13 @@ export const WALKINS = Object.freeze({
       Object.freeze({ title: 'Big Cats and Bears', life: Object.freeze(['lion', 'tiger', 'brown bear', 'polar bear']) }),
       Object.freeze({ title: 'Around the World', life: Object.freeze(['kangaroo', 'flamingo', 'penguin', 'meerkat', 'camel']) }),
     ]) }),
+  // a HOUSE to move out of (gameworld/movers.js): a small porch on a painted house; inside a family's house of two storeys
+  // and a basement, furnished as a home is, every piece of it lifted and carried out to the truck at the door
+  house: Object.freeze({ name: 'The Hendersons\' house', front: 'portico', program: 'house', kit: 'bay-everyday', least: 22, basement: true,
+    compose: Object.freeze({ construction: 'everyday', palette: 'everyday', plot: 'everyday', dressing: 'everyday' }),
+    hall: Object.freeze({ wide: 16, deep: 14, high: 7 }),
+    colours: Object.freeze({ stone: '#e6dcc8', column: '#f4f1ea', roof: '#6b4f3a', door: '#3d5a3a', steps: '#cfc6b4', banners: Object.freeze([]) }),
+    movers: Object.freeze({ load: 12, reward: Object.freeze([Object.freeze({ item: 'coin', n: 90 })]) }) }),
 });
 export const WALKIN_USES = Object.freeze(Object.keys(WALKINS));
 

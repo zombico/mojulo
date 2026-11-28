@@ -207,6 +207,11 @@ Pointers only; each target carries its own design notes.
   a zoo's pens, `era/zoo.js`, a row each of `geocity/walkins.js`): the front `geocity/museum.js`, the program
   `era/programs.js` `museum`, the plinths [era/exhibits.js](../control/lib/graph/era/exhibits.js), the door
   `gameworld/levels.js` `museumDoor`: [docs/museum.md](museum.md).
+- The movers (a house emptied into a moving truck: any piece lifted whole and carried in the hands, through any door, up
+  and down any stair): the lifting [worlds/controllable/heave.js](../control/lib/graph/worlds/controllable/heave.js), an
+  opt-in runtime builder, and its page view `scene/channels/controllable/heave-view.js`; the house `era/programs.js`
+  `house` and its stock `era/stocking.js` `HOME_STOCK`; the move `game/movers-mechanics.js`; the job `gameworld/jobsified.js`
+  `movers` and `gameworld/movers.js`: [docs/movers.md](movers.md).
 - Room craft: [era/room-craft.js](../control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).

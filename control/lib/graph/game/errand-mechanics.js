@@ -449,7 +449,7 @@ export function lowerShift(p, ctx) {
   if (took && !called) R.push({ on: `flag:${p.after}`, if: { var: aboard, gte: 1 }, do: 'emit', type: ev('in') });
   R.push({ on: ev('in'), do: 'set', var: inV, to: 1 }, { on: ev('in'), if: { var: `flag-${on}`, eq: 0 }, do: 'emit', type: ev('clock') });
   R.push({ on: ev('clock'), do: 'set', var: `flag-${on}`, to: 1 }, { on: ev('clock'), do: 'emit', type: `flag:${on}` });
-  frag.hud.push({ on: ev('clock'), as: 'toast', text: mode === 'desk' ? `Clocked in: your desk is inside the ${yard}` : `On the clock: drive the ${vehicle}`, ttl: 2.4 });
+  frag.hud.push({ on: ev('clock'), as: 'toast', text: mode === 'desk' ? p.says?.in ?? `Clocked in: your desk is inside the ${yard}` : `On the clock: drive the ${vehicle}`, ttl: 2.4 });
   if (took) frag.hud.push({ on: ev('need'), as: 'toast', text: `This is done in the ${vehicle}`, ttl: 1.8 });
   // (what its giver says as it is taken, `pitch`: the parks office short of hands)
   if (took && typeof p.pitch === 'string' && p.pitch) frag.hud.push({ on: `flag:${p.after}`, as: 'toast', text: p.pitch, ttl: 6 });

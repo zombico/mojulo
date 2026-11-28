@@ -22,6 +22,7 @@ import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
 import { lowerRespray, lowerGunshop, lowerForger } from './shop-mechanics.js';
 import { lowerRequest } from './request-mechanics.js';
+import { lowerMovers } from './movers-mechanics.js';
 import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
@@ -1287,6 +1288,8 @@ const MECHANICS = {
   forger: { role: 'emitter', requires: ['inventory'], lower: lowerForger },
   // (a constituent's infra request: a work order, its material from the yard, its spots fixed; game/request-mechanics.js)
   request: { role: 'emitter', requires: ['inventory'], lower: lowerRequest },
+  // (a mover's house emptied into the truck: each piece carried out counted, the truck full paid; game/movers-mechanics.js)
+  movers: { role: 'emitter', requires: ['inventory'], lower: lowerMovers },
   // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
   mission: { role: 'emitter', lower: lowerMission },
 

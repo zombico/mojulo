@@ -88,6 +88,7 @@ import { patrolCar, depotCabs, issuedCabs } from './cars.js';
 import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf, MOW_ROUND } from './jobsified.js';
 import { FORGED, PAPERS } from './shops.js';
 import { MUNICIPAL, REQUEST_KINDS, requestSites } from './municipal.js';
+import { moversMechanics } from './movers.js';
 import { hiddenSpots } from './hidden-stars.js';
 // (how near a hidden star is picked up from, m: a step or two, it is looked for)
 const HIDDEN_PICK = 1.6;
@@ -957,7 +958,9 @@ function walkinDoor(a, ground, seed) {
   const [nx, ny] = a.N, W = WALKINS[a.use], z = (p) => ground(p[0], p[1]) ?? a.floor;
   const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + 3), a.at[1] + ny * (MUSEUM_IN.zone + 3)];
   return { id: a.use, at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
-    inside: { use: W.program, seed, kit: W.kit, compose: W.compose === false ? false : { ...W.compose }, scale: W.scale ?? MUSEUM_IN.scale, exit: false, name: a.name ?? W.name, ...(W.reference ? { reference: W.reference } : {}), ...(W.tanks ? { tanks: JSON.parse(JSON.stringify(W.tanks)) } : {}), ...(W.pens ? { pens: JSON.parse(JSON.stringify(W.pens)) } : {}) } };
+    inside: { use: W.program, seed, kit: W.kit, compose: W.compose === false ? false : { ...W.compose }, scale: W.scale ?? MUSEUM_IN.scale, exit: false, name: a.name ?? W.name, ...(W.reference ? { reference: W.reference } : {}), ...(W.tanks ? { tanks: JSON.parse(JSON.stringify(W.tanks)) } : {}), ...(W.pens ? { pens: JSON.parse(JSON.stringify(W.pens)) } : {}),
+      // (a mover's house, gameworld/movers.js: its basement, and the move it is emptied by)
+      ...(W.basement ? { basement: true } : {}), ...(W.movers ? { movers: { ...W.movers, reward: W.movers.reward.map((r) => ({ ...r })) } } : {}) } };
 }
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
@@ -2234,12 +2237,15 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         };
         const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done, ...(S.pitch ? { pitch: S.pitch } : {}) };
         // A DESK: on foot, clocked in at the office tower's lobby door (geocity `office`, officeDoor), its shift the tower's
-        // own page (temp-agency.js deskCast)
+        // own page (temp-agency.js deskCast); a row's `door` another's (the movers' house, its truck issued at its yard)
         if (S.mode === 'desk') {
-          const door = (ends.doors ?? []).find((x) => x.id === 'office');
+          const door = (ends.doors ?? []).find((x) => x.id === (S.door ?? 'office'));
           if (!door) { unlaid.add(k); continue; }
           used.push(door.at);
-          legs[k] = { ...base, depot: door.at.slice(), radius: ERRAND_DRIVE.reach, vehicle: S.vehicle, yard: door.inside.name ?? yard };
+          // (its vehicle, where the row issues one: the movers' truck had at its yard and driven to the door)
+          const js = issues(S) ? issue.map((x, j) => (x.id === L.id ? j : -1)).filter((j) => j >= 0) : [], I = js.length ? issue[js[0]] : null;
+          legs[k] = { ...base, depot: door.at.slice(), radius: ERRAND_DRIVE.reach, vehicle: S.vehicle, yard: door.inside.name ?? yard, ...(S.says ? { says: { ...S.says } } : {}),
+            ...(I ? { cabs: js.map((j) => issuedIds[j]), back: I.at.slice(), ...(I.place ? { place: I.place } : {}) } : {}) };
           task();
           continue;
         }
@@ -2702,15 +2708,19 @@ export function interiorStage(inside) {
     kind: 'stage', kit: inside.kit ?? (PROGRAMS[inside.use]?.look ? PROGRAMS[inside.use].kit : undefined) ?? roomKitFor(anchor),
     // (a look given by the door, a walk-in's own, geocity/walkins.js, over its program's)
     // (`compose: false`: none, a kit not of the bay's, the zoo's open plaza)
-    ...(inside.compose !== false && (inside.compose ?? PROGRAMS[inside.use]?.look) ? { compose: { ...(inside.compose ?? PROGRAMS[inside.use].look) }, ...(inside.exhibits === undefined ? { props: false } : {}) } : {}),
+    // (a home's rooms keep their furniture, a mover's house: stocking.js HOME_STOCK)
+    ...(inside.compose !== false && (inside.compose ?? PROGRAMS[inside.use]?.look) ? { compose: { ...(inside.compose ?? PROGRAMS[inside.use].look) }, ...(inside.exhibits === undefined && !PROGRAMS[inside.use]?.home ? { props: false } : {}) } : {}),
     ...(inside.reference ? { reference: inside.reference } : {}),
-    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.layouts ? { layouts: inside.layouts } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
+    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.layouts ? { layouts: inside.layouts } : {}), ...(inside.basement ? { basement: true } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
     // (its pieces on their plinths, era/exhibits.js; a building looked round and left by its door has no goal room)
     ...(inside.exhibits !== undefined ? { exhibits: inside.exhibits } : {}),
     // (an aquarium's tanks, era/aquarium.js)
     ...(inside.tanks !== undefined ? { tanks: inside.tanks } : {}),
     ...(inside.pens !== undefined ? { pens: inside.pens } : {}),
-    level: { door: 'out', ...(inside.exit === false ? { exit: false, mechanics: [{ ...LOOKED_ROUND }] } : {}) },
+    // (a MOVER'S HOUSE, gameworld/movers.js: every piece of its rooms lifted and carried out, worlds/controllable/heave.js;
+    // the truck filled by the move, game/movers-mechanics.js, its pay into the bag)
+    ...(inside.movers ? { heave: { pieces: 'props' } } : {}),
+    level: { door: 'out', ...(inside.exit === false ? { exit: false, mechanics: [{ ...LOOKED_ROUND }, ...(inside.movers ? moversMechanics(inside.movers) : [])] } : {}) },
   };
 }
 
@@ -2800,6 +2810,8 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStat
   // (its sounds and score, a game on the sound sheet and the cue sheet: runner.js sheetOf, as a trail's are)
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}), ...(audio ? { audio } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
+  // (a mover's house: what it lifts and where it is loaded, at its front door, structure/level.js)
+  if (lowered.heave) base = { ...base, heave: lowered.heave };
   const ends = buildingEnds(stage, lowered), { spawn, heading } = ends;
   const cx = stage.manifest.complex !== undefined ? complexRoute(stage.manifest) : null;
   const plan = cx ? null : withProgram(stage.manifest);

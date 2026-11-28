@@ -93,6 +93,12 @@ export const PROGRAMS = Object.freeze({
     core: { storeys: 2, wings: 'I', loading: 'single', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'locker', room: 'office', far: 'dispatch', goal: 'manager' }, annex: { role: 'shed', w: 18, d: 30, h: 12, ways: ['+x'] } },
   clinic: { reads: 'a waiting room at the front, consult rooms both sides of the corridors, treatment rooms at their ends, the records room last', shape: 'core', goal: 'records', kit: 'bay-everyday',
     core: { storeys: 1, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'waiting', room: 'consult', far: 'treatment', goal: 'records' } },
+  // a family's HOUSE (a mover's: gameworld/movers.js): a hall at the door with the stair, the kitchen and the dining room off
+  // it, bedrooms along the corridor, the living room at its end, the main bedroom upstairs; a basement under it all where
+  // it asks (`basement`); furnished as a home is (stocking.js HOME_STOCK), every piece of it a thing to carry out
+  house: { reads: 'a hall at the door with the stair, the kitchen and the dining room off it, bedrooms along the corridor, the living room at its end, the main bedroom upstairs', shape: 'core', goal: 'master', kit: 'bay-everyday', home: true,
+    look: Object.freeze({ construction: 'everyday', palette: 'everyday', plot: 'everyday', dressing: 'everyday' }),
+    core: { storeys: 2, wings: 'I', loading: 'single', bays: 2, h: 3 }, lobby: { d: 6, h: 3.2 }, roles: { near: 'kitchen', second: 'dining', room: 'bedroom', far: 'living', goal: 'master' } },
   // a MUSEUM: a lobby at the front, three wings of galleries in a T off it (a wing a collection, exhibits.js), each
   // wing's end its hall; tall plaster rooms under daylight and track light, nothing to fight in
   museum: { reads: 'a lobby, galleries both sides of three wings in a T, each wing\'s end a hall, the great hall last', shape: 'core', goal: 'great-hall', kit: 'bay-gallery',
@@ -400,7 +406,7 @@ export function withProgram(m) {
     // (laid larger, program-core.js `scale`: the hall's stair, wider, with more floor at its ends)
     ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: (program.scale ?? 1) > 1 ? 'hall' : 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
-    _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), ...(PROGRAMS[P.use]?.hospital ? { hospital: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
+    _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), ...(PROGRAMS[P.use]?.hospital ? { hospital: true } : {}), ...(PROGRAMS[P.use]?.home ? { home: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)
       ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings,
       // (a basement's walls that face out, where a network's passages may leave it: program-core.js)
