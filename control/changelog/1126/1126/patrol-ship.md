@@ -17,3 +17,6 @@
 - The holo table's briefing knows the ship's two groups (`gameworld/frame-map.js`: a part group's bodies by its ship's
   names) and draws them, a lift pod as a gunship and a turret as a turret (`campaign/holo-minis.js`); a spider bot has its
   own miniature, a low body on six splayed legs.
+- The hull's hover over the field is a body's `overfield`, not `ship`: a starfighter carries its systems as `ship`
+  (rules-starfighter.js), and the hover had pinned a flown level's craft over the ground (a cockpit sortie's foes out of
+  its pilot's reach).

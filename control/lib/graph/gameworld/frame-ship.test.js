@@ -51,6 +51,13 @@ describe('the patrol ship', () => {
     expect(gun.invincible).toBe(true);
   });
 
+  it("leaves a body's own `ship` alone (a starfighter's systems): only a hull over the field hangs", () => {
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true })], pilot: 'p', ai: 'off' }), P = st.byId.p;
+    P.ship = { sh: [5, 5], shMax: 5 };
+    for (let i = 0; i < 30; i++) E.stepWorld(st, {}, DT, flat);
+    expect(P.transform.pos[2]).toBeLessThan(1);
+  });
+
   it('its guns take no harm until exposed; the pilot\'s lock never takes the hull', () => {
     const op = readOperation(OP), cast = operationCast(op, ends);
     for (const e of cast.entities) if (e.dormant) delete e.dormant;

@@ -577,7 +577,7 @@ export function operationCast(op, ends) {
     const S = op.ship, [x, y] = placeOf(ends, S.at), R = unitRadius('patrol');
     figures['unit-patrol'] = { unit: { kind: 'patrol', form: true } };
     entities.push({ id: S.id, team: 'foes', ...(S.comes ? { dormant: true } : {}), ace: { id: 'patrol', name: S.name },
-      ship: { alt: S.alt, sink: SHIP.sink, fall: SHIP.fall, bob: SHIP.bob, pods: PATROL_PODS.map((_, k) => `${S.id}-pod-${k + 1}`), guns: Array.from({ length: S.guns }, (_, k) => `${S.id}-gun-${k + 1}`) },
+      overfield: { alt: S.alt, sink: SHIP.sink, fall: SHIP.fall, bob: SHIP.bob, pods: PATROL_PODS.map((_, k) => `${S.id}-pod-${k + 1}`), guns: Array.from({ length: S.guns }, (_, k) => `${S.id}-gun-${k + 1}`) },
       body: { type: 'figure-rig', figure: 'unit-patrol', hittable: true, noLock: true, hp: 1, hpMax: 1, poise: 99, radius: R, egg: { a: R, c: r2(R * 0.35), cz: r2(R * 0.3) }, aimH: r2(R * 0.3) },
       transform: { pos: [x, y, r2(ends.ground(x, y) + S.alt)], heading: S.heading !== undefined ? (S.heading * Math.PI) / 180 : toward([x, y]), pitch: 0 } });
   }

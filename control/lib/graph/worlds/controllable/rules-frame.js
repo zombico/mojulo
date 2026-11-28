@@ -518,11 +518,11 @@ export function buildRulesFrame(E) {
 
   // ── an ace's name, carried onto the body (the HUD's bar reads it): the world keeps only the fields it is told of ──
   E.registerNormalize((ent, raw) => { if (raw.ace && typeof raw.ace === 'object') ent.ace = { id: String(raw.ace.id), name: String(raw.ace.name) }; });
-  // (and a frame field's own: an asset's name, `guard`; a ship's hover, `ship`; a part's place on its host, `perch`; a
+  // (and a frame field's own: an asset's name, `guard`; a ship's hover over the field, `overfield` (not `ship`: a starfighter's systems, rules-starfighter.js); a part's place on its host, `perch`; a
   // body shielded until exposed, `shielded`, invincible till then)
   E.registerNormalize((ent, raw) => {
     if (typeof raw.guard === 'string' && raw.guard) ent.guard = raw.guard;
-    if (raw.ship && typeof raw.ship === 'object') ent.ship = { ...raw.ship, pods: (raw.ship.pods || []).slice(), guns: (raw.ship.guns || []).slice() };
+    if (raw.overfield && typeof raw.overfield === 'object') ent.overfield = { ...raw.overfield, pods: (raw.overfield.pods || []).slice(), guns: (raw.overfield.guns || []).slice() };
     if (raw.perch && typeof raw.perch === 'object' && typeof raw.perch.on === 'string') ent.perch = { on: raw.perch.on, at: (raw.perch.at || [0, 0, 0]).slice(), face: raw.perch.face || 0 };
     if (raw.shielded === true) { ent.shielded = true; ent.invincible = true; }
   });
@@ -791,14 +791,14 @@ export function buildRulesFrame(E) {
       if (F.spin > 0) { e.locomotion = 'roll'; e.gaitPhase = (state.time * F.spin) % 1; }
     }
   }, 29);
-  // ── a SHIP over a frame's field (a body's `ship` { alt, sink, fall, bob, pods, guns }, gameworld/frame-goal.js): it
+  // ── a SHIP over a frame's field (a body's `overfield` { alt, sink, fall, bob, pods, guns }, gameworld/frame-goal.js): it
   // hangs `alt` m over the land under it, breathing by `bob`; its pods all down, it sinks to `sink` of that over `fall` s,
   // listing as it goes (crippled); its armour the sum of its pods' and guns' standing, so its bar falls with them and
   // rises as a gun comes back ──
   E.registerWorldPass('frame-ship', (state, input, dt, world) => {
     if (!world || !world.ground || !(dt > 0)) return;
     for (const e of state.entities) {
-      const S = e.ship;
+      const S = e.overfield;
       if (!S || e.gone || e.dormant) continue;
       const p = e.transform.pos, g = world.ground([p[0], p[1], p[2] + 400]) ?? 0, by = (ids) => (ids || []).map((id) => state.byId[id]).filter(Boolean);
       const pods = by(S.pods), guns = by(S.guns);
