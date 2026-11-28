@@ -822,12 +822,6 @@ export const BOAT_ODM = {
     dims: { width: 3.0, length: 4.0, height: 4.4 }, mass: 18000, mount: 'deck',
     build: { family: 'funnel', height: 4.0, taper: 0.85, rake: 0.6 },
   },
-  'mast-pyramid-supply': {
-    kind: 'boat-arch', realm: 'water', label: 'supply ship mast', classOf: '70 m military logistics vessel class',
-    aliases: ['ship mast', 'radar mast'],
-    dims: { width: 2.6, length: 2.6, height: 10 }, mass: 9000, mount: 'deck',
-    build: { family: 'pyramid', height: 4.0, widths: [2.6, 1.2], arrays: { at: 0.5, size: 1.1 }, topmast: { height: 5.5, yard: 3.0 } },
-  },
   'crane-deck': {
     kind: 'boat-arch', realm: 'water', label: 'deck crane', classOf: 'ship\'s cargo crane class',
     aliases: ['deck crane', 'cargo crane', 'ship crane'],
@@ -925,6 +919,12 @@ export const BOAT_ODM = {
     aliases: ['island mast'],
     dims: { width: 6.5, length: 6.5, height: 19.5 }, mass: 150000, mount: 'deck',
     build: { family: 'pyramid', height: 9, widths: [6.5, 2.6], arrays: { at: 0.45, size: 3.0 }, topmast: { height: 10, yard: 4.0 } },
+  },
+  'mast-pyramid-supply': {
+    kind: 'boat-arch', realm: 'water', label: 'supply ship mast', classOf: '70 m military logistics vessel class',
+    aliases: ['ship mast', 'radar mast'],
+    dims: { width: 2.6, length: 2.6, height: 10 }, mass: 9000, mount: 'deck',
+    build: { family: 'pyramid', height: 4.0, widths: [2.6, 1.2], arrays: { at: 0.5, size: 1.1 }, topmast: { height: 5.5, yard: 3.0 } },
   },
   'shaft-turbine-carrier': {
     kind: 'boat-shaft', realm: 'water', label: 'carrier\'s shaft and screw', classOf: 'four-screw carrier drive class (its turbines)',

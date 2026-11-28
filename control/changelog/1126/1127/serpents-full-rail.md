@@ -88,3 +88,26 @@
   if it made way at its speed: the swell read where it has come to, the trail and the spray running astern, the sheet at
   its waterline. At night its look reflects the level's sky, its tint deeper and its foam the moon's grey. The boat
   level of the prologue stands on the supply ship over it.
+- **A covered sea pen to play in** (gameworld/sea-pen.js; an infiltration level's `ground: { pen: { ship? } }`): a dock cut
+  into a cliff's foot, a ship of the shelf moored in its basin (held still, its water the boat water's under a calm
+  swell), quays at its deck's height down its two sides and across its head, each railed at the water's edge deeper
+  than a vault crosses, rock walls and a roof, the sea gate open astern, sodium lamps on the walls. Over the head quay a
+  control room on its block and on the wide quay a gantry, each a raised place a guard can stand on (a guard's `z`); in
+  the back wall the cliff stair's door. Its places are named for scenes to frame (`sea-gate`, `west-quay`, `head-quay`,
+  `control-room`, `gantry`, `stair-door`), and every place a level names is held to its quays.
+- **Every place a level names is checked each time it is laid** (infiltration-level.js): a ship's deck and a sea pen are
+  built once and kept, and the check of a level's start, tasks, exit, cover and guards ran only with the first build,
+  so a second level on the same ship went unchecked. It now runs on every lay.
+- **The prologue's second level, the hangar dock** (`scripts/spikes/jericho/world.json`): Coral's first quiet way in,
+  tuned as the old rail's approach level (the alarm's 30 s found and 40 s detected, two backup from the stair, posts on
+  the gantry and the control room at a narrower cone and a longer reach, a slow sentry, patrols at the default pace).
+  The arrival scene, the Liaison's calls (the arrival, the lessons on being seen and on the dart, the alarm up, found
+  and stood down: placeholders in brackets for the person's own words), and the card reader at the stair door as a
+  scene on using it, its end the level's last task.
+- **A won level stays won** (channels/game-screens.js, channels/calls.js): the results card now holds the world as a
+  menu does, where before the level went on under it (a guard who had found the player kept firing after the last task
+  was met). And no call opens once the results are up: what was waiting is dropped, and a call that is showing ends.
+- **What a level only shows is never footing** (infiltration-level.js, worlds/world-scene.js): a stealth level's stage
+  names the groups no body stands on and no scene's camera is lifted onto (the sea pen's roof and its gate's lintel, the
+  scenery seen beyond the play), and the page is given them as its `footless`. A shot under the pen's roof stood its
+  camera on top of the roof before, framing nothing. Absent, a page as it was.

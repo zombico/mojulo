@@ -103,7 +103,9 @@ export function callsScript(data) {
   // (nor over a scene while it plays, playscape/ui/scenes.js: a call it raises comes as it ends)
   let sceneOff = -1e9;
   const scene = () => { let on = false; try { on = !!(window.__mojScenes && window.__mojScenes.on()); } catch (e) {} if (on) { sceneOff = performance.now(); sceneFrame = frame; } return on; };
-  const clear = () => { const O = opens(), S = window.__mojScreens, o = S && S.opening; return O === null || scene() ? false : O ? o === 'gone' : !o || o === 'gone'; };
+  // (and never once the level is over, its results up: what was waiting is dropped, a call showing ends)
+  const over = () => { const S = window.__mojScreens; return !!(S && S.results); };
+  const clear = () => { const O = opens(), S = window.__mojScreens, o = S && S.opening; return O === null || over() || scene() ? false : O ? o === 'gone' : !o || o === 'gone'; };
   function pump() { if (!call && queue.length && clear() && performance.now() - shut > C.fade * 1000 + 60) open(queue.shift()); }
   // (the bus's run: each event of the kind call:<id> heard as it is processed)
   function listen() {
@@ -120,7 +122,7 @@ export function callsScript(data) {
     try { const M = window.__mojBus, log = (M && M.state && M.state.log) || []; for (const ev of log) if (ev && typeof ev.type === 'string' && ev.type.indexOf('call:') === 0) want(ev.type.slice(5)); } catch (e) {}
     return true;
   }
-  (function tick() { listen(); scene(); pump(); frame++; if (call && freezeAt && performance.now() >= freezeAt && frame - sceneFrame >= C.frames) hold(); requestAnimationFrame(tick); })();
+  (function tick() { listen(); scene(); if (over()) { queue.length = 0; if (call) { froze = false; close('skip'); } } pump(); frame++; if (call && freezeAt && performance.now() >= freezeAt && frame - sceneFrame >= C.frames) hold(); requestAnimationFrame(tick); })();
   window.__mojCalls = { made, showing: () => (call ? { call: call.id, line: call.def.lines[k].id } : null), next, skip, want, clear, opens };
 })();
 `;

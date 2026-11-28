@@ -23,7 +23,7 @@ export function readInfiltration(v, at = 'infiltration') {
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) fail(`.${k} is not part of an infiltration level (${KEYS.join(', ')})`);
   // THE GROUND: a walled square floor (`half`), or a ship's DECK (`deck: { length, beam, rail? }`: its length along y,
   // the bow at +y, its beam across x, a rail round it `rail` metres high)
-  if (v.ground !== undefined && !(isObj(v.ground) && Object.keys(v.ground).every((k) => ['half', 'deck', 'ship', 'speed'].includes(k)) && ['half', 'deck', 'ship'].filter((k) => v.ground[k] !== undefined).length <= 1)) fail('.ground is { half } (a walled square floor), { deck: { length, beam, rail? } } (a deck of boxes) or { ship, speed? } (a ship of the craft shelf by its word, held still as it makes speed knots)');
+  if (v.ground !== undefined && !(isObj(v.ground) && Object.keys(v.ground).every((k) => ['half', 'deck', 'ship', 'speed', 'pen'].includes(k)) && ['half', 'deck', 'ship', 'pen'].filter((k) => v.ground[k] !== undefined).length <= 1)) fail('.ground is { half } (a walled square floor), { deck: { length, beam, rail? } } (a deck of boxes) or { ship, speed? } (a ship of the craft shelf by its word, held still as it makes speed knots) or { pen: { ship? } } (a covered sea pen, a ship moored in it)');
   // (a SHIP by its word, gameworld/ship-deck.js: its deck and its outline read when the level is laid; its places checked
   // there, against its hull)
   let ship = null;
@@ -32,6 +32,13 @@ export function readInfiltration(v, at = 'infiltration') {
     if (v.ground.speed !== undefined && !(Number.isFinite(v.ground.speed) && v.ground.speed >= 0 && v.ground.speed <= 40)) fail('.ground.speed is knots, 0 to 40');
     ship = { word: v.ground.ship, speed: v.ground.speed ?? 10 };
   } else if (v.ground?.speed !== undefined) fail('.ground.speed is a ship\'s: give ground.ship with it');
+  // (a SEA PEN, gameworld/sea-pen.js: its quays and its places read when the level is laid)
+  let pen = null;
+  if (v.ground?.pen !== undefined) {
+    const Pn = v.ground.pen === true ? {} : v.ground.pen;
+    if (!isObj(Pn) || Object.keys(Pn).some((k) => k !== 'ship') || (Pn.ship !== undefined && (typeof Pn.ship !== 'string' || !Pn.ship))) fail('.ground.pen is true or { ship?: a boat\'s word }: a covered sea pen, the ship moored in it');
+    pen = { ship: Pn.ship ?? 'supply ship' };
+  }
   let deck = null, hx, hy;
   if (v.ground?.deck !== undefined) {
     const D = v.ground.deck;
@@ -43,9 +50,9 @@ export function readInfiltration(v, at = 'infiltration') {
     hx = deck.beam / 2; hy = deck.length / 2;
   }
   const half = v.ground?.half ?? INFILTRATION.half;
-  if (!deck && !ship && !(Number.isFinite(half) && half >= 6 && half <= 60)) fail('.ground.half is 6 to 60 m');
+  if (!deck && !ship && !pen && !(Number.isFinite(half) && half >= 6 && half <= 60)) fail('.ground.half is 6 to 60 m');
   // (a ship's reach is its own, checked when it is laid: here only that a place is within a ship's size)
-  if (ship) { hx = 40; hy = 200; } else if (!deck) { hx = half; hy = half; }
+  if (ship || pen) { hx = 60; hy = 200; } else if (!deck) { hx = half; hy = half; }
   const place = (p, w) => {
     if (!(Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))) fail(`${w} is [x, y] in metres from the floor's middle`);
     if (Math.abs(p[0]) > hx || Math.abs(p[1]) > hy) fail(`${w} is off the ${deck ? 'deck' : 'floor'} (it reaches ${hx} m across and ${hy} m along)`);
@@ -83,7 +90,7 @@ export function readInfiltration(v, at = 'infiltration') {
     if (!isObj(g) || !['patrol', 'post'].includes(g.kind)) fail(`${w} is { id, kind: 'patrol', at, to } or { id, kind: 'post', at, facing }`);
     const out = { id: named(g.id, w), kind: g.kind, at: place(g.at, `${w}.at`) };
     if (g.kind === 'patrol') out.to = place(g.to, `${w}.to`); else out.facing = place(g.facing, `${w}.facing`);
-    for (const [k, lo, hi] of [['speed', 0.3, 4], ['cone', 0.1, 1.6], ['range', 2, 60]]) {
+    for (const [k, lo, hi] of [['speed', 0.3, 4], ['cone', 0.1, 1.6], ['range', 2, 60], ['z', 0, 30]]) {
       if (g[k] === undefined) continue;
       if (!(Number.isFinite(g[k]) && g[k] >= lo && g[k] <= hi)) fail(`${w}.${k} is ${lo} to ${hi}`);
       out[k] = g[k];
@@ -134,6 +141,6 @@ export function readInfiltration(v, at = 'infiltration') {
   // place of the world's own; none said, the world's
   if (v.kit !== undefined && !(Array.isArray(v.kit) && v.kit.length >= 1 && v.kit.length <= 6 && v.kit.every((k) => typeof k === 'string' && /^[a-z][a-z0-9-]{0,30}$/.test(k)))) fail('.kit is 1 to 6 arms words (the sleep dart: dart; a pistol: handgun)');
   const heading = ((v.heading ?? 90) * Math.PI) / 180;
-  return { half, ...(deck ? { deck } : {}), ...(ship ? { ship } : {}), start, heading: r2(heading), exit, cover, guards, alarm, backup, tasks, ...(sea ? { sea } : {}), ...(scenery.length ? { scenery } : {}), ...(marks.length ? { marks } : {}), ...(v.night ? { night: true } : {}), ...(v.kit ? { kit: v.kit.slice() } : {}) };
+  return { half, ...(deck ? { deck } : {}), ...(ship ? { ship } : {}), ...(pen ? { pen } : {}), start, heading: r2(heading), exit, cover, guards, alarm, backup, tasks, ...(sea ? { sea } : {}), ...(scenery.length ? { scenery } : {}), ...(marks.length ? { marks } : {}), ...(v.night ? { night: true } : {}), ...(v.kit ? { kit: v.kit.slice() } : {}) };
 }
 

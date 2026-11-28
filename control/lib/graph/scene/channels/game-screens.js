@@ -148,6 +148,8 @@ export function resultsScript() {
     requestAnimationFrame(() => { el.style.opacity = '1'; });
     S.results = { word, rows };
     if (!hosted) {
+      // (the level over: the world held as a menu holds it, so nothing under the card goes on playing)
+      window.__mojMenuOpen = true; window.__mojFreeze = true;
       const again = () => { try { location.reload(); } catch (e) { /* (no reload: the screen stays) */ } };
       el.querySelector('.again').addEventListener('click', again);
       setTimeout(() => window.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === 'r' || e.key === 'R') again(); }), 600);

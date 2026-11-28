@@ -444,87 +444,456 @@
       },
       "infiltration": {
         "ground": {
-          "half": 16
+          "pen": {
+            "ship": "supply ship"
+          }
         },
         "night": true,
         "kit": [
           "dart"
         ],
         "start": [
-          0,
-          -13
+          -15,
+          -38
         ],
-        "exit": {
-          "at": [
-            0,
-            14
-          ],
-          "text": "Up the cliff stair, unseen"
-        },
+        "heading": 90,
         "cover": [
           {
-            "id": "crates",
+            "id": "box-1",
             "at": [
-              3,
-              -4
+              -19.6,
+              -24
             ],
             "size": [
-              2,
-              1.2,
-              1
-            ]
+              2.4,
+              6,
+              2.6
+            ],
+            "colour": "#3d5a63"
           },
           {
-            "id": "stack",
+            "id": "box-2",
             "at": [
-              -5,
-              6
+              -12.2,
+              -14
+            ],
+            "size": [
+              2.4,
+              6,
+              2.6
+            ],
+            "colour": "#6b3a2e"
+          },
+          {
+            "id": "box-3",
+            "at": [
+              -17.5,
+              -3
+            ],
+            "size": [
+              6,
+              2.4,
+              2.6
+            ],
+            "colour": "#5a5a3a"
+          },
+          {
+            "id": "crates-1",
+            "at": [
+              -13,
+              4
+            ],
+            "size": [
+              1.2,
+              2.4,
+              1.0
+            ],
+            "colour": "#5f6b4a"
+          },
+          {
+            "id": "box-4",
+            "at": [
+              -19.6,
+              8
+            ],
+            "size": [
+              2.4,
+              6,
+              2.6
+            ],
+            "colour": "#2f4a5a"
+          },
+          {
+            "id": "crates-2",
+            "at": [
+              -15,
+              26
             ],
             "size": [
               3,
-              2,
+              1.2,
+              1.0
+            ],
+            "colour": "#5f6b4a"
+          },
+          {
+            "id": "box-5",
+            "at": [
+              -12.4,
+              31
+            ],
+            "size": [
+              2.4,
+              5,
               2.6
-            ]
+            ],
+            "colour": "#6b5a2f"
+          },
+          {
+            "id": "crates-3",
+            "at": [
+              -12,
+              46
+            ],
+            "size": [
+              2.4,
+              1.2,
+              1.0
+            ],
+            "colour": "#5f6b4a"
+          },
+          {
+            "id": "drums",
+            "at": [
+              -19.5,
+              47
+            ],
+            "size": [
+              1.2,
+              1.2,
+              1.2
+            ],
+            "colour": "#4a3a2a"
+          },
+          {
+            "id": "box-6",
+            "at": [
+              9,
+              50
+            ],
+            "size": [
+              6,
+              2.4,
+              2.6
+            ],
+            "colour": "#3d5a63"
           }
         ],
         "guards": [
           {
-            "id": "dock-1",
+            "id": "quay-patrol",
             "kind": "patrol",
             "at": [
-              -8,
-              2
+              -14.5,
+              -28
             ],
             "to": [
-              8,
-              2
-            ],
-            "look": {
-              "secs": 2
-            }
+              -14.5,
+              12
+            ]
           },
           {
-            "id": "dock-2",
+            "id": "slow-sentry",
+            "kind": "patrol",
+            "at": [
+              -21,
+              21
+            ],
+            "to": [
+              -11,
+              21
+            ],
+            "speed": 1.1
+          },
+          {
+            "id": "gantry-lookout",
             "kind": "post",
             "at": [
-              6,
-              10
+              -19.4,
+              16.5
+            ],
+            "z": 4.2,
+            "facing": [
+              -15,
+              -12
+            ],
+            "cone": 0.55,
+            "range": 18
+          },
+          {
+            "id": "control-post",
+            "kind": "post",
+            "at": [
+              -2,
+              41.5
+            ],
+            "z": 3.4,
+            "facing": [
+              -15,
+              30
+            ],
+            "cone": 0.7,
+            "range": 15
+          },
+          {
+            "id": "head-patrol",
+            "kind": "patrol",
+            "at": [
+              -20,
+              50
+            ],
+            "to": [
+              12,
+              50
+            ]
+          },
+          {
+            "id": "door-sentry",
+            "kind": "post",
+            "at": [
+              -14.5,
+              53.5
             ],
             "facing": [
               0,
-              10
-            ],
-            "range": 12
+              53.5
+            ]
           }
         ],
+        "alarm": {
+          "found": 30,
+          "detected": 40
+        },
         "backup": {
-          "count": 1,
+          "count": 2,
           "from": [
+            -17.9,
+            54
+          ]
+        },
+        "tasks": [
+          {
+            "act": "call:arrival:end",
+            "text": "Take the Liaison's call"
+          },
+          {
+            "reach": [
+              -15,
+              46
+            ],
+            "radius": 4,
+            "text": "Reach the head quay"
+          },
+          {
+            "act": "scene-end:card-reader",
+            "text": "Use the stair door's reader"
+          }
+        ],
+        "marks": {
+          "stern-deck": [
             0,
-            15
+            -32,
+            1
           ]
         }
-      }
+      },
+      "script": {
+        "speakers": {
+          "coral": {
+            "name": "Coral",
+            "colour": "#8fb3c9"
+          },
+          "chandler": {
+            "name": "Chandler",
+            "colour": "#d9a441"
+          }
+        },
+        "calls": [
+          {
+            "id": "arrival",
+            "on": {
+              "event": "scene-end:arrival"
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "dk-1",
+                "who": "chandler",
+                "text": "[Chandler: You're in. That's the sea pen under the fortress: the supply runs dock there.]"
+              },
+              {
+                "id": "dk-2",
+                "who": "coral",
+                "text": "[Coral: Guards on the quays. A control room over the head.]"
+              },
+              {
+                "id": "dk-3",
+                "who": "chandler",
+                "text": "[Chandler: The cliff stair is at the back of the head quay. Your card opens it. Get there without being seen.]"
+              }
+            ]
+          },
+          {
+            "id": "lesson-sight",
+            "on": {
+              "begin": 2
+            },
+            "after": 1.5,
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "ls-sight-1",
+                "who": "chandler",
+                "text": "[Chandler: Watch their eyes. A guard sees what's in front of him, not behind. Your radar shows where they look.]"
+              },
+              {
+                "id": "ls-sight-2",
+                "who": "chandler",
+                "text": "[Chandler: Crouch behind the crates and they won't see you over them. C to crouch.]"
+              }
+            ]
+          },
+          {
+            "id": "lesson-dart",
+            "on": {
+              "begin": 2
+            },
+            "after": 30,
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "ls-dart-1",
+                "who": "chandler",
+                "text": "[Chandler: The sentry by the stair won't move. Put him to sleep with a dart, or come up behind him and take him down: E.]"
+              },
+              {
+                "id": "ls-dart-2",
+                "who": "chandler",
+                "text": "[Chandler: Drag a sleeping guard out of sight. If his friends find him, they'll know.]"
+              }
+            ]
+          },
+          {
+            "id": "spotted",
+            "on": {
+              "event": "alarm:spotted"
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "al-1",
+                "who": "chandler",
+                "text": "[Chandler: He saw something. Get out of his sight before he's sure.]"
+              }
+            ]
+          },
+          {
+            "id": "alert",
+            "on": {
+              "event": "alarm:found"
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "al-2",
+                "who": "chandler",
+                "text": "[Chandler: You've been made. Break their line of sight and hide until they give up.]"
+              }
+            ]
+          },
+          {
+            "id": "stood-down",
+            "on": {
+              "event": "alarm:clear"
+            },
+            "from": "chandler",
+            "lines": [
+              {
+                "id": "al-3",
+                "who": "chandler",
+                "text": "[Chandler: They've stood down. Carry on, quieter this time.]"
+              }
+            ]
+          }
+        ]
+      },
+      "scenes": [
+        {
+          "id": "arrival",
+          "when": {
+            "start": true
+          },
+          "beats": [
+            {
+              "shot": {
+                "frame": "wide",
+                "on": [
+                  "hero",
+                  "stern-deck"
+                ],
+                "side": 1
+              },
+              "for": 4
+            },
+            {
+              "shot": {
+                "frame": "close",
+                "on": [
+                  "hero"
+                ],
+                "move": "push"
+              },
+              "for": 3
+            }
+          ]
+        },
+        {
+          "id": "card-reader",
+          "when": {
+            "use": {
+              "at": [
+                -17.88,
+                54.55
+              ],
+              "r": 2,
+              "prompt": "Use the reader"
+            }
+          },
+          "names": {
+            "coral": "Coral"
+          },
+          "beats": [
+            {
+              "shot": {
+                "frame": "close",
+                "on": [
+                  "hero"
+                ]
+              },
+              "for": 1
+            },
+            {
+              "line": {
+                "who": "coral",
+                "say": "[Coral: The card reads. The stair is open.]"
+              }
+            },
+            {
+              "wait": 1
+            }
+          ]
+        }
+      ]
     }
   }
 }

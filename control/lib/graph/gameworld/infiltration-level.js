@@ -36,6 +36,7 @@
 import { infiltrationRoom, INFILTRATION_LEGEND } from './infiltration-room.js';
 import { floorOf } from './practice-room.js';
 import { shipDeck } from './ship-deck.js';
+import { seaPen } from './sea-pen.js';
 import { INFILTRATION, readInfiltration } from './infiltration-words.js';
 
 export const INFILTRATION_TASK = 'obj';
@@ -58,27 +59,49 @@ function boxOf(x0, x1, y0, y1, z0, z1, fill, group) {
 
 /** The stage: the floor walled round (or a ship's deck railed round over its sea), the cover's boxes on it (each a
  *  collider a body hides behind, or crawls under where it is raised), the scenery seen beyond it. */
-// (a ship's deck, read once a ship and a speed: its build is the slow part)
+// (every place a level names held to its ground, each time a level is laid: a ship's walk inside its rail, a pen's quays)
+function placesOn(P, inside, off, guards = false) {
+  const on = (p, w) => { if (!inside(p[0], p[1])) throw new Error(`infiltration${w} is off ${off}`); };
+  on(P.start, '.start');
+  P.tasks.forEach((t, i) => t.at && on(t.at, `.tasks[${i}]`));
+  if (P.exit) on(P.exit.at, '.exit.at');
+  P.cover.forEach((c, i) => on(c.at, `.cover[${i}].at`));
+  if (guards) P.guards.forEach((g, i) => on(g.at, `.guards[${i}].at`));
+}
+// (a ship's deck, built once a ship and a speed: its build is the slow part)
 const SHIPS = new Map();
 function shipOf(P) {
   const key = `${P.ship.word}|${P.ship.speed}|${!!P.night}`;
   if (!SHIPS.has(key)) {
-    const S = shipDeck(P.ship.word, { speed: P.ship.speed, night: !!P.night, ...(P.night ? { sky: NIGHT.sky } : {}) });
-    // (every place the level names on its deck: on the walk, inside its rail)
-    const on = (p, w) => { if (!S.inside(p[0], p[1])) throw new Error(`infiltration${w} is off the ${S.label}'s deck (its walk runs ${S.y0} to ${S.yEnd} m along, ${S.halfAt(0).toFixed(1)} m each side amidships)`); };
-    on(P.start, '.start');
-    P.tasks.forEach((t, i) => t.at && on(t.at, `.tasks[${i}]`));
-    if (P.exit) on(P.exit.at, '.exit.at');
-    P.cover.forEach((c, i) => on(c.at, `.cover[${i}].at`));
-    SHIPS.set(key, S); if (SHIPS.size > 4) SHIPS.delete(SHIPS.keys().next().value);
+    SHIPS.set(key, shipDeck(P.ship.word, { speed: P.ship.speed, night: !!P.night, ...(P.night ? { sky: NIGHT.sky } : {}) }));
+    if (SHIPS.size > 4) SHIPS.delete(SHIPS.keys().next().value);
   }
-  return SHIPS.get(key);
+  const S = SHIPS.get(key);
+  placesOn(P, S.inside, `the ${S.label}'s deck (its walk runs ${S.y0} to ${S.yEnd} m along, ${S.halfAt(0).toFixed(1)} m each side amidships)`);
+  return S;
+}
+
+// (a sea pen, built once a ship: the pen and its ship's build are the slow part; every place the level names on a quay)
+const PENS = new Map();
+function penOf(P) {
+  const key = `${P.pen.ship}|${!!P.night}`;
+  if (!PENS.has(key)) {
+    PENS.set(key, seaPen({ ship: P.pen.ship, night: !!P.night, ...(P.night ? { sky: NIGHT.sky } : {}) }));
+    if (PENS.size > 4) PENS.delete(PENS.keys().next().value);
+  }
+  const S = PENS.get(key);
+  placesOn(P, S.inside, `the sea pen's quays (the west quay ${S.bounds.W} to ${-S.bounds.bx} m across, the head quay ${S.bounds.by1} to ${S.bounds.H} m along)`, true);
+  return S;
 }
 
 export function infiltrationStage(G, P) {
   const k = P.night ? NIGHT.dim : 1, faces = [], colliders = [];
+  const Pn = P.pen ? penOf(P) : null;
   const S = P.ship ? shipOf(P) : null;
-  if (S) {
+  if (Pn) {
+    // (A SEA PEN: its quays, rails, rock, control room, gantry and door; its ship moored in it, a body of the cast)
+    faces.push(...Pn.faces); colliders.push(...Pn.colliders);
+  } else if (S) {
     // (A SHIP: its walk under its own deck, its rail, its house and what stands on it, from the shelf's build; the ship
     // drawn as a body of the cast, infiltrationCast)
     faces.push(...S.faces); colliders.push(...S.colliders);
@@ -112,14 +135,16 @@ export function infiltrationStage(G, P) {
   // (the sea: one plane to the horizon under the deck's edge)
   // (lower than a vault lands, free-run.js: the deck's edge is never a way down to it)
   // (a ship's sea is the boat water, live: shipSea below)
-  if (P.sea && !S) { const W = 2400, z = DECK.sea; faces.push(quad([-W, -W, z], [W, -W, z], [W, W, z], [-W, W, z], P.sea.colour, 'sea', true)); }
+  if (P.sea && !S && !Pn) { const W = 2400, z = DECK.sea; faces.push(quad([-W, -W, z], [W, -W, z], [W, W, z], [-W, W, z], P.sea.colour, 'sea', true)); }
   // (the scenery: seen, never walked; at night its lit faces (a window, a lamp) keep their colour)
   for (const b of P.scenery ?? []) {
     const [x, y, z] = b.at, [w, d, h] = b.size;
     faces.push(...boxOf(r2(x - w / 2), r2(x + w / 2), r2(y - d / 2), r2(y + d / 2), z, r2(z + h), b.lit ?? dimmed(b.colour, k), `scenery:${b.id}`));
   }
   return { kind: 'controllable', title: 'infiltration', bg: P.night ? NIGHT.bg : '#1b1d22', faces, colliders, ...(P.night ? { sky: { ...NIGHT.sky } } : {}),
-    ...(S ? { shipSea: { at: [0, 0], heading: S.heading, speed: S.speed, z: S.seaZ, sea: S.sea } } : {}) };
+    ...(S ? { shipSea: { at: [0, 0], heading: S.heading, speed: S.speed, z: S.seaZ, sea: S.sea } } : Pn ? { shipSea: Pn.shipSea } : {}),
+    // (what no body stands on and no scene's camera is lifted onto: the pen's roof, the scenery seen beyond the play)
+    ...(Pn || P.scenery ? { footless: [...(Pn ? Pn.footless : []), ...(P.scenery ? ['scenery:'] : [])] } : {}) };
 }
 
 /** Where the level starts and ends (levels.js reads a stage's ends). */
@@ -127,7 +152,7 @@ export function infiltrationEnds(P) {
   const at3 = (p) => [p[0], p[1], 0];
   // (a level with no exit ends where its last placed task is, else where it starts)
   const last = P.exit?.at ?? [...P.tasks].reverse().find((t) => t.at)?.at ?? P.start;
-  return { spawn: at3(P.start), heading: P.heading, exit: at3(last), exitFrom: 'the way on', beats: [{ beat: 'trailhead', at: at3(P.start) }, ...P.tasks.filter((t) => t.at).map((t, k) => ({ beat: `task-${k + 1}`, at: at3(t.at) })), { beat: 'exit', at: at3(last) }], planar: true, ...(P.marks ? { marks: P.marks.map((m) => ({ id: m.id, at: m.at.slice() })) } : {}) };
+  return { spawn: at3(P.start), heading: P.heading, exit: at3(last), exitFrom: 'the way on', beats: [{ beat: 'trailhead', at: at3(P.start) }, ...P.tasks.filter((t) => t.at).map((t, k) => ({ beat: `task-${k + 1}`, at: at3(t.at) })), { beat: 'exit', at: at3(last) }], planar: true, ...(P.marks || P.pen ? { marks: [...(P.pen ? Object.entries(penOf(P).marks).filter(([id]) => !(P.marks ?? []).some((m) => m.id === id)).map(([id, at]) => ({ id, at: at.slice() })) : []), ...(P.marks ?? []).map((m) => ({ id: m.id, at: m.at.slice() }))] } : {}) };
 }
 
 /** The level's mechanics: its tasks in order, the way on the last (objectives.js); being seen loses nothing. */
@@ -150,7 +175,8 @@ export function infiltrationCast(G, P, { refs = {}, stunt = false } = {}) {
   const guards = P.guards.map((w) => {
     const to = w.kind === 'patrol' ? w.to : w.facing, heading = r2(Math.atan2(to[1] - w.at[1], to[0] - w.at[0]));
     const stretch = w.kind === 'patrol' ? r2(Math.hypot(to[0] - w.at[0], to[1] - w.at[1])) : 10;
-    return { ...guard0, id: w.id, transform: { pos: [w.at[0], w.at[1], INFILTRATION.eye], heading },
+    // (a guard stood on a raised place, `z`: a gantry's deck, a control room's block)
+    return { ...guard0, id: w.id, transform: { pos: [w.at[0], w.at[1], r2((w.z ?? 0) + INFILTRATION.eye)], heading },
       rule: { ...guard0.rule, alarm, speed: w.kind === 'patrol' ? (w.speed ?? INFILTRATION.speed) : 0, sightCone: w.cone ?? INFILTRATION.cone, sightRange: w.range ?? INFILTRATION.range,
         foe: { ...guard0.rule.foe, stretch, ...(w.kind === 'patrol' ? { ends: [[w.at[0], w.at[1], INFILTRATION.eye], [to[0], to[1], INFILTRATION.eye]] } : {}), ...(w.look ? { patrol: { ...(guard0.rule.foe?.patrol ?? {}), look: w.look } } : {}) } } };
   });
@@ -158,7 +184,7 @@ export function infiltrationCast(G, P, { refs = {}, stunt = false } = {}) {
   // (the guards' figure is the yard's guard's, one figure every guard shares; the yard's targets left out)
   const figures = Object.fromEntries(Object.entries(M.figures).filter(([k]) => !/^target/.test(k)));
   // (a SHIP under the level: its figure as the shelf draws it, a body that stands still with its deck at the floor)
-  const S = P.ship ? shipOf(P) : null;
+  const S = P.ship ? shipOf(P) : P.pen ? penOf(P).ship : null;
   if (S) figures.ship = S.figure;
   const ship = S ? [{ id: 'ship', rule: { type: 'static' }, body: { type: 'figure-rig', figure: 'ship' }, transform: { pos: S.at.slice(), heading: S.heading } }] : [];
   return { figures, entities: [hero, ...guards, ...backup, ...ship], camera: M.camera, events: M.events, fxStyle: M.fxStyle, figureGrade: M.figureGrade, castLight: M.castLight, legend: INFILTRATION_LEGEND, guards: [...guards.map((g) => g.id), ...backupIds] };

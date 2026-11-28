@@ -2550,6 +2550,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.calls && sketch.manifest.calls.calls && !payload.calls) payload.calls = sketch.manifest.calls;
   // (and the sea under a ship a level holds still, as if it made way: channels/controllable/boat-water.js)
   if (payload && sketch.manifest.shipSea && sketch.manifest.shipSea.sea && !payload.shipSea) payload.shipSea = sketch.manifest.shipSea;
+  // (and the groups of its stage no body stands on and no camera is lifted onto: a roof over the play, gameworld/sea-pen.js)
+  if (payload && Array.isArray(sketch.manifest.footless) && sketch.manifest.footless.length && !payload.footless) payload.footless = sketch.manifest.footless.slice();
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
   // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {
