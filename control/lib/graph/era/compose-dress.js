@@ -23,7 +23,7 @@
  */
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
-import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT, HALL_COVER } from './stocking.js';
+import { STOCK, HOSPITAL_STOCK, HOME_STOCK, homeRole, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT, HALL_COVER } from './stocking.js';
 import { CELL as ARENA_CELL } from '../arena-map/blocks.js';
 import { LAYOUTS, layoutOf, layoutLaws } from './room-layouts.js';
 import { resolveFurniture } from '../furnishings/forms.js';
@@ -117,6 +117,20 @@ export const PIECES = Object.freeze({
   hearth: { class: 'set-piece', w: 2.2, d: 0.9, h: 2.6, parts: [B(0, 0.45, 0, 0.9, 0, 1.5, 'concrete'), B(1.75, 2.2, 0, 0.9, 0, 1.5, 'concrete'), B(0.45, 1.75, 0, 0.2, 0, 1.5, 'trim'), B(0, 2.2, 0, 0.9, 1.5, 1.7, 'beam'),
     B(0.3, 1.9, 0, 0.7, 1.7, 2.6, 'concrete'), B(0.5, 1.7, 0.2, 0.75, 0, 0.12, 'concrete'), B(0.8, 1.4, 0.35, 0.6, 0.12, 0.35, 'paint')] },
   workbench: { class: 'bench', w: 2.0, d: 0.8, h: 0.9, parts: [B(0, 2, 0, 0.8, 0.82, 0.9, 'beam'), B(0.05, 0.15, 0.05, 0.75, 0, 0.82, 'beam'), B(1.85, 1.95, 0.05, 0.75, 0, 0.82, 'beam'), B(0.15, 1.85, 0.1, 0.7, 0.25, 0.3, 'cabinet'), B(0.3, 0.8, 0.2, 0.6, 0.9, 1.05, 'trim'), B(1.2, 1.7, 0.3, 0.55, 0.9, 0.98, 'paint')] },
+  // a HOME's pieces (a mover's house, stocking.js HOME_STOCK): a living room's sofa, armchair, tables and shelves, a bedroom's
+  // chest and nightstand, each the furniture shelf's own style (furnishings/forms.js); the fridge, the wardrobe and the
+  // moving box drawn here, boxes of the kit's paint and trim
+  sofa: { class: 'bench', w: 2.1, d: 0.9, h: 0.85, furniture: 'sofa', parts: [] },
+  armchair: { class: 'bench', w: 0.88, d: 0.88, h: 0.79, furniture: 'armchair', parts: [] },
+  'coffee-table': { class: 'bench', w: 1.1, d: 0.6, h: 0.42, furniture: 'coffee-table', parts: [] },
+  'dining-table': { class: 'bench', w: 1.6, d: 0.9, h: 0.75, furniture: 'dining-table', parts: [] },
+  bookcase: { class: 'rack', w: 0.92, d: 0.34, h: 1.83, furniture: 'bookcase', parts: [] },
+  'media-console': { class: 'bench', w: 1.6, d: 0.45, h: 0.55, furniture: 'media-console', parts: [] },
+  dresser: { class: 'crate', w: 1.0, d: 0.5, h: 0.9, furniture: 'chest', parts: [] },
+  nightstand: { class: 'crate', w: 0.49, d: 0.43, h: 0.58, furniture: 'nightstand', parts: [] },
+  fridge: { class: 'lockers', w: 0.75, d: 0.7, h: 1.8, parts: [B(0, 0.75, 0, 0.7, 0, 1.8, 'paint'), B(0.02, 0.73, 0.7, 0.72, 1.18, 1.19, 'trim'), B(0.62, 0.65, 0.72, 0.76, 1.3, 1.7, 'trim'), B(0.62, 0.65, 0.72, 0.76, 0.5, 1.05, 'trim')] },
+  wardrobe: { class: 'lockers', w: 1.2, d: 0.6, h: 2.0, parts: [B(0, 1.2, 0, 0.6, 0.06, 1.96, 'cabinet'), B(0, 1.2, 0, 0.6, 0, 0.06, 'trim'), B(0, 1.2, 0, 0.6, 1.96, 2.0, 'trim'), B(0.59, 0.61, 0.6, 0.62, 0.1, 1.9, 'trim'), B(0.5, 0.53, 0.62, 0.66, 0.9, 1.2, 'trim'), B(0.67, 0.7, 0.62, 0.66, 0.9, 1.2, 'trim')] },
+  'moving-box': { class: 'crate', w: 0.6, d: 0.45, h: 0.45, stack: 2, parts: [B(0.01, 0.59, 0.01, 0.44, 0, 0.43, 'paint'), B(0, 0.6, 0.2, 0.25, 0.43, 0.45, 'trim')] },
   // a MESH PANEL (see-through: `see`, a gaze passes it and a body does not, worlds/controllable/barrier.js): posts at
   // its ends, rails at its foot, its waist and its head, and the wires between them a hand apart; a cage is a ring of
   // them (room-layouts.js `cage`)
@@ -359,10 +373,13 @@ export function layProps(plan) {
     const LO = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
     if (LO && layLayout(r, LO)) continue;
     if (plan.use) {
-      const lines = (plan.stock === 'hospital' ? HOSPITAL_STOCK : town ? TOWN_STOCK : STOCK)[roleOf(r.id)];
+      // (a home's by its room's part in a home, stocking.js homeRole: upstairs its bedrooms, the basement its storage)
+      const home = plan.stock === 'home';
+      const lines = home ? HOME_STOCK[homeRole(r, plan.rooms.find((q) => roleOf(q.id) === 'lobby')?.z0 ?? 0)] : (plan.stock === 'hospital' ? HOSPITAL_STOCK : town ? TOWN_STOCK : STOCK)[roleOf(r.id)];
       if (lines) {
-        // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
-        if (!town && !LO) layExtinguishers(r);
+        // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls; a home
+        // keeps none)
+        if (!town && !LO && !home) layExtinguishers(r);
         const sd = mulberry32(hashOf(`stock|${r.id}`));
         for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
       }

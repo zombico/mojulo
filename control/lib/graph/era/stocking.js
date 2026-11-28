@@ -144,9 +144,9 @@ export function stockLaws(plan, items, openings) {
   const near = [];
   for (const list of by.values()) for (const f of list.filter((it) => FUEL.includes(it.kind))) for (const a of list.filter((it) => AMMO.includes(it.kind))) if (dist(f, a) < FUEL_GAP) near.push(`${f.id} by ${a.id}`);
   out.push({ id: 'fuel-apart', ok: !near.length, says: near.length ? `${near.slice(0, 4).join('; ')}: fuel within ${FUEL_GAP} m of ammunition` : `no fuel within ${FUEL_GAP} m of ammunition` });
-  // an extinguisher by every exit of a stocked room
+  // an extinguisher by every exit of a stocked room (a home keeps none)
   const bare = [];
-  for (const [room, list] of by) {
+  for (const [room, list] of plan.stock === 'home' ? [] : by) {
     // (a room is stocked by its stock: a set piece at its focus, a find or a prize, is not stock)
     if (!list.some((it) => !it.set && it.kind !== EXTINGUISHER)) continue;
     const ext = list.filter((it) => it.kind === EXTINGUISHER);
@@ -154,10 +154,39 @@ export function stockLaws(plan, items, openings) {
   }
   out.push({ id: 'extinguisher-by-exit', ok: !bare.length, says: bare.length ? `${bare.slice(0, 4).join(', ')}${bare.length > 4 ? ` and ${bare.length - 4} more` : ''}: no extinguisher within ${EXIT_REACH} m` : `an extinguisher within ${EXIT_REACH} m of every exit of a stocked room` });
   // every stocked role holds some of its stock
-  const T = plan.stock === 'hospital' ? HOSPITAL_STOCK : STOCK;
-  const empty = plan.rooms.filter((r) => T[roleOf(r.id)] && !(by.get(r.id) ?? []).some((it) => T[roleOf(r.id)].some(([k]) => k === it.kind))).map((r) => r.id);
+  const T = plan.stock === 'hospital' ? HOSPITAL_STOCK : plan.stock === 'home' ? HOME_STOCK : STOCK;
+  const ground = plan.rooms.find((r) => roleOf(r.id) === 'lobby')?.z0 ?? 0, role = (r) => (plan.stock === 'home' ? homeRole(r, ground) : roleOf(r.id));
+  const empty = plan.rooms.filter((r) => T[role(r)] && !(by.get(r.id) ?? []).some((it) => T[role(r)].some(([k]) => k === it.kind))).map((r) => r.id);
   out.push({ id: 'stocked', ok: !empty.length, says: empty.length ? `${empty.slice(0, 6).join(', ')}${empty.length > 6 ? ` and ${empty.length - 6} more` : ''}: none of its stock fits` : 'every room holds its stock' });
   return out;
+}
+
+/**
+ * A HOME'S STOCK (programs.js `house`, a mover's: every piece of it a thing to carry out, worlds/controllable/heave.js), by
+ * the room's part in a home, `homeRole`: the ground storey's rooms as they are named (its kitchen, its dining room, its
+ * living room), every room upstairs a bedroom (the main bedroom its own), the basement's its storage, the stair hall a few
+ * boxes left by it. The hall at the door holds nothing: it is where what is carried out is loaded.
+ */
+export const HOME_STOCK = Object.freeze({
+  // (the kitchen and the dining room one kitchen-diner: which of the two bays a house's seed names, it keeps its fridge)
+  kitchen: [['fridge', [1, 1], 'wall'], ['dining-table', [1, 1], 'centre'], ['moving-box', [1, 3], 'wall']],
+  dining: [['fridge', [1, 1], 'wall'], ['dining-table', [1, 1], 'centre'], ['bookcase', [0, 1], 'wall'], ['moving-box', [1, 2], 'wall']],
+  living: [['sofa', [1, 1], 'wall'], ['armchair', [1, 2], 'wall'], ['coffee-table', [1, 1], 'centre'], ['bookcase', [1, 1], 'wall'], ['media-console', [0, 1], 'wall']],
+  bedroom: [['bed', [1, 1], 'wall'], ['wardrobe', [1, 1], 'wall'], ['nightstand', [1, 2], 'wall'], ['dresser', [0, 1], 'wall']],
+  master: [['bed', [1, 1], 'wall'], ['wardrobe', [1, 1], 'wall'], ['dresser', [1, 1], 'wall'], ['nightstand', [2, 2], 'wall']],
+  bathroom: [['moving-box', [1, 2], 'wall']],
+  store: [['moving-box', [3, 6], 'wall'], ['bookcase', [0, 1], 'wall'], ['crate', [1, 2], 'wall']],
+  core: [['moving-box', [0, 2], 'wall']],
+});
+/** A home's room's part (HOME_STOCK's key): `ground` the floor height (m) of the storey its way in is on. */
+export function homeRole(room, ground) {
+  const role = roleOf(room.id);
+  if (role === 'lobby' || role.startsWith('corridor')) return null;
+  if (role === 'core' || role === 'concourse' || role === 'master') return role === 'concourse' ? 'core' : role;
+  const z = room.z0 ?? ground;
+  if (z < ground - 1) return 'store';
+  if (z > ground + 1) return 'bedroom';
+  return role;
 }
 
 /**

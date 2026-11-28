@@ -1511,7 +1511,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     panel(-D.wide / 2, D.wide / 2, zf, zf + D.high, Cc.door, 'geocity:door');
     // (the banners in the bays either side of the door's: an even row of columns leaves the door a bay of its own)
     const bay = (pw - cw - 1.2) / (n - 1);
-    [-1, 1].forEach((o, k) => panel(o * bay - Bn.wide / 2, o * bay + Bn.wide / 2, zf + Bn.lift, zf + Bn.lift + Bn.high, Cc.banners[k % Cc.banners.length], 'geocity:banner'));
+    // (a house's porch hangs none: walkins.js `house`)
+    if (Cc.banners.length) [-1, 1].forEach((o, k) => panel(o * bay - Bn.wide / 2, o * bay + Bn.wide / 2, zf + Bn.lift, zf + Bn.lift + Bn.high, Cc.banners[k % Cc.banners.length], 'geocity:banner'));
     // (its door: where the level's door stands, the way out of it its front street's)
     const door = at(0, uHall);
     done({ at: P3([door[0], door[1], zf]), N: P3([fx, fy, 0]), floor: r5(zf) });

@@ -48,7 +48,7 @@ describe('Hijack City\'s driving jobs, laid', () => {
     const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare && x.id.startsWith('car-')).map((x) => Number(x.id.slice(4)));
     expect(e?.mount?.cab).toBe(true);
     // (the issued vehicles are the level's last cabs, the call's and the bus's)
-    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), mower = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...mower.cabs, ...orders.cabs, ...job('courier-run').cabs, ...job('mail-round').cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
+    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), mower = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...mower.cabs, ...orders.cabs, ...job('courier-run').cabs, ...job('mail-round').cabs, ...job('movers').cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
     expect(issued).toEqual(ids.sort((a, b) => a - b).slice(-issued.length));
     expect(e.mount.pool.gate).toBeUndefined();
     expect(d(e.transform.pos, haul.back)).toBeLessThan(0.01);
@@ -149,10 +149,10 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(jobQuests(M).find((q) => q.id === 'fence').steps.map((x) => x.done)).toEqual(['order-fence', 'picked-fence', 'done-fence']);
   });
   it('each is on Jobsified; the guide leads each when it is taken; the errand proof drives each to its pay', () => {
-    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', ...['ambulance-calls', 'fire-calls'].filter((id) => job(id)), 'courier-run', 'mail-round']], ['Placeholder Staffing', ['office-temp']], ['CityLine 311', ['pothole', 'fence', 'park-litter']]]);
+    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', 'movers', ...['ambulance-calls', 'fire-calls'].filter((id) => job(id)), 'courier-run', 'mail-round']], ['Placeholder Staffing', ['office-temp']], ['CityLine 311', ['pothole', 'fence', 'park-litter']]]);
     const g = cityGuide(level);
     // (the delivery orders' two: taken at the HQ, its first truck; its call come, the HQ)
-    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-groundskeeping', 'clock-dig-and-load', 'clock-office-temp', 'clock-materials-1', 'hq-materials', 'clock-courier-run', 'clock-mail-round', 'order-pothole', 'order-fence', 'order-park-litter']);
+    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-groundskeeping', 'clock-dig-and-load', 'clock-office-temp', 'clock-movers', 'clock-materials-1', 'hq-materials', 'clock-courier-run', 'clock-mail-round', 'order-pothole', 'order-fence', 'order-park-litter']);
     const P = proveErrands(world, lastStageManifests(steps));
     for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', 'office-temp', 'materials', 'courier-run', 'mail-round', ...['ambulance-calls', 'fire-calls'].filter((x) => job(x))]) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
   });
@@ -200,5 +200,22 @@ describe('a line cast off the quay', () => {
     const dock = level.entities.filter((e) => /^keeper-fishing/.test(e.id));
     expect(dock.length).toBe(1);
     expect(F.at.at).toEqual([dock[0].transform.pos[0], dock[0].transform.pos[1]]);
+  });
+});
+
+describe('the movers, laid', () => {
+  it('a removals job on Jobsified: the moving truck issued at the dock, clocked in at the house\'s door, the work its own page', async () => {
+    const { MOVING_TRUCKS } = await import('./jobsified.js');
+    const J = job('movers');
+    expect(J).toMatchObject({ mode: 'desk', yard: "The Hendersons' house", says: { work: expect.stringMatching(/lifts anything/) } });
+    expect(J.cabs).toHaveLength(1);
+    expect(cab(J.cabs[0]).mount.pool.model).toBe(MOVING_TRUCKS[0].model);
+    const door = M.find((m) => m.kind === 'door' && m.id === 'house');
+    expect(d(J.depot, door.at)).toBeLessThan(0.01);
+    // (its house a level of its own: its pieces lifted, the move counted to the truck's load)
+    const house = steps.filter((x) => x.key.startsWith('level-')).map((x) => x.order.manifest).find((m) => m.heave);
+    expect(house.heave).toMatchObject({ pieces: 'props', drop: { half: [1.4, 0.9] } });
+    // (its mechanics the level's own, lowered as it is read: structure/level.js)
+    expect((house.game?.mechanics ?? house.level.mechanics).find((x) => x.kind === 'movers')).toMatchObject({ load: 12 });
   });
 });

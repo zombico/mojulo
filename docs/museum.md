@@ -102,7 +102,11 @@ geocity: { …, enter: ['arcade', 'library', 'aquarium', 'zoo'] }
   the hall. The animals walk loops inside their pen (`fauna/pen.js` `penFauna`), each by a gait it has (a kangaroo hops).
   The plaza kit is heavy: a zoo's page carries several times the faces of the museum's.
 
-A new kind is a row: its name, front, program, kit, look, hall and colours, and what it keeps (`tanks`, `pens`).
+- **The house** (`house`): a small porch on a painted house; inside a family's house of two storeys over a basement,
+  every piece of it lifted and carried out to the truck at its door: [the movers](movers.md).
+
+A new kind is a row: its name, front, program, kit, look, hall and colours, and what it keeps (`tanks`, `pens`, a house's
+`basement` and `movers`).
 
 ## Gates
 

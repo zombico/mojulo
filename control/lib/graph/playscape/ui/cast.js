@@ -58,7 +58,7 @@ export const CAST_WHEN = Object.freeze({
 // (or on `seen`: a sighting is counted there too; or `broke`: a block's break; or `down`: a fall, what defeat-all's
 // `who` counts; or `journey`: a castle segment's gain, worlds/controllable/held-gates.js)
 // (or on the runner's `runner:` facts: worlds/controllable/runner.js wraps the cast's facts with them)
-export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke' || r.on === 'journey' || r.on === 'down' || String(r.on).startsWith('runner:')));
+export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke' || r.on === 'journey' || r.on === 'down' || String(r.on).startsWith('runner:') || String(r.on).startsWith('heave:')));
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
   spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,

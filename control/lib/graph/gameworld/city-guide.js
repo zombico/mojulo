@@ -95,7 +95,7 @@ export function jobsOf(mechanics) {
     if (Hq) steps.push({ id: `hq-${Sh.id}`, say: `Find a logistics company: check in at the ${Hq.name ?? Hq.hq} HQ${Hq.place ? ` by the ${shop(Hq.place)}` : ''}`, at: at3(Hq.at), radius: Hq.radius ?? 7, when: `flag-${Hq.flag}`, ...(Hq.says ? { says: Hq.says } : {}), take: true });
     // (an issued vehicle, `back` its spot: taken where it stands; a depot's own: got into at the yard)
     // (a mow's: its mower taken out of the groundskeeper's shed)
-    const clock = { id: `clock-${Sh.id}`, say: mode === 'desk' ? `Go to work at ${yard}: the lobby doors` : mode === 'mow' ? `Take the ${vehicle} out of the groundskeeper's shed at the ${yard}` : Sh.back ? `Take the ${vehicle}${Sh.place ? ` outside the ${shop(Sh.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}` : `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` };
+    const clock = { id: `clock-${Sh.id}`, say: mode === 'desk' ? Sh.says?.clock ?? `Go to work at ${yard}: the lobby doors` : mode === 'mow' ? `Take the ${vehicle} out of the groundskeeper's shed at the ${yard}` : Sh.back ? `Take the ${vehicle}${Sh.place ? ` outside the ${shop(Sh.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}` : `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` };
     steps.push(clock);
     let loop = steps.length;
     if (mode === 'route') {
@@ -117,7 +117,7 @@ export function jobsOf(mechanics) {
     } else if (mode === 'desk') {
       // (its work the building's own page: the desk inside, reached by coming to the door)
       loop = null;
-      steps.push({ id: `desk-${Sh.id}`, say: 'Work a shift at your desk inside: invoices, recommendations, TPS reports', at: depot, radius: r, flag: `done-${Sh.id}` });
+      steps.push({ id: `desk-${Sh.id}`, say: Sh.says?.work ?? 'Work a shift at your desk inside: invoices, recommendations, TPS reports', at: depot, radius: r, flag: `done-${Sh.id}` });
     } else if (mode === 'mow') {
       // (its round on the lawn: the way to the nearest long grass not yet cut, `near`; done when a round is won; the line
       // on the screen says how much is cut and the time left)
