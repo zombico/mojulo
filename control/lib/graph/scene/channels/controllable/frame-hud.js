@@ -9,6 +9,8 @@
 //   own           its own stability under its armour, and STAGGER while it reels
 //   an ace        its name and its armour across the top while it is in the field (its stability under it), a line said
 //                 as it crosses into a phase, and its TELL: a flare marked over it while it squares up to lunge
+//   the assets   WHAT IS GUARDED (a body's `guard`, an asset defended, gameworld/frame-goal.js): each one's name and its
+//                 armour down the left, flashing red as it is hit, LOST once it is down; a mark over each on the screen
 //   bottom        THE GENERATOR: EN as one long bar, its draw seen as it happens; OUT when it is emptied and shut. Over
 //                 it the frame's armour (AP) as a figure and a bar, and its speed and height
 //   the corners   THE WEAPONS where they are on the frame: the hands below left and right, the shoulders above them;
@@ -47,18 +49,42 @@ export function frameHudScript() {
     + '.fh .w{position:absolute;width:190px}.fh .w b{display:block;font-size:11px;opacity:.75;letter-spacing:.08em}.fh .w span{font-size:20px}'
     + '.fh .w .bar{height:3px;background:rgba(160,230,255,.18);margin-top:3px}.fh .w .bar i{display:block;height:100%;background:#ffd060;width:0}'
     + '.fh .armR{right:calc(50% - 330px);bottom:140px;text-align:right}.fh .armL{left:calc(50% - 330px);bottom:140px}'
-    + '.fh .backR{right:calc(50% - 330px);bottom:200px;text-align:right}.fh .backL{left:calc(50% - 330px);bottom:200px}';
+    + '.fh .backR{right:calc(50% - 330px);bottom:200px;text-align:right}.fh .backL{left:calc(50% - 330px);bottom:200px}'
+    + '.fh .gd{position:absolute;left:28px;top:120px;width:220px;display:none}.fh .gd div{margin-bottom:8px}.fh .gd b{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.12em;color:#9fe8ff}'
+    + '.fh .gd i{display:block;height:5px;margin-top:3px;border:1px solid rgba(160,230,255,.45)}.fh .gd i s{display:block;height:100%;background:#7fe0ff}.fh .gd div.hit b{color:#ff6a5a}.fh .gd div.hit i s{background:#ff6a5a}.fh .gd div.lost b{color:#ff3b2f;text-decoration:line-through}'
+    + '.fh .gm{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border:2px solid #7fe0ff;transform:rotate(45deg);display:none}.fh .gm.hit{border-color:#ff5a4a;box-shadow:0 0 10px #ff3b2f}';
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'fh';
   root.innerHTML = '<div class="ret"></div><div class="dot"></div><div class="box"></div><div class="tap"></div><div class="acs"><i></i></div><div class="me">STAGGER</div><div class="ace"><b></b><div class="hp"><i></i></div><div class="st"><i></i></div><em></em></div><div class="tell"></div><div class="stb"><i></i></div>'
     + '<div class="ap"><span class="apn">AP</span><span class="spd"></span></div><div class="apb"><i></i></div>'
     + '<div class="enl"><span>EN</span><span class="ens"></span></div><div class="en"><i></i></div>'
-    + ['armR', 'armL', 'backR', 'backL'].map((s) => '<div class="w ' + s + '"><b></b><span></span><div class="bar"><i></i></div></div>').join('');
+    + ['armR', 'armL', 'backR', 'backL'].map((s) => '<div class="w ' + s + '"><b></b><span></span><div class="bar"><i></i></div></div>').join('') + '<div class="gd"></div>';
   document.body.appendChild(root);
   const q = (s) => root.querySelector(s), box = q('.box'), tap = q('.tap'), acs = q('.acs'), acsI = q('.acs i'), me = q('.me'), stbI = q('.stb i'), aceEl = q('.ace'), aceN = q('.ace b'), aceHp = q('.ace .hp i'), aceSt = q('.ace .st i'), aceSay = q('.ace em'), tellEl = q('.tell'), enEl = q('.en'), enI = q('.en i'), ens = q('.ens'), apn = q('.apn'), spd = q('.spd'), apI = q('.apb i');
   const W = {}; for (const s of ['armR', 'armL', 'backR', 'backL']) W[s] = { el: q('.' + s), b: q('.' + s + ' b'), n: q('.' + s + ' span'), bar: q('.' + s + ' .bar i'), seen: performance.now(), was: '' };
   const NAMES = ${JSON.stringify(FRAME_HUD)};
-  const out = window.__mojFrameHud = { en: 0, ap: 0, lock: null };
+  const out = window.__mojFrameHud = { en: 0, ap: 0, lock: null, guard: [] };
+  // (the assets guarded: a row and a mark each, made as each is first seen; hit, flashing for a moment)
+  const gdEl = root.querySelector('.gd'), G = {};
+  function guards(w) {
+    const list = [];
+    for (const id in w.byId) { const b = w.byId[id]; if (b.guard && !b.dormant && !b.gone && b.body) list.push(b); }
+    gdEl.style.display = list.length ? 'block' : 'none';
+    out.guard = list.map((b) => {
+      let X = G[b.id];
+      if (!X) { const r = document.createElement('div'), m = document.createElement('div'); r.innerHTML = '<b><span></span><em></em></b><i><s></s></i>'; m.className = 'gm'; gdEl.appendChild(r); root.appendChild(m); X = G[b.id] = { r, m, n: r.querySelector('span'), v: r.querySelector('em'), bar: r.querySelector('s'), hp: b.body.hp, hitAt: -1e9 }; }
+      const hp = Math.max(0, b.body.hp || 0), max = b.body.hpMax || hp || 1, now = performance.now();
+      if (hp < X.hp - 1e-6) X.hitAt = now;
+      X.hp = hp;
+      const hit = now - X.hitAt < 600, lost = b.downed || hp <= 0;
+      X.r.className = lost ? 'lost' : hit ? 'hit' : '';
+      X.n.textContent = String(b.guard).toUpperCase(); X.v.textContent = lost ? 'LOST' : Math.round((100 * hp) / max) + '%';
+      X.bar.style.width = ((100 * hp) / max).toFixed(1) + '%';
+      const sp = lost ? null : screenOf([b.transform.pos[0], b.transform.pos[1], b.transform.pos[2] + ((b.body && b.body.aimH) || 4) * 2.2]);
+      if (sp && !sp.back) { X.m.style.display = 'block'; X.m.style.left = sp.x + 'px'; X.m.style.top = sp.y + 'px'; X.m.classList.toggle('hit', hit); } else X.m.style.display = 'none';
+      return { id: b.id, hp: Math.round(hp), lost: !!lost };
+    });
+  }
   let pv = null;
   const screenOf = (p) => { if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null; pv = pv || new THREE.Vector3(); camera.updateMatrixWorld(); pv.set(p[0], p[1], p[2]).project(camera); return { x: (pv.x + 1) / 2 * innerWidth, y: (1 - pv.y) / 2 * innerHeight, back: pv.z >= 1 }; };
   function tick() {
@@ -90,6 +116,7 @@ export function frameHudScript() {
       X.n.textContent = v.reloading ? 'RELOAD' : slot.mag >= 9999 ? (slot.energy ? 'EN' : '--') : (v.ammo ?? slot.mag);
       X.bar.style.width = (v.charge > 0 ? 100 * v.charge : v.reloading ? 100 : 0) + '%';
     }
+    guards(w);
     // an ace in the field: its bar across the top, the line it says as it crosses a phase, and its tell over it
     let ace = null;
     for (const id in w.byId) { const b = w.byId[id]; if (b.ace && !b.dormant && !b.gone && !b.downed) { ace = b; break; } }

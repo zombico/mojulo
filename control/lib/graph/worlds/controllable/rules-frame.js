@@ -724,7 +724,10 @@ export function buildRulesFrame(E) {
       const r = e.rule, F = r && r.flight;
       if (!F || r.type !== 'ai' || e.gone || e.downed || e.dormant || e.staggerT != null || !FLIGHT[F.mode]) continue;
       if (!e.flight) e.flight = { v: [0, 0, 0] };
-      const W = FLIGHT[F.mode](e, F, P, ground, dt), v = e.flight.v, p = e.transform.pos;
+      // (sent at an asset, a rule's `target` ids: it flies on the nearest of them standing, the pilot once they are down)
+      let A = null;
+      if (Array.isArray(r.target)) { let bd = Infinity; for (const id of r.target) { const o = state.byId[id]; if (!o || o.downed || o.gone || o.dormant) continue; const dd = (o.transform.pos[0] - e.transform.pos[0]) ** 2 + (o.transform.pos[1] - e.transform.pos[1]) ** 2; if (dd < bd) { bd = dd; A = o; } } }
+      const W = FLIGHT[F.mode](e, F, A || P, ground, dt), v = e.flight.v, p = e.transform.pos;
       if (!W) continue;
       // (its velocity steered toward its mark at its speed, as fast as its turn lets it; none: it brakes and hangs)
       const want = W.at ? (() => { const d = [W.at[0] - p[0], W.at[1] - p[1], W.at[2] - p[2]], n = Math.hypot(d[0], d[1], d[2]) || 1, sp = Math.min(W.speed, n / Math.max(dt, 0.05)); return [d[0] / n * sp, d[1] / n * sp, d[2] / n * sp]; })() : [0, 0, 0];

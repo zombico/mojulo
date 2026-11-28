@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-28 (an asset defended): every fixture that embeds the controllable runtime. A round or a blast of the
+// pilot's side passes through a ward (combat-ranged.js `body.ward`, an asset defended) and a mind can be sent at ids
+// (mind.js pickTarget's id policy), each taken only by a body or a rule that names it (no fixture's does). Checked: with
+// those two files as they were, every moved hash is back to its pin.
 // Re-pinned 2026-11-27 (1116-rc merged into the frame rail): the fixtures whose emission both lines moved (the
 // controllable runtime and the game channel): the eighteen this line re-pinned below, and the candidate's new seat-lobby
 // fixture, which embeds the controllable runtime this line changed. Each is the two lines' emissions together, each

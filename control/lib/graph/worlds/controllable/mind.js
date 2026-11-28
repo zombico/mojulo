@@ -224,6 +224,8 @@ export function buildMind(E) {
   // itself (a free-for-all: the pilot is one more contender). `'enemy'`: the same, skipping its own team. Nearest by
   // flat distance, ties by entity order; downed wrecks and i-frame bodies are skipped, so a fresh respawn keeps its
   // protection window.
+  // Ids (a string or a list that is neither of those): the nearest of them standing (an asset its foes are sent at,
+  // gameworld/frame-goal.js a group's `target`), the pilot once they are all down.
   // `skip` is one body never to target (an escort's ward).
   function pickTarget(e, world, policy, skip) {
     let target = null;
@@ -240,6 +242,17 @@ export function buildMind(E) {
           const dd = ddx * ddx + ddy * ddy;
           if (dd < bd) { bd = dd; target = o; }
         }
+      } else if (policy && policy !== 'pilot') {
+        // (ids, an asset it is sent at: the nearest of them standing; once they are all down, the pilot)
+        const t = e.transform, ids = Array.isArray(policy) ? policy : [policy];
+        let bd = Infinity;
+        for (const id of ids) {
+          const o = world.byId[id];
+          if (!o || o === skip || o.downed || o.gone || o.dormant || !(o.body && o.body.hittable)) continue;
+          const dd = (o.transform.pos[0] - t.pos[0]) ** 2 + (o.transform.pos[1] - t.pos[1]) ** 2;
+          if (dd < bd) { bd = dd; target = o; }
+        }
+        if (!target) target = nearestPilot(e, world, skip);
       } else target = nearestPilot(e, world, skip);
     }
     return target;

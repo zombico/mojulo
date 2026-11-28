@@ -645,9 +645,12 @@ export function buildCombatRanged(E) {
           const segLen = Math.hypot(p.pos[0] - prev[0], p.pos[1] - prev[1], p.pos[2] - prev[2]);
           const detR = (p.projRadius || 0) + (p.prox || 0);
           const passT = p.passTeam && state.byId && state.byId[p.owner] ? state.byId[p.owner].team : null;   // (a round through its own team)
+          // (a WARD, an asset defended (body.ward): the foes' to hit; a round of the pilot's side, teamless, goes through it)
+          const sideW = !(state.byId && state.byId[p.owner] && state.byId[p.owner].team);
           for (const tg of state.entities) {
             if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;   // i-frames take no hits
             if (passT && tg.team === passT) continue;
+            if (sideW && tg.body.ward) continue;
             const stepLen = Math.max(latR(tg) * 0.5, 1e-3);
             const n = Math.min(24, Math.max(1, Math.ceil(segLen / stepLen)));
             let hitPt = null;
@@ -718,6 +721,7 @@ export function buildCombatRanged(E) {
     const ownerTeam = state.byId && p.owner ? (state.byId[p.owner] && state.byId[p.owner].team) : null;   // TEAM: friendly-fire read
     for (const tg of state.entities) {
       if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;   // i-frames take no hits
+      if (!ownerTeam && tg.body.ward) continue;   // (a ward: no blast of the pilot's side touches it)
       // SPLASH catches a target whose EGG is within R of the burst (a direct hit is trivially inside).
       if (tg.body.egg) { if (!pointInEgg(p.pos, tg, R)) continue; }
       else { const v = sub(tg.transform.pos, p.pos); if (Math.hypot(v[0], v[1], v[2]) > R + (tg.body.radius || 0.5)) continue; }

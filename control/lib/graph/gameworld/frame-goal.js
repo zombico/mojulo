@@ -26,6 +26,10 @@
  *     (a frame that comes with the one fought, to be led off by an ally in a split)
  *     any task's `alarm: '<words>'`: as it begins the enemy is heard coming (OP_ALARM: a warning, the cue's: a red band
  *     across the screen, the words under its title, its own klaxon)
+ *     an ASSET defended (GUARD): a prop with armour, `props[].hp` (and its `name` on the HUD), the foes' to hit and never
+ *     the pilot's side's (its rounds go through it, its lock passes it over); a group's `target: <prop id> | [ids]` sends a
+ *     unit's mind at it (the nearest standing, the pilot once they are down); a task's `guard: [prop ids]` keeps it up
+ *     (game/objectives.js `keep`: one down while the task is in hand fails it, or with `retry` begins it again, whole)
  *     allies[].hold   true: it stands its ground, an instructor on the range; <task number>: till that task begins,
  *                     then it fights and keeps by the pilot (the cast's `unhold`, rules-frame.js)
  *     retry  true: the pilot down begins the task in hand again (game/objectives.js RETRY: the screen faded, the pilot up
@@ -126,9 +130,12 @@ export function readOperation(v, at = 'goal.operation') {
     if (g.wary !== undefined && (g.wary !== true || g.kind === 'frame')) throw new Error(`${gat}.wary is true: a unit that holds its fire until it is hit (not a frame)`);
     // (comes: dormant till a task begins, then woken, not that task's to down; checked against the tasks below)
     if (g.comes !== undefined && !(Number.isInteger(g.comes) && g.comes >= 2)) throw new Error(`${gat}.comes is the number of the task it comes with (2 or later: one awake from the start needs none)`);
+    // (its target: the props it is sent at, an asset to defend (a prop with armour, checked once the props are read):
+    // a unit's mind takes the nearest of them standing for its foe, the pilot once they are down; not a frame's)
+    if (g.target !== undefined && (g.kind === 'frame' || !(Array.isArray(g.target) ? g.target : [g.target]).every((x) => typeof x === 'string' && x))) throw new Error(`${gat}.target is a prop's id or ids, an asset it is sent at (a unit's, not a frame's)`);
     // (an intro: a short scene as it first comes, FOE_INTRO)
     const intro = g.intro === undefined || g.intro === false ? null : readIntro(g.intro, `${gat}.intro`);
-    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}), ...(g.comes ? { comes: g.comes } : {}) };
+    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}), ...(g.comes ? { comes: g.comes } : {}) , ...(g.target !== undefined ? { target: [].concat(g.target) } : {}) };
   });
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
@@ -183,6 +190,12 @@ export function readOperation(v, at = 'goal.operation') {
     if (!(typeof t.alarm === 'string' && t.alarm && t.alarm.length <= 40)) throw new Error(`${at}.tasks[${i}].alarm is the words on its banner as the enemy is heard coming, up to 40 letters`);
     tasks[i] = { ...tasks[i], alarm: t.alarm };
   });
+  // (a task's guard: the props it keeps up, an asset defended (GUARD): one of them down while it is in hand fails it)
+  v.tasks.forEach((t, i) => {
+    if (t.guard === undefined) return;
+    if (!(Array.isArray(t.guard) && t.guard.length && t.guard.every((x) => typeof x === 'string' && x))) throw new Error(`${at}.tasks[${i}].guard is the props it keeps up (their ids), at least one`);
+    tasks[i] = { ...tasks[i], guard: t.guard.slice() };
+  });
   for (const g of groups) if (g.comes && g.comes > tasks.length) throw new Error(`${at}.groups: '${g.id}' comes with task ${g.comes}, and there are ${tasks.length}`);
   // (its allies: frames on the pilot's side, a wingman who leads it through the operation's places and fights beside it)
   const allies = v.allies === undefined ? null : readAllies(v.allies, ids, `${at}.allies`, tasks.length);
@@ -198,6 +211,10 @@ export function readOperation(v, at = 'goal.operation') {
   const split = v.split === undefined ? null : readSplit(v.split, { allies: allies ?? [], groups, tasks: tasks.length, speakers: script ? Object.keys(script.speakers) : (allies ?? []).map((a) => a.id) }, `${at}.split`);
   // (its props: things stood on the field for its scenes to move, PROP)
   const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
+  // (an asset: a prop with armour; what a group is sent at and what a task guards are assets)
+  const assets = new Set((props ?? []).filter((p) => p.hp).map((p) => p.id));
+  for (const g of groups) for (const x of g.target ?? []) if (!assets.has(x)) throw new Error(`${at}.groups: '${g.id}' is sent at '${x}', which is not a prop with armour (hp): ${[...assets].join(', ') || 'none'}`);
+  tasks.forEach((t, i) => { for (const x of t.guard ?? []) if (!assets.has(x)) throw new Error(`${at}.tasks[${i}].guard: '${x}' is not a prop with armour (hp): ${[...assets].join(', ') || 'none'}`); });
   return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}), ...(v.retry ? { retry: true } : {}) };
 }
 /** A FOE'S INTRO (a group's `intro: true | { title?, line?, who? }`): the first time the group comes (its down task
@@ -248,9 +265,14 @@ function readMarks(v, at) {
 
 /** An operation's PROPS checked (throws, teaching): [{ id, unit, at, raise?, hidden?, face? }]. A thing stood on the field
  *  for the level's scenes to move (the world's `scenes`, playscape/ui/scenes.js): a body drawn as a card (groundforce/,
- *  a prop's card or any unit's), no mind, nothing hits it. It stands `raise` metres over its place, asleep while
+ *  a prop's card or any unit's), no mind, nothing hits it, unless it is an ASSET (`hp`, `name`: GUARD): the foes'
+ *  to hit (a group's `target` sends them at it) and the pilot's to keep up (a task's `guard`). It stands `raise` metres over its place, asleep while
  *  `hidden` (a scene's spawn wakes it), and its place, where it is set down, is a spot of its own id for the scenes
  *  (`{ glide: { who: 'candle', to: 'candle' } }` lowers it onto it); each reach's and scan's place is the spot `t<n>`. */
+// AN ASSET defended (a prop with armour: the Roman Candles burning on a rock being pushed): the most armour one takes,
+// and a task's `guard` (game/objectives.js `keep`: one of them down while the task is in hand fails it, or begins it
+// again where the operation retries, the assets stood up whole)
+export const GUARD = Object.freeze({ hp: 400000 });
 export const PROP = Object.freeze({ most: 12, raise: 3000 });
 /** A prop's plume's colour unsaid: the argon drive's muted violet (assault-frame/parts.js PROPELLANTS' argon). */
 export const PLUME_COLOUR = '#8673bd';
@@ -260,7 +282,11 @@ function readProps(v, taken, at) {
   return v.map((p, i) => {
     const pat = `${at}[${i}]`;
     if (!isObj(p)) throw new Error(`${pat} is { id, unit, at, raise?, hidden?, face? }`);
-    for (const k of Object.keys(p)) if (!['id', 'unit', 'at', 'raise', 'hidden', 'face', 'plume'].includes(k)) throw new Error(`${pat}.${k} is not part of a prop (id, unit, at, raise, hidden, face, plume)`);
+    for (const k of Object.keys(p)) if (!['id', 'unit', 'at', 'raise', 'hidden', 'face', 'plume', 'hp', 'name'].includes(k)) throw new Error(`${pat}.${k} is not part of a prop (id, unit, at, raise, hidden, face, plume, hp, name)`);
+    // (an ASSET: a prop with armour, `hp`, the foes' to hit and the pilot's to keep up (GUARD), its `name` on the HUD)
+    if (p.hp !== undefined && !(Number.isFinite(p.hp) && p.hp > 0 && p.hp <= GUARD.hp)) throw new Error(`${pat}.hp is its armour, above 0 and up to ${GUARD.hp}: an asset the foes are sent at`);
+    if (p.name !== undefined && !(typeof p.name === 'string' && p.name && p.name.length <= 24)) throw new Error(`${pat}.name is what the HUD calls it, up to 24 letters`);
+    if (p.name !== undefined && p.hp === undefined) throw new Error(`${pat}.name is an asset's: give it its armour (hp)`);
     if (typeof p.id !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(p.id) || seen.has(p.id) || taken.has(p.id) || /^t\d+$/.test(p.id)) throw new Error(`${pat}.id is its own name, lower-case, not a group's, an ally's or a task's (t<n>)`);
     seen.add(p.id);
     if (!GROUND_UNITS[p.unit]) throw new Error(`${pat}.unit is the card it is drawn as: ${Object.keys(GROUND_UNITS).join(', ')}`);
@@ -270,7 +296,7 @@ function readProps(v, taken, at) {
     if (p.face !== undefined && !Number.isFinite(p.face)) throw new Error(`${pat}.face is degrees`);
     // (its plume: its drive lit as the level's bus says ignite:<id>, scene/channels/plume.js; a card with a bell)
     if (p.plume !== undefined && !((p.plume === true || (isObj(p.plume) && (p.plume.colour === undefined || /^#[0-9a-f]{6}$/i.test(p.plume.colour)))) && GROUND_UNITS[p.unit].bell)) throw new Error(`${pat}.plume is true or { colour?: '#rrggbb' }, on a card with a bell (${Object.keys(GROUND_UNITS).filter((k) => GROUND_UNITS[k].bell).join(', ')})`);
-    return { id: p.id, unit: p.unit, at: p.at.slice(), ...(p.raise ? { raise: p.raise } : {}), ...(p.hidden ? { hidden: true } : {}), ...(p.face !== undefined ? { face: p.face } : {}), ...(p.plume ? { plume: p.plume === true ? {} : { ...p.plume } } : {}) };
+    return { id: p.id, unit: p.unit, at: p.at.slice(), ...(p.raise ? { raise: p.raise } : {}), ...(p.hidden ? { hidden: true } : {}), ...(p.face !== undefined ? { face: p.face } : {}), ...(p.plume ? { plume: p.plume === true ? {} : { ...p.plume } } : {}), ...(p.hp ? { hp: p.hp, name: p.name ?? p.id } : {}) };
   });
 }
 
@@ -392,7 +418,7 @@ export function operationMechanics(op, ends) {
   // (a retry: each fought group put back where it stood as its task is begun again; the pilot down is no loss then)
   const again = op.retry ? op.tasks.map((t) => (t.down ? op.groups.filter((g) => t.down.includes(g.id)).flatMap((g) => membersOf(g, ends).map((m) => ({ op: 'spawn', who: m.id, at: m.at, fresh: true }))) : [])) : null;
   // (quiet: the frame's own HUD says what it needs; the objectives show the task in hand and its own clock, no count)
-  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}), ...(again?.[i].length ? { again: again[i] } : {}) })), say: 'line', quiet: true, ...(op.retry ? { retry: true } : {}) }, ...(op.retry ? [] : [{ kind: 'fail-on-death', of: 'body' }])];
+  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(op.tasks[i].guard ? { keep: op.tasks[i].guard.slice() } : {}), ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}), ...(again?.[i].length ? { again: again[i] } : {}) })), say: 'line', quiet: true, ...(op.retry ? { retry: true } : {}) }, ...(op.retry ? [] : [{ kind: 'fail-on-death', of: 'body' }])];
 }
 
 export function operationCast(op, ends) {
@@ -421,7 +447,7 @@ export function operationCast(op, ends) {
       figures[fig] = { unit: { kind: g.kind, form: true } };
       entities.push({
         id: m.id, team: 'foes', ...(dormant ? { dormant: true } : {}),
-        rule: { type: 'ai', space: true, speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6, ...(g.wary ? { mind: { aggressiveness: 'defensive' } } : {}) },
+        rule: { type: 'ai', space: true, ...(g.target ? { target: g.target.slice() } : {}), speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6, ...(g.wary ? { mind: { aggressiveness: 'defensive' } } : {}) },
         ...(!U.rof ? {} : { weapon: { foeRound: true, fxColor: FOE_ROUND.color, fxScale: FOE_ROUND.size, fireClass: 'lob', auto: true, rof: U.rof, damage: U.damage, impact: 0.02, range: U.range, coreAngle: 2, assistAngle: 5, eye: R * 0.6, lobAngle: 0, projectileSpeed: U.speed, projectileGravity: 0, projRadius: 0.8, splashRadius: g.kind === 'tank' ? 4 : 0, fuse: U.range / U.speed * 1.3, noGround: true, passTeam: true, smokeTrail: g.kind === 'tank', fxColor: 0xff5a3a, foeRound: true, magazine: 9999 } }),
         body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, hpMax: U.hp, poise: 99, ...(U.shield ? { shield: { ...U.shield } } : {}), radius: R, egg: { a: R, c: r2(R * 0.6), cz: r2(U.hitAt ?? R * 0.4) }, aimH: r2(U.hitAt ?? R * 0.4), blast: 4 },
         transform: { pos: U.air ? [m.at[0], m.at[1], r2(m.at[2] + U.air)] : m.at, heading: toward(m.at), pitch: 0 },
@@ -477,7 +503,11 @@ export function operationCast(op, ends) {
   for (const p of op.props ?? []) {
     const [x, y] = placeOf(ends, p.at), z = r2(ends.ground(x, y)), fig = `prop-${p.unit}`, face = p.face !== undefined ? (p.face * Math.PI) / 180 : toward([x, y]);
     figures[fig] = { unit: { kind: p.unit, form: true } };
-    entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), body: { type: 'figure-rig', figure: fig, hittable: false, radius: unitRadius(p.unit) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
+    // (an asset: hittable by the foes alone, `ward` (the pilot's side's rounds go through it, its lock passes it over), its
+    // armour on the HUD under its name, `guard`)
+    // (its height: to its bell where it has one, a rocket's, else twice its radius)
+    const R = unitRadius(p.unit), B = GROUND_UNITS[p.unit].bell, H = B ? r2(B.at[2] * GROUNDFORCE_SCALE) : R * 2;
+    entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), ...(p.hp ? { guard: p.name } : {}), body: { type: 'figure-rig', figure: fig, hittable: !!p.hp, radius: R, ...(p.hp ? { hp: p.hp, hpMax: p.hp, ward: true, poise: 99, egg: { a: R, c: r2(H * 0.5), cz: r2(H * 0.5) }, aimH: r2(H * 0.4) } : {}) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
   const scenes = [...intros, ...splits];

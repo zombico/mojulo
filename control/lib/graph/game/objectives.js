@@ -40,6 +40,8 @@
  *          reached in the pause is met as it begins
  *   ops    the cast's ops issued as it begins, once ([{ op, who, … }], worlds/controllable/cast.js: a group that comes with
  *          it and is not its to down, `spawn`; an ally let go of its post): what its begin sets moving besides its own
+ *   keep   ids kept up while it is in hand (an asset defended): one of them down then fails the level, or, with a
+ *          retry, begins the task again as the player's fall does, the ids stood up whole
  *   retry  true | { after?, say? }: the player down while a task is in hand (RETRY): the screen faded, the player stood
  *          up whole where it fell after `after` s and the task in hand begun again (a clear's foes up and whole, its
  *          `again` ops: [{ op, who, … }], a foe put back where it stood), the level going on; with it, a fall is no loss
@@ -133,6 +135,7 @@ export function lowerObjectives(p, ctx) {
       if (by !== 1) fail(`${at}: a protect is met by seconds (kept up that long) or by arrive ({ at, radius? }: the first of them gets there), one of them`);
       if (t.arrive !== undefined && !(t.arrive && isVec(t.arrive.at))) fail(`${at}.arrive is { at: [x, y, z], radius? }`);
     }
+    if (t.keep !== undefined && !(Array.isArray(t.keep) && t.keep.length && t.keep.every((w) => typeof w === 'string' && w))) fail(`${at}.keep is the ids kept up while it is in hand (an asset defended), at least one`);
     for (const f of [...(t.foes ?? []), ...(t.waves ?? []).flat()]) { if (woken.has(f)) fail(`${at}: '${f}' is woken twice (a foe is woken once: name another)`); woken.add(f); }
     if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one)`);
     if (t.door !== undefined && !(t.door && isVec(t.door.at) && isVec(t.door.back))) fail(`${at}.door is { at, back }: the way on and where a body is put back while it is sealed`);
@@ -352,6 +355,14 @@ export function lowerObjectives(p, ctx) {
     });
     world.hud.push({ on: again, text: R.say, ttl: 2.4 });
   }
+  // (a task's keep: one of its ids down while it is in hand loses the level, or, where a retry is, begins it again, the
+  // ids stood up whole where they stood)
+  T.forEach((t, k) => {
+    for (const w of t.keep ?? []) {
+      world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, eq: k }, do: 'emit', type: p.retry !== undefined ? `${pre}:lost` : 'objectives:failed', task: t.id });
+      if (p.retry !== undefined) world.reactions.push({ on: `${pre}:again`, if: { var: cur, eq: k }, do: 'ctrl', op: 'spawn', who: w, fresh: true });
+    }
+  });
   for (const ch of ['watches', 'sequences', 'timers', 'entities', 'sources']) if (!world[ch].length) delete world[ch];
   const banded = T.some((t) => t.kind === 'band'), landed = T.some((t) => t.kind === 'land');
   if (banded) world.vars[names.slip] = 0;
@@ -360,7 +371,7 @@ export function lowerObjectives(p, ctx) {
   const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, ...(woken.size ? [{ var: downs, label: 'Foes down', best: 'high' }] : []), { var: time, label: 'Time', best: 'low', unit: 's' },
     ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : []),
     ...(p.retry !== undefined ? [{ var: names.retries, label: 'Retries', best: 'low' }] : [])];
-  const fails = T.some((t) => t.kind === 'protect');
+  const fails = T.some((t) => t.kind === 'protect' || (t.keep && p.retry === undefined));
   if (fails) world.hud.push({ on: 'objectives:failed', text: 'Failed', as: 'toast', ttl: 2 });
   if (T.some((t) => t.kind === 'gates')) world.hud.push({ on: 'objective:gate', text: 'gate {event.n} of {event.of}', as: 'toast', ttl: 1 });
   return { world, on: { 'objectives:done': { end: 'success' }, ...(fails ? { 'objectives:failed': { end: 'fail' } } : {}) }, keep, emits: ['objective:begin', 'objective:done', 'objective:sealed', 'objective:gate', 'objectives:done', 'objectives:failed', 'wave'] };
