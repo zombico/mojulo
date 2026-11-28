@@ -11,7 +11,7 @@ import { safeJson } from '../emit-util.js';
 // plays. Emitted only on a level with
 // calls: every other page byte-identical. `window.__mojCalls` { made: [ids], showing: () => { call, line } | null,
 // next(), skip() } is its probe.
-export const CALLS = Object.freeze({ most: 6, fade: 0.2, settle: 0.35 });
+export const CALLS = Object.freeze({ most: 6, fade: 0.2, settle: 0.35, after: 1.5 });
 const COLOURS = Object.freeze(['#e0a040', '#4fb3d9', '#d9604f', '#7fcf7f', '#b58fe0']);
 
 /** The page's data: each call by id, its lines and who it is between, and each speaker's name, initials and colour. */
@@ -52,7 +52,7 @@ export function callsScript(data) {
   host.appendChild(el);
   const $ = (s) => el.querySelector(s), L = $('.pt.l'), R = $('.pt.r'), nm = $('.nm'), tx = $('.tx');
   const queue = [], made = [];
-  let call = null, k = 0, froze = false, opened = 0, shut = -1e9;
+  let call = null, k = 0, froze = false, opened = 0, shut = -1e9, freezeAt = 0;
   const face = (P, w) => { const S = w && CD.speakers[w]; P.style.visibility = S ? '' : 'hidden'; if (!S) return; P.querySelector('.face').textContent = S.initials; P.querySelector('.face').style.background = S.colour; P.querySelector('.who').textContent = S.name; };
   function line() {
     const Ln = call.def.lines[k], S = CD.speakers[Ln.who];
@@ -64,11 +64,16 @@ export function callsScript(data) {
   function open(id) {
     const def = CD.calls[id]; if (!def) return;
     call = { id, def }; k = 0; made.push(id); opened = performance.now();
-    froze = !window.__mojFreeze; window.__mojFreeze = true;
+    // (the world held at once, or, just after a scene, once the camera is back behind the player: the follow camera rides
+    // the world's step, so a world held on the scene's last frame would keep the scene's camera under the call)
+    const at = sceneOff + C.after * 1000;
+    if (performance.now() >= at) hold(); else freezeAt = at;
     face(L, def.left); face(R, def.right); line(); el.className = 'moj-call on';
   }
+  function hold() { froze = !window.__mojFreeze; window.__mojFreeze = true; freezeAt = 0; }
   function close(how) {
     if (!call) return;
+    freezeAt = 0;
     const id = call.id; call = null; el.className = 'moj-call';
     if (froze) window.__mojFreeze = false; froze = false;
     window.__mojCallEnded = (window.__mojCallEnded || []).concat([{ id, how }]);
@@ -95,7 +100,8 @@ export function callsScript(data) {
   // (read before the game's own script has run, the game is not up yet: wait)
   const opens = () => { try { return typeof __GAME !== 'undefined' && !!__GAME && !!__GAME.opening; } catch (e) { return null; } };
   // (nor over a scene while it plays, playscape/ui/scenes.js: a call it raises comes as it ends)
-  const scene = () => { try { return !!(window.__mojScenes && window.__mojScenes.on()); } catch (e) { return false; } };
+  let sceneOff = -1e9;
+  const scene = () => { let on = false; try { on = !!(window.__mojScenes && window.__mojScenes.on()); } catch (e) {} if (on) sceneOff = performance.now(); return on; };
   const clear = () => { const O = opens(), S = window.__mojScreens, o = S && S.opening; return O === null || scene() ? false : O ? o === 'gone' : !o || o === 'gone'; };
   function pump() { if (!call && queue.length && clear() && performance.now() - shut > C.fade * 1000 + 60) open(queue.shift()); }
   // (the bus's run: each event of the kind call:<id> heard as it is processed)
@@ -113,7 +119,7 @@ export function callsScript(data) {
     try { const M = window.__mojBus, log = (M && M.state && M.state.log) || []; for (const ev of log) if (ev && typeof ev.type === 'string' && ev.type.indexOf('call:') === 0) want(ev.type.slice(5)); } catch (e) {}
     return true;
   }
-  (function tick() { listen(); pump(); requestAnimationFrame(tick); })();
+  (function tick() { listen(); scene(); pump(); if (call && freezeAt && performance.now() >= freezeAt) hold(); requestAnimationFrame(tick); })();
   window.__mojCalls = { made, showing: () => (call ? { call: call.id, line: call.def.lines[k].id } : null), next, skip, want, clear, opens };
 })();
 `;
