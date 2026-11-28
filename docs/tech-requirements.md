@@ -47,6 +47,11 @@ fresh `MOJULO_HOME`s (the server alone, after the install). One run on one machi
 network, so it bounds nothing; it is not the macOS cold start below, which ran `npx` through a local
 registry and timed both together. Sizes are decimal MB, `du` on disk.
 
+**3.2 is bigger: re-measure at its release.** A pack of the 3.2 branch on 2026-11-28 (`npm pack --dry-run
+--ignore-scripts` from `control/`, so without the precompiled JSX the release adds) lists 4,578 files: a **22.3 MB**
+tarball, **68.7 MB** unpacked, about twice 3.1.1's. That is an estimate from source, not a published install; the
+figures below stay 3.1.1's until the published 3.2.0 is measured the same way.
+
 The 3.0.0 measurement, **2026-09-28**: the core tarball packed from its release branch, cold-started 10
 times with an empty npm cache and a fresh `MOJULO_HOME` through a local registry stand-in on macOS
 arm64 (M1 Max), answered `initialize` in a median 6.6 s (p90 7.0 s, slowest 7.7 s), against 7.2 s
