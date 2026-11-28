@@ -690,7 +690,7 @@ export const FIXTURES = Object.freeze([
       reality: { medium: '3d' },
       space: { camera: 'first-person', levelForm: 'arena' },
       power: { combat: ['ranged'], mechanics: ['frags', 'respawn'] },
-      soul: { seats: 'four', contest: 'free-for-all', dependence: 'parallel', frame: 'split', input: 'real-time', pool: 'own', join: 'lobby' },
+      soul: { hero: 'hero', seats: 'four', contest: 'free-for-all', dependence: 'parallel', frame: 'split', input: 'real-time', pool: 'own', join: 'lobby' },
     },
   },
   // battle city (10-25): sports as a contest over the movement stack. Two shapes of contest, one kernel: a meet (lanes,

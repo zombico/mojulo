@@ -448,7 +448,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     steps.push({ key: 'foe', ref: foeRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   } else if (bossed(G)) steps.push(bossStep(G, ref, { ready: true }));
   if (guarded(G)) steps.push(guardStep(G, ref, { ready: true }));
-  if (missioned(G)) steps.push(gunnerStep(G, ref, { ready: true }));
+  if (gunned(G)) steps.push(gunnerStep(G, ref, { ready: true }));
   // the bestiary's foes (foes.js): one beast for each entry a level stands, waiting on nothing
   steps.push(...foeSteps(G, ref, { ready: true }));
   const foeRefs = foeRefsOf(G, ref);
@@ -603,7 +603,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // (the hero's hp is its body's own where the systems bind the hp stat to it and no battle on the stage reads the
     // level's: fail-on-death and the hazards on the body, a touch's cost the same share of its hp; foes.js onBody)
     // (a world on lives, mechanics.lives, has no hp to bind: a touch costs a life, the level's lives mechanic's)
-    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
+    // (a deathmatch keeps its own hp, its falls and its comebacks: frags', never the body's)
+    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && G.levels[s.level]?.deathmatch === undefined && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
     const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
@@ -752,6 +753,13 @@ const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed',
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
 function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
+  // A DEATHMATCH (levels.<id>.deathmatch, a book level form): the quick door's match from the level's own words, its bots
+  // the world's gunner (gunnerStep), its pilot armed as the quick deathmatch's
+  const DM = G.levels[s.level]?.deathmatch;
+  if (DM !== undefined) {
+    const D = { goal: 'deathmatch', ...(DM === true ? {} : DM), ...(G.camera ? { camera: G.camera } : {}) }, bots = childRef(ref, 'foe-gunner');
+    return { goal: (ends) => goalMechanics(D, ends), goalCast: (ends) => deathmatchCast(D, ends, bots, { hero: !!G.characters?.hero, camera: G.camera }), legend: deathmatchLegend(D) };
+  }
   // an airspace is flown for its flight goal (flight-goal.js), the one the quick door's flights read: its own, or what
   // the airspace has (its course, its trench); one with neither is flown to its exit, as before
   const A = G.levels[s.level]?.airspace;
@@ -892,6 +900,8 @@ function guardStep(G, ref, ready) {
 /** A mission's foes' figure (mission-level.js): a gunner rolled in the game's setting as a quick shooter's are, made as the
  * guard is at `<ref>-foe-gunner`, one for every mission level in the world (a `foe-*` step: the foes chapter's). */
 const missioned = (G) => G.ids.some((id) => G.levels[id].mission !== undefined);
+// (a deathmatch level's bots are gunners too: the one figure, made once)
+const gunned = (G) => missioned(G) || G.ids.some((id) => G.levels[id].deathmatch !== undefined);
 const gunnerRefOf = (G, ref) => (missioned(G) ? { gunnerRef: childRef(ref, 'foe-gunner') } : {});
 function gunnerStep(G, ref, ready) {
   const Q = { goal: 'shoot' }, F = quickFigure(G, Q, 'gunner', settingOfGame(G, Q));
@@ -916,7 +926,7 @@ function worldSteps(world, G, ref, composite) {
   // a level goal's boss and guards (levels.<id>.goal.boss, .guards): their figures made first, on the world's own parts
   if (bossed(G)) steps.push(bossStep(G, ref, settled(ground)));
   if (guarded(G)) steps.push(guardStep(G, ref, settled(ground)));
-  if (missioned(G)) steps.push(gunnerStep(G, ref, settled(ground)));
+  if (gunned(G)) steps.push(gunnerStep(G, ref, settled(ground)));
   steps.push(...foeSteps(G, ref, settled(ground)));
   const foeRefs = foeRefsOf(G, ref);
   const lastOf = lastStages(stages);

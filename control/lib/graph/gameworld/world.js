@@ -342,7 +342,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'deathmatch', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -758,6 +758,18 @@ export function readGameworld(W) {
       if (isObj(A) && A.weapons !== undefined && !(Array.isArray(A.weapons) && A.weapons.every((w) => WEAPON_ROLES[w]))) throw new Error(`gameworld: ${at}.arena.weapons is the guns laid on its floor, roles of ${Object.keys(WEAPON_ROLES).join(', ')} (each laid where the arena's lines serve it)`);
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
+    }
+    // A DEATHMATCH (a book level form, 11-27): the match on the level's arena, the quick door's (quick.js goalMechanics,
+    // deathmatchCast) from the level's own words: its bots, its frag limit, its clock, its mode; laid on a walk's arena
+    if (L.deathmatch !== undefined) {
+      const D = L.deathmatch;
+      if (D !== true && !(isObj(D) && Object.keys(D).every((k) => ['bots', 'frags', 'seconds', 'mode'].includes(k)))) throw new Error(`gameworld: ${at}.deathmatch is true or { bots?, frags?, seconds?, mode? }: a match on the level's arena`);
+      if (isObj(D) && D.bots !== undefined && !(Number.isInteger(D.bots) && D.bots >= 1 && D.bots <= 7)) throw new Error(`gameworld: ${at}.deathmatch.bots is 1 to 7`);
+      if (isObj(D) && D.frags !== undefined && !(Number.isInteger(D.frags) && D.frags >= 1 && D.frags <= 50)) throw new Error(`gameworld: ${at}.deathmatch.frags is the limit, 1 to 50`);
+      if (isObj(D) && D.seconds !== undefined && !(Number.isInteger(D.seconds) && D.seconds >= 10 && D.seconds <= 600)) throw new Error(`gameworld: ${at}.deathmatch.seconds is the time limit, 10 to 600`);
+      if (isObj(D) && D.mode !== undefined && !['free-for-all', 'team', 'control'].includes(D.mode)) throw new Error(`gameworld: ${at}.deathmatch.mode is free-for-all, team or control`);
+      if (L.walk === undefined || L.arena === undefined) throw new Error(`gameworld: ${at}.deathmatch is fought on the level's arena: give it a walk and an arena`);
+      if (L.goal !== undefined) throw new Error(`gameworld: ${at}.deathmatch is the level's goal: no goal beside it`);
     }
     if (L.kitchen !== undefined) {
       // a kitchen level (gameworld/kitchen-shifts.js, laid by kitchen-level.js): its own room, its layout, its menu, its
