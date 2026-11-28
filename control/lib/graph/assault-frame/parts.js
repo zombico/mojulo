@@ -31,7 +31,8 @@
  *              over `wind` s, its gravity and its control coming back; the legs' `steady` scales both)
  *   back weapon as an arm weapon's; homing (rad/s a missile turns at, locked), salvo (missiles a trigger)
  *
- *   PARTS                       { <slot>: { <id>: row } }
+ *   PARTS                       { <slot>: { <id>: row } } (a weapon's `stagger` and `impact`: its build-up, below)
+ *   IMPACTS                     how a weapon's rounds hit a frame's bar: ballistic, energy, melee, stun (reserved)
  *   SLOTS, WEAPON_SLOTS         the slots, and the four a frame's weapons ride in (armR, armL, backR, backL)
  *   partOf(slot, id)            → the row (with its id), or throws naming the slot's parts
  *   STOCK                       the stock frames, a build each: what a mission starts the pilot in, and what it fights
@@ -39,6 +40,15 @@
 
 const f = Object.freeze;
 const row = (o) => f(o);
+
+// STAGGER BUILD-UP: a weapon's `stagger` is what each of its rounds (each pellet, each missile) takes off a frame's
+// stability bar, in standard bars; its `impact` says how it hits, which is why its number is what it is. A BALLISTIC
+// round (a slug, a shell, a warhead) knocks the frame and builds the bar fastest: sustained fire from a rifle or a
+// gatling breaks a medium frame in some two to four seconds, a heavy shell takes half a bar at once. An ENERGY one (a
+// laser, a plasma bolt) burns more than it pushes, a quarter of a ballistic's weight for its damage. A blade's blow
+// (MELEE) shoves. STUN is reserved: a weapon made to break the bar and little else. The bar holds while it is being
+// hit (rules-frame.js: it comes back only once its frame has gone `stab.hold` s unhit), so build-up is pressure kept on.
+export const IMPACTS = f(['ballistic', 'energy', 'melee', 'stun']);
 
 // THE PROPELLANTS: what a booster throws. The batteries charge its capacitors and it fires them as pulses, a plasma
 // drive and no fire: each pulse a knot of the propellant's plasma, which glows as it recombines in the frame's wake, in
@@ -95,19 +105,19 @@ export const PARTS = f({
   }),
   // what a hand holds: a gun on its own trigger (the right on the left mouse, the left on the right)
   armWeapon: f({
-    'rf-carbine': row({ name: 'Carbine', kind: 'rifle', weight: 3800, handling: 'free', fire: 'auto', damage: 120, rof: 6, mag: 360, reload: 2.4, speed: 520, range: 380, stagger: 0.02, about: 'an assault rifle: a long receiver, a box magazine, a muzzle brake' }),
-    'sg-scatter': row({ name: 'Scatter', kind: 'shotgun', weight: 4400, handling: 'free', fire: 'semi', damage: 70, pellets: 8, cooldown: 0.9, mag: 48, reload: 3, speed: 420, range: 140, stagger: 0.05, about: 'a shotgun: a broad short bore, a drum under it' }),
-    'gt-gatling': row({ name: 'Gatling', kind: 'gatling', weight: 6900, handling: 'drag', drag: 0.7, fire: 'auto', damage: 55, rof: 16, mag: 1200, reload: 4.5, speed: 560, range: 300, stagger: 0.01, about: 'a gatling: six barrels in a shroud, a belt to a drum' }),
-    'bz-breaker': row({ name: 'Breaker', kind: 'bazooka', weight: 7800, handling: 'brace', brace: 0.3, wind: 0.45, fire: 'semi', damage: 1400, cooldown: 2.2, mag: 24, reload: 3.6, speed: 260, range: 420, splash: 6, stagger: 0.4, about: 'a bazooka: a fat tube, a rocket the size of a man' }),
+    'rf-carbine': row({ name: 'Carbine', kind: 'rifle', weight: 3800, handling: 'free', fire: 'auto', damage: 120, rof: 6, mag: 360, reload: 2.4, speed: 520, range: 380, stagger: 0.05, impact: 'ballistic', about: 'an assault rifle: a long receiver, a box magazine, a muzzle brake' }),
+    'sg-scatter': row({ name: 'Scatter', kind: 'shotgun', weight: 4400, handling: 'free', fire: 'semi', damage: 70, pellets: 8, cooldown: 0.9, mag: 48, reload: 3, speed: 420, range: 140, stagger: 0.06, impact: 'ballistic', about: 'a shotgun: a broad short bore, a drum under it' }),
+    'gt-gatling': row({ name: 'Gatling', kind: 'gatling', weight: 6900, handling: 'drag', drag: 0.7, fire: 'auto', damage: 55, rof: 16, mag: 1200, reload: 4.5, speed: 560, range: 300, stagger: 0.03, impact: 'ballistic', about: 'a gatling: six barrels in a shroud, a belt to a drum' }),
+    'bz-breaker': row({ name: 'Breaker', kind: 'bazooka', weight: 7800, handling: 'brace', brace: 0.3, wind: 0.45, fire: 'semi', damage: 1400, cooldown: 2.2, mag: 24, reload: 3.6, speed: 260, range: 420, splash: 6, stagger: 0.5, impact: 'ballistic', about: 'a bazooka: a fat tube, a rocket the size of a man' }),
     // (a blade: no rounds, a lunge onto the locked foe within its reach and a cut; `range` its reach, `speed` its lunge)
-    'bl-shear': row({ name: 'Shear', kind: 'blade', weight: 3600, fire: 'melee', damage: 2400, cooldown: 1.6, mag: 9999, reload: 0, speed: 120, range: 90, energy: 420, stagger: 0.6, about: 'a blade: an emitter on the forearm, a white-hot edge out of it, a lunge and a cut' }),
-    'lr-lance': row({ name: 'Lance', kind: 'laser', weight: 5200, handling: 'free', fire: 'charge', damage: 650, cooldown: 0.8, mag: 9999, reload: 0, speed: 900, range: 520, energy: 380, stagger: 0.12, about: 'a laser rifle: a slim barrel in cooling fins, a charged shot' }),
+    'bl-shear': row({ name: 'Shear', kind: 'blade', weight: 3600, fire: 'melee', damage: 2400, cooldown: 1.6, mag: 9999, reload: 0, speed: 120, range: 90, energy: 420, stagger: 0.5, impact: 'melee', about: 'a blade: an emitter on the forearm, a white-hot edge out of it, a lunge and a cut' }),
+    'lr-lance': row({ name: 'Lance', kind: 'laser', weight: 5200, handling: 'free', fire: 'charge', damage: 650, cooldown: 0.8, mag: 9999, reload: 0, speed: 900, range: 520, energy: 380, stagger: 0.06, impact: 'energy', about: 'a laser rifle: a slim barrel in cooling fins, a charged shot' }),
   }),
   // what a shoulder carries: a launcher or a cannon, fired on its own key (the right on E, the left on Q)
   backWeapon: f({
-    'ms-hornet': row({ name: 'Hornet', kind: 'missiles', weight: 4600, handling: 'free', fire: 'semi', damage: 260, salvo: 4, cooldown: 2.6, mag: 96, reload: 0, speed: 180, range: 520, splash: 4, homing: 2.4, stagger: 0.06, about: 'a missile pod: four cells under a hatch' }),
-    'gc-mortar': row({ name: 'Mortar', kind: 'grenade', weight: 8200, handling: 'brace', brace: 0.9, wind: 0.9, fire: 'semi', damage: 1800, cooldown: 3.4, mag: 20, reload: 0, speed: 200, range: 480, splash: 14, stagger: 0.5, about: 'a grenade cannon: a short heavy barrel on a cradle, folded over the shoulder to fire' }),
-    'pc-arc': row({ name: 'Arc', kind: 'plasma', weight: 6400, handling: 'brace', brace: 0.7, wind: 0.8, fire: 'charge', damage: 1100, cooldown: 2, mag: 9999, reload: 0, speed: 320, range: 360, splash: 8, energy: 900, stagger: 0.3, about: 'a plasma cannon: coils round a bore, a cell behind it' }),
+    'ms-hornet': row({ name: 'Hornet', kind: 'missiles', weight: 4600, handling: 'free', fire: 'semi', damage: 260, salvo: 4, cooldown: 2.6, mag: 96, reload: 0, speed: 180, range: 520, splash: 4, homing: 2.4, stagger: 0.1, impact: 'ballistic', about: 'a missile pod: four cells under a hatch' }),
+    'gc-mortar': row({ name: 'Mortar', kind: 'grenade', weight: 8200, handling: 'brace', brace: 0.9, wind: 0.9, fire: 'semi', damage: 1800, cooldown: 3.4, mag: 20, reload: 0, speed: 200, range: 480, splash: 14, stagger: 0.6, impact: 'ballistic', about: 'a grenade cannon: a short heavy barrel on a cradle, folded over the shoulder to fire' }),
+    'pc-arc': row({ name: 'Arc', kind: 'plasma', weight: 6400, handling: 'brace', brace: 0.7, wind: 0.8, fire: 'charge', damage: 1100, cooldown: 2, mag: 9999, reload: 0, speed: 320, range: 360, splash: 8, energy: 900, stagger: 0.15, impact: 'energy', about: 'a plasma cannon: coils round a bore, a cell behind it' }),
   }),
 });
 

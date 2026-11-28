@@ -14,10 +14,11 @@
  *     en        { max, regen, delay, out, cost { boost, qb, ascend, abStart, ab } }
  *     kick      { damage, impact, range, speed, cool, en }: the boost kick, a lunge onto the locked target
  *     fcs       { lock, range, cone, locks }
- *     stab      { max, regen, stagger, bonus }: its stability, the bar a hit's impact breaks (in standard bars: a weapon's
- *               `stagger` is its share of one), heavier frames the steadier; regen bars a second; stagger the seconds
- *               it reels when broken, bonus how much harder a hit lands on a frame reeling (the fight's loop:
- *               pressure a frame until it breaks, then punish it)
+ *     stab      { max, regen, stagger, bonus, hold }: its stability, the bar a hit's impact breaks (in standard bars: a
+ *               weapon's `stagger` is its share of one, parts.js), heavier frames the steadier; regen bars a second, once
+ *               it has gone `hold` s unhit (the bar builds while the fire is kept on); stagger the seconds it reels when
+ *               broken, stood still; bonus how much harder a hit lands on a frame reeling (the fight's loop: pressure a
+ *               frame until it breaks, then punish it)
  *     weapons   { armR?, armL?, backR?, backL? } each its row with its id
  *     laws      [{ law, ok, says }]: within the load, the booster carries its mass, the generator feeds a quick boost,
  *               an energy weapon's shot within the generator, a pair of hands armed
@@ -75,7 +76,7 @@ export function assembleFrame(build) {
   const fcs = { lock: F.lock, range: F.range + ((parts.head ?? parts.core).sensor || 0), cone: F.cone, locks: F.locks };
   // (stability by mass: a medium frame of some 70 t is one standard bar, a light one less, a heavy one more; it comes back
   // a third of a bar a second, a light frame's a little faster)
-  const stab = { max: r2(Math.min(1.8, Math.max(0.6, weight / 70000))), regen: r2(0.34 * Math.min(1.3, Math.max(0.8, 70000 / weight))), stagger: 1.6, bonus: 1.5 };
+  const stab = { max: r2(Math.min(1.8, Math.max(0.6, weight / 70000))), regen: r2(0.34 * Math.min(1.3, Math.max(0.8, 70000 / weight))), stagger: 2, bonus: 1.5, hold: 1 };
   const energyShot = Math.max(0, ...Object.values(weapons).map((w) => w.energy || 0));
   const laws = [
     { law: 'load', ok: over === 0, says: over === 0 ? `within the legs' load (${Math.round(carried / 1000)} of ${Math.round(L.load / 1000)} t)` : `${Math.round(over * 100)}% over the legs' load: slower on its feet and its boost` },

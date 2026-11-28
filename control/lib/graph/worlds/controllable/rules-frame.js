@@ -47,10 +47,13 @@
  *     press and dodge; a duel keeps its reach, a rush assault-boosts in and lunges after a TELL (`tell` s, its optics
  *     flared: `tell` the fact) and rests after, a desperate one charges and looses its braced cannon. Crossing into a phase
  *     wakes its reserve (`adds`: a group's bodies) or steadies its bar (`regen`).
- *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus }): every
- *     round's impact (its weapon's `stagger`) chips the bar, which comes back on its own (`poiseRegen`); broken, the frame
- *     REELS for `stab.stagger` s: no boost, no quick boost, no climb, no guns, carried on by what it was doing and
- *     pulled down, and every hit on it lands `stab.bonus` times as hard. The engine's hit reaction would freeze it where
+ *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus, hold,
+ *     brake }, STAB): every round's impact (its weapon's `stagger`, assault-frame/parts.js: ballistic rounds build it
+ *     fastest) chips the bar, which BUILDS while the fire is kept on: it comes back on its own (`poiseRegen`) only once
+ *     the frame has gone `hold` s unhit. Broken, the frame REELS for `stab.stagger` s: no keys at all (no boost, no
+ *     quick boost, no climb, no guns, no dodge), braked to a standstill where it is (`brake`, its way checked by that
+ *     much a second; in the air it still comes down), and every hit on it lands `stab.bonus` times as hard: two
+ *     seconds of a target that neither moves nor dodges. The engine's hit reaction would freeze it where
  *     it stood (a rooted clip that suppresses the rule); a frame reels on its own physics, so the break is taken here.
  *     Pressure it until it breaks, then punish it: the fight's loop.
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
@@ -197,7 +200,7 @@ export function buildRulesFrame(E) {
     if (e.acePhase !== i) {
       e.acePhase = i; e.phaseAt = e.frTime || 0;
       const P = phases[i];
-      if (P.regen && Number.isFinite(e.poiseRegen)) { if (e.poiseRegen0 == null) e.poiseRegen0 = e.poiseRegen; e.poiseRegen = e.poiseRegen0 * P.regen; }
+      if (P.regen && Number.isFinite(e.poiseRegen)) { if (e.poiseRegen0 == null) e.poiseRegen0 = e.frPoiseRegen ?? e.poiseRegen; e.frPoiseRegen = e.poiseRegen = e.poiseRegen0 * P.regen; }
       // (its reserve: every body of the group it names, woken where it stood)
       if (P.adds) for (const id in world.byId) { const b = world.byId[id]; if (b.dormant && (id === P.adds || id.indexOf(P.adds + '-') === 0)) b.dormant = false; }
     }
@@ -382,6 +385,8 @@ export function buildRulesFrame(E) {
 
     // ── move, and meet the ground ──
     const lastZ = t.pos[2];
+    // (reeling: its way checked hard, stood still where it broke; in the air it still comes down)
+    if (reeling) { const k = Math.exp(-((r.stab && r.stab.brake) ?? STAB.brake) * dt); e.v[0] *= k; e.v[1] *= k; }
     t.pos[0] += e.v[0] * dt; t.pos[1] += e.v[1] * dt; t.pos[2] += e.v[2] * dt;
     const g2 = groundAt(t.pos[0], t.pos[1], t.pos[2]) ?? 0;
     // (STICKY FEET: a frame on its feet that has not jumped or climbed stays on the ground over a crest or a dip, held
@@ -451,9 +456,20 @@ export function buildRulesFrame(E) {
       e.frHp = e.body.hp;
     }
     // (the bar held empty while it reels: it comes back from nothing once the reel is over)
-    if (reeling) { e.stagger = Math.max(0, e.stagger - dt); e.locomotion = e.airborne ? 'fall' : 'land'; e.thrust = 0; if (Number.isFinite(e.poise)) e.poise = 0; }
+    if (reeling) { e.stagger = Math.max(0, e.stagger - dt); e.locomotion = e.airborne ? 'fall' : 'land'; e.thrust = 0; e.moving = false; if (Number.isFinite(e.poise)) e.poise = 0; }
+    // (the build-up: the bar comes back only once its frame has gone `hold` s unhit; a hit is the bar gone down since
+    // the last frame. Its own rate kept aside, an ace's phase setting it, phaseOf)
+    if (Number.isFinite(e.poise) && Number.isFinite(e.poiseRegen)) {
+      if (e.frPoiseRegen == null) e.frPoiseRegen = e.poiseRegen;
+      e.frUnhit = e.frPoise != null && e.poise < e.frPoise - 1e-9 ? 0 : (e.frUnhit ?? Infinity) + dt;
+      e.poiseRegen = e.frUnhit < ((r.stab && r.stab.hold) ?? STAB.hold) ? 0 : e.frPoiseRegen;
+      e.frPoise = e.poise;
+    }
     e.stab = Number.isFinite(e.poise) && e.poiseMax > 0 ? Math.round((e.poise / e.poiseMax) * 100) / 100 : 1;
   }
+  // (a frame's stability by default: a reel of 2 s, a hit on it 1.5 times as hard, the bar back after 1 s unhit, its way
+  // checked at 8 a second; assault-frame/assemble.js gives a built frame its own)
+  const STAB = Object.freeze({ stagger: 2, bonus: 1.5, hold: 1, brake: 8 });
   // (what a reeling frame's keys are: none)
   const REEL = Object.freeze({ forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 });
 
@@ -465,7 +481,7 @@ export function buildRulesFrame(E) {
   E.registerEntityTimer('frame-stagger', (e) => {
     if (!(e.rule && e.rule.type === 'frame') || e.staggerT == null || e.downed) return;
     // (a break while it already reels is no new reel: never a lock it cannot leave)
-    if (!(e.stagger > 0)) { e.stagger = (e.rule.stab && e.rule.stab.stagger) ?? 1.6; e.staggers = (e.staggers || 0) + 1; }
+    if (!(e.stagger > 0)) { e.stagger = (e.rule.stab && e.rule.stab.stagger) ?? STAB.stagger; e.staggers = (e.staggers || 0) + 1; }
     e.staggerT = null; e.reactDur = null; e.reactClip = 'stagger'; e.locomotion = e.staggerReturn || e.locomotion;
     // (the bar refilled by the break, as the engine's is: empty to the eye a breath, then back from nothing)
     e.poise = 0;
