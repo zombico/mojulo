@@ -36,6 +36,7 @@ import { wolfSquadronStart } from './wolf-squadron.js';
 import { blazeGunnerStart } from './blaze-gunner.js';
 import { rebelStormStart } from './rebel-storm.js';
 import { warlordsOfMarsStart } from './warlords-of-mars.js';
+import { ceresWorld } from './artesia.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
@@ -141,6 +142,9 @@ export function pitchStart(world, { title } = {}) {
   const W0 = { ...starter, ...withFeel, ...named, ...intent };
   // (a VARIANT's street words on each street the starter lays: the heroes' tuning on a beat-em-up's, rails.js variants)
   const V = P.variant ? variantOf(R, P.variant) : null;
-  const W = V?.street ? { ...W0, levels: Object.fromEntries(Object.entries(W0.levels).map(([k, L]) => [k, isObj(L?.street) ? { ...L, street: { ...V.street, ...L.street } } : L])) } : W0;
+  const W1 = V?.street ? { ...W0, levels: Object.fromEntries(Object.entries(W0.levels).map(([k, L]) => [k, isObj(L?.street) ? { ...L, street: { ...V.street, ...L.street } } : L])) } : W0;
+  // (a REGIONS variant, Fable of Artesia's Ceres: the composed world, its one map replaced by the land's regions on a
+  // megaworld chain, artesia.js)
+  const W = V?.regions === 'ceres' ? ceresWorld(W1) : W1;
   return { world: W, laid: { by: 'compose', from: S.starts, ...(V ? { variant: V.id } : {}), levels: Object.keys(W.levels), says: SAYS } };
 }

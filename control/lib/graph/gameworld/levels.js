@@ -1127,7 +1127,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     return { tool: 'create_sketch', args: { title: manifest.title, manifest: { ...manifest, game: { ...manifest.game, levelRef: ref } } },
       ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
   }
-  if (stage.section === 'lair') return lairLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, audio });
+  if (stage.section === 'lair') return lairLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, audio, map });
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures, audio: stage.section === 'interior' ? null : audio });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? (stage.frame && stage.manifest.kind === 'geocube' ? frameFieldEnds(stage) : airspaceEnds(stage.manifest)) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
@@ -2809,7 +2809,7 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
  * stood toward its back wall (foes.js standFoe: the director's), the chase held behind the hero on the line from it,
  * low, its look lifted toward it (`face`); won by bringing the boss down.
  */
-function lairLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, audio = null } = {}) {
+function lairLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, audio = null, map = null } = {}) {
   const name = title ?? stage.label ?? `${G.name ?? G.id} · ${stage.level}`, L = LAIR, B = bestiaryOf(G);
   const spawn = [L.hero[0], L.hero[1], L.drop], heading = Math.atan2(L.boss[1] - L.hero[1], L.boss[0] - L.hero[0]);
   // the boss, as the director stands it (its figure built on the page from its row)
@@ -2826,6 +2826,10 @@ function lairLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature 
   const camera = { ...P.camera, ...(actionOrbit ? { steer: 'orbit', ...ACTION_ORBIT } : {}), ...L.camera, face: boss.id };
   const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
   const game = { levelRef: ref, mechanics: [{ kind: 'defeat-all', who: 'foe-*', count: 1, label: 'Down' }], fall: { mode: 'respawn' } };
+  // (the keys its world's ways keep here, levels.js mapPlan: GRANTED as the boss is brought down, the game channel's
+  // `wins`, into the bag; a freed dragon's shard, the next region's way in: artesia.js. A lair that keeps none, as before)
+  const keys = map?.keys ?? [];
+  if (keys.length) Object.assign(game, { wins: keys.map((item) => ({ type: 'grant', slice: 'bag', item, count: 1 })), produces: { events: [{ type: 'grant', slice: 'bag' }] } });
   let manifest = armLevel(G, { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}), ...(audio ? { audio } : {}),
     figures: { ...(fighter ? fighter.figures : P.figures), ...part.figures }, entities: [fighter ? fighter.entity : A.entity, ...part.entities], camera, events, ...(actionOrbit ? { lock: true } : {}),
     game, ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });

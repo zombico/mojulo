@@ -146,7 +146,16 @@ export const RAILS = Object.freeze({
   'ebon-spirits': row({ name: 'Ebon Spirits', like: 'deliberate action: committed blows, a roll, the guard, room after room',
     handles: row({ pole: 'ebon-spirits', genres: list(['dungeon-crawler', 'survival-horror']) }), sizes: list(['designed']), level1: 'a level: rooms to the exit, loot and hazards on the way' }),
   'fable-of-artesia': row({ name: 'Fable of Artesia', like: 'action adventure and action RPG: sword and shield, a land to cross, dungeons in it',
-    handles: row({ pole: 'fable-of-artesia', genres: list(['action-rpg', 'top-down-adventure', 'open-adventure']) }), sizes: list(['designed']), level1: 'a level: a field, a first dungeon, what it gives the hero' }),
+    handles: row({ pole: 'fable-of-artesia', genres: list(['action-rpg', 'top-down-adventure', 'open-adventure']) }), sizes: list(['designed']), level1: 'a level: a field, a first dungeon, what it gives the hero',
+    // its CERES variant: Artesia's own game, the land of Ceres a chain of regions, each its own light, each opened by the
+    // dragon freed in the one before (artesia.js)
+    variants: row({
+      ceres: row({ name: 'Fable of Artesia: Ceres', like: 'a Link to the Past in Artesia\'s hands: a silent heroine cast out of her kingdom crosses it region by region, each in its own light, freeing the dragons a wizard rules and reforming the amber that binds them',
+        level1: 'a region: Lagoona\'s coast at noon, its harbour village, its shore road, its drowned ruins, its lagoon town, the storm dragon freed in its lair',
+        words: list(['ceres', 'fable of artesia ceres', 'royal amber', 'imperial city', 'olric', 'regions of ceres']),
+        ask: row({ step: 'regions', does: 'ASK FIRST: their regions in the order she crosses them (each a name, its land, its hour and its light, its town, its dragon) and their story (who is cast out, by whom, what is freed): theirs to design; Ceres\'s if they have none', card: 'gameworld-world' }),
+        regions: 'ceres' }),
+    }) }),
   'jumping-giuseppe': row({ name: 'Jumping Giuseppe', like: 'a platformer: the jump is the game, things to collect, foes to stomp',
     handles: row({ pole: 'jumping-giuseppe', genres: list(['collectathon', 'platformer-3d', 'co-op-platformer']), quick: list(['collect']) }), sizes: list(['quick', 'designed']), level1: 'a level: basics, a first foe, the harder jumps, a gauntlet, a boss if asked' }),
   'galaxy-boy': row({ name: 'Galaxy Boy', like: 'a side-on run and gun: the dash, the wall kick, a charged shot, powers that open the map',

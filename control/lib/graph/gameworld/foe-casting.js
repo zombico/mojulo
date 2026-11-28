@@ -54,6 +54,7 @@ import { ITEMS } from '../cosmos/packs/comic-hero/items.js';
 import { bookRail, gameBody } from './game-bodies.js';
 import { arsenalOfGame } from './arsenal.js';
 import { arsenalFor } from './combos.js';
+import { DRAGONS } from '../boss/dragons.js';
 
 /** The dress words a crew takes from the body its game puts in its henchmen (`characters.direction.body`: a rail, 'game',
  * or { rail, style?, muscle? }): { rail, body?, muscle? }, `body` 'realistic' where the rail draws its henchman on the
@@ -345,6 +346,18 @@ export function castingCall(world) {
         const xid = extras[k++], X = family.extras.find((x) => x.id === xid);
         return { ...b, foes: { ...b.foes, [X.id]: X.count ?? 1 } };
       });
+    }
+  }
+  // A DRAGON NAMED ON A MAP (a beat's `dragon-<id>`, a region's climax: artesia.js): cast as that dragon of the boss
+  // shelf, standing as the boss stands (its class and rank), fought in its lair (lair.js); on that map's level beside its
+  // roles. A map that names none, as before
+  for (const id of mapped) {
+    const kinds = (scenarios[id] ?? G.levels[id].glyphs.sketch.scenario.beats).flatMap((b) => Object.keys(b.foes ?? {}));
+    for (const kind of kinds) {
+      const m = /^dragon-([a-z]+)$/.exec(kind);
+      if (!m || !DRAGONS[m[1]] || foes[kind]) continue;
+      foes[kind] = { class: foes.boss?.class ?? 'brute', rank: 'boss', dragon: m[1] };
+      if (levels[id] && !levels[id].from.includes(kind)) levels[id] = { ...levels[id], from: [...levels[id].from, kind] };
     }
   }
   order.forEach((id, k) => {
