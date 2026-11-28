@@ -7,3 +7,5 @@
 - From a sentence: a kart racer lays a cup of three kart races, a racing game three races in a coupe on city circuits,
   and a driver-and-gunner game three runs in a car with a roof gun for the second player. Each was answered with one level
   of the quick door before.
+- The hill-climb page now reads "yes" from a sentence for the kart racer and driver and gunner, and the racing rail is
+  offered as a designed game as well as a quick one. Every couch genre probe now lays its game from a sentence.
