@@ -208,6 +208,9 @@ export const EYEGEAR = Object.freeze({
   // (the ski visor a curved SHIELD standing off the face: one orange lens over the eyes and the brow, a thin frame round it)
   ski: { outline: { shape: 'shield', w: 2.55, top: 1.55, bottom: -1.15, notch: 0.4 }, eyes: LENS({ shape: 'shield', inset: [0.93, 0.86], dome: 0 }), group: 'EyeFrame', thick: 0.0035, lift: 0.003, front: { curve: true, shell: true, out: 0.022, max: 0.05 }, rim: { w: 0.1, h: 0.0015, group: 'EyeTrim' }, strap: { z: 0.2, h: 0.6 } },
   moto: { outline: { shape: 'goggles', r: 0.92, bridge: 0.28 }, eyes: LENS({ shape: 'round', size: [0.7, 0.7], dome: 0.007 }), group: 'EyeFrame', thick: 0.007, lift: 0.003, rim: { w: 0.12, h: 0.003, group: 'EyeTrim' }, strap: { z: 0, h: 0.42 } },
+  // (AVIATORS: two broad dark lenses in a thin gold wire frame, a bridge between them, arms back to the ears; no strap)
+  aviator: { outline: { shape: 'goggles', r: 0.86, bridge: 0.34 }, eyes: LENS({ shape: 'round', size: [0.8, 0.72], dome: 0.004 }), group: 'EyeFrame', thick: 0.0022, lift: 0.0035, rim: { w: 0.07, h: 0.002, group: 'EyeTrim' },
+    fittings: [{ kind: 'arm', at: [1.95, 0.25], to: [3.15, 0.15], r: 0.0024, group: 'EyeFrame' }, { kind: 'arm', at: [-1.95, 0.25], to: [-3.15, 0.15], r: 0.0024, group: 'EyeFrame' }] },
   lab: { outline: { shape: 'goggles', r: 0.78, bridge: 0.22 }, eyes: LENS({ shape: 'round', size: [0.62, 0.6], dome: 0.005 }), group: 'EyeFrame', thick: 0.005, lift: 0.0025, strap: { z: 0, h: 0.26 } },
   nightVision: { outline: { shape: 'goggles', r: 0.85, bridge: 0.3 }, eyes: { treat: 'none' }, group: 'EyeFrame', thick: 0.008, lift: 0.003, strap: { z: 0.2, h: 0.5 },
     fittings: [{ kind: 'scope', at: [1, 0], r: 0.014, len: 0.065, group: 'EyeFrame', lensGroup: 'EyeGlow' }, { kind: 'scope', at: [-1, 0], r: 0.014, len: 0.065, group: 'EyeFrame', lensGroup: 'EyeGlow' }] },
@@ -548,6 +551,9 @@ export const HEADGEAR = Object.freeze({
   // ── EYEGEAR: goggles, visors and headsets ──
   skiGoggles: EYEWEAR('the ski goggles: one wide mirrored lens across both eyes in a white frame, a broad strap round the head; the snow runner', 'ski', { EyeFrame: '#f2f2f2', EyeTrim: '#1b1b1f', EyeLens: '#f08a24', EyeStrap: '#1b1b1f' }),
   motoGoggles: EYEWEAR('the moto goggles: two round tinted lenses in leather cups with brass rims, a leather strap; the rider', 'moto', { EyeFrame: '#5a3b22', EyeTrim: '#b08d3c', EyeLens: '#8fb9bd', EyeStrap: '#4a3020' }),
+  // (on the realistic head a dark lens band across the eyes on thin gold arms, headgear/realistic.js `aviators`)
+  aviators: (() => { const C = EYEWEAR('the aviator sunglasses: two broad dark lenses in a thin gold wire frame, a bridge between them, arms back to the ears; the pilot', 'aviator', { EyeFrame: '#c9a54a', EyeTrim: '#d8b45a', EyeLens: '#26302d' });
+    return { ...C, at: { ...C.at, realistic: (spec) => onRealisticHead(spec, 'aviators', { HelmetVisor: '#26302d', HelmetTrim: '#c9a54a' }) } }; })(),
   labGoggles: EYEWEAR('the lab goggles: two clear lenses in a blue rubber frame, a thin strap; the scientist', 'lab', { EyeFrame: '#2b6cb0', EyeLens: '#d6ecf3', EyeStrap: '#1d3f66' }),
   nightVision: EYEWEAR('the night vision: a black goggle with two scopes standing forward, green lenses aglow; the infiltrator', 'nightVision', { EyeFrame: '#17191d', EyeGlow: '#5dff7a', EyeStrap: '#17191d' }),
   quadVision: EYEWEAR('the quad vision: a goggle with four scopes, the outer two splayed, green lenses aglow; the special operator', 'quadVision', { EyeFrame: '#17191d', EyeGlow: '#5dff7a', EyeStrap: '#17191d' }),

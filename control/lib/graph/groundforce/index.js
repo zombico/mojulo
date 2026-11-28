@@ -569,6 +569,61 @@ export const GROUND_UNITS = Object.freeze({
       ...twin(1.1, 3.9, 0.95, 0.7, 0.14),
     ],
   }),
+  // THE IRON ROSE (a PROP: stood and moved by a level's scene): the company's mining tender, the ship that tows rock and
+  // lowers the Roman Candles onto it. Some 160 m as drawn: a long off-white hull banded in steel blue, a raised bridge
+  // forward with its windows lit warm, two cable gantries amidships with their drums and the cables hanging, cargo
+  // cradles slung under its belly, radiator fins down its flanks, three drive bells aft burning blue-white.
+  'iron-rose': Object.freeze({
+    label: 'iron rose', reads: 'a long off-white mining tender banded in steel blue, a raised bridge forward with warm-lit windows, two cable gantries amidships, cradles under its belly, three drive bells aft',
+    size: 22, hp: 1, rof: 0, range: 0, points: 0, prop: true, flies: true,
+    livery: Object.freeze({ hull: '#c9ccd0', hull2: '#3d5a73', accent: '#d9a441' }),
+    parts: () => [
+      ...P.box([0, 0, 5], [12, 50, 9], 'hull', { ch: 2 }),
+      ...P.box([0, 26.5, 4.4], [9, 4, 6.8], 'hull', { ch: 1.6 }),
+      ...[-1, 1].map((sd) => P.box([sd * 6.05, 0, 6.2], [0.2, 46, 1.2], 'hull2')).flat(),
+      ...P.box([0, 0, 9.65], [7, 44, 0.3], 'hull2'),
+      // (the bridge forward, its windows lit warm across its face and down its sides)
+      ...P.box([0, 18, 11.2], [9, 9, 4], 'hull', { ch: 1 }),
+      ...P.box([0, 22.55, 11.6], [7.4, 0.1, 1.2], 'drive'),
+      ...[-1, 1].map((sd) => P.box([sd * 4.55, 18, 11.6], [0.1, 6.5, 1], 'drive')).flat(),
+      ...P.pipe([2.5, 15, 13.2], [2.5, 15, 17.5], 0.2, 'dark', 6),
+      // (two cable gantries amidships: legs, a crossbeam, a drum, the cables hanging over the side)
+      ...[4, -10].flatMap((y) => [
+        ...[-1, 1].flatMap((sd) => P.pipe([sd * 5.5, y, 9.6], [sd * 5.5, y, 17], 0.45, 'dark', 8)),
+        ...P.box([0, y, 17.4], [13, 1.4, 1], 'hull2', { ch: 0.3 }),
+        ...P.prism([0, y, 0], 1.6, 1.6, 15.2, 16.6, 'accent', 12),
+        ...[-1, 1].flatMap((sd) => P.pipe([sd * 6.2, y, 17], [sd * 6.6, y, 2], 0.08, 'dark', 4)),
+      ]),
+      // (cradles under its belly, radiator fins down its flanks)
+      ...[14, -2, -18].flatMap((y) => P.box([0, y, 0.2], [8, 7, 1.4], 'hull2', { ch: 0.4 })),
+      ...[-1, 1].flatMap((sd) => [-6, -14].map((y) => P.box([sd * 9, y, 6], [6, 5, 0.25], 'dark')).flat()),
+      // (aft: three drive bells, burning)
+      ...[-3.8, 0, 3.8].flatMap((x) => [
+        ...P.box([x, -25.6, 5], [3.2, 1.6, 3.2], 'dark', { ch: 0.3 }),
+        ...P.prism([x, -27, 5], 1.5, 1.5, -1, 1, 'dark', 12).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], -27 + c[2], 5 + (c[1] + 27)]) })),
+        ...P.prism([x, -28.05, 5], 1.2, 1.2, -0.05, 0.05, 'drive', 12).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], -28.05 + c[2], 5 + (c[1] + 28.05)]) })),
+      ]),
+    ],
+  }),
+  // A BRIDGE SET (a PROP, drawn at a person's scale: a captain stood in it is seen through it, the talk box's live face):
+  // a deck, a back wall of three dark viewports in their frames, consoles down each side lit amber and red, a chair
+  'bridge-set': Object.freeze({
+    label: 'bridge set', reads: 'a ship\'s bridge: a deck, a back wall of three dark viewports in their frames, lit consoles each side, a captain\'s chair',
+    size: 2, hp: 1, rof: 0, range: 0, points: 0, prop: true,
+    livery: Object.freeze({ hull: '#4a525c', hull2: '#2c3138', accent: '#d9a441' }),
+    parts: () => [
+      ...P.box([0, 0, -0.04], [4.4, 3.4, 0.08], 'hull2'),
+      ...P.box([0, -1.3, 0.75], [4.4, 0.12, 1.5], 'hull', { ch: 0.04 }),
+      ...[-1.3, 0, 1.3].flatMap((x) => [...P.box([x, -1.22, 0.85], [1.1, 0.04, 0.8], 'dark'), ...P.box([x, -1.2, 1.27], [1.16, 0.06, 0.05], 'hull2'), ...P.box([x, -1.2, 0.43], [1.16, 0.06, 0.05], 'hull2')]),
+      ...[-1, 1].flatMap((sd) => [
+        ...P.box([sd * 1.85, -0.3, 0.4], [0.5, 1.6, 0.8], 'hull', { ch: 0.04 }),
+        ...P.box([sd * 1.85, -0.3, 0.82], [0.46, 1.5, 0.04], 'hull2'),
+        ...[-0.8, -0.4, 0, 0.3].map((y, i) => P.box([sd * 1.85, y, 0.85], [0.3, 0.1, 0.02], i % 2 ? 'sensor' : 'drive')).flat(),
+      ]),
+      ...P.box([0, 0.9, 0.25], [0.6, 0.6, 0.12], 'hull2'),
+      ...P.box([0, 1.15, 0.55], [0.6, 0.1, 0.6], 'hull2'),
+    ],
+  }),
   // A PROP, not a foe (`prop`: stood by a level's scene, never fielded by a stage): a ROMAN CANDLE, a pusher rocket that
   // a mining ship lowers onto a rock on cables and drills in, its bell to the sky. Its drill spike under its foot (z < 0)
   // goes into the ground as it is set down; a braced collar, a long tank body banded twice, the throat and the bell.

@@ -30,6 +30,8 @@
  *     the pilot's side's (its rounds go through it, its lock passes it over); a group's `target: <prop id> | [ids]` sends a
  *     unit's mind at it (the nearest standing, the pilot once they are down); a task's `guard: [prop ids]` keeps it up
  *     (game/objectives.js `keep`: one down while the task is in hand fails it, or with `retry` begins it again, whole)
+ *     crew   [{ id, name?, hero, at, raise?, face?, set? }] people off the field for its scenes (CREW: a captain on a bridge,
+ *            drawn live in the talk box as they speak)
  *     ship   { id, name?, at, alt?, heading?, guns?, regen?, comes? } a patrol ship over the field (SHIP), fought in two
  *            steps by its two groups, `<id>-pods` then `<id>-guns` (shielded till then, each rebuilt unless all are down
  *            together), its bar the sum of its parts'
@@ -52,6 +54,8 @@
  */
 import { SPECIMENS, readSpecimen, specimenWire } from '../prospect/specimens.js';
 import { unitRadius, GROUND_UNITS, GROUNDFORCE_SCALE, PATROL_PODS, PATROL_GUNS } from '../groundforce/index.js';
+import { playerStates } from '../playscape/player.js';
+import { FIGURE_LIBRARY } from './stage-figures.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
@@ -112,7 +116,7 @@ const KINDS = ['turret', 'tank', 'walker', 'crawler', 'gnat', 'wasp', 'kite', 'h
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split', 'retry', 'ship'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks, ship)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split', 'retry', 'ship', 'crew'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks, ship, crew)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -229,11 +233,14 @@ export function readOperation(v, at = 'goal.operation') {
   const split = v.split === undefined ? null : readSplit(v.split, { allies: allies ?? [], groups, tasks: tasks.length, speakers: script ? Object.keys(script.speakers) : (allies ?? []).map((a) => a.id) }, `${at}.split`);
   // (its props: things stood on the field for its scenes to move, PROP)
   const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
+  // (its crew: people off the field, CREW: a captain on a ship's bridge, seen in its scenes and drawn live as they speak)
+  const crew = v.crew === undefined ? null : readCrew(v.crew, new Set([...ids, ...(allies ?? []).map((a) => a.id), ...(props ?? []).map((p) => p.id)]), `${at}.crew`);
+  if (crew && script) for (const c of crew) script.speakers[c.id] ??= { name: c.name };
   // (an asset: a prop with armour; what a group is sent at and what a task guards are assets)
   const assets = new Set((props ?? []).filter((p) => p.hp).map((p) => p.id));
   for (const g of groups) for (const x of g.target ?? []) if (!assets.has(x)) throw new Error(`${at}.groups: '${g.id}' is sent at '${x}', which is not a prop with armour (hp): ${[...assets].join(', ') || 'none'}`);
   tasks.forEach((t, i) => { for (const x of t.guard ?? []) if (!assets.has(x)) throw new Error(`${at}.tasks[${i}].guard: '${x}' is not a prop with armour (hp): ${[...assets].join(', ') || 'none'}`); });
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}), ...(v.retry ? { retry: true } : {}), ...(ship ? { ship } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}), ...(v.retry ? { retry: true } : {}), ...(ship ? { ship } : {}), ...(crew ? { crew } : {}) };
 }
 /** A FOE'S INTRO (a group's `intro: true | { title?, line?, who? }`): the first time the group comes (its down task
  *  begins, or the level starts for a group awake from the start), a short scene: the letterbox, the camera pushed in on
@@ -309,6 +316,31 @@ const partPlace = (role, k) => {
   if (role === 'pods') { const [x, y] = PATROL_PODS[k]; return { at: [r2(x * S), r2(y * S), r2(-0.6 * S)], face: 0 }; }
   const [x, y, z, f] = PATROL_GUNS[k]; return { at: [r2(x * S), r2(y * S), r2(z * S)], face: (f * Math.PI) / 180 };
 };
+
+/** An operation's CREW (`crew`): people off the field, stood for its scenes (a captain on the bridge of a ship, heard over
+ *  the comms): each a character from the hero door's words (`hero`, inline: the world builds it), stood at its place `at`
+ *  and `raise` metres over it (high over the field, out of the fight's sight), turned `face` degrees, on a bridge set
+ *  (`set: true`, groundforce/ `bridge-set`: a back wall of viewports behind it, consoles each side) so its live face in
+ *  the talk box (scene/channels/talk-face.js) has the bridge behind it; a speaker in the operation's script under its
+ *  `name`. [{ id, name?, hero, at: [x, y], raise?, face?, set? }] */
+export const CREW = Object.freeze({ most: 4, raise: 3000 });
+function readCrew(v, taken, at) {
+  if (!Array.isArray(v) || !v.length || v.length > CREW.most) throw new Error(`${at} is 1 to ${CREW.most} people: [{ id, name?, hero, at: [x, y], raise?, face?, set? }]`);
+  return v.map((c, i) => {
+    const cat = `${at}[${i}]`;
+    if (!isObj(c)) throw new Error(`${cat} is { id, name?, hero, at, raise?, face?, set? }`);
+    for (const k of Object.keys(c)) if (!['id', 'name', 'hero', 'at', 'raise', 'face', 'set'].includes(k)) throw new Error(`${cat}.${k} is not part of a crew member (id, name, hero, at, raise, face, set)`);
+    if (typeof c.id !== 'string' || !/^[a-z][a-z0-9-]{0,23}$/.test(c.id) || taken.has(c.id)) throw new Error(`${cat}.id is its own short lower-case name, not a group's, an ally's or a prop's`);
+    taken.add(c.id);
+    if (!isObj(c.hero)) throw new Error(`${cat}.hero is the character in the hero door's words ({ form?, cast, face?, hair?, outfit?, headgear?, palette? })`);
+    if (!(Array.isArray(c.at) && c.at.length === 2 && c.at.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${cat}.at is [x, y], each −1..1`);
+    if (c.raise !== undefined && !(Number.isFinite(c.raise) && c.raise >= 0 && c.raise <= CREW.raise)) throw new Error(`${cat}.raise is metres over its place, 0 to ${CREW.raise}`);
+    if (c.face !== undefined && !Number.isFinite(c.face)) throw new Error(`${cat}.face is degrees`);
+    if (c.set !== undefined && typeof c.set !== 'boolean') throw new Error(`${cat}.set is true: it stands on a bridge set`);
+    if (c.name !== undefined && !(typeof c.name === 'string' && c.name && c.name.length <= 32)) throw new Error(`${cat}.name is what it is called, up to 32 letters`);
+    return { id: c.id, name: c.name ?? c.id, hero: { ...c.hero }, at: c.at.slice(), raise: c.raise ?? 0, face: c.face ?? 0, ...(c.set ? { set: true } : {}) };
+  });
+}
 
 /** An operation's PROPS checked (throws, teaching): [{ id, unit, at, raise?, hidden?, face? }]. A thing stood on the field
  *  for the level's scenes to move (the world's `scenes`, playscape/ui/scenes.js): a body drawn as a card (groundforce/,
@@ -595,10 +627,21 @@ export function operationCast(op, ends) {
     entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), ...(p.hp ? { guard: p.name } : {}), body: { type: 'figure-rig', figure: fig, hittable: !!p.hp, radius: R, ...(p.hp ? { hp: p.hp, hpMax: p.hp, ward: true, poise: 99, egg: { a: R, c: r2(H * 0.5), cz: r2(H * 0.5) }, aimH: r2(H * 0.4) } : {}) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
+  // (its crew: each a character stood at its place, raised, on its bridge set where it has one)
+  for (const c of op.crew ?? []) {
+    const [x, y] = placeOf(ends, c.at), z = r2(ends.ground(x, y) + c.raise), h = (c.face * Math.PI) / 180, fig = `crew-${c.id}`;
+    figures[fig] = { hero: { ...c.hero }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } };
+    entities.push({ id: c.id, body: { type: 'figure-rig', figure: fig }, transform: { pos: [x, y, z], heading: h, pitch: 0 } });
+    if (c.set) {
+      figures['prop-bridge-set'] = { unit: { kind: 'bridge-set', form: true } };
+      entities.push({ id: `${c.id}-set`, body: { type: 'figure-rig', figure: 'prop-bridge-set', hittable: false, radius: unitRadius('bridge-set') }, transform: { pos: [x, y, z], heading: h, pitch: 0 } });
+    }
+    spots.push({ id: c.id, at: [x, y, z], face: r2(c.face) });
+  }
   const scenes = [...intros, ...splits];
   // (each scan's find, revealed as it is met: find-reveal.js; a scan with no specimen is found in words alone)
   // (each prop with a plume: its bell's mouth off its foot and its radius as drawn, its axis up, its plasma's colour)
   const plumes = (op.props ?? []).filter((p) => p.plume).map((p) => { const B = GROUND_UNITS[p.unit].bell, k = GROUNDFORCE_SCALE; return { who: p.id, at: B.at.map((v) => r2(v * k)), r: r2(B.r * k), dir: [0, 0, 1], colour: p.plume.colour ?? PLUME_COLOUR }; });
   const finds = op.tasks.map((t, i) => (t.specimen ? (() => { const S = SPECIMENS[t.specimen]; return { task: `t${i + 1}`, name: S.name, grade: S.grade, about: S.about, ...(t.amount ? { amount: { approx: t.amount, unit: t.unit } } : {}), wire: specimenWire(t.specimen) }; })() : null)).filter(Boolean);
-  return { entities, figures, ...(finds.length ? { finds } : {}), ...(plumes.length ? { plumes } : {}), ...(op.props || op.marks || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
+  return { entities, figures, ...(finds.length ? { finds } : {}), ...(plumes.length ? { plumes } : {}), ...(op.props || op.marks || op.crew || scenes.length || alarms.length ? { play: { spots, ...(scenes.length ? { scenes } : {}), ...(alarms.length ? { cues: alarms } : {}) } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }
