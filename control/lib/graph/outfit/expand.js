@@ -414,8 +414,15 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
  * reads its cloths off it) */
 export const outfitLanguage = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? languageOf(c, build.language) : null; };
 /** the DESIGNED pieces a build wears (outfit-plan.js OUTFIT_KINDS: a vest, pouches, kneepads …): its card's own gear
- * (`pieces` on the card: a team's kit) and then the build's */
-export const outfitPieces = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return [...(c && typeof c === 'object' && Array.isArray(c.pieces) ? c.pieces : []), ...(isOutfitBuild(build) && Array.isArray(build.pieces) ? build.pieces : [])]; };
+ * (`pieces` on the card: a team's kit) and then the build's; a build's piece with `replace: true` stands in for the
+ * card's of its kind */
+export const outfitPieces = (build) => {
+  const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null, own = isOutfitBuild(build) && Array.isArray(build.pieces) ? build.pieces : [];
+  // (a build's piece that says `replace: true` stands in for the card's pieces of its kind: a plate vest worn in place of
+  // the card's slick one, not over it; absent, the card's and the build's both, as always)
+  const gone = new Set(own.filter((P) => P && P.replace === true).map((P) => P.kind));
+  return [...(c && typeof c === 'object' && Array.isArray(c.pieces) ? c.pieces.filter((P) => !gone.has(P.kind)) : []), ...own.map((P) => { if (!P || P.replace === undefined) return P; const { replace: _r, ...rest } = P; return rest; })];
+};
 // (a layer printed in a camouflage suggests its ground as its tone: what no mark covers, outfit/camouflage.js)
 export const outfitTones = (build) => { const c = isOutfitBuild(build) ? cardOf(build.style ?? 'casual') : null; return c && typeof c === 'object' ? { ...(c.tones || {}), ...camoTone(languageOf(c, build.language)) } : {}; };
 

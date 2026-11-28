@@ -331,11 +331,13 @@ export const OUTFIT_KINDS = Object.freeze({
   //              forward, `side` the draw hand's, the holster under the other arm) and a double magazine carrier level
   //              under the draw arm; a pack signature with `holster` / `mags` (the authored kernel draws its box, the
   //              realistic body the pieces: body-relational-kit.js)
-  // `cover` as the chest plate's (a carrier 0.85 unless it says)
+  // `cover` as the chest plate's (a carrier 0.85 unless it says); `back: false` leaves the back panel off
   vest: { layer: 4, cls: 'stiff', colour: 'secondary', compile: (p, B, G, I) => { const id = p.id ?? 'vest', cut = p.cut ?? 'carrier';
     // (the back panel high on the back, its window by shares (0 the front, 1 the back's middle), on no belt: a pack hung from
     // the duty belt dropped to the hip)
     const back = { id: `${id}Back`, mode: 'shell', part: 'torso', share: true, s: [0.36, 0.68], t: [0.86, 1], nt: 4, ns: 2, mugen: r3(0.03 * B.k), thick: r3(0.01 * B.k), group: G(p), signature: { kind: 'pack', w: r3(0.28 * B.k), h: r3(0.3 * B.k), d: r3(0.03 * B.k), lift: 0, chamfer: r3(0.015 * B.k), soft: false, flap: false, hang: false, lean: true, group: G(p) } };
+    // (`back: false`: no panel on the back, the vest's front and its pouches alone)
+    const packed = p.back === false ? [] : [back];
     const role = p.role === 'focal' ? 'support' : p.role;
     if (cut === 'holster') {
       const straps = OUTFIT_KINDS.harness.compile({ ...p, id: `${id}Strap`, mounted: true, studs: 2 }, B, G).adorn, draw = p.side ?? I.side ?? 'R', off = draw === 'R' ? 'L' : 'R';
@@ -351,7 +353,7 @@ export const OUTFIT_KINDS = Object.freeze({
       // (the cummerbund: a wide band each side from the flap's edge round to the back panel, under the pouches' line)
       const cummer = ['R', 'L'].map((S) => ({ id: `${id}Cummer${S}`, mode: 'shell', part: 'torso', side: S, share: true, s: [0.38, 0.52], t: [0.34, 0.92], nt: 10, ns: 2, mugen: r3(0.008 * B.k), thick: r3(0.008 * B.k), group: G(p),
         signature: { kind: 'studs', r: r3(0.004 * B.k), h: r3(0.002 * B.k), count: 1, m: 6, group: G({ colour: 'trim' }) } }));
-      return { adorn: [...front.adorn, ...cummer, ...mags, back] };
+      return { adorn: [...front.adorn, ...cummer, ...mags, ...packed] };
     }
     if (cut === 'rig') {
       const straps = OUTFIT_KINDS.harness.compile({ ...p, id: `${id}Strap`, mounted: true, studs: 2 }, B, G).adorn;
@@ -361,7 +363,7 @@ export const OUTFIT_KINDS = Object.freeze({
     }
     const front = cut === 'slick' ? OUTFIT_KINDS.chestPlate.compile({ ...p, id, cover: p.cover ?? 0.65, motif: 'dots', role }, B, G, I)
       : OUTFIT_KINDS.chestPlate.compile({ ...p, id, cut: 'cuirass', cover: p.cover ?? (cut === 'hardshell' ? 0.95 : 0.85), motif: 'dots', role }, B, G, I);
-    return { adorn: [...front.adorn, back] }; } },
+    return { adorn: [...front.adorn, ...packed] }; } },
   // POUCHES: a duty belt on the hip line with a pouch at each hip (the satchel's window, small)
   // (the superheroic dials, absent ⇒ as before: `at: 'waist'` a UTILITY BELT, the belt at the waist and `count` pouches
   // (2, 4 or 6) ringing it just under its line, hung on the pelvis's top by shares so they sit alike on any build; `size`

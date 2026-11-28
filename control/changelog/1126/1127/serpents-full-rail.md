@@ -57,3 +57,8 @@
 - **The bandana tied lower and narrower** (headgear/realistic.js `bandana`): its front a little over a third of the way
   from the brow to the hairline (half before), its back near the skull's back point, its band 26 mm (34), its cloth
   thinner, so it reads as cloth knotted round the head with the hair standing above it rather than a rim round a helmet.
+- **A vest without its back panel, and a piece worn in place of its card's** (polygonizer/outfit-plan.js `vest.back`,
+  outfit/expand.js `outfitPieces`): a vest's `back: false` leaves the panel hung high on the back off (the "backpack"); a
+  build's piece that says `replace: true` stands in for its style card's pieces of its kind, where the build's and the
+  card's were both worn (the security card's slick vest under the operative's plate one, its back panel with it). Absent,
+  every outfit as it was.
