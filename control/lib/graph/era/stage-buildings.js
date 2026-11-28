@@ -69,7 +69,8 @@ import { planStair, stairFaces, slabPath, STAIR } from './outdoor-stair.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
-const GROUND = /:(ground|trail|top|scree)$/;
+// (snow is ground too: a snow-covered land regroups its ground `isekai:snow`, era/isekai.js)
+const GROUND = /:(ground|trail|top|scree|snow)$/;
 // a solid roof's thickness: its covering, battens and rafters (era/solid.js)
 const ROOF_T = 0.18;
 const CLEARED = /:(wood|crown|tree|bough|rock|hat|blaze|debris|grass|grassblend|shadow|card|bush|flower|ikebana)$/;

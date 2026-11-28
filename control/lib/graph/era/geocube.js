@@ -1365,11 +1365,14 @@ export function withGeocube(manifest) {
   // a TILE of a glyph map (era/out-tile.js; level/grid-scene.js lowers every tile under the map's cube): painted as a
   // trail is, the outside's look on its square of the level's one land, its land drawn as the cube's (its shading), its
   // flora and wind the cube's where the recipe names none. The cube's water, cliff and dunes are a trail's: the map lays
-  // its own water across its tiles (out-tile-water.js), so they are not carried onto a tile
+  // its own water across its tiles (out-tile-water.js), so they are not carried onto a tile. Its snow is: a cover over
+  // the cube's land lies on every tile of it
   if (m.tile !== undefined) {
     if ((H !== undefined || clouds !== undefined) && m.kit !== undefined) no(`${H !== undefined ? 'hour' : 'clouds'} lights the cube's look; a tile in its own kit takes none (drop kit, or hour and clouds)`);
     const low = lowerGeocube(cube, 'outside', T?.name, H, m.kit === undefined ? Wr : undefined), own = m.kit === undefined;
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
+      // (and its snow, era/snow.js, as a trail's: the cube's on the tile's polygon land, its shading)
+      ...(own && m.snow === undefined && cube.snow !== undefined && low.meru?.shading ? { snow: cube.snow } : {}),
       ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
   }
   if (m.meru !== undefined) {

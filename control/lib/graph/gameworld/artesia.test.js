@@ -8,7 +8,9 @@ import { megaworldLaws } from './megaworld.js';
 import { pitchStart } from './pitch-start.js';
 import { castingCall } from './foe-casting.js';
 import { lairStage } from './lair.js';
-import { stageLevelOrder } from './levels.js';
+import { stageLevelOrder, gameStore } from './levels.js';
+import { buildGameStoreKernel } from '../game/store-kernel.js';
+import { mergeContract } from '../game/level-synth.js';
 import { readHour } from '../era/geocube-hours.js';
 
 describe('the land of Ceres', () => {
@@ -78,5 +80,29 @@ describe('one palette for Ceres', () => {
     for (const R of REGIONS) expect(W.levels[R.id].style.geocube.palette).toEqual({ intent: 'x', seed, shift: { ...R.shift } });
     const kept = ceresWorld({ seed: 7, style: { geocube: { ...geo, palette: { ...geo.palette, seed: 42 } } } });
     expect(kept.levels[REGIONS[0].id].style.geocube.palette.seed).toBe(42);
+  });
+});
+
+import { withGeocube } from '../era/geocube.js';
+describe('a region under snow (Letzo\'s)', () => {
+  it('a map\'s tile under a snowy cube carries its snow onto its polygon land; under a cube with none, none', () => {
+    const snowy = withGeocube({ kind: 'stage', geocube: { from: 'island-noon', snow: 'cover' }, tile: { r: 0, c: 0 } });
+    expect(snowy.snow).toBe('cover'); expect(snowy.shading).toBeTruthy();
+    expect(withGeocube({ kind: 'stage', geocube: 'island-noon', tile: { r: 0, c: 0 } }).snow).toBeUndefined();
+  });
+});
+
+describe('the crossing from a freed dragon\'s lair to the next region', () => {
+  it('on the store: shut before the dragon is down, the lair\'s win puts its shard in the bag, and the way on opens', () => {
+    const W = ceresWorld({ id: 'c', seed: 3 }), K = buildGameStoreKernel(), schema = gameStore(W);
+    expect(schema.slices.some((s) => s.name === 'bag' && s.kind === 'inventory')).toBe(true);
+    const link = W.links[0], gate = { has: link.key, slice: 'bag' };
+    const G = readGameworld({ id: 'l', foes: { grunt: { class: 'brute' }, boss: { class: 'brute', rank: 'boss', dragon: REGIONS[0].dragon } }, levels: { a: { name: 'a', walk: { nodes: { a: { trail: true } } } } } });
+    const game = stageLevelOrder(G, lairStage('a', 1, { kind: 'boss', beat: 'climax' }, G), { ref: 'lair', heroRef: 'hero', map: { on: [], back: [], keys: [link.key], powers: [] } }).args.manifest.game;
+    const contract = mergeContract(game, { produces: [] }), state0 = K.createStore(schema);
+    expect(K.evalGate(schema, state0, gate)).toBe(false);
+    const out = K.applyOutcome(schema, state0, contract, { contractVersion: K.CONTRACT_VERSION, levelRef: 'lair', seed: 1, result: 'success', events: game.wins });
+    expect(out.ok, (out.errors ?? []).join('; ')).toBe(true);
+    expect(K.evalGate(schema, out.state, gate)).toBe(true);
   });
 });

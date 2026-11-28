@@ -39,3 +39,6 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
 - **A lair grants its keys** (`gameworld/levels.js`): a boss's lair grants the keys its world's ways keep there into
   the bag as the boss is brought down (the game channel's `wins`). A freed dragon's shard is the next region's way
   in. A lair that keeps none, as before.
+- **Snow on a map** (`era/geocube.js`, `era/stage-buildings.js`): a glyph map's tile under a snowy cube carries the
+  cube's snow onto its polygon land, as a trail does, so a region's cover lies on every tile of it (Letzo's). A
+  building stands on the snow as on the ground it covers. A cube with no snow, as before.
