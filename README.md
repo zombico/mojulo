@@ -31,7 +31,7 @@ npx mojulo init
 
 You need **Node 22.14+**. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Use the plugin or `init`, not both. In ChatGPT: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
 
-Then start a fresh session and ask for something: **"build a plywood chest of drawers"**, **"make me a hero in an anime style"**, **"help me redo my living room"**, **"design a game with me, I have some sketches"**. Not sure yet? Ask **"what is this?"** and it offers five ways to start: a character, a game, an object, a 3D exhibit, or a home or a room.
+Then start a fresh agent session and ask for something: **"build a plywood chest of drawers"**, **"a longsword and a shield"**, **"a lake in the hills at sunset"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour: with nothing in mind yet, it offers five ways to start (a character, a game, an object, a 3D exhibit, or a home or a room).
 
 Nothing on your machine at all? In the Claude app, Grok chat, Google AI Studio or Meta Muse, tell the agent: *Open a Linux box and install the mojulo npm package in it.* In ChatGPT, say the same in work mode. [More on where it runs.](#where-it-runs)
 
@@ -120,7 +120,7 @@ A concept to show a class or a gallery, fitted to who comes and how long they ha
 Bring an idea, a sketch, a map or a design document. In one session the agent takes it to a first level: who is in it, what the player does again and again, the level built, how it feels. Every level is played through to its win by the machine before you get it; whether it is the game you want is yours to say, by playing it.
 
 - **Start from a kind of game you know.** A platformer, a side-scrolling run and gun or beat-em-up, a metroidvania, a party RPG or an action RPG, a stealth mission, a first-person or arena shooter, flight and space combat, mech action, racing, fighting, sports, rhythm, puzzle, farming, tower defence, strategy, a board game, a pen-and-paper RPG with its printed game book. It is a template; the game is yours. [What can be made today](docs/tool-surface/hillclimb.md#the-genre-probes).
-- **Or say it in one sentence** and get a whole first game to change: "a split-screen deathmatch for four", "a stealth mission in a military base".
+- **Or say it in one sentence** and get a whole first game to change: "a split screen deathmatch for four friends", "a stealth game: sneak past the guards to reach the exit".
 - **It comes as a game:** a start screen, menus, a HUD, pause, results between levels and the next level after. Enemies from grunts to a boss; two to four players on one screen or split screen.
 - **Take it where you need it.** Play it in the browser, ship it to the web or as a desktop app that runs offline. For a team, its levels, characters and animation open in Godot, Unity, Unreal or Blender, and handing it over again after a change keeps the team's own work in the scene.
 

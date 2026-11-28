@@ -24,15 +24,16 @@ Then start a fresh session and ask:
 
 ```
 build a plywood chest of drawers, 900 wide, four drawers
+a longsword, a shield and a bow
 make me a hero in an anime style
-here's our floor plan, some ideas for living in it?
 a lake in the hills at sunset
-design a game with me, I have some sketches
-a split-screen deathmatch for four
+here's our floor plan, some ideas for living in it?
+build a New York-style city at real scale
+make me a kart racer
 what is this?
 ```
 
-Not sure yet? It offers five ways to start: a character, a game, an object, a 3D exhibit, or a home or a room.
+With nothing in mind yet, ask "what is this?": it offers five ways to start (a character, a game, an object, a 3D exhibit, or a home or a room).
 
 Nothing on your machine at all? In the Claude app, Grok chat, Google AI Studio or Meta Muse, tell the agent: *Open a Linux box and install the mojulo npm package in it.* In ChatGPT, say the same in work mode. Ask for the bundle on the way out (one zip with the playable page, the 3D model, a print file and the recipe) and keep it: the recipe rebuilds the same thing on your own machine. A box with no MCP client: tell the agent to run `npx mojulo orient` first.
 
