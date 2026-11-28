@@ -182,6 +182,8 @@ export const MECHANIC_SFX = {
   mission: { 'mission:*': 'chime', 'mission-failed:*': 'lose', 'mission-passed:*': 'goal' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
+  // (a contest of presses: its end, the round's result; never a press, four seats mashing are noise)
+  mash: { 'mash:end': 'goal' },
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },
   map: { 'map-go:*': 'door' },
   runner: { 'run-won': 'goal', 'runner:crash': 'death' },

@@ -1205,3 +1205,32 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-25 (1124-mech-battle-kai-rail: an operation's briefing): `briefing` only. The table's roster is
 // headed in the design's word, a binding (`rosterTitle`: a squadron's Flight groups, an operation's Forces), where it
 // was the literal; a space mission's briefing says Flight groups as it did, so what it shows is as it was.
+// Re-pinned 2026-11-27 (1126-couch-closeout: a seat downed): every fixture that embeds the controllable runtime. Its
+// 'seat-falls' world pass also takes a seated body (seats 2 to 4) whose hp is spent once its collapse has played: a life,
+// then up beside the others with its hp whole, or out (rules-basic.js: the pass's head and tail, one constant). A world
+// without seats steps as before; no fixture seats a second player.
+// Re-pinned 2026-11-27 (1126-couch-closeout: a seat's hp spent): every fixture that embeds the controllable runtime. The
+// 'seat-falls' pass takes seat 1 downed too when the seats count lives, and a seat it brings up lets go of the cast's
+// fell (`castDown`) as well (rules-basic.js: one condition, one assignment, the comment). No fixture seats a second player.
+// Re-pinned 2026-11-27 (1126-couch-closeout: the level's zones answer every seat): `events`, `events-hud`, `action-hero`,
+// `shoot-live`, `kitchen-sink`, `kitchen-sink-capture`, the pages that embed the event bus. A zone's `watch` may be a
+// list of body ids, a level's seats (worlds/event-bus.js deriveZoneEvents: one line replaced); a string watches as before.
+// Re-pinned 2026-11-27 (1126-couch-closeout: seats against each other): every fixture that embeds the controllable
+// runtime. `spec.seats.downs: 'level'` (a match's frags owns its fallen) is read into `seatDownsLevel` and the
+// 'seat-falls' pass leaves a downed seat to it (core.js: two lines; rules-basic.js: one condition). No fixture seats two.
+// Pinned 2026-11-27 (1126-couch-closeout: the seat lobby): the `seat-lobby` fixture joins the matrix (two seats joining
+// by lobby: the seats block's lobby lines, controllable/index.js, and the lobby's own block, channels/seat-lobby.js, mana-ui
+// in a scope of its own, the level held until seat 1 starts it). Every other page is byte-identical, and a page whose
+// seats join drop-in, or have none, emits no lobby.
+// Re-pinned 2026-11-27 (1126-couch-closeout: a contest of presses): `events`, `events-hud`, `action-hero`, `shoot-live`,
+// `kitchen-sink`, `kitchen-sink-capture`, the pages that embed the event bus: its `argmax` verb (worlds/event-bus.js: a var
+// set to the place of the highest of a list, 0 for a draw; two RESERVED keys). And `seat-lobby`, the one page with seats:
+// __withSeats says each seat's fresh jump to the bus as press:<n> when the events channel wants them (one line; a page
+// whose bus hears no press:<n> sets no __mojPresses, so it sends none).
+// Re-pinned 2026-11-27 (1126-couch-closeout: a gunner seat): `seat-lobby`, the one page with seats. A seat's read takes
+// its pad's right stick as its look (controllable/index.js __seatSnap: a gunner's aim, turret.js), and the seats count a
+// crew seat with no body of its own (seatsScript's max). The turret's gunner (turret.js) is opt-in: no fixture carries one.
+// Re-pinned 2026-11-27 (1126-couch-closeout merged with 1116-rc): the candidate's pins, then this branch's emission over
+// them: every fixture that embeds the controllable runtime (a seat downed, a seat's hp spent, a match's own downs), the
+// pages that embed the event bus (a zone watching a list, argmax), and `seat-lobby` written. Every other page is the
+// candidate's, byte for byte.

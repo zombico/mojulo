@@ -1189,7 +1189,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // THE LEVEL'S OWN SAVE (a played city with jobs: one long level, scene/channels/game.js `save`): what it keeps, and the
   // moments it is kept at; the game's shell holds it and hands it back on a continue
   if (ways?.save) game.save = ways.save;
-  let pilotPart, seatable = false;
+  let pilotPart, seatable = false, crewable = false;
   if (stage.section === 'airspace' && ends.scroll) {
     // A SCROLL STAGE (scroll-stage/stage-scene.js scrollStagePlay): its ship on the d-pad, the scroll camera, its foes, a
     // hull on the play plane and the physics that breaks it; its HUD and menu in the game's look (scroll-stage/hud.js),
@@ -1285,6 +1285,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       camera: ride.camera ? { rule: 'follow', target: 'car', ...ride.camera } : ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
+    // (a ride two seats crew: soul.dependence=roles, crewPart below)
+    crewable = !ride.racer;
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
     const camRule = look || shoulder ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : steered ? { move: 'camera' } : undefined;
@@ -1389,6 +1391,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // SEATS (the cube's soul.seats): a body per extra seat beside the hero, once the goal has dressed the hero
   let seats = null;
   if (seatable) ({ pilotPart, seats } = seatPart(G, pilotPart, ends, lane));
+  else if (crewable) ({ pilotPart, seats } = crewPart(G, pilotPart));
+  // (a match that brings its fallen back itself, frags': the world leaves a seat downed to it, never a seat's fall)
+  if (seats && game.mechanics.some((m) => m.kind === 'frags')) seats = { ...seats, downs: 'level' };
   // LOOP (the intent's `loop` concern): a low wall down the oval's middle
   if (ends.loop) blocks = [...(blocks ?? []), ...loopBlocks(ends.loop, ends)];
   // ARENA (the intent's `arena` concern): its wall, lanes and cover; the arena is the fight's cover and sightlines, so
@@ -1552,20 +1557,44 @@ function seatPart(G, pilotPart, ends, lane) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
   if (!n) return { pilotPart, seats: null };
   const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
-  entities[0] = { ...p0, team: side };
+  // (soul.contest: co-op, every seat on the hero's side; versus and free-for-all, each seat a side of its own, `seat-<n>`,
+  // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`. On a level
+  // of two sides already (a team deathmatch's red and blue), seats against each other take them: the odd the hero's)
+  const rival = soul.contest === 'versus' || soul.contest === 'free-for-all', teams = soul.contest === 'teams';
+  const others = [...new Set(entities.map((e) => e.team).filter((t) => t && t !== p0.team))], sided = !!p0.team && others.length === 1;
+  const sideOf = (k) => (!rival && !teams ? side : sided ? (k % 2 ? p0.team : others[0]) : teams ? (k % 2 ? 'seats-a' : 'seats-b') : `seat-${k}`);
+  entities[0] = { ...p0, team: sideOf(1) };
   const ambient = { type: 'ai', mind: { motivation: 'escort' }, escort: p0.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(p0.rule?.speed) ? { speed: p0.rule.speed } : {}) };
+  // (an empty seat against the hero hunts it, the minds' own motive, never escorting it)
+  const { escort: _e, followDist: _f, ...free } = ambient, hunting = { ...free, mind: { motivation: 'hunt' } };
   const bodies = [];
   for (let k = 2; k <= n; k++) {
     // behind the hero and to either side; run side on, a step ahead each along the lane (behind its start is off it)
     const back = lane ? -(k - 1) : (k - 1) * 1.2, aside = lane ? 0 : (k % 2 ? -1 : 1) * 0.9;
     const at0 = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
     const id = `${p0.id}-${k}`;
-    entities.push({ ...p0, id, team: side, ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
+    entities.push({ ...p0, id, team: sideOf(k), ambient: sideOf(k) !== sideOf(1) ? hunting : ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
     bodies.push(id);
   }
   // lives (soul.pool): each seat three of its own, or three a seat in one count the seats share; a fall costs one
   const lives = soul.pool === 'own' ? { lives: SEAT_LIVES, pool: 'own' } : soul.pool === 'shared' ? { lives: SEAT_LIVES * n, pool: 'shared' } : {};
-  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives } };
+  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives, ...(rival || teams ? { contest: soul.contest } : {}) } };
+}
+
+/** ROLES (soul.dependence=roles, docs/local-multiplayer-principles.md principle 8: each job needed): a ride two seats
+ * crew. Seat 1 drives it on its rule; seat 2 is its gunner, a gun on a turret on its roof (worlds/controllable/turret.js:
+ * the gunner's right stick slews it, its trigger fires; the driver's stick drives), a seat with no body of its own. With
+ * nobody in seat 2 the driver's hand has the gun. Shared lives where the cube says soul.pool shared. Any other ride, or
+ * none said, lays the level as it was. */
+const CREW_TURRET = Object.freeze({ mount: { at: [0, 0, 1.7], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 } });
+const CREW_GUN = Object.freeze({ ...SHOOT.gun, auto: true, cooldown: 0.15, magazine: 40, reload: 2.5, range: 40 });
+function crewPart(G, pilotPart) {
+  const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
+  if (!n || soul.dependence !== 'roles') return { pilotPart, seats: null };
+  const [car, ...rest] = pilotPart.entities;
+  const armed = { ...car, turret: JSON.parse(JSON.stringify(CREW_TURRET)), weapon: car.weapon ?? { ...CREW_GUN } };
+  const lives = soul.pool === 'shared' ? { lives: SEAT_LIVES * 2, pool: 'shared' } : {};
+  return { pilotPart: { ...pilotPart, entities: [armed, ...rest] }, seats: { bodies: [], crew: { 2: { body: car.id, as: 'gunner' } }, max: 2, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives } };
 }
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the

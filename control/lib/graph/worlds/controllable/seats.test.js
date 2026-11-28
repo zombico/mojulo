@@ -116,3 +116,46 @@ describe('lives per seat', () => {
     expect(w.seatLives).toBeUndefined();
   });
 });
+
+// A SEAT DOWNED (rules-basic.js 'seat-falls'): seats 2 to 4 whose hp is spent are taken as a fall once the collapse has
+// played: a life where lives are counted, then up again beside the others with their hp whole; none left, out. Seat 1's
+// down stays the level's (fail-on-death).
+describe('a seat downed', () => {
+  const armed = (id, x) => ({ ...hero(id, x), body: { hp: 10, hittable: true } });
+  const two = (seats) => createWorld({ entities: [armed('p1', 0), armed('p2', 3)], seats: { bodies: ['p2'], ...seats } });
+  const fell = (w, id) => { w.byId[id].body.hp = 0; w.byId[id].downed = true; };
+  const steps = (w, s) => run(w, { seats: { 2: {} } }, Math.round(s / DT));
+
+  it('lies through its collapse, then is up beside the other with its hp whole, a life spent', () => {
+    const w = two({ lives: 2 });
+    w.byId.p2.hpMax = 10;
+    fell(w, 'p2');
+    steps(w, 1);
+    expect(w.byId.p2.downed).toBe(true);           // the collapse still playing
+    expect(w.seatLives).toEqual({ 1: 2, 2: 2 });
+    steps(w, 1);
+    expect(w.byId.p2.downed).toBe(false);
+    expect(w.byId.p2.body.hp).toBe(10);
+    expect(w.seatLives).toEqual({ 1: 2, 2: 1 });
+    expect(w.byId.p2.transform.pos.slice(0, 2)).toEqual(w.byId.p1.transform.pos.slice(0, 2));
+  });
+
+  it('with no lives left it is out, and the other plays on', () => {
+    const w = two({ lives: 1 });
+    fell(w, 'p2');
+    steps(w, 2);
+    expect(w.byId.p2.gone).toBe(true);
+    expect(w.seatOut).toEqual({ 2: true });
+    expect(w.seatsOver).toBeUndefined();
+  });
+
+  it('without lives it gets up for nothing; seat 1\'s down is left to the level', () => {
+    const w = two({});
+    w.byId.p2.hpMax = 10;
+    fell(w, 'p2'); fell(w, 'p1');
+    steps(w, 2);
+    expect(w.byId.p2.downed).toBe(false);
+    expect(w.byId.p1.downed).toBe(true);
+    expect(w.seatLives).toBeUndefined();
+  });
+});
