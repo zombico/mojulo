@@ -1,6 +1,7 @@
 // A PLAYED DISTRICT'S ROADS ARE CLEAR: a road is driven on there, so nothing the street stands (a signal, a lamp, a pole,
-// a hydrant, a bin, a bench, a sign) and no tree stands on road surface with no other ground under it; the same
-// district not played keeps its verge trees where a boulevard has them.
+// a hydrant, a bin, a bench, a sign) and no tree stands on road surface with no other ground under it; the same district
+// not played keeps its trees off the road too: a street's ground is its carriageway and its walks, and its trees stand
+// on the walk, behind the kerb and clear of its crossings.
 import { describe, it, expect } from 'vitest';
 import { assembleGeocityScene } from './scene.js';
 
@@ -14,12 +15,13 @@ function onRoad(P) {
 }
 
 describe('a played district\'s roads', () => {
-  it('stand nothing and grow nothing: a verge\'s trees are on the walk, and what was left on the road is left out', () => {
+  it('stand nothing and grow nothing, played or shown: a street\'s trees are on its walk, and what was left on the road is left out', () => {
     const played = assembleGeocityScene(M, { play: true }), shown = assembleGeocityScene(M);
     expect(onRoad(played)).toEqual([]);
-    // (the district as it is shown has its boulevard's trees on the verge, which is road surface: the concept holds)
-    expect(onRoad(shown).filter((g) => g.startsWith('geocity:tree')).length).toBeGreaterThan(20);
-    // (and they were moved, not felled: nearly as many trees stand)
+    // (and the district as it is shown: its trees on the walks, as played)
+    expect(onRoad(shown).filter((g) => g.startsWith('geocity:tree'))).toEqual([]);
+    expect(shown.geocity.laws.find((l) => l.law === 'trees-clear')).toMatchObject({ ok: true });
+    // (and none felled for it: as many trees stand)
     const trees = (P) => P.repeats.filter((r) => /^geocity:tree-/.test(r.group)).reduce((n, r) => n + r.transforms.length, 0);
     expect(trees(played)).toBeGreaterThan(trees(shown) * 0.9);
   });

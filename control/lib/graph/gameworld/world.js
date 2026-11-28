@@ -195,6 +195,8 @@ import { readErrands } from './errand.js';
 import { readFactions } from './factions.js';
 import { readLaw, lawBestiary } from './law.js';
 import { readShops } from './shops.js';
+import { readMunicipal } from './municipal.js';
+import { readHidden } from './hidden-stars.js';
 import { readGauntletGoal } from './gauntlet.js';
 import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
 import { readLevelStreet, brawlStreet } from './brawl-cast.js';
@@ -224,6 +226,10 @@ import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 import { readHour } from '../era/geocube-hours.js';
+import { readClouds } from '../matte-paint/sky.js';
+import { readAtmosphere } from '../scene/channels/atmosphere.js';
+import { readCone } from '../scene/channels/view-cone.js';
+import { readFinish } from '../scene/page-light.js';
 import { readGeocube, cubeStreetLook } from '../era/geocube.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
@@ -279,6 +285,11 @@ export const WORLD_STYLE = Object.freeze({
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
   domain: 'or one of the cube\'s levels (its domains)',
   hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
+  // (a town's and a district's: the geocube's own words for its sky, its air, its finish and its view cone, carried as its hour is)
+  clouds: 'a town\'s or a district\'s clouds: fair, overcast, storm…',
+  air: 'its air: haze, mist, fog',
+  finish: 'its finish: true (tone, sky in glass, bloom)',
+  cone: 'its view cone: true or a reach (m)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   scenery: 'the land behind a side strip\'s lane: one of era/geocube-side.js SCENERIES, or a list laid segment by segment',
@@ -321,7 +332,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'municipal', 'hidden', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -331,7 +342,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -374,6 +385,14 @@ const group = (k, v, at) => {
   for (const g of Object.keys(v)) if (!GROUPS[k].includes(g)) throw new Error(`gameworld: ${at}.${g} is not a ${k} setting a world hands down (${GROUPS[k].join(', ')})`);
   return { ...v };
 };
+// the words a town's or a district's geocube takes from its level's style: its hour, its clouds, its air, its finish (the
+// manifest's `light.finish`) and its view cone; a word the style leaves out is not carried (an absent one adds nothing)
+export function skyOfStyle(style) {
+  const out = {};
+  for (const k of ['hour', 'clouds', 'air', 'cone']) if (style[k] !== undefined) out[k] = style[k];
+  if (style.finish !== undefined) out.light = { finish: style.finish };
+  return out;
+}
 // a style (the world's or a level's)
 function readStyle(s, at) {
   if (s === undefined) return {};
@@ -391,6 +410,10 @@ function readStyle(s, at) {
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
     else if (k === 'hour') { try { readHour(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.hour = v; }
+    else if (k === 'clouds' || k === 'air' || k === 'finish' || k === 'cone') {
+      try { k === 'clouds' ? readClouds(v) : k === 'air' ? readAtmosphere(v) : k === 'finish' ? readFinish({ finish: v }) : readCone(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^(light\.finish|clouds|air|cone)\b:?\s*/, `${k}: `)}`); }
+      out[k] = v;
+    }
     else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
@@ -654,6 +677,14 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
+    // (its OPENING, scene/channels/game-screens.js: the title screen that loads it and waits for the player, a chapter's
+    // card into the play)
+    if (L.opening !== undefined) {
+      const O = L.opening, str = (v, n) => typeof v === 'string' && v.length > 0 && v.length <= n;
+      if (!isObj(O) || Object.keys(O).some((k) => !['title', 'kicker', 'chapter', 'press'].includes(k))) throw new Error(`gameworld: ${at}.opening is { title?, kicker?, chapter?: { label?, name? }, press? }: the title screen that loads the level, a chapter's card into it`);
+      for (const k of ['title', 'kicker', 'press']) if (O[k] !== undefined && !str(O[k], 60)) throw new Error(`gameworld: ${at}.opening.${k} is words, up to 60 letters`);
+      if (O.chapter !== undefined && !(isObj(O.chapter) && Object.keys(O.chapter).every((k) => ['label', 'name'].includes(k)) && ['label', 'name'].every((k) => O.chapter[k] === undefined || str(O.chapter[k], 60)))) throw new Error(`gameworld: ${at}.opening.chapter is { label?: 'Chapter 1', name? (the level's own, unsaid) }`);
+    }
     if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
@@ -986,7 +1017,8 @@ export function readGameworld(W) {
     const { scenes: sc, ...lv } = L;
     if (sc !== undefined) {
       if (!Array.isArray(sc)) throw new Error(`gameworld: ${at}.scenes is a list of scenes (get_play_vocab({ id: 'ui-scenes' })), each with stage?: '<node>'`);
-      const nodes = Object.keys(L.walk.nodes || {});
+      // (a level with no walk, an airspace's or a frame's, plays its scenes in its one stage)
+      const nodes = Object.keys(L.walk?.nodes || {});
       const bare = sc.map((s, i) => {
         if (!isObj(s)) throw new Error(`gameworld: ${at}.scenes[${i}] is a scene { id, when, beats, if?, sets?, stage? }`);
         if (s.stage !== undefined && !nodes.includes(s.stage)) throw new Error(`gameworld: ${at}.scenes[${i}].stage names one of the level's stages (${nodes.join(', ')})`);
@@ -1113,7 +1145,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(W.municipal !== undefined && readMunicipal(W.municipal) ? { municipal: readMunicipal(W.municipal) } : {}), ...(W.hidden !== undefined && readHidden(W.hidden) ? { hidden: readHidden(W.hidden) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**
@@ -1203,14 +1235,14 @@ export function resolveLevel(world, id) {
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...skyOfStyle(style) } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light
   if (L.geotown) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
     const { enter = GEOTOWN_ENTER, ...spec } = L.geotown;
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...skyOfStyle(style) } };
   }
   // an industrial level: its yard's words and its mission's, its seed the level's unless the mission names one
   if (L.industrial !== undefined) { const spec = readMission(L.mission ?? true, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, industrial: { I: readIndustrial(L.industrial, `levels.${id}.industrial`), spec, seed: spec.seed ?? (seed >>> 0) } }; }

@@ -18,8 +18,7 @@ const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a p
 const LEVELS = 'lib/graph/gameworld/levels.js';
 // what a pilot per seat runs (worlds/controllable/core.js spec.seats): each seat its own body, its own input, each tick
 const PILOT_PER_SEAT = 'a pilot per seat in the action runtime (worlds/controllable/core.js spec.seats), laid by a gameworld\'s hero stages (levels.js seatPart); web only';
-// the seats kernel's own gaps (a lobby beyond the versus fighter)
-const SEATS = { pkg: 'seats', effort: 'M' };
+// (11-26 to 11-27, couch closeout: the seat values were one package, `couch`, built as one; turns is left, small, its own)
 const TWO = ['soul.seats=two'];
 // the settings below `seats` mean something only for a game that seats more than one: rolled and nudged only then
 const GIVEN = Object.freeze({ seats: ['two', 'four'] });
@@ -145,16 +144,20 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         'co-op': { status: 'built', lowers: LEVELS, note: `${PILOT_PER_SEAT}: every seat on the hero's side, an empty seat's hero following the hero`, requires: TWO },
-        versus: { status: 'partial', effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
-        teams: { ...NOT_YET, effort: 'S', requires: ['soul.seats=four'] },
-        'free-for-all': { ...NOT_YET, effort: 'S', requires: TWO },
+        // built 11-27 (1126-couch-closeout): the seats against each other on any level that seats them (levels.js seatPart:
+        // a side a seat, or two; an empty seat hunting), scored by a match's frags (mechanics.js frags: every seat a
+        // contender, its own hp, falls and frags in its corner, the winner kept); the versus fighter besides
+        versus: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/gameworld/levels.js', note: `two seats against each other: each its own side on any level that seats them (levels.js seatPart), a deathmatch's frags their match (mechanics.js frags: each its hp, its falls and frags in its corner, the first to the limit the winner, kept); and ${VERSUS_ONLY.replace('the versus fighter only', 'the versus fighter')}. Only frags keeps a score between seats; over the shoulder (first person waits on soul.frame=split)`, requires: TWO },
+        teams: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/gameworld/levels.js', note: 'four seats in two sides, the odd and the even (levels.js seatPart): a level\'s own two sides where it has them (a team deathmatch\'s red and blue, the odd seats the hero\'s), else seats-a and seats-b; a team deathmatch\'s frags scores each side, the winning side kept. Only frags keeps a score between sides', requires: ['soul.seats=four'] },
+        'free-for-all': { status: 'built', since: '2026-11-27', lowers: 'lib/graph/gameworld/levels.js', note: 'every seat its own side (levels.js seatPart: seat-<n>, an empty one hunting), a deathmatch\'s frags their match: each a contender with its own hp, falls and frags in its corner, the first to the limit the winner (kept). Only frags keeps a score between seats; over the shoulder (first person waits on soul.frame=split)', requires: TWO },
       },
     },
     dependence: {
       given: GIVEN,
       values: {
         parallel: { status: 'built', lowers: LEVELS, note: PILOT_PER_SEAT, requires: TWO },
-        roles: { ...NOT_YET, effort: 'M', requires: TWO },
+        // built 11-27 (1126-couch-closeout): a ride two seats crew, seat 2 its gunner (levels.js crewPart, turret.js)
+        roles: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/worlds/controllable/turret.js', note: 'a ride two seats crew (levels.js crewPart): seat 1 drives it on its rule, seat 2 its gunner with no body of its own, a gun on a stabilized turret on its roof, slewed by the gunner\'s right stick and fired on its trigger (turret.js: seats.crew), the driver\'s stick the drive; nobody in seat 2, the driver\'s hand has the gun. A ride only (a racer is not crewed), one gunner; no gunner\'s reticle yet, and no law yet measures that each job was needed', requires: TWO },
         // built 11-18 (1118-coop-cooking-spike): the work shift's kitchen for cooks, its sides sealed and what crosses on a pass
         handoff: { status: 'built', since: '2026-11-18', lowers: 'lib/graph/worksim/kitchen.js', note: 'a work shift\'s kitchen for two or four cooks (gameworld/kitchen-level.js, quick.cooks): its sides sealed by a counter, prep on one and assembly and the hand-in on the other, everything an order needs crossing on a pass set in the counter (put from one side, taken from the other); each seat its own hands (work-mechanics.js), the kitchen\'s laws measuring that every order crosses; the work mechanic only', requires: [...TWO, 'power.mechanics=work'] },
       },
@@ -169,28 +172,33 @@ export const SOUL = Object.freeze({
         // beltScroll: never back, held at a gate until its wave falls, every player kept in the band), up to four seats with
         // drop-in; only in a brawl, so a run, a top-down field or a ride waits on it being lifted to the shared camera
         scroll: { status: 'built', since: '2026-11-16', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'a street level of a designed game scrolls so (gameworld/brawl-cast.js), one player today; no other kind of level does. the brawler\'s belt scrolls one shared view on as the players go, never back, held at a gate until its wave falls, every player in its band (brawl-belt.js beltScroll, brawl-core.js); only in a brawl: a scrolling run, a top-down field or a ride waits on it in the shared camera', requires: TWO },
-        split: { ...NOT_YET, effort: 'L', requires: TWO },
+        // built 11-27 (1127-split-screen): a view a seat (core.js seatCams, controllable/index.js __splitViews)
+        split: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/scene/channels/controllable/index.js', note: 'a view a seat (a level\'s seats.frame: split): each seat\'s body its own camera, the level\'s camera rule on it (core.js seatCams), the group frame off; the page a viewport each present seat, two side by side, three or four in quarters, each first-person eye\'s own body hidden in its own view and seen in the others\'. A first-person level seats players under it. Not yet: a wall\'s pull-in for seats 2 to 4 (their cameras driven plainly), a HUD a view (the seats\' corners stay the page\'s), post effects in any but seat 1\'s view', requires: TWO },
       },
     },
     input: {
       given: GIVEN,
       values: {
         'real-time': { status: 'built', lowers: LEVELS, note: `${PILOT_PER_SEAT}; the versus fighter too`, requires: TWO },
-        window: { ...NOT_YET, effort: 'M', requires: TWO },
-        turns: { ...NOT_YET, effort: 'S', requires: TWO },
+        // built 11-27 (1126-couch-closeout): a contest read over a window of every seat's presses (mechanics.js mash, the bus's
+        // argmax, the page's press:<n>)
+        window: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/game/mechanics.js', note: 'a contest read over a window of every seat\'s presses, a pure function of them (mechanics.js mash): each seat\'s fresh jump or A counted for its seconds, in its corner in its colour, the most the winner at the horn (the bus\'s argmax; a tie a draw), or a race to a count; the page says each seat\'s press to the bus (press:<n>) where the bus listens. A mash only: no timing or hold-and-release window yet, and no door lays a party round yet', requires: TWO },
+        // built 11-27 (1127-split-screen): the alternating game (core.js turnOf, rules-basic.js seat-falls passTurn)
+        turns: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/worlds/controllable/core.js', note: 'the alternating game (a level\'s seats.turns): one hero, the seats taking turns at it, seat 1\'s first; its turn\'s seat drives it with its own controller, the others wait; a fall or its body downed spends that seat\'s own life and passes the turn to the next with lives left (a seat out passed over; none left, the seats over); `seconds` passes it on a clock too; the chip strip marks whose turn it is. The contest kernel\'s turn sports besides (hot-seat, one pad). Not yet: a score a seat, a turn\'s banner', requires: TWO },
       },
     },
     pool: {
       given: GIVEN,
       values: {
-        shared: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one; at none the level is lost (rules-basic.js seat-falls); falls only, a hit is seat 1\'s hp; web only', requires: TWO },
-        own: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls); falls only, a hit is seat 1\'s hp; scores stay one count; web only', requires: TWO },
+        shared: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'one count of lives the seats share (three a seat), a fall costing one, and a seat downed (its hp spent: its body\'s, or its own level hp where hits are counted, mechanics.js seatedDeath) one, up again beside the others; at none the level is lost (rules-basic.js seat-falls). Every seat its own hp, in its corner in its colour; any seat takes a pickup (once, into the one bag) and the way out, a hazard hurts whoever walks in; scores stay one count; web only', requires: TWO },
+        own: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'each seat three lives of its own, a fall costing one, and a seat downed (its hp spent: its body\'s, or its own level hp where hits are counted, mechanics.js seatedDeath) one, up again beside the others; a seat with none sits out, and the level is lost when no seat is left (rules-basic.js seat-falls). Every seat its own hp, in its corner in its colour; any seat takes a pickup (once, into the one bag) and the way out, a hazard hurts whoever walks in; scores stay one count; web only', requires: TWO },
       },
     },
     join: {
       given: GIVEN,
       values: {
-        lobby: { status: 'partial', ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen (mana-ui\'s fighter select) seats its two players before a fight; no other kind has a lobby' },
+        // built 11-27 (1126-couch-closeout): a level whose seats join by lobby opens on it (scene/channels/seat-lobby.js)
+        lobby: { status: 'built', since: '2026-11-27', lowers: 'lib/graph/scene/channels/seat-lobby.js', note: 'a level whose seats join by lobby (its seats.join) opens on the lobby: a row a seat in its colour, saying who has sat down and how (mana-ui over the level, the level held as a menu holds it); each controller sits down with a press, and seat 1\'s fresh Start, A or Enter starts the level and closes the seats (no one joins after). The versus fighter\'s select besides' },
         'drop-in': { status: 'built', lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time on their own controller (seats-kernel.js): start or light in the versus fighter, any press on a gameworld\'s level' },
       },
     },

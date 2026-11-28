@@ -91,6 +91,7 @@ export const CLASS_TRAITS = Object.freeze({
   farmTractor:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   combineHarvester: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'front', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   cropSprayer:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'all', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
+  rideOnMower:  { silhouette: 'tub', stance: 'low', cockpit: 'open', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame'] } },
   // (the city's working trucks: the hull kit's too, road-city-truck.js)
   mediumTruck:  { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },
   lightCabover: { silhouette: 'brick', stance: 'raised', cockpit: 'closed', engine: 'hidden', motif: 'riveted', drive: 'rear', derives: { frame: ['chassis = ladderFrame', 'bodyplan = truck'] } },

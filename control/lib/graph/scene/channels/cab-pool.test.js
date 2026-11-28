@@ -27,4 +27,23 @@ describe('the cab pool channel', () => {
     expect(emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({})] })).not.toContain('__mojTaken');
     expect(emitThreeWorld({ faces: [floor], entities: [hero, cab({ pool: { model: 'sedan', tint: [1, 1, 1] } })] })).not.toContain('__mojTaken');
   });
+  it('a body that swings its tailgate (a driving job\'s garbage truck, `pool.gate`), the jobs\' piles beside it; the page parses; absent, not one byte of it', async () => {
+    const { jobStopsOf } = await import('./job-stops.js');
+    const gatePools = ['body-paint', 'body-trim', 'gate-paint', 'gate-trim'].map((k) => ({ group: `v-${k}`, template: [quad(1, '#ffffff')], transforms: [], pool: `sedan|${k}` }));
+    const moving = cab({ pool: { model: 'sedan', tint: [0.2, 0.3, 0.4], gate: { pivot: [-3, 3.4], tip: -1.1 } } });
+    const game = { mechanics: [{ kind: 'bag', slice: 'bag' }, { kind: 'shift', mode: 'collect', id: 'bins', depot: [0, 0, 0], cabs: ['car-1'], stops: [{ at: [20, 0, 0] }], load: 1 }] };
+    const html = emitThreeWorld({ faces: [floor], repeats: [...pools, ...gatePools], entities: [hero, moving], jobStops: jobStopsOf({ game }) });
+    for (const s of ["'|gate-paint'", 'e.tipAt', '__mojJobStops', 'shift:hold:']) expect(html).toContain(s);
+    expect(parses(html)).toBe(null);
+    const plain = emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({ pool: { model: 'sedan', tint: [0.2, 0.3, 0.4] } })] });
+    for (const s of ['e.tipAt', '__mojJobStops']) expect(plain).not.toContain(s);
+  });
+  it('an operated machine (a dig job\'s excavator, channels/operate.js): its parts and levers on the page, which parses; absent, not one byte of it', async () => {
+    const { operateOf } = await import('./operate.js');
+    const game = { mechanics: [{ kind: 'bag', slice: 'bag' }, { kind: 'shift', mode: 'dig', id: 'dig', machine: 'crawlerExcavator', cabs: ['car-1'], pile: { at: [7, 0, 0], radius: 2.6 }, bed: { at: [-7, 0, 1.6], half: [1.25, 2.4], heading: 0 }, loads: 3 }] };
+    const html = emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({})], operate: operateOf({ game }) });
+    for (const s of ['__mojOperate', 'shift:scoop:', 'shift:tip:', "'ArrowUp'"]) expect(html).toContain(s);
+    expect(parses(html)).toBe(null);
+    expect(emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({ pool: { model: 'sedan', tint: [1, 1, 1] } })] })).not.toContain('__mojOperate');
+  }, 60000);
 });

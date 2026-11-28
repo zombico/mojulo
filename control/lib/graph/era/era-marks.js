@@ -50,11 +50,15 @@ export const NEUTRAL_INPUTS = Object.freeze([
   // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js; a metroidvania's gates held shut
   // until what opens them is held, worlds/controllable/held-gates.js; the hero's trees, worlds/controllable/trees.js; the explored map, explore.js;
   // a backdrop's slow motion, channels/ambient.js)
-  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi', 'heldGates', 'trees', 'explored', 'ambient',
+  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi', 'jobStops', 'fixSites', 'operate', 'heldGates', 'trees', 'explored', 'ambient',
   // (a fleet's hull kibble, its plating's detail drawn by the shader on each block, the same procedure in any era)
   'kibble',
   // (a flying lesson's brief, told on mana-ui before the lesson is flown)
   'lesson', 'speedfx',
+  // (a level's spoken lines shown as comms, scene/channels/comms.js)
+  'comms',
+  'finds',
+  'plumes',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

@@ -76,6 +76,10 @@ export const PROGRAMS = Object.freeze({
     rooms: [R('guardroom', [6, 8], [5, 6]), R('bunks', [4, 6], [4, 5], 'guardroom'), R('cell', [3, 3], [4, 4], 'guardroom', { n: 2 }), R('armoury', [6, 7], [6, 7], 'bunks')] },
   library: { reads: 'a reading room, the stacks behind it, the archive at the back', shape: 'chain', goal: 'archive',
     rooms: [R('reading', [7, 9], [6, 8], null, { h: 1.3 }), R('stacks', [4, 5], [8, 10], 'reading', { n: 2 }), R('archive', [6, 7], [6, 7], 'stacks')] },
+  // an ARCADE (geocity/walkins.js): a foyer off the street, one long games floor of cabinets (its minigames,
+  // gameworld/minigames.js ROOMS_KEPT), the prize counter at its end
+  arcade: { reads: 'a foyer off the street, the long games floor, the prize counter at its end', shape: 'chain', goal: 'prizes',
+    rooms: [R('foyer', [6, 7], [4, 5]), R('floor', [12, 14], [14, 18], 'foyer', { h: 1.3 }), R('prizes', [6, 7], [5, 6], 'floor'), R('office', [3, 4], [4, 4], 'prizes', { p: 0.5 })] },
   lab: { reads: 'a lobby, the lab floor, a store, and the sealed core', shape: 'chain', goal: 'core',
     rooms: [R('lobby', [5, 7], [4, 5]), R('lab', [8, 10], [7, 9], 'lobby', { h: 1.2 }), R('store', [4, 5], [4, 4], 'lab', { p: 0.6 }), R('core', [6, 7], [6, 7], 'lab')] },
   // buildings (era/program-core.js): a core and its wings, the same plate up every storey, a lobby with the way in; each
@@ -89,6 +93,13 @@ export const PROGRAMS = Object.freeze({
     core: { storeys: 2, wings: 'I', loading: 'single', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'locker', room: 'office', far: 'dispatch', goal: 'manager' }, annex: { role: 'shed', w: 18, d: 30, h: 12, ways: ['+x'] } },
   clinic: { reads: 'a waiting room at the front, consult rooms both sides of the corridors, treatment rooms at their ends, the records room last', shape: 'core', goal: 'records', kit: 'bay-everyday',
     core: { storeys: 1, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'waiting', room: 'consult', far: 'treatment', goal: 'records' } },
+  // a MUSEUM: a lobby at the front, three wings of galleries in a T off it (a wing a collection, exhibits.js), each
+  // wing's end its hall; tall plaster rooms under daylight and track light, nothing to fight in
+  museum: { reads: 'a lobby, galleries both sides of three wings in a T, each wing\'s end a hall, the great hall last', shape: 'core', goal: 'great-hall', kit: 'bay-gallery',
+    // (its look, compose.js and bay-axes.js `gallery`: plaster walls a room's own colour, oak and pale stone underfoot,
+    // daylight through coffers and warm track light, bare; its things its plinths alone)
+    look: Object.freeze({ construction: 'gallery', palette: 'gallery', plot: 'gallery', dressing: 'gallery' }),
+    core: { storeys: 1, wings: 'T', loading: 'double', bays: 3, h: 5 }, lobby: { d: 10, h: 6 }, roles: { near: 'gallery', second: 'gallery', room: 'gallery', far: 'hall', goal: 'great-hall' } },
   // a military base's buildings (a walled-core dungeon's spaces, wcd/wcd.js), on the same core: each on the bay kit of
   // what it is (a hangar's steel, a barracks' painted block, a comms room's white panels, a plant's concrete), so the
   // layers a base is walked through look unlike each other; the rooms are what a base is stocked for

@@ -174,8 +174,8 @@ describe('the page', () => {
   it('a rolled level says it is shown only once it has started', () => {
     const game = { levelRef: 'l', produces: { events: [] } };
     const js = gameChannelScript(game, { shownOnStart: true });
-    expect(js).toContain("st.onStart.push(() => requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: 'game-shown' }");
-    expect(gameChannelScript(game)).not.toContain('st.onStart.push(() => requestAnimationFrame');
+    expect(js).toContain('st.onStart.push(() => (function warmWatch(W)');
+    expect(gameChannelScript(game)).not.toContain('st.onStart.push(() => (function warmWatch');
   });
 });
 

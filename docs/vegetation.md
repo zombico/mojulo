@@ -334,10 +334,94 @@ per thing a person sees:
     lean and way; a lean is a variant, never a yaw.
 - **Tree crowns are the weak part.** Broadleaf and fir crowns are young and airy, and at L2/L1 their foliage is
   clusters that read as popcorn close up.
+  - In the form render (gen-7) a realistic crown is drawn as flock (below), which answers this for its near levels.
   - Spray cards (the bamboo finding, carried over) read as leaves close up but airier than the clusters at 50–60 m, and
     a fir's flat sprays go edge-on. They were tried and not adopted.
   - Fuller, older crowns are the open problem. Palms and bamboo do not have it: their foliage keeps its true shape at
     every level.
+
+## A realistic crown as flock (`channels/form-flock.js`)
+
+A miniature terrain maker cuts sponge into a tree's masses and glues it onto an armature. It reads as a tree because the
+sponge is porous: light passes through its net as through a loose canopy. The realistic crown (`crowns: 'realistic'`,
+form/flora-read.js `REALISTIC`) already has the armature: puffs on its limbs' leaf-holding sections. Drawn as opaque
+lumps, they read as topiary. Drawn as flock, they read as a canopy. Flock is the realistic crown's setting, on unless a
+stage says `crowns: { form: 'realistic', flock: false }`.
+
+- **The sponge.** A pixel of a puff marches into it along the eye's ray (`FLOCK_LOOK.sponge`), through a field of two
+  octaves of value noise at leaf-cluster grain, in the template's own metres. The threshold is porous at the skin and
+  dense toward the core, as a trimmed sponge is. The first solid sample is the pixel, its depth its shade. A ray that
+  meets none went out through the holes and is not drawn, so the sky shows through. No geometry is added: the puff is
+  the bound the march stays inside.
+- **The light through.** Seen against the sun, the thin parts (a shallow hit, every leaf) take the sun's light through
+  them (`FLOCK_LOOK.glow`). This is the largest change in how a crown reads.
+- **The leaves at the ends** (`flock.leaves`, on by default). The sponge's skin carries the species' own leaves: its
+  outline (vegetation/twigs.js `LEAF_SHAPES`, a table of half-widths, `FLOCK_TABLE`) at the grower's leaf length
+  (an oak's 0.11 m, a beech's 0.09 m; never the species' stylized `leafScale`). A leaf stands in a cell where the
+  sponge under it holds, its midrib out of the puff and a little down. A pixel walks the cells its ray crosses in the
+  skin and draws the nearest leaf it meets in front of the sponge. Under a few pixels, leaves thin out
+  (`FLOCK_LOOK.leaf.px`), so a far crown is its sponge alone.
+- **The shadow** (`flock.shadow`): `'sponge'` (the default) puts the same field in the crown's depth pass; `'solid'`
+  casts the puffs whole; `'none'` casts no crown shadow. The sponge's shadow stays mostly solid: a sun ray crosses a
+  whole puff's dense core, and the shadow map's filter blurs pores this small.
+- **Far off, the same sponge.** The far card (`FLORA_FAR`) bakes a flock crown from the very march the page's GLSL runs:
+  `flockMarch` is its twin in JS, and the page inlines it by its source, so the tests run what the page runs. Each
+  texel a puff covers is marched along the card's view: a miss is left empty, a hit is shaded by its depth and faces
+  its puff's own round there, and a thin hit is marked so the card also takes the sun through it. Seen side-on, a puff
+  covers about 85% of its outline. The bake adds about half a second to a stand's load (measured with everything flock
+  adds, in software GL).
+- **In the fall, it sheds.** A deciduous flock tree already turns its own share of the level's `autumn`
+  (form/flora-read.js `AUTUMN`); it sheds by the same share × `FLOCK.shed`, so a wood in the fall is never one density as
+  it is never one colour (the page's `FL.bare`, one a plant, carried only on a flock page in the fall). Its sponge thins
+  from the outside in (`FLOCK_LOOK.fall`: the threshold raised more at the skin than the core), so the crown opens on its
+  limbs; its leaves at the ends thin with it, the last few hanging on; its top sheds before its foot. What is left is
+  shaded from its new skin, so it reads as the tree's turned leaves with the sun through them, not as the dark heart of a
+  full crown. Its shadow lets more sun to the ground, and its far card is baked at its template's mean shed. On the
+  island path at `autumn: 0.9` its trees shed 27–85% (60% on average).
+- **Bushes too.** On a stage whose realistic crowns are flock, a leafy bush that reads as clump foliage (a habit with a
+  `flock` row in form/bush-form.js `BUSH_HABITS`: the dome, box and laurel; the fountain, forsythia) stands its mass as
+  puffs (`bushPuffs`): one where a clump stands, by the clumps' rank, set in from the outline and kept apart, so they
+  overlap into one mass the bush's shape. A fountain's follow its arches instead (`flock.along`): runs of smaller, coarser
+  puffs, long along each arch, over its outer part where its leaves are, shrinking toward the tip, so it reads as
+  arches and not as a hedge (about 40 puffs, 800 triangles, as many as its leaf cards had). They are drawn as a realistic crown's: the sponge, the bush's own leaf at its
+  size (a box's 4.5 cm ovate), the light through, its far card baked from the sponge. Its sponge is finer than a
+  tree's (`grain`, written into its material's source, so a tree's source is as it was), and none of its leaf-card
+  clumps are kept. The rosette (hosta, fern) and the needled habits keep their own look.
+- **Where it is drawn.** `crowns` is read by form/flora-read.js `readCrowns` for a geocube's path and town (their stage),
+  its `geotown` and its `geocity` (their street trees, a geocity's composed towns too). A geotown or a geocity plants its
+  own trees where it found them room, `plants.apart: false`: none moved or shrunk by the stage's trees-apart rule, a
+  realistic one still raised to its headroom, and a geotown's room is measured by the realistic crown's own reach. A
+  realistic tree stands at its scene's own height (no re-ranking into its species' range), so a residential street is
+  not a forest.
+- **Grown one way** (form/flora-read.js `REALISTIC.lean`). A tree its scene gives a way (`toward`) is grown lopsided: its
+  masses behind its stem drawn in, all moved forward, its limbs grown to them, and its copy turned to face its way. Its
+  room is measured behind it only (`treeSizes`' `back`), so it fits between the street and a house. A geotown gives each
+  realistic tree within 12 m of a house the way away from them (its street, or the far side of its yard); a geocity
+  gives its street trees the way to their street's middle. On valley-morning's town: 27 trees (21 plain), 19 grown one
+  way.
+- **Young trees** (a tree's `young`). A tree its scene planted recently is drawn in the plain crown, airy as a sapling's,
+  though the scene's crowns are realistic; it is never grown one way. A geocity with realistic crowns plants a share of
+  its street and park trees young (`TREE.young`: about a third, 5–8 m), and its vacant lots' self-sown trees all young;
+  without realistic crowns it is as it was.
+- **A residential mix.** A geotown's residential pattern (`bay-and-gable`) and a geocity's outskirts plant maples, flowering
+  cherries and birches; on valley-morning's town, maples at 11–14 m, cherries at about 9 m, birches at 12–14 m and
+  the shade beeches at about 17 m.
+- **Hedges and gardens.** A clipped hedge is a habit no leaf form names (form/bush-form.js `BUSH_HABITS.hedge`): a
+  segment of a box its height long, flat on top and straight-sided, its flock's puffs runs filling it, the upper row
+  bridging the seam to the next segment. A geotown lays its hedges (a front line's, a hedge fence's) as these segments end
+  to end, each turned along its line (a bush's own `yaw`). Its gardens are filled with small plants (`houseplants.edging`
+  in geotown/pattern.js): a row along a house's front between its foundation shrubs, and companions beside each bed's
+  plant; box balls, heathers, hostas and little flowering shrubs in bloom. On valley-morning's town: 25 hedge segments,
+  40 flowering shrubs. These are the form render's only; the painted gardens are as they were.
+- **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
+- **Known limits:**
+  - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;
+  - a leaf whose tip would pass the puff's mesh is clipped by it, and a few leaves stand clear of the mass;
+  - gen-6's painted realistic trees (era/isekai.js `realisticBands`) do not draw it;
+  - close up, a bush's puffs show their facets in its light (the sponge's shade breaks them, its normals do not);
+  - the march's cost is not measured on a GPU yet.
+- The spike that found it, the crown as it was beside the sponge and the sponge with leaves, from the same cameras:
+  `control/scripts/spikes/flock/`.
 
 ## References
 

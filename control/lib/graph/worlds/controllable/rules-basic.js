@@ -213,9 +213,19 @@ export function buildRulesBasic(E) {
     if (tlMix && want[2] > tlCeil) want[2] = Math.max(tz + 1, tlCeil);
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
+    // (the LOOK EASED, opt-in `lookEase`, a car's chase, gameworld/cars.js: the point ahead it aims at led along a heading
+    // eased after the target's, so a steering key's tap swings the aim no faster than the chase swings the eye; a fresh
+    // ride's starts where the car points. Absent → the look along the target's own heading, as it was)
+    let fl = f;
+    if (r.lookEase) {
+      const wrapA = (a) => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      if (e.lookHd == null || !(world.time - (e.lookHdT ?? -1e9) < 0.5)) e.lookHd = h;
+      e.lookHd = wrapA(e.lookHd + wrapA(h - e.lookHd) * smooth(r.lookEase, dt)); e.lookHdT = world.time;
+      fl = fwdXY(e.lookHd);
+    }
     e.lookAt = [
-      tgt.transform.pos[0] + f[0] * lead * cp,
-      tgt.transform.pos[1] + f[1] * lead * cp,
+      tgt.transform.pos[0] + fl[0] * lead * cp,
+      tgt.transform.pos[1] + fl[1] * lead * cp,
       tz + lookH + lead * sp,
     ];
     if (vs) { const a = r.vista.at; e.lookAt = [e.lookAt[0] + (a[0] - e.lookAt[0]) * vs, e.lookAt[1] + (a[1] - e.lookAt[1]) * vs, e.lookAt[2] + (a[2] - e.lookAt[2]) * vs]; }
@@ -250,7 +260,7 @@ export function buildRulesBasic(E) {
   // with no seats: null, and the camera frames its target as it always did.
   const playing = (world) => E.pilotsOf(world).filter((p) => !p.downed && !p.gone && p.rule === p.pilotRule);
   function groupFrame(r, world, dist) {
-    if (!world.seatOf) return null;
+    if (!world.seatOf || world.splitView) return null;   // (split: a view a seat, each its own)
     // (one playing seat frames itself only when it is not the camera's own target: seat 1 out, seat 2 still in)
     const P = playing(world);
     if (!P.length || (P.length === 1 && P[0].id === r.target)) return null;
@@ -361,7 +371,8 @@ export function buildRulesBasic(E) {
   // front of the one; a lone place is the pilot's
   // view of it, from just behind and above them. The distance opens until the spread and the room fill a `fov`
   // (degrees, 50), and the camera never goes under the ground. `move`: hold (stands where it cut, turning with them),
-  // track (keeps its place beside them), push (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new
+  // track (keeps its place beside them), push (closes in over `for` seconds), pull (opens out from them over `for`
+  // seconds, the place round them coming into the frame), orbit (circles at `rate` rad/s). A new
   // shot cuts; `cut: false` eases in at `lerp`.
   const FRAMES = { wide: [5, 2.2, 0], low: [1.6, -0.8, 0], profile: [1.2, 0.2, 1], corner: [3, 3.5, 0.5], overhead: [2.5, 0, 0], two: [0.8, 0.35, 0], close: [0.35, 0.1, 0.25] };
   // a place as a subject: a point (`at`), on the ground under it when it gives no height
@@ -376,7 +387,10 @@ export function buildRulesBasic(E) {
     if (!subs.length) return;
     let cx = 0, cy = 0, cz = 0, spread = 0;
     for (const s of subs) { cx += s.transform.pos[0]; cy += s.transform.pos[1]; cz += s.transform.pos[2]; }
-    cx /= subs.length; cy /= subs.length; cz = cz / subs.length + (r.lookH ?? 1.4);
+    // (a subject bigger than a person, a frame or a tower: framed by its size, room round it by its radius past a
+    // person's, looked at by its height; a person's shot as it was)
+    const big = Math.max(0, ...subs.map((s) => ((s.body && s.body.radius) || 0) - 1)), tall = Math.max(0, ...subs.map((s) => (s.body && (s.body.aimH || s.body.radius)) || 0));
+    cx /= subs.length; cy /= subs.length; cz = cz / subs.length + (r.lookH ?? (big > 0 ? Math.max(1.4, tall) : 1.4));
     for (const s of subs) spread = Math.max(spread, Math.hypot(s.transform.pos[0] - cx, s.transform.pos[1] - cy));
     e._shotT = (e._shotT || 0) + dt;
     // over the shoulder: the first framed past the second's shoulder (the listener's back to the camera, a little aside)
@@ -391,7 +405,7 @@ export function buildRulesBasic(E) {
       e.lookAt = [A[0], A[1], A[2] + lh];
       return;
     }
-    const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide;
+    const [room0, rise0, off] = FRAMES[r.frame] || FRAMES.wide, room = room0 + big * 1.6, rise = rise0 * (1 + big * 0.5);
     // the side of the line: the one asked, else (as a cut is made) the one nearer where the camera stands, so a cut
     // keeps the player's side of the action; kept for the shot
     if (r.side == null && e._shotSide == null && subs.length >= 2) {
@@ -417,10 +431,16 @@ export function buildRulesBasic(E) {
       }
       face = 0;
     } else face = subs[0].transform.heading || 0;
+    // (away: a body kept out of the shot, the camera stood past the subjects well off the line from it to them)
+    const A = r.away ? world.byId[r.away] : null;
+    if (A && !A.gone) face = Math.atan2(cy - A.transform.pos[1], cx - A.transform.pos[0]) + 1.2 * side;
     let yaw = (r.yaw ?? face) + off * HALF_PI * side;
     if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
     let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));
     if (r.move === 'push') dist *= 1 + 0.35 * (1 - Math.min(1, e._shotT / (r.for ?? 3)));
+    // (pull: opening out from them over `for` seconds, eased, to some two and a half times as far and higher: the place they
+    // stand in coming into the frame round them)
+    if (r.move === 'pull') { const u = Math.min(1, e._shotT / (r.for ?? 6)), k = u * u * (3 - 2 * u); dist *= 1 + 1.5 * k; }
     const place = (y, lift) => {
       const f = fwdXY(y);
       const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise + lift];
@@ -429,12 +449,22 @@ export function buildRulesBasic(E) {
       return at;
     };
     // a CLEAR view: as the shot cuts, the ground (rocks, a bank) sampled along the line to the subjects must stay under
-    // it; else the next of a few places round the framing, a little aside and then higher, kept for the shot
+    // it, and no body but the subjects stand in it (the pilot's own frame between the lens and what it frames); else the
+    // next of a few places round the framing, a little aside and then higher (by the shot's distance), kept for the shot
+    // (a tracking shot looks again each second: the ground it moves over rises and falls, and what was clear may not be)
+    if (r.move === 'track' && e._shotTry != null && e._shotT - (e._shotChk || 0) >= 1) { e._shotChk = e._shotT; e._shotTry = null; }
     if (e._shotTry == null) {
       e._shotTry = [0, 0];
-      if (world.ground) {
-        const clear = (at) => { for (let k = 1; k < 8; k++) { const u = k / 8, x = at[0] + (cx - at[0]) * u, y = at[1] + (cy - at[1]) * u, z = at[2] + (cz - at[2]) * u, g = world.ground([x, y, 1e4]); if (g != null && g > z - 0.3) return false; } return true; };
-        search: for (const lift of [0, 1.5, 3.5]) for (const dy of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) if (clear(place(yaw + dy, lift))) { e._shotTry = [dy, lift]; break search; }
+      const subIds = new Set(subs.map((s) => s.id).filter(Boolean));
+      const bodies = Object.values(world.byId || {}).filter((b) => b && !b.isCamera && !b.gone && !b.dormant && !subIds.has(b.id) && b.body && b.body.radius > 0);
+      const blocked = (at) => bodies.some((b) => {
+        const R = b.body.radius, q = b.transform.pos, c = [q[0], q[1], q[2] + R * 0.8], v = [cx - at[0], cy - at[1], cz - at[2]], L2 = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] || 1;
+        const u = Math.max(0, Math.min(1, ((c[0] - at[0]) * v[0] + (c[1] - at[1]) * v[1] + (c[2] - at[2]) * v[2]) / L2));
+        return Math.hypot(at[0] + v[0] * u - c[0], at[1] + v[1] * u - c[1], at[2] + v[2] * u - c[2]) < R;
+      });
+      if (world.ground || bodies.length) {
+        const clear = (at) => { if (blocked(at)) return false; if (!world.ground) return true; for (let k = 1; k < 8; k++) { const u = k / 8, x = at[0] + (cx - at[0]) * u, y = at[1] + (cy - at[1]) * u, z = at[2] + (cz - at[2]) * u, g = world.ground([x, y, 1e4]); if (g != null && g > z - 0.3) return false; } return true; };
+        search: for (const lift of big > 0 ? [0, 0.15 * dist, 0.35 * dist] : [0, 1.5, 3.5]) for (const dy of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) if (clear(place(yaw + dy, lift))) { e._shotTry = [dy, lift]; break search; }
       }
     }
     const at = place(yaw + e._shotTry[0], e._shotTry[1]);
@@ -442,7 +472,9 @@ export function buildRulesBasic(E) {
     if (e._shotCut) { e.transform.pos = e._shotAt.slice(); e._shotCut = false; }
     else e.transform.pos = add(e.transform.pos, scl(sub(e._shotAt, e.transform.pos), smooth(r.lerp ?? 3, dt)));
     e.transform.heading = Math.atan2(cy - e.transform.pos[1], cx - e.transform.pos[0]);
-    e.lookAt = [cx, cy, cz];
+    // (big subjects ride above a scene's talk box, its lower third: the aim set under them by a share of the distance, never
+    // more than half their height, so a wide shot from far off still looks at them, not at the ground before them)
+    e.lookAt = [cx, cy, big > 0 ? cz - Math.min(dist * 0.12, tall * 0.5) : cz];
   }
 
   // clock — autonomous frame playback: advance the gait/anim phase by time, no input. Turns a
@@ -535,17 +567,40 @@ export function buildRulesBasic(E) {
   // its seat one, or the shared count one; a seat with none left is out (its body gone), and when no seat is left
   // playing the seats are over (state.seatsOver: the page ends the level, failed). Without lives seat 1's fall is the
   // level's catch, as before.
-  E.registerWorldPass('seat-falls', (state) => {
+  // A SEAT DOWNED (its body's hp spent, combat-hit's `downed`, or felled by the cast: a seat's level hp spent, mechanics.js
+  // seatedDeath) is taken as a fall once its collapse has played (SEAT_DOWN_HOLD s): a life, then up again beside the
+  // others with its hp whole, or out. Seat 1's down is the level's own (fail-on-death's), unless the seats count lives.
+  const SEAT_DOWN_HOLD = 1.5;
+  // TURNS (core.js state.turnOf): the next seat with lives left takes the body; none, the seats are over
+  const passTurn = (state) => {
+    const T = state.turnOf, L = state.seatLives, out = state.seatOut || {};
+    for (let k = 1; k <= T.max; k++) {
+      const n = ((T.n - 1 + k) % T.max) + 1;
+      if (!out[n] && (!L || (L[n] ?? 0) > 0)) { T.n = n; T.t = 0; return; }
+    }
+    state.seatsOver = true;
+  };
+  E.registerWorldPass('seat-falls', (state, input, dt) => {
     if (!state.seatOf) return;
-    const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? 1 : state.seatOf[e.id]);
+    const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? (state.turnOf ? state.turnOf.n : 1) : state.seatOf[e.id]);
+    // (a turn on the clock: it passes, no life spent)
+    if (state.turnOf && state.turnOf.seconds && !state.seatsOver) { state.turnOf.t += dt || 0; if (state.turnOf.t >= state.turnOf.seconds) passTurn(state); }
     for (const e of all) {
-      if (e.gone || e.transform.pos[2] >= state.seatFloor) continue;
+      if (e.gone) continue;
       const n = seatN(e);
-      if (n === 1 && !state.seatLives) continue;
+      let down = false;
+      if ((n > 1 || state.seatLives || state.turnOf) && e.downed && !state.seatDownsLevel) {
+        if (e.seatDownAt == null) e.seatDownAt = state.time;
+        down = state.time - e.seatDownAt >= SEAT_DOWN_HOLD;
+      }
+      if (!down && e.transform.pos[2] >= state.seatFloor) continue;
+      if (n === 1 && !state.seatLives && !state.turnOf) continue;
+      const turn = !!state.turnOf && e.id === state.pilotId;
       if (state.seatLives) {
         const k = state.seatPool === 'shared' ? 'shared' : n;
         state.seatLives[k] = Math.max(0, (state.seatLives[k] ?? 0) - 1);
-        if (!state.seatLives[k]) {
+        if (!state.seatLives[k] && turn) state.seatOut[n] = true;   // (turns: the seat is out, the body goes on to the next)
+        else if (!state.seatLives[k]) {
           for (const o of state.seatPool === 'shared' ? all : [e]) { state.seatOut[seatN(o)] = true; o.gone = true; }
           if (!all.some((o) => !o.gone && o.rule === o.pilotRule)) state.seatsOver = true;
           continue;
@@ -555,12 +610,20 @@ export function buildRulesBasic(E) {
       const at = to ? to.transform.pos : null, home = state.seatHome && state.seatHome[e.id];
       e.transform.pos = at ? [at[0], at[1], at[2] + 1] : home ? home.slice() : [e.transform.pos[0], e.transform.pos[1], 0];
       if (e.vel) e.vel = [0, 0, 0];
+      if (down) {
+        // up again: its hp whole, the collapse let go (combat-match.js respawnEntity's reset, where it stands)
+        if (Number.isFinite(e.hpMax)) e.body.hp = e.hpMax;
+        if (Number.isFinite(e.poiseMax)) e.poise = e.poiseMax;
+        e.downed = false; e.castDown = false; e.seatDownAt = null; e.staggerT = null; e.downPauseT = null; e.reactionEnded = false;
+        e.locomotion = 'forward'; e.moving = false; e.gaitPhase = 0;
+      }
+      if (turn) passTurn(state);   // (turns: the body back, the next seat's turn)
     }
   });
 
   E.registerWorldPass('group-leash', (state) => {
     const cam = state.camera, r = cam && cam.rule;
-    if (!state.seatOf || !r || !GROUP_DIST[r.type]) return;
+    if (!state.seatOf || state.splitView || !r || !GROUP_DIST[r.type]) return;
     const world = { byId: state.byId, seatOf: state.seatOf, pilotId: state.pilotId };
     const G = groupFrame(r, world, r.dist ?? GROUP_DIST[r.type]);
     if (!G) return;

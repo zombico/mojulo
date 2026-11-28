@@ -95,6 +95,39 @@ export const FACE_SEX_WEIGHTS = Object.freeze({
   female: { brows: { thick: 0.3, straight: 0.5, arched: 1.6 } },
 });
 /**
+ * REALISTIC LAWS 19, a woman's face read as a woman's (the operator's eyes, 2026-11-25: the female pole and its rolls read
+ * masculine): POLE_19, the female pole moved over RELATION_POLES' (larger, wider eyes; a smaller, finer nose; a
+ * narrower jaw with its corner higher and a slimmer masseter; a smaller, softer chin; a flatter brow ridge; fuller lips
+ * and cheeks); FACE_SEX_WEIGHTS_19, a woman's bold shapes rarer as a man's refined ones are (a square outline, a strong
+ * chin, a deep-set eye, a heavy brow, a classical nose) and her refined ones likelier; FACE_SEX_LEAN, her character's roll
+ * centred soft and delicate, its spread still reaching the plane's far side. A face minted under laws 1 to 18 composes
+ * as it did.
+ */
+export const POLE_19 = Object.freeze({
+  female: Object.freeze({
+    // the eyes larger (wider), the outer corner a touch higher; their opening kept (a taller one, 0.054, stretched the lid's
+    // roll past its lines on a blink: hero-lid-roll.test.js)
+    fifths: 0.242, canthalTilt: 0.013,
+    // the nose smaller and finer, less projected, its root a little lower
+    noseSize: -0.18, noseProjection: 0.25, nasalIndex: 0.52, dorsum: -0.45, nasionDrop: 0.064,
+    // the jaw narrower, its corner higher, its muscle slimmer; the chin smaller and softer; the lower face shorter
+    jaw: 0.58, gonionDrop: -0.014, masseter: -0.25, chinWidth: -0.13, chinRound: -0.15, third: 0.275,
+    // the brow ridge flatter; the lips fuller, not pushed forward; the lower cheek less bowed (no bulge over a finer jaw)
+    browProjection: 0.009, lipFullness: 1.62, lipProjection: 0.024, upperVermilion: 0.047, lowerCheek: 0.35,
+  }),
+  male: Object.freeze({}),
+});
+/** the wave's tune solved for POLE_19's female pole (head-relational.js solveTune): what a laws-19 face wears when it carries
+ * no fit of its own, as an older face wears its pole's (hero-relational-head.js HEAD_TUNES) */
+export const POLE_19_TUNE = Object.freeze({
+  female: Object.freeze({ eu: 0.00763, zy: 0.033848, go: 0.08, op: 0.010467, g: 0.031696, gn: 0.016973, n: -0.013304, sn: 0.03, prn: -0.014087, al: 0.005037, mod: -0.08 }),
+});
+export const FACE_SEX_WEIGHTS_19 = Object.freeze({
+  ...FACE_SEX_WEIGHTS,
+  female: { outline: { square: 0.25, heart: 1.5, round: 1.2 }, chin: { strong: 0.2, soft: 1.3, heart: 1.3 }, eyes: { deep: 0.35, large: 1.6, almond: 1.2 }, brows: { thick: 0.35, arched: 1.6, thin: 1.3 }, nose: { classical: 0.45, button: 1.4, fine: 1.3 }, cheeks: { sculpted: 0.7, apple: 1.4 } },
+});
+export const FACE_SEX_LEAN = Object.freeze({ female: Object.freeze({ at: [-0.35, -0.4], spread: 0.65 }), male: null });
+/**
  * THE PROPORTIONS — what differs person to person whatever the character: the skull's length and breadth, the vault's
  * height (the face's share of the head: a smaller share, a taller skull), the face's and the jaw's widths, the mouth's
  * width, the eyes' spacing, height, size and tilt. Each rolled about the face's own value within ± its reach, the mean of two dice (the middle likelier than
@@ -616,7 +649,7 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
  * is the seed's) } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default, age = null, want = null } = {}) {
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default, age = null, want = null, laws = 1 } = {}) {
   for (const [f, name] of Object.entries(want || {})) if (!FACE_SHAPES[f]?.[name]) throw new Error(FACE_SHAPES[f] ? `face: want.${f} is one of ${Object.keys(FACE_SHAPES[f]).join(', ')}` : `face: want names a feature (${FACE_FEATURES.join(', ')})`);
   if (age !== null && !(age >= FACE_AGE.range[0] && age <= FACE_AGE.range[1])) throw new Error(`face: age ${age} (years, ${FACE_AGE.range.join(' … ')}; the roll is the person at ${FACE_AGE.prime})`);
   if (!(beauty >= 0 && beauty <= 1)) throw new Error('face: beauty 0 … 1 (0 every roll at its full reach; 1 drawn to the population\'s mean, the asymmetry slight)');
@@ -628,7 +661,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
     let r = b() * sum;
     const sub = names.find((n) => (r -= B.blend[n]) <= 0) || names.at(-1);
-    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty, age, want }), blend: bucket };
+    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty, age, want, laws }), blend: bucket };
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
   const own = B, mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
@@ -637,10 +670,12 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   if (hybrid) B = hybrid.bucket;
   if (accent !== undefined && accent !== false && !FACE_SHAPES[accent]) throw new Error(`face: accent is false or one of ${FACE_FEATURES.join(', ')}`);
   const d = streamOf(seed, 'face-compose', `${bucket}/${sex}`), roll = () => d() * 2 - 1;
-  const at = character ? character.map((v) => Math.max(-1, Math.min(1, v))) : [roll(), roll()];
+  // (realistic laws 19: a woman's character rolled leaning soft and delicate, FACE_SEX_LEAN, the whole plane still reached)
+  const lean = laws >= 19 ? FACE_SEX_LEAN[sex] : null;
+  const at = character ? character.map((v) => Math.max(-1, Math.min(1, v))) : lean ? [roll(), roll()].map((v, i) => Math.max(-1, Math.min(1, lean.at[i] + lean.spread * v))) : [roll(), roll()];
   const acc = accent !== undefined ? accent : d() < ACCENT.chance ? FACE_FEATURES[Math.floor(d() * FACE_FEATURES.length) % FACE_FEATURES.length] : false;
   const pick = (feature, far) => {
-    const shapes = Object.entries(FACE_SHAPES[feature]), wt = B.weights[feature] || {}, sw = FACE_SEX_WEIGHTS[sex]?.[feature] || {};
+    const shapes = Object.entries(FACE_SHAPES[feature]), wt = B.weights[feature] || {}, sw = (laws >= 19 ? FACE_SEX_WEIGHTS_19 : FACE_SEX_WEIGHTS)[sex]?.[feature] || {};
     const w = shapes.map(([name, s]) => {
       const dd = Math.hypot(s.at[0] - at[0], s.at[1] - at[1]), near = Math.exp(-(dd * dd) / (REACH * REACH));
       return (far ? (dd >= ACCENT.far ? 1 : 0) : near + 1e-6) * (wt[name] ?? 1) * (sw[name] ?? 1);
@@ -651,7 +686,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     for (let i = 0; i < shapes.length; i++) { r -= w[i]; if (r <= 0) return shapes[i][0]; }
     return shapes.at(-1)[0];
   };
-  const base = { ...RELATIONS, ...RELATION_POLES[sex] }, off = { ...(B.base || {}) }, picks = {}, eyes = {};
+  const base = { ...RELATIONS, ...RELATION_POLES[sex], ...(laws >= 19 ? POLE_19[sex] : {}) }, off = { ...(B.base || {}) }, picks = {}, eyes = {};
   let brows = null;
   for (const f of FACE_FEATURES) {
     const rolled = pick(f, f === acc), name = want?.[f] ?? rolled, k = (FACE_SPREAD[0] + d() * (FACE_SPREAD[1] - FACE_SPREAD[0])) * (1 - FACE_BEAUTY.shapes * beauty), S = FACE_SHAPES[f][name];

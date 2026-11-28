@@ -269,7 +269,21 @@ ${cfg.landSun ? `  // (and whenever the land asks for its sun's map again, its t
   if (window.__formSun && window.__formSun.shadow) window.__formSun.shadow.needsUpdate = true;` : ''}${A ? `
   __csL.shadow.autoUpdate = false; __csL.shadow.needsUpdate = false;   // (this frame its map would hold the static world)` : ''}
   __mojLight.hourMaps++;
-};` : `
+};${cfg.whole ? `
+// (WHOLE: the hour's map holds every static solid, shown or not. A page shows its street's kit by tiles near the eye
+// (its trees, posts, parked cars), set in the scene's onBeforeRender, which runs before the shadow maps are drawn: on the
+// frame the hour's map is drawn they are all shown, and hidden again after it, so the static world casts everywhere and
+// not only round the spot the page opened on)
+const __hrBR = scene.onBeforeRender, __hrAR = scene.onAfterRender;
+let __hrShown = null;
+scene.onBeforeRender = function (rd, sc, cam, rt) {
+  __hrBR.call(this, rd, sc, cam, rt);
+  if (__hrArmed && !__hrShown) { __hrShown = []; for (const o of __csStatic) if (!o.visible) { o.visible = true; __hrShown.push(o); } }
+};
+scene.onAfterRender = function (rd, sc, cam, rt) {
+  __hrAR.call(this, rd, sc, cam, rt);
+  if (__hrShown) { for (const o of __hrShown) o.visible = false; __hrShown = null; }
+};` : ''}` : `
 const __mojHourPass = () => { __mojLight.frames++;${A ? ' __csSteer();' : ''}${A && cfg.formLand ? ' if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture; __csFormSweep();' : ''} };`}
 // the receive patch, chained over the material's own: project the fragment into each map (four taps of hardware PCF)
 // and darken by its sun share (aSun, where the world bakes its sun) or the cast's alpha

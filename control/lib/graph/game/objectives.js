@@ -10,6 +10,11 @@
  *   man      a clear with a mounted gun to do it with (`gun`, the pilot's swap takes it): met as a clear is
  *   hold     still there when `seconds` have run, while its `waves` are woken one every `every` seconds (the first
  *            after a breath); what still stands when the clock runs out is left standing
+ *   act      do a thing the page says was done (`on`: the bus event it raises, e.g. the guide's `lesson:<fact>` as a
+ *            lesson's control is done): met when it comes while the task is in hand
+ *   scan     stay inside a ring (`at`, `radius`) for `seconds` while a readout fills: its clock runs only inside the
+ *            ring, keeping what it had (`total`) when the pilot steps out; met, what it found (`found`) is said as a
+ *            banner and as an event (`objective:found { task, text }`) a script can answer
  *
  * A flight's tasks (a lesson, a stage, a sortie: gameworld/flight-goal.js lays them), each in three dimensions:
  *   gates    fly through its `gates` ([{ at, radius }]) in order; each passed is said (`objective:gate`)
@@ -28,15 +33,26 @@
  * sealed puts a body that walks into it back (`back`), as the gauntlet's does.
  *
  * Params:
- *   { id?: 'obj', tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
- *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive? }] }
+ *   { id?: 'obj', quiet?, tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
+ *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive?, pause?, ops? }] }
+ *   pause  seconds after the one before is met that it begins (a beat let breathe: what was found said, a line spoken,
+ *          before the next is set); a pause on the first, after the level starts. Not met before it has begun: a place
+ *          reached in the pause is met as it begins
+ *   ops    the cast's ops issued as it begins, once ([{ op, who, … }], worlds/controllable/cast.js: a group that comes with
+ *          it and is not its to down, `spawn`; an ally let go of its post): what its begin sets moving besides its own
+ *   retry  true | { after?, say? }: the player down while a task is in hand (RETRY): the screen faded, the player stood
+ *          up whole where it fell after `after` s and the task in hand begun again (a clear's foes up and whole, its
+ *          `again` ops: [{ op, who, … }], a foe put back where it stood), the level going on; with it, a fall is no loss
+ *   quiet  no count of the tasks met on the HUD (a level whose own HUD says what it needs): the task in hand's words, and
+ *          a task's own clock while it is in hand, are all it shows
  *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section in an open
  *          place): walking into it begins the task (none: it begins as the one
  *          before is met; the first begins as the level starts)
  *   door   the way on, sealed until the task is met
  *   planar false: a take or a reach met at its height (a place on a storey: never from the floor over or under it)
  *
- *   objectiveNames(id)      → { task (the var: the index in hand, the count when all are met), seal(k), left(k), downs(k),
+ *   objectiveNames(id)      → { task (the var: the index in hand, the count when all are met), begun(k) (1 once the task
+ *                             k has begun), seal(k), left(k), downs(k),
  *                             felled, time, slip, sink } the names it gives its things (felled: every foe of its downed;
  *                             time: seconds; slip: seconds out of a band in hand; sink: the landing's sink, m/s; say:
  *                             the words of the task in hand)
@@ -52,14 +68,20 @@
  *
  * Pure, no dice.
  */
+import { SCREEN_VARS } from '../playscape/ui/cues.js';
+
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
+/** A RETRY: the player down while a task is in hand, the screen faded for `after` s, then the player stood up whole
+ *  where it fell and the task in hand begun again (its foes up and whole, its own `again` ops), the level going on from
+ *  there; `say` shown as it comes back. */
+export const RETRY = Object.freeze({ after: 2, back: 0.5, say: 'Restart at Checkpoint' });
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect']);
+export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect', 'scan', 'act']);
 /** The facts a `band` holds (worlds/event-bus.js gauges), in the units the flight HUD shows. */
 export const BAND_FACTS = Object.freeze(['alt', 'agl', 'speed', 'climb', 'bank', 'heading']);
 const isRange = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => x === null || Number.isFinite(x)) && !(v[0] === null && v[1] === null);
 
-export const objectiveNames = (id) => ({ task: `__${id}`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time`, slip: `__${id}_slip`, sink: `__${id}_sink`, say: `__${id}_say` });
+export const objectiveNames = (id) => ({ task: `__${id}`, begun: (k) => `__${id}_in${k}`, retries: `__${id}_retries`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time`, slip: `__${id}_slip`, sink: `__${id}_sink`, say: `__${id}_say` });
 export const objectivesOf = (mechanics) => (Array.isArray(mechanics) ? mechanics.find((m) => m && m.kind === 'objectives') ?? null : null);
 
 export function lowerObjectives(p, ctx) {
@@ -78,6 +100,12 @@ export function lowerObjectives(p, ctx) {
     if (!OBJECTIVE_KINDS.includes(t.kind)) fail(`${at}.kind is one of ${OBJECTIVE_KINDS.join(', ')}`);
     if (typeof t.text !== 'string' || !t.text) fail(`${at}.text is what the player is told to do`);
     if ((t.kind === 'take' || t.kind === 'reach') && !isVec(t.at)) fail(`${at}.at is [x, y, z]: where a ${t.kind} is met`);
+    if (t.kind === 'scan') {
+      if (!isVec(t.at)) fail(`${at}.at is [x, y, z]: the ring's middle`);
+      if (!(Number.isFinite(t.radius) && t.radius > 0)) fail(`${at}.radius is the ring's, metres`);
+      if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long the scan takes inside the ring`);
+      if (t.found !== undefined && !(typeof t.found === 'string' && t.found)) fail(`${at}.found is what the scan found, in words`);
+    }
     if (t.kind === 'clear' || t.kind === 'man') { if (!Array.isArray(t.foes) || !t.foes.length || t.foes.some((f) => typeof f !== 'string' || !f)) fail(`${at}.foes is the ids to be downed, at least one`); }
     if (t.kind === 'man' && !(typeof t.gun === 'string' && t.gun)) fail(`${at}.gun is the id of the gun it is done with`);
     if (t.kind === 'hold') {
@@ -98,6 +126,7 @@ export function lowerObjectives(p, ctx) {
       if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long the band is held, above 0`);
       if (t.total !== undefined && typeof t.total !== 'boolean') fail(`${at}.total is true (the seconds add up) or false (held in one go: the default)`);
     }
+    if (t.kind === 'act' && !(typeof t.on === 'string' && /^[a-z][a-z0-9:_-]{0,63}$/i.test(t.on))) fail(`${at}.on is the bus event that meets it (the page's: a lesson done is lesson:<fact>)`);
     if (t.kind === 'protect') {
       if (!Array.isArray(t.who) || !t.who.length || t.who.some((w) => typeof w !== 'string' || !w)) fail(`${at}.who is the ids kept up, at least one`);
       const by = (Number.isFinite(t.seconds) && t.seconds > 0 ? 1 : 0) + (t.arrive !== undefined ? 1 : 0);
@@ -107,13 +136,18 @@ export function lowerObjectives(p, ctx) {
     for (const f of [...(t.foes ?? []), ...(t.waves ?? []).flat()]) { if (woken.has(f)) fail(`${at}: '${f}' is woken twice (a foe is woken once: name another)`); woken.add(f); }
     if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one)`);
     if (t.door !== undefined && !(t.door && isVec(t.door.at) && isVec(t.door.back))) fail(`${at}.door is { at, back }: the way on and where a body is put back while it is sealed`);
+    if (t.pause !== undefined && !(Number.isFinite(t.pause) && t.pause > 0 && t.pause <= 30)) fail(`${at}.pause is the seconds after the one before is met that it begins, up to 30`);
+    if (t.pause !== undefined && t.zone !== undefined) fail(`${at}: a task begun by its section (zone) takes no pause`);
+    if (t.again !== undefined && !(Array.isArray(t.again) && t.again.every((o) => o && typeof o === 'object' && typeof o.op === 'string' && typeof o.who === 'string' && o.who))) fail(`${at}.again is [{ op, who, … }]: the cast's ops as it is begun again after a retry`);
+    if (t.ops !== undefined && !(Array.isArray(t.ops) && t.ops.length && t.ops.every((o) => o && typeof o === 'object' && typeof o.op === 'string' && /^[a-z]{2,16}$/.test(o.op) && typeof o.who === 'string' && o.who))) fail(`${at}.ops is [{ op, who, … }]: the cast's ops issued as it begins (a body called in, an ally let go)`);
   });
   const N = T.length, names = objectiveNames(id), cur = names.task, pre = `__${id}`;
   const beginE = (k) => `${pre}:begin:${k}`, metE = (k) => `${pre}:met:${k}`, advE = (k) => `${pre}:adv:${k}`;
   // (what the level keeps for its result: the tasks met, the foes downed, the seconds it took: the clock runs until the
   // last task is met)
   const downs = `${pre}_downs`, time = `${pre}_time`;
-  const world = { vars: { [cur]: 0, [downs]: 0, [time]: 0 }, reactions: [], watches: [], sequences: [], timers: [{ every: 1, emit: { type: `${pre}:sec` }, while: { var: cur, lt: N } }], hud: [], entities: [], sources: [], initial: [{ type: beginE(0) }] };
+  const world = { vars: { [cur]: 0, [downs]: 0, [time]: 0 }, reactions: [], watches: [], sequences: [], timers: [{ every: 1, emit: { type: `${pre}:sec` }, while: { var: cur, lt: N } }], hud: [], entities: [], sources: [], initial: [{ type: T[0].pause ? `${pre}:start` : beginE(0) }] };
+  if (T[0].pause) world.sequences.push({ id: `${pre}:pause:0`, trigger: { on: `${pre}:start` }, steps: [{ await: { timer: T[0].pause } }, { do: 'emit', type: beginE(0) }] });
   world.reactions.push({ on: `${pre}:sec`, do: 'inc', var: time, by: 1 });
   for (const f of woken) world.reactions.push({ on: 'down', match: { entity: f }, do: 'inc', var: downs, by: 1 });
   T.forEach((t, k) => {
@@ -129,12 +163,21 @@ export function lowerObjectives(p, ctx) {
     world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'emit', type: 'objective:begin', n: k + 1, of: N, task: t.id, text: t.text });
     // (its own foes are woken before the mark is set: every reaction of the begin sees it unbegun)
     if (t.kind === 'clear' || t.kind === 'man') for (const f of t.foes) world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'ctrl', op: 'spawn', who: f, fresh: true });
+    // (its ops: the cast told as it begins, once: a group that comes with it uncounted, an ally let go)
+    for (const o of t.ops ?? []) world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, ...o, do: 'ctrl' });
     if (t.kind === 'take' || t.kind === 'reach') {
       const zone = `${id}_at_${k}`;
       // (planar unless the task says otherwise: a place on a storey, read at the body's own height, is not met from the
       // floor over or under it)
       world.sources.push({ type: 'zone', zone, at: t.at.slice(), radius: Number.isFinite(t.radius) ? t.radius : t.kind === 'take' ? 1.4 : 2, planar: t.planar !== false, watch: ctx.player });
       world.reactions.push({ on: 'enter', match: { zone }, if: mine, do: 'emit', type: metE(k) });
+      // (paused: the place may be reached before it begins; inside it then, it is met as it begins)
+      if (t.pause) {
+        const there = `${pre}_there${k}`;
+        world.vars[there] = 0;
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: there, to: 1 }, { on: 'exit', match: { zone }, do: 'set', var: there, to: 0 });
+        world.reactions.push({ on: beginE(k), if: { var: there, eq: 1 }, do: 'emit', type: metE(k) });
+      }
     } else if (t.kind === 'clear' || t.kind === 'man') {
       const d = names.downs(k);
       world.vars[d] = 0;
@@ -195,6 +238,32 @@ export function lowerObjectives(p, ctx) {
       world.vars[`ui-${shown}`] = 0;
       world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
       world.hud.push({ var: held, label: 'Held', as: 'counter', max: Math.ceil(t.seconds), id: shown });
+    } else if (t.kind === 'scan') {
+      // inside its ring the clock runs, a second a tick, while the task is in hand; out of it the clock holds what it had
+      const zone = `${id}_scan_${k}`, inR = `${pre}_scanin${k}`, held = `${pre}_held${k}`, on = `${pre}_on${k}`, tick = `${pre}:tick:${k}`;
+      world.vars[inR] = 0; world.vars[held] = 0; world.vars[on] = 0;
+      world.sources.push({ type: 'zone', zone, at: t.at.slice(), radius: t.radius, planar: t.planar !== false, watch: ctx.player });
+      world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: inR, to: 1 }, { on: 'exit', match: { zone }, do: 'set', var: inR, to: 0 });
+      world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'set', var: on, to: 1 });
+      world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
+      world.reactions.push({ on: tick, if: { var: inR, eq: 1 }, do: 'inc', var: held, by: 1 });
+      if (t.total === false) world.reactions.push({ on: tick, if: { var: inR, eq: 0 }, do: 'set', var: held, to: 0 });
+      world.watches.push({ type: metE(k), when: { var: held, gte: Math.ceil(t.seconds) } });
+      world.reactions.push({ on: advE(k), do: 'set', var: on, to: 0 });
+      // (its readout on the HUD only while it is in hand; what it found said as it is met)
+      const shown = `${id}-scan-${k}`;
+      world.vars[`ui-${shown}`] = 0;
+      world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
+      world.hud.push({ var: held, label: 'Scan', as: 'counter', max: Math.ceil(t.seconds), id: shown });
+      if (t.found) {
+        world.reactions.push({ on: advE(k), do: 'emit', type: 'objective:found', task: t.id, text: t.found });
+        // (and by its task in its type, objective:found:<task>: what reads the bus's log, which keeps types alone, a find's reveal)
+        world.reactions.push({ on: advE(k), do: 'emit', type: `objective:found:${t.id}` });
+        world.hud.push({ on: `${pre}:adv:${k}`, text: t.found, ttl: 4 });
+      }
+    } else if (t.kind === 'act') {
+      // (met as the page says it was done, while it is the task in hand)
+      world.reactions.push({ on: t.on, if: mine, do: 'emit', type: metE(k) });
     } else if (t.kind === 'protect') {
       // one of them down while the task is still to be met (in hand, or before it) loses the level
       for (const w of t.who) world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, lte: k }, do: 'emit', type: 'objectives:failed', task: t.id });
@@ -220,7 +289,11 @@ export function lowerObjectives(p, ctx) {
       world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
       world.reactions.push({ on: tick, do: 'inc', var: left, by: -1, min: 0 });
       world.watches.push({ type: metE(k), when: { var: left, lte: 0 } });
-      world.hud.push({ var: left, label: 'Hold', as: 'counter' });
+      // (its clock on the HUD only while it is in hand)
+      const shown = `${id}-hold-${k}`;
+      world.vars[`ui-${shown}`] = 0;
+      world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
+      world.hud.push({ var: left, label: 'Hold', as: 'counter', id: shown });
       if (waves.length) {
         world.sequences.push({ id: `${pre}:waves:${k}`, trigger: { on: 'objective:begin', task: t.id }, steps: waves.flatMap((_, w) => [{ await: { timer: w ? every : 1.5 } }, { do: 'emit', type: `${pre}:wave:${k}:${w}` }]) });
         waves.forEach((W, w) => {
@@ -233,10 +306,16 @@ export function lowerObjectives(p, ctx) {
     }
     world.reactions.push({ on: beginE(k), do: 'set', var: begun, to: 1 });
     // met while it is the one in hand: handed over (the guard read once, the hand-over its own event)
-    world.reactions.push({ on: metE(k), if: mine, do: 'emit', type: advE(k) });
+    // (a paused task is met only once it has begun: the guard read in two steps, the bus having no conjunctions)
+    if (t.pause) world.reactions.push({ on: metE(k), if: { var: begun, eq: 1 }, do: 'emit', type: `${pre}:met2:${k}` }, { on: `${pre}:met2:${k}`, if: mine, do: 'emit', type: advE(k) });
+    else world.reactions.push({ on: metE(k), if: mine, do: 'emit', type: advE(k) });
     world.reactions.push({ on: advE(k), do: 'set', var: cur, to: k + 1 }, { on: advE(k), do: 'emit', type: 'objective:done', n: k + 1, of: N, task: t.id });
-    if (k + 1 < N) { if (!T[k + 1].zone) world.reactions.push({ on: advE(k), do: 'emit', type: beginE(k + 1) }); }
-    else world.reactions.push({ on: advE(k), do: 'emit', type: 'objectives:done' });
+    // (the next begun as this is met, or its pause after)
+    if (k + 1 < N && !T[k + 1].zone) {
+      if (T[k + 1].pause) world.sequences.push({ id: `${pre}:pause:${k + 1}`, trigger: { on: advE(k) }, steps: [{ await: { timer: T[k + 1].pause } }, { do: 'emit', type: beginE(k + 1) }] });
+      else world.reactions.push({ on: advE(k), do: 'emit', type: beginE(k + 1) });
+    }
+    if (k + 1 >= N) world.reactions.push({ on: advE(k), do: 'emit', type: 'objectives:done' });
     // the way on: sealed until the task is met; walked into sealed, the body is put back
     if (t.door) {
       const seal = names.seal(k), zone = `${id}_door_${k}`;
@@ -256,14 +335,31 @@ export function lowerObjectives(p, ctx) {
   const line = p.say === 'line', say = Number.isFinite(p.say) && p.say > 0 ? p.say : 3;
   world.vars[names.say] = '';
   world.reactions.push({ on: 'objective:begin', do: 'set', var: names.say, to: 'event.text' });
-  world.hud.unshift({ var: cur, label: 'Objective', as: 'counter', max: N }, line ? { var: names.say, label: '', as: 'text', slot: 'top' } : { on: 'objective:begin', text: `{${names.say}}`, ttl: say }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
+  if (p.quiet !== undefined && typeof p.quiet !== 'boolean') fail('quiet is true: no count of the tasks met on the HUD');
+  world.hud.unshift(...(p.quiet ? [] : [{ var: cur, label: 'Objective', as: 'counter', max: N }]), line ? { var: names.say, label: '', as: 'text', slot: 'top' } : { on: 'objective:begin', text: `{${names.say}}`, ttl: say }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
+  // (a retry: the player down while a task is in hand begins it again, RETRY; the level is lost only where nothing retries)
+  if (p.retry !== undefined) {
+    if (p.retry !== true && !(p.retry && typeof p.retry === 'object' && (p.retry.after === undefined || (Number.isFinite(p.retry.after) && p.retry.after > 0 && p.retry.after <= 10)) && (p.retry.say === undefined || (typeof p.retry.say === 'string' && p.retry.say)))) fail('retry is true, or { after?: seconds (up to 10), say? }: the player down begins the task in hand again');
+    if (!ctx.player) fail('retry needs the player: the one whose fall begins the task again');
+    const R = { ...RETRY, ...(p.retry === true ? {} : p.retry) }, lost = `${pre}:lost`, again = `${pre}:again`, V = SCREEN_VARS;
+    world.vars[names.retries] = 0; world.vars[V.fade] ??= 0;
+    world.reactions.push({ on: 'down', match: { entity: ctx.player }, if: { var: cur, lt: N }, do: 'emit', type: lost });
+    world.sequences.push({ id: `${pre}:retry`, trigger: { on: lost }, steps: [{ do: 'set', var: V.fade, to: 1 }, { await: { timer: R.after } }, { do: 'emit', type: again }, { await: { timer: R.back } }, { do: 'set', var: V.fade, to: 0 }] });
+    world.reactions.push({ on: again, do: 'inc', var: names.retries, by: 1 }, { on: again, do: 'ctrl', op: 'spawn', who: ctx.player, fresh: true });
+    T.forEach((t, k) => {
+      for (const f of t.foes ?? []) world.reactions.push({ on: again, if: { var: cur, eq: k }, do: 'ctrl', op: 'spawn', who: f, fresh: true });
+      for (const o of t.again ?? []) world.reactions.push({ on: again, if: { var: cur, eq: k }, ...o, do: 'ctrl' });
+    });
+    world.hud.push({ on: again, text: R.say, ttl: 2.4 });
+  }
   for (const ch of ['watches', 'sequences', 'timers', 'entities', 'sources']) if (!world[ch].length) delete world[ch];
   const banded = T.some((t) => t.kind === 'band'), landed = T.some((t) => t.kind === 'land');
   if (banded) world.vars[names.slip] = 0;
   if (landed) world.vars[names.sink] = 0;
   // (foes down kept only where a task has foes: a lesson's result says nothing of them)
   const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, ...(woken.size ? [{ var: downs, label: 'Foes down', best: 'high' }] : []), { var: time, label: 'Time', best: 'low', unit: 's' },
-    ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : [])];
+    ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : []),
+    ...(p.retry !== undefined ? [{ var: names.retries, label: 'Retries', best: 'low' }] : [])];
   const fails = T.some((t) => t.kind === 'protect');
   if (fails) world.hud.push({ on: 'objectives:failed', text: 'Failed', as: 'toast', ttl: 2 });
   if (T.some((t) => t.kind === 'gates')) world.hud.push({ on: 'objective:gate', text: 'gate {event.n} of {event.of}', as: 'toast', ttl: 1 });

@@ -29,6 +29,8 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { deskCast } from './temp-agency.js';
+import { CLERK_DESK } from './municipal.js';
 import { readFlightGoal, defaultFlightGoal, flightGoalMechanics, flightGoalCast, flightLegend } from './flight-goal.js';
 import { readOperation, operationMechanics, operationCast } from './frame-goal.js';
 import { operationBriefingData } from '../campaign/operation-brief.js';
@@ -89,7 +91,9 @@ import { gaitRouted, foeGaitOf, FOE_GAITS, familyOf } from './foe-families.js';
 import { fieldedIds, bestiaryOf, foeLook, foeThrowOf, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDirected, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
+import { shiftRoles, issuedOf, operatedOf } from './jobsified.js';
 import { peopleExtra } from './people.js';
+import { crowdSets, peopleOf } from '../geocity/crowd.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
 import { vehicleRule, VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { FLEET } from '../roads/fleet.js';
@@ -252,8 +256,9 @@ const sheetOf = (G, s, score = null) => {
   const city = sheet ? citySounds(G, { manifest: s.manifest ?? null }) : null;
   if (city && audio) { audio.engine = city.engine; audio.ambience = city.ambience; audio.sfx = { ...audio.sfx, sheet: { ...audio.sfx.sheet, cues: { ...(audio.sfx.sheet.cues ?? {}), ...city.cues } } }; }
   // (and its score: ambient beats under its streets, a chase when the law or a fight comes: cue-sheet.js cityScore; a
-  // game that writes the level's cue, or a stage its own soundtrack, keeps its own)
-  const tune = city && audio && score && own?.soundtrack === undefined && G.music?.cues?.[`level:${s.level}`] === undefined ? cityScore(G, score.sheet) : null;
+  // game that writes the level's cue walks to it with the chase still over it; a level the game silences, or a stage
+  // with its own soundtrack, keeps its own)
+  const tune = city && audio && score && own?.soundtrack === undefined && G.music?.cues?.[`level:${s.level}`] !== false ? cityScore(G, score.sheet, s.level) : null;
   if (tune) Object.assign(audio, tune);
   return audio ? { audio } : {};
 };
@@ -605,13 +610,19 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null, talk: G.ui !== undefined ? 'box' : 'menu' }) : null;
     // (the cars its town or district parks, its hero's to get into, cars.js: a walked town's and district's stage)
-    const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra() : null;
+    // (and, where a driving job is given on it, its depot's vehicles of that job's fleet: jobsified.js)
+    const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra({ roles: shiftRoles(G.errands, s.level), issue: (ends) => issuedOf(ends, G.errands, s.level), operate: (ends) => operatedOf(ends, G.errands, s.level) }) : null;
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
     // (the people of its pavements, people.js: a district's; rolled by the world's keys, worn by its scene's walkers)
-    const people = s.section === 'geocity' ? peopleExtra(G) : null;
+    // (as many sixes of different people as its crowd rolls, geocity/crowd.js: a busy downtown two, a packed one three)
+    const geo = s.section === 'geocity' ? G.levels[s.level]?.geocity ?? {} : null;
+    const people = geo ? peopleExtra(G, { sets: crowdSets(geo), realistic: peopleOf(geo) === 'realistic', locale: geo.mix ?? null }) : null;
     // (a side map's boss in its last room: side-map/boss-cast.js)
     const sideBoss = s.section === 'sidemap' && G.levels[s.level]?.sidemap?.boss ? (ends) => sideMapBossCast(G, ends, { refs: bossRefs, ...(heroStature ? { stature: heroStature } : {}) }) : null;
-    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people, sideBoss);
+    // (an office tower's desk, temp-agency.js: its shift's round in the ground floor's office, reception's word)
+    // (City Hall's clerk's desk the same, its shift work orders, municipal.js)
+    const desk = s.desk ? (ends) => deskCast(G, s, ends) : s.clerk ? (ends) => deskCast(G, s, ends, CLERK_DESK) : null;
+    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people, sideBoss, desk);
     // (a stage with cars says its key: the same press gets in and out)
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit

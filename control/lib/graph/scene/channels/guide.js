@@ -1,5 +1,8 @@
 import { safeJson } from '../emit-util.js';
 
+// the facts a frame's lesson is done by (its state: rules-frame.js), beside the walk's move, look, jump and sprint
+const FRAME_FACTS = new Set(['boost', 'quick-boost', 'climb', 'assault-boost', 'lock']);
+
 // In-page script: THE GUIDE (level/guide.js, a sketched map's page): the level's INTRO and THE WAY ON, a beat at a time.
 // ONE THING AT A TIME, in one place at the top of the screen, by what the moment asks:
 //   a beat's line said on reaching it (`says`: a meet's words, a find's item), for a few seconds
@@ -17,13 +20,33 @@ import { safeJson } from '../emit-util.js';
 // controllable channel's), so it waits for it. Emitted only when the page has a guide: every other page byte-identical.
 // A guide that goes ROUND (`loop`: the step it returns to after its last, a standing job's pick-up: gameworld/city-guide.js)
 // one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
-// with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
+// with none of them is as it was, byte for byte. A guide with ROUNDS (`rounds`: [{ when, at, from?, end? }], a driving
+// job's, gameworld/city-guide.js) goes to a job's own steps (`at`) the moment it is taken on the phone (`when` rises),
+// wherever it stood, and a standing round goes back to its `from` after its last step (`end`, the step past it); none, no byte.
+// A step of MANY PLACES (`near`: [{ at, v }], a garbage round's piles) points the way to the nearest whose var is not yet
+// set, its light moved with it; none, no byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
+/** A scan's place on the ground (a step's `ring`): a disc laid ON the ground, following it (`rings` × `segs` points, each
+ *  set `lift` m over the ground under it: under a frame's feet, never through its legs, and drawn behind what stands on
+ *  it), its rim (`edge` of its radius wide, at `rim`) marking the place and its surface faintly lit (`rest`); stood in,
+ *  the whole surface glows, breathing over `period` s up to `glow`, brightest at its middle. */
+export const GUIDE_RING = Object.freeze({ color: '#ffd36b', lift: 0.25, rings: 12, segs: 56, edge: 0.06, rim: 0.55, rest: 0.08, glow: 0.42, period: 1.6 });
+
 export function guideScript(guide, { host = false } = {}) {
+  // (a scan's ring: emitted only where a step asks for one)
+  const rings = Array.isArray(guide.steps) && guide.steps.some((x) => x && x.ring);
+  // (a frame's lessons, gameworld/frame-goal.js FRAME_LESSONS: their facts read off the frame's own state, and a lesson
+  // that waits for its task, `when`; a guide with neither is as it was, byte for byte)
+  const L0 = Array.isArray(guide.lessons) ? guide.lessons : [];
+  const frameFacts = L0.some((l) => FRAME_FACTS.has(l.fact) || /^fire-/.test(l.fact || '')), waits = L0.some((l) => l.when);
+  // (STRICT: a lesson waits for the pilot to do it, however long, and no count of them is shown: a level that teaches
+  // its controls as it is played, the player getting each right before the next; absent, a lesson is let go after its
+  // patience and numbered, as it was)
+  const strict = guide.strict === true;
   return `
 // --- the guide: the level's intro and the way on, one thing at a time (level/guide.js) ---
 (function () {
-  const GD = ${safeJson(guide)};
+  const GD = ${safeJson(guide)};${rings ? ` const GR = ${JSON.stringify(GUIDE_RING)};` : ''}
   const host = (typeof wrap !== 'undefined' && wrap) || document.body;
   const sheet = document.createElement('style');
   sheet.textContent = '.moj-gd{position:absolute;left:50%;top:22px;transform:translateX(-50%);pointer-events:none;z-index:14;max-width:min(640px,86%);text-align:center;color:#fbf6e9;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 10px rgba(0,0,0,.6);transition:opacity .35s ease;font:600 17px/1.35 system-ui,sans-serif;letter-spacing:.3px}'
@@ -32,7 +55,9 @@ export function guideScript(guide, { host = false } = {}) {
     + '.moj-gd .cap{display:inline-block;min-width:1.6em;margin:0 4px;padding:2px 7px;border:1.5px solid rgba(251,246,233,.9);border-bottom-width:3px;border-radius:5px;font:700 14px/1.2 ui-monospace,Menlo,monospace;background:rgba(10,8,6,.35);text-shadow:none}'
     + '.moj-gd .kw{margin:0 14px 0 4px;letter-spacing:1px;text-transform:uppercase;font-size:14px}';
   document.head.appendChild(sheet);
-  const slot = document.createElement('div'); slot.className = 'moj-gd off'; host.appendChild(slot);
+  const slot = document.createElement('div'); slot.className = 'moj-gd off'; host.appendChild(slot);${Number.isFinite(guide.top) ? `
+  // (its line lower down, \`top\`: under a standing line of the level's own, the objectives')
+  slot.style.top = '${Math.round(guide.top)}px';` : ''}
   // (what is up, and its text: redrawn only when it changes)
   let shown = '', mode = '';
   // (what it says, as data: a HUD that has its own card lane draws it, hud-grammar.js, and this line stays down)
@@ -49,16 +74,57 @@ export function guideScript(guide, { host = false } = {}) {
   // (a lesson: read for LESSON.read seconds at least, done by its fact, let go after LESSON.patience)
   const LESSON = { read: 1.4, patience: 14, plain: 5, move: 3, look: 0.9, sprint: 0.6 };
   let li = 0, ls = null;
-  let k = 0, pillar = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
+  let k = 0, pillar = null, ringOn = null, ringDue = null, up = false, phase = GD.intro ? 'intro' : after, sayText = '', sayUntil = 0;
   const T3 = typeof THREE !== 'undefined' ? THREE : null, S3 = typeof scene !== 'undefined' ? scene : null;
   function plant() {
     if (!T3 || !S3) return;
-    if (pillar) { S3.remove(pillar); pillar = null; }
-    const s = GD.steps[k]; if (!s || s.fight) return;
+    if (pillar) { S3.remove(pillar); pillar = null; }${rings ? `
+    if (ringOn) { S3.remove(ringOn.g); ringOn = null; } ringDue = null; ringTries = 0;` : ''}
+    const s = GD.steps[k]; if (!s || s.fight) return;${rings ? `
+    // (a place held to be read, a scan's, \`ring\`: a disc laid on the ground, following it, under the frames' feet; its rim
+    // and a faint light at rest, the whole surface glowing while it is stood in: GUIDE_RING)
+    if (s.ring) ringDue = s;` : ''}
     pillar = new T3.Mesh(new T3.CylinderGeometry(0.5, 0.5, 60, 12, 1, true), new T3.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.28, depthWrite: false, side: T3.DoubleSide }));
     pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
     S3.add(pillar);
   }
+${rings ? `
+  // (laid once the land is: its heights read off the ground the frames walk on, there only once the ground answers under
+  // its middle; a page with no ground to ask, or one that never answers after RING_WAIT tries, lays it flat)
+  let ringTries = 0;
+  const RING_WAIT = 600;
+  function groundUp(s) {
+    const C = window.__mojCtrl || {}, G = C.groundAt || C.ground || null;
+    if (!G || ++ringTries > RING_WAIT) return true;
+    try { return Number.isFinite(G(s.at[0], s.at[1], s.at[2] + 80)); } catch (e) { return false; }
+  }
+  function layRing(s) {
+    {
+      const R = s.radius, NR = GR.rings, NS = GR.segs, pos = [], rr = [], idx = [];
+      const C = window.__mojCtrl || {}, G = C.groundAt || C.ground || null, gz = (x, y) => { try { const g = G ? G(x, y, s.at[2] + 80) : null; return Number.isFinite(g) ? g : s.at[2]; } catch (e) { return s.at[2]; } };
+      // (the heights read, then each the middle of it and its four neighbours: a lone boulder's top, read as the ground,
+      // drops back to the ground round it, so the disc lies on the ground and the rocks stand through it)
+      const xy = [[s.at[0], s.at[1]]], h = [];
+      for (let i = 1; i <= NR; i++) for (let j = 0; j < NS; j++) { const u = i / NR, a = (2 * Math.PI * j) / NS; xy.push([s.at[0] + Math.cos(a) * R * u, s.at[1] + Math.sin(a) * R * u]); }
+      for (const q of xy) h.push(gz(q[0], q[1]));
+      const at = (i, j) => (i <= 0 ? 0 : 1 + (Math.min(i, NR) - 1) * NS + (((j % NS) + NS) % NS));
+      const mid = (v) => v.sort((a, b) => a - b)[2];
+      const sm = h.map((z, n) => { if (!n) return z; const i = 1 + Math.floor((n - 1) / NS), j = (n - 1) % NS; return mid([z, h[at(i, j - 1)], h[at(i, j + 1)], h[at(i - 1, j)], h[at(i + 1, j)]]); });
+      xy.forEach((q, n) => { pos.push(q[0], q[1], sm[n] + GR.lift); rr.push(n ? 1 + 0 * n : 0); });
+      for (let n = 1; n < xy.length; n++) rr[n] = (1 + Math.floor((n - 1) / NS)) / NR;
+      for (let j = 0; j < NS; j++) idx.push(0, 1 + j, 1 + ((j + 1) % NS));
+      for (let i = 1; i < NR; i++) for (let j = 0; j < NS; j++) { const a = 1 + (i - 1) * NS + j, b = 1 + (i - 1) * NS + ((j + 1) % NS), c = a + NS, d = b + NS; idx.push(a, c, b, b, c, d); }
+      const geo = new T3.BufferGeometry();
+      geo.setAttribute('position', new T3.Float32BufferAttribute(pos, 3)); geo.setAttribute('r', new T3.Float32BufferAttribute(rr, 1)); geo.setIndex(idx);
+      const mat = new T3.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, side: T3.DoubleSide, blending: T3.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+        uniforms: { uColor: { value: new T3.Color(GR.color) }, uLit: { value: GR.rest }, uRim: { value: GR.rim }, uEdge: { value: GR.edge } },
+        // (the page's depth is logarithmic: the disc writes and tests it as the ground does, three's own chunks)
+        vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nattribute float r; varying float vR; void main() { vR = r; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\\n#include <logdepthbuf_vertex>\\n}',
+        fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uColor; uniform float uLit; uniform float uRim; uniform float uEdge; varying float vR; void main() {\\n#include <logdepthbuf_fragment>\\nfloat rim = smoothstep(1.0 - uEdge, 1.0 - uEdge * 0.35, vR) * (1.0 - smoothstep(0.985, 1.0, vR)); float fill = uLit * (1.0 - 0.55 * vR * vR); gl_FragColor = vec4(uColor, clamp(fill + rim * uRim, 0.0, 1.0)); }' });
+      const m = new T3.Mesh(geo, mat); m.raycast = function () {}; m.renderOrder = 2; S3.add(m);
+      ringOn = { g: m, mat };
+    }
+  }` : ''}
   // (the opening's seconds counted from when the world is up, not from the page's parse)
   function begin() { up = true; plant(); if (phase === 'intro') setTimeout(() => { phase = after; if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }, 6500); else if (phase === 'keys0') setTimeout(() => { phase = 'play'; }, 5000); }
   // (a lesson watched: what the pilot has done since it came up, read off its own state and the camera's)
@@ -73,8 +139,18 @@ export function guideScript(guide, { host = false } = {}) {
     if (p.grounded === false && p.vel && p.vel[2] > 0.5) ls.air = true;
     ls.last = now; ls.x = x; ls.y = y; ls.yaw = yaw;
     const age = (now - ls.t0) / 1000;
-    const done = L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
-    if ((done && age >= LESSON.read) || age >= LESSON.patience) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
+${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a charge begun, the climb held, the sight locked, a slot's
+    // rounds gone; its jump off the ground by its own state)
+    if (!ls.shots) ls.shots = Object.fromEntries(Object.entries((p.rule && p.rule.slots) || {}).map(([k, w]) => [k, (w && w.st && w.st.shots) || 0]));
+    if (p.boosting) ls.boost = (ls.boost || 0) + dt;
+    if (p.ascending) ls.climb = (ls.climb || 0) + dt;
+    if (p.airborne && p.v && p.v[2] > 0.5) ls.air = true;
+    const fired = (k) => { const w = p.rule && p.rule.slots && p.rule.slots[k]; return !!(w && w.st && (w.st.shots || 0) > (ls.shots[k] || 0)); };
+    const frameDone = L.fact === 'boost' ? (ls.boost || 0) >= 0.6 : L.fact === 'quick-boost' ? (p.qbT || 0) > 0 : L.fact === 'climb' ? (ls.climb || 0) >= 0.5
+      : L.fact === 'assault-boost' ? !!p.ab : L.fact === 'lock' ? !!p.locked : /^fire-/.test(L.fact || '') ? fired(L.fact.slice(5)) : null;
+` : ''}    const done = ${frameFacts ? 'frameDone !== null ? frameDone : ' : ''}L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
+    // (strict: the lesson done is said on the level's bus, \`lesson:<fact>\`, so an objective can wait for it: game/objectives.js \`act\`)
+    if ((done && age >= LESSON.read)${strict ? '' : ' || age >= LESSON.patience'}) { ${strict ? "if (done && L.fact) { try { __inputQueue.push({ type: 'lesson:' + L.fact }); } catch (err) { /* (no bus on the page) */ } } " : ''}li++; ls = null; if (li >= LS.length) phase = 'play'; }
   }
   const standing = (e) => e.team === 'foes' && !e.gone && !e.dormant && !e.downed && !(e.hp <= 0);
   // (a foe fallen: what a fight that counts its falls is won by; one asleep or sent away has not fallen)
@@ -83,31 +159,52 @@ export function guideScript(guide, { host = false } = {}) {
   function tick() {
     const W = window.__mojCtrl && window.__mojCtrl.world;
     if (W) {
-      if (!up) begin();
+      if (!up) begin();${Array.isArray(guide.rounds) && guide.rounds.length ? `
+      // (a job taken on the phone: the guide to its own steps, wherever it stood)
+      const BV = window.__mojBus && window.__mojBus.state.vars;
+      if (BV) for (const R of GD.rounds) { const on = BV[R.when] >= 1; if (on && !R.was && k !== R.at) { k = R.at; plant(); } R.was = on; }` : ''}
       const p = (W.pilotId && W.byId[W.pilotId]) || W.entities.find((e) => e.pilotable), s = GD.steps[k];
-      let dx = 0, dy = 0, d = Infinity, near = false;
+${guide.steps.some((x) => x && x.near) ? `      // (a step of many places, its 'near': the way to the nearest not yet done, its light moved there)
+      if (s && s.near && p && window.__mojBus) { const NV = window.__mojBus.state.vars, pp = p.transform.pos; let nb = null, nd = Infinity; for (const q of s.near) { if (NV[q.v] >= 1) continue; const dd = Math.hypot(q.at[0] - pp[0], q.at[1] - pp[1]); if (dd < nd) { nd = dd; nb = q; } } if (nb && nb.at !== s.at) { s.at = nb.at; plant(); } }
+` : ''}      let dx = 0, dy = 0, d = Infinity, near = false;
       if (p && s) {
         dx = s.at[0] - p.transform.pos[0]; dy = s.at[1] - p.transform.pos[1]; d = Math.hypot(dx, dy);
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
         // (a fight that counts its falls is won by them, wherever it was fought; any other beat by reaching it)
-        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ' : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
-        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
+        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? (guide.steps.some((x) => x && x.when && typeof x.when === 'object') ? 's.when ? !!(window.__mojBus && (typeof s.when === \'object\' ? window.__mojBus.state.vars[s.when.var] >= s.when.gte : window.__mojBus.state.vars[s.when] >= 1)) : ' : 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ') : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
+        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Array.isArray(guide.rounds) && guide.rounds.some((R) => R.end) ? ' { const Rr = GD.rounds.find((R) => R.end && k === R.end); if (Rr) k = Rr.from; }' : ''}${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
       }
-      const now = performance.now(), cur = GD.steps[k];
+      const now = performance.now(), cur = GD.steps[k];${guide.steps.some((x) => x && x.from) ? `
+      // (a step held back until its task begins, \`from\`: neither its way nor its pillar shown before)
+      const gated = !!(cur && cur.from && !(window.__mojBus && window.__mojBus.state.vars[cur.from.var] >= cur.from.gte));
+      if (pillar) pillar.visible = !gated;` : ''}${rings ? `
+      if (ringDue && groundUp(ringDue)) { const d = ringDue; ringDue = null; layRing(d); }
+      if (ringOn && cur) {
+        const shown = ${guide.steps.some((x) => x && x.from) ? '!gated' : 'true'}, inside = shown && p && Math.hypot(cur.at[0] - p.transform.pos[0], cur.at[1] - p.transform.pos[1]) < cur.radius;
+        ringOn.g.visible = shown;
+        // (stood in: the surface breathes up to its glow; else its faint rest)
+        const b = 0.5 - 0.5 * Math.cos((2 * Math.PI * (now / 1000)) / GR.period);
+        ringOn.mat.uniforms.uLit.value = inside ? GR.rest + (GR.glow - GR.rest) * (0.35 + 0.65 * b) : GR.rest;
+        ringOn.inside = inside;
+      }` : ''}
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
       if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
-      if (phase === 'lessons' && p) lesson(p, now);
+${waits ? `      // (a lesson that waits for its task, \`when\`: the objectives' task in hand; until then nothing of it shows)
+      const waitsNow = () => phase === 'lessons' && !!LS[li] && !!LS[li].when && !(window.__mojBus && window.__mojBus.state.vars[LS[li].when.var] >= LS[li].when.gte);
+      if (phase === 'lessons' && p && !waitsNow()) lesson(p, now);
+      // (read again once a lesson may have passed: the next may wait; while one waits the way on is shown, not hidden)
+      const waiting = waitsNow();` : `      if (phase === 'lessons' && p) lesson(p, now);`}
       const atHeld = p && GD.held && GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5) && W.entities.some(standing);
       // ONE THING: the line just said, the opening, a held way, a lesson at hand, else the way on
       V.goal = cur ? { say: cur.say, at: cur.at, d: Math.round(d) } : null;
       if (now < sayUntil) put('say', esc(sayText), sayText);
       else if (phase === 'intro') put('intro', esc(GD.intro), GD.intro);
-      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
+      else if (phase === 'lessons'${waits ? ' && !waiting' : ''}) put('keys', ${strict ? '' : `'<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + `}capped(LS[li].keys), '', [LS[li].keys]);
       else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''), '', GD.introKeys);
       else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)
       else if (cur && cur.keys && cur.keys.length && p && (d < Math.max(cur.radius * 2, 18) || (cur.fight && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 14)))) put('keys', cur.keys.map(capped).join(''), '', cur.keys);
-      else if (!cur) put('way', ${typeof guide.done === 'string' ? 'esc(GD.done), GD.done' : "'The way on lies past this place', 'The way on lies past this place'"});
+${guide.steps.some((x) => x && x.from) ? "      else if (gated) put('way', '', '');\n" : ''}      else if (!cur) put('way', ${typeof guide.done === 'string' ? 'esc(GD.done), GD.done' : "'The way on lies past this place', 'The way on lies past this place'"});
       else if (p) {
         let yaw = p.transform.heading;
         if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }
@@ -117,7 +214,7 @@ export function guideScript(guide, { host = false } = {}) {
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-  window.__mojGuide = { view: () => V, step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0 };
+  window.__mojGuide = { view: () => V, step: () => k, steps: GD.steps.length, held: GD.held || [], showing: () => mode, lesson: () => (phase === 'lessons' ? li : LS ? LS.length : 0), lessons: LS ? LS.length : 0${rings ? ', disc: () => ringOn' : ''} };
 })();
 `;
 }

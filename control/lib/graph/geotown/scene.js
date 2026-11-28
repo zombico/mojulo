@@ -50,7 +50,8 @@ import { townDressOf, dressTownFace } from '../era/town-dress.js';
 import { layLeaf, leafPage } from '../era/shutter-leaves.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
-import { treeSizes } from '../form/flora-read.js';
+import { treeSizes, readCrowns } from '../form/flora-read.js';
+import { BUSH_HABITS } from '../form/bush-form.js';
 import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
@@ -62,13 +63,14 @@ import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bl
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
+import { TOWN_GLOSS, glazed } from '../form/town-gloss.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { cubeLight } from '../era/cube-light.js';
 import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
 import { unlift } from '../matte-paint/detail.js';
 
-export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'sea', 'cone']);
+export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'sea', 'cone', 'crowns']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
@@ -88,7 +90,9 @@ const UPRIGHT = new Set(['kerb', 'fence-board', 'fence-brick', 'fence-stone']);
 const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 167, road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
 // a building's kit family: a mansion's its own
 /** The groups the form render's bake leaves as painted: glass (the page's own), a sign and a canvas (their colour their own). */
-const FORM_KEEP = new Set(['geotown:glass', 'geotown:sign', 'geotown:canvas']);
+const FORM_KEEP = new Set(['geotown:sign', 'geotown:canvas']);
+// (its glass baked as its walls are and drawn as a surface that gives back the sky: form/town-gloss.js)
+const GLAZED = Object.freeze({ 'geotown:glass': TOWN_GLOSS.window });
 /** How far off a wall its sun test starts (m): clear of the courses, surrounds, panels and frames laid over it. */
 const FORM_LIFT = 0.3;
 // a dressed face's paint, its detail's lift taken back out (matte-paint/detail.js): the colour its base is solved from
@@ -118,6 +122,8 @@ const STEP_RISE = 0.18, NO_STEPS = 0.25, HEDGE = { h: 0.85, d: 0.55, in: 0.25 };
 // trunk over that share; its crown's reach this far short of any building at the least
 export const TREE_CLEAR = 2 * WALK.body, TREE_RAISE = 0.42;
 const TREE_LEAST = TREE_CLEAR / TREE_RAISE, TREE_GAP = 0.6;
+// (a realistic tree within this of a house (m) grows away from it, form/flora-read.js REALISTIC.lean)
+const LEAN_NEAR = 12;
 // a bike lane's marks: the metres between them
 const BIKE_MARK = 26;
 // a wooden hydro pole: its height, its crossarm's width, the longest span its wires take and their sag (m)
@@ -237,8 +243,11 @@ const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.
 
 /** The geocube kind's geotown: the town's map stood on the cube's land at its hour. */
 export function assembleGeotownScene(m, ctx = {}) {
-  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone)`);
+  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone, crowns)`);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
+  // (`crowns`: how the form render reads its broadleaves, form/flora-read.js readCrowns; a realistic crown flock unless it
+  // says not. Its trees stand where they were planted, `apart: false`, each held to its room by its own crown)
+  const CR = m.crowns !== undefined ? readCrowns(m.crowns) : null;
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   // (a geotown composed into a geocity's neighbourhood stands on the metro's land: ctx.field, its natural ground in the
   // town's frame, geocity/scene.js; absent, the town's own hills)
@@ -303,10 +312,18 @@ export function assembleGeotownScene(m, ctx = {}) {
   const form = !!ctx.form, claims = [], bushes = [], shrubs = [];
   // (the houseplants, pattern.houseplants: each a bush of the library at a kind's index, its ground claimed from the grass)
   const HP = P.houseplants, HPK = HP ? Object.keys(HP.kinds) : [];
-  const bush = (x, y, z, h, kind) => { bushes.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), kind: HPK.indexOf(kind) }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); };
+  // (`yaw`: a bush its line turns, a hedge's segment; else turned by where it stands)
+  const bush = (x, y, z, h, kind, yaw = null) => { bushes.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), kind: HPK.indexOf(kind), ...(yaw !== null ? { yaw: r5(yaw) } : {}) }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); };
+  // (a small plant of the garden's, HP.edging: a little flowering shrub in bloom, or a small bush of its kinds)
+  const small = (x, y, z, R) => { const k = pickOf(HP.edging, R); if (k === 'bloom') { const h = HP.bloomH[0] + (HP.bloomH[1] - HP.bloomH[0]) * R(); shrubs.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), state: 'bloom' }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); } else { const K = HP.kinds[k]; bush(x, y, z, K.height[0] + (K.height[1] - K.height[0]) * R(), k); } };
   const pickOf = (table, R) => { const ks = Object.keys(table), sum = ks.reduce((a, k) => a + table[k], 0); let t = R() * sum; for (const k of ks) { t -= table[k]; if (t <= 0) return k; } return ks[ks.length - 1]; };
   // (a row of the hedge's bush along a line, from p to q (world, metres) standing on z(t), t 0..1 along it)
-  const hedgeRow = (p, q, z, h) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]), n = Math.max(1, Math.round(L / HP.stride)); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge); } };
+  // (a clipped hedge's kind, form/bush-form.js BUSH_HABITS.hedge: its segments end to end, each its length × its height
+  // long, turned along the line, a little overlapping so no seam opens)
+  const hedgeSeg = HP && HP.kinds[HP.hedge]?.form === 'hedge' ? BUSH_HABITS.hedge.length : 0;
+  const hedgeRow = (p, q, z, h) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    if (hedgeSeg) { const n = Math.max(1, Math.ceil(L / (hedgeSeg * h) - 1e-9)), yaw = Math.atan2(q[1] - p[1], q[0] - p[0]); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge, yaw); } return; }
+    const n = Math.max(1, Math.round(L / HP.stride)); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge); } };
   const claim = (cs, role, o) => {
     if (!form || !CLAIMED.has(role) || o[2] < 0.5) return;
     const xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), w = x1 - x0, h = y1 - y0, s = Math.min(w, h);
@@ -507,6 +524,11 @@ export function assembleGeotownScene(m, ctx = {}) {
           if (Rf() < HP.foundation.bloom) { shrubs.push({ x: r5(x), y: r5(y), z: r5(zAt(u)), h: r5(0.8 + 0.5 * Rf()), state: 'bloom' }); claims.push([r5(x), r5(y), 0.8]); }
           else { const k = pickOf(HP.foundation.kinds, Rf), K = HP.kinds[k]; bush(x, y, zAt(u), K.height[0] + (K.height[1] - K.height[0]) * Rf(), k); }
         }
+        // (its bed between them along the house's front, filled with small plants, clear of the path and what opens)
+        if (HP.edging) for (let u = env[0] + 1.6; u < env[2] - 1.6; u += HP.edge * (0.85 + 0.3 * Rf())) {
+          if (Math.abs(u - pu) < pw / 2 + 0.5 || opens.some((o) => u > o[0] - 0.4 && u < o[1] + 0.4)) continue;
+          const [x, y] = W(pl, u, v + 0.1, 0); small(x, y, zAt(u), Rf);
+        }
       }
     }
     // a parking pad's car, now and then, nose to the house on the pad's gentle slope
@@ -607,7 +629,9 @@ export function assembleGeotownScene(m, ctx = {}) {
           const ua = Mu?.side === 'L' ? Math.max(ua0, (Mu.garage ? Math.max(Mu.strip[1], Mu.garage[2]) : Mu.strip[1]) + 0.3) : ua0, ub = Mu?.side === 'R' ? Math.min(ub0, (Mu.garage ? Math.min(Mu.strip[0], Mu.garage[0]) : Mu.strip[0]) - 0.3) : ub0;
           const Y = yardOf(want, { w: ub - ua, v0, v1: pl.laneGarage ? pl.laneGarage[1] - 0.6 : Al ? Al.garage[1] - 0.6 : dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
           // (read by the seventh generation: its beds' and planters' plants the library's, in their painted leaves' place)
-          if (form && HP) { const Rp = streamOf(seed, 'houseplants', `yard:${pl.id}`); for (const q of Y.plants) { const [x, y] = W(pl, q.u + ua, q.v, 0); bush(x, y, pad + q.z, Math.max(0.3, q.h + 0.15), pickOf(q.in === 'planter' ? HP.planters : HP.beds, Rp)); } }
+          if (form && HP) { const Rp = streamOf(seed, 'houseplants', `yard:${pl.id}`); for (const q of Y.plants) { const [x, y] = W(pl, q.u + ua, q.v, 0); bush(x, y, pad + q.z, Math.max(0.3, q.h + 0.15), pickOf(q.in === 'planter' ? HP.planters : HP.beds, Rp));
+            // (a bed's plant its small companions beside it, HP.companions: the bed filled, not a plant a box)
+            if (q.in === 'bed' && HP.edging) { const nc = HP.companions[0] + Math.floor(Rp() * (HP.companions[1] - HP.companions[0] + 1)); for (let c = 0; c < nc; c++) { const du = (c % 2 ? 1 : -1) * (0.28 + 0.12 * Rp()), dv = (Rp() - 0.5) * 0.3, [cx, cy] = W(pl, q.u + ua + du, q.v + dv, 0); small(cx, cy, pad + q.z - 0.05, Rp); } } } }
           if (!Mn) yardPrev.set(key, Y.plan);
           const drawn = ZONES.map((z) => Y.plan[z]).filter((x) => x !== 'lawn');
           for (const x of drawn) yardsOf[x] = (yardsOf[x] ?? 0) + 1;
@@ -1036,9 +1060,10 @@ export function assembleGeotownScene(m, ctx = {}) {
   const cameras = [];
   if (H0) {
     cameras.push(along(H0, 'street', 20));
-    // a house from its walk, a few metres along it (between its street's trees and its front yard)
+    // a house from its walk, a few metres along it (between its street's trees and its front yard; never out in a lane its
+    // street parks cars in)
     // (a split pair's when the row has one; from the walk, or out at the kerb where the house stands close to it)
-    const q = d.plots.find((pl) => pl.duplex && pl.half === 'L' && pl.built) ?? H0.rp[Math.floor(H0.rp.length / 2)], Sq = lineOf(d, d.blocks.find((b) => b.id === q.block), q.side).S, ws = Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)), e = [q.A[0] - q.ey[0] * ws - q.ex[0] * 4, q.A[1] - q.ey[1] * ws - q.ex[1] * 4], t = W(q, q.w / 2, q.setback + 2, 0);
+    const q = d.plots.find((pl) => pl.duplex && pl.half === 'L' && pl.built) ?? H0.rp[Math.floor(H0.rp.length / 2)], Sq = lineOf(d, d.blocks.find((b) => b.id === q.block), q.side).S, ws = Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)) > Sq.walk + Sq.verge && Sq.park > 0 && d.streetscape?.parking?.sides !== 'none' ? Sq.walk + Sq.verge - 0.3 : Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)), e = [q.A[0] - q.ey[0] * ws - q.ex[0] * 4, q.A[1] - q.ey[1] * ws - q.ex[1] * 4], t = W(q, q.w / 2, q.setback + 2, 0);
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));
@@ -1048,7 +1073,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   // a controlled crossing (a signal's, else a stop's) from its corner's walk, back along one street, across the other
   const Xq = (d.traffic?.crossings ?? []).find((c) => c.control === 'signal' && c.arms.length === 4) ?? (d.traffic?.crossings ?? []).find((c) => c.control === 'stop' && c.arms.length === 4);
   if (Xq) {
-    const [k, j] = Xq.id.split(':').map(Number), Sx = d.sections.x[k], Sy = d.sections.y[j], [cx, cy] = Xq.at, e = [cx + Sx.half + 2, cy - Sy.half - 9];
+    const [k, j] = Xq.id.split(':').map(Number), Sx = d.sections.x[k], Sy = d.sections.y[j], [cx, cy] = Xq.at, e0 = [cx + Sx.half + 2, cy - Sy.half - 9];
+    // (past the walk, on its corner's lot; where a building stands there, built to its walk, the walk's own middle)
+    const within = (p) => colliders.some((c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1]), e = within(e0) ? [cx + Sx.half - Sx.walk / 2, e0[1]] : e0;
     cameras.push(cam('crossing', [e[0], e[1], wk(e[0], e[1]) + 1.7], [cx - 2, cy + 4, wk(cx, cy) + 2.4], 72));
   }
   // a school from the walk across its street, its doors before it; a site's fields from beyond its corner, over its trees
@@ -1091,21 +1118,37 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (read by the seventh generation: the trees the form grows, form/flora-read.js, each its species at the form's own
   // height for it, its first limbs past two people's heights; held to its room by the form's own crown, a tree without
   // room not planted, again until every crown has its room)
+  // (the form grows the trees and the conifers; a palm or a culm, a west coast's or a tropical pattern's, is pooled as on
+  // a painted page, below)
+  const formGrown = (sp) => SPECIES[sp].kind === 'tree' || SPECIES[sp].kind === 'conifer';
   if (form) {
-    let all = Object.keys(items).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
-    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => ({ x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp })), bushes: [], shrubs: [] });
+    let all = Object.keys(items).filter(formGrown).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
+    // (a realistic tree GROWS ONE WAY, `toward`, form/flora-read.js REALISTIC.lean: away from the houses within its reach,
+    // LEAN_NEAR, each house's pull its nearest point's, the nearer the stronger; one with none near grows round)
+    const towardOf = (x, y) => {
+      let vx = 0, vy = 0, near = false;
+      for (const [x0, y0, x1, y1] of footprints) {
+        const dx = x - Math.max(x0, Math.min(x1, x)), dy = y - Math.max(y0, Math.min(y1, y)), dd = Math.hypot(dx, dy);
+        if (dd > LEAN_NEAR || dd < 1e-6) continue;
+        near = true; const w = 1 / Math.max(0.5, dd) ** 3; vx += dx * w; vy += dy * w;
+      }
+      return near && Math.hypot(vx, vy) > 1e-9 ? r5(Math.atan2(vy, vx)) : null;
+    };
+    const lean = CR?.crowns === 'realistic';
+    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => { const tw = lean ? towardOf(it.x, it.y) : null; return { x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp, ...(tw !== null ? { toward: tw } : {}) }; }), bushes: [], shrubs: [], ...(CR ? { ...CR, apart: false } : {}) });
     for (let pass = 0; pass < 5; pass++) {
-      const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= sizes[i].r);
+      // (a tree grown one way needs its room behind it, toward the house; ahead of it is the street's)
+      const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= (sizes[i].back ?? sizes[i].r));
       if (keep.length === all.length) break;
       crowded += all.length - keep.length; all = keep;
     }
     plants = { ...plantsOf(all), ...(HP ? { bushKinds: HPK.map((k) => HP.kinds[k]), bushes, shrubs } : {}) };
     const sizes = treeSizes(plants);
-    all.forEach(({ sp, it }, i) => { (kept[sp] ||= []).push({ ...it, height: sizes[i].h }); nearest = Math.min(nearest, roomAt(it.x, it.y) - sizes[i].r); });
+    all.forEach(({ sp, it }, i) => { (kept[sp] ||= []).push({ ...it, height: sizes[i].h }); nearest = Math.min(nearest, roomAt(it.x, it.y) - (sizes[i].back ?? sizes[i].r)); });
     // (the ground the trunks and the yard's things claim: no grass there)
     plants.clear = [...plants.trees.map((t) => [t.x, t.y, 0.6]), ...claims];
   }
-  for (const sp of form ? [] : Object.keys(items).sort()) {
+  for (const sp of Object.keys(items).filter((sp) => !form || !formGrown(sp)).sort()) {
     const pool = plantPool({ species: sp, variants: 2, seed: `geotown::${sp}`, light: LIGHT, maxLevel: 'L2', group: `geotown:tree-${sp}`, clear: TREE_RAISE });
     const reach = Math.max(...pool.variants.map((v) => { const T = v.levels?.L1 ?? []; let r = 0, h = 0; for (const f of T) for (const c of f.corners) { r = Math.max(r, Math.hypot(c[0], c[1])); h = Math.max(h, c[2]); } return h > 0 ? r / h : 0.5; }));
     pools[sp] = pool;
@@ -1123,7 +1166,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   for (const sp of Object.keys(kept).sort()) {
     if (!kept[sp].length) continue;
     for (const it of kept[sp]) growth[it.on] = (growth[it.on] ?? 0) + 1;
-    if (form) continue;
+    if (form && formGrown(sp)) continue;
     const pool = pools[sp];
     const placed = plantRepeats(pool, kept[sp].map(({ on, ...it }) => it), { eyes, level: 'L2', budget: Math.round((TREE_FACES * kept[sp].length) / all), sink: 0.05 });
     treeFaces += placed.stats.drawnFaces;
@@ -1171,14 +1214,17 @@ export function assembleGeotownScene(m, ctx = {}) {
   if (formB) {
     const CL = cubeLight(cube, m.hour !== undefined ? { hour: readHour(m.hour) } : {}), light = { sun: CL.sun.linear, ambient: CL.ambient.linear, dir: CL.sun.dir };
     const built = (f) => typeof f.group === 'string' && (f.group.startsWith('town:') || f.group.startsWith('geotown:')) && !FORM_KEEP.has(f.group) && !f.group.startsWith('geotown:tree');
+    for (let i = 0; i < faces.length; i++) if (GLAZED[faces[i].group]) faces[i] = glazed(faces[i], GLAZED);
     const idx = faces.map((f, i) => (built(f) ? i : -1)).filter((i) => i >= 0), mine = idx.map((i) => (faces[i].textureLit ? unlifted(faces[i]) : faces[i]));
     // (a building's dress lies in thin layers over its walls: the test starts clear of them, FORM_LIFT)
     // (what the town's ground throws back onto a wall and under an eave: its paving's, the cube's stone as solved)
     const ground = CL.linearBases.stone ?? CL.linearBases.floor ?? null;
-    const B = sunLitFaces(mine, light, { shadow: makeSunShadow(mine, light.dir), lift: FORM_LIFT, ...(ground ? { ground } : {}) });
+    // (a road, a walk, a yard: its base solved on a face turned up, so a low sun leaves it its own paint)
+    const B = sunLitFaces(mine, light, { shadow: makeSunShadow(mine, light.dir), lift: FORM_LIFT, level: true, ...(ground ? { ground } : {}) });
     idx.forEach((i, k) => { faces[i] = B.faces[k]; });
     const far = [light.dir[0] * 1e6, light.dir[1] * 1e6, light.dir[2] * 1e6].map(r5);
-    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}) };
+    const present = new Set(faces.map((f) => f.group)), gloss = Object.fromEntries(Object.entries(GLAZED).filter(([g]) => present.has(g)));
+    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}), ...(Object.keys(gloss).length ? { gloss } : {}) };
   }
   // (the shutters' leaves, marched near the eye: channels/leaf-relief.js; a town with none carries no key)
   const leaves = leafPage(new Set(faces.map((f) => f.texture)));

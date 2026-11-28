@@ -43,6 +43,8 @@ const PHONE_CSS = '.moj-phone{position:absolute;inset:0;pointer-events:none;z-in
   + '.moj-phone .mana-screen[data-place=right]>.mana-title{position:absolute;right:calc(var(--mana-safe) * 100cqw + 30px);bottom:calc(var(--mana-safe) * 100cqh + 56px + min(640px,74cqh) - 40px);z-index:2;font-size:13px!important;letter-spacing:2px;opacity:.8}'
   + '.moj-phone .mana-screen[data-place=right]>.mana-title::before{content:none!important}'
   + '.moj-phone .mana-tabs .mana-list{max-height:min(250px,30cqh);overflow:auto}'
+  // (a row new to the list, a task come in or a step done, slides in from the side in the theme's motion: mana-ui's own)
+  + '.moj-phone .mana-tabs .mana-list [data-fresh=yes]{animation:mana-slide calc(var(--mana-dur) * 1.6) var(--mana-ease) both}'
   + '.moj-phone .mana-screen[data-place=right]>.mana-legend{position:absolute;right:calc(var(--mana-safe) * 100cqw);bottom:calc(var(--mana-safe) * 100cqh)}';
 
 /** The page's side (inlined by toString): the runtime mounted, the tabs read off the bus. */

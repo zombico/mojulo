@@ -73,7 +73,7 @@ function walkerSubjects(payload) {
     const s0 = ((w.startFrac || 0) % 1) * total;
     const held = Array.isArray(w.holds) ? { s0, s: s0, t: 0 } : null;
     const arcAt = (sec) => (held ? heldWalk(w.holds, w.speed, held, total, sec, signals)
-      : w.loop === false ? Math.min(total, (sec / period) * total) : ((sec / period) % 1) * total);
+      : w.loop === false ? Math.min(total, (sec / period) * total) : ((sec / period + (w.startFrac || 0)) % 1) * total);
     const h = (figs[w.figure].figH || 1.85) * (w.scale > 0 ? w.scale : 1);
     return { id: `walker:${i}`, kind: 'walker', box: { len: h * 0.36, wid: h * 0.36, hgt: h }, at: (sec) => atArc(w.path, cum, arcAt(Math.max(0, sec))) };
   });

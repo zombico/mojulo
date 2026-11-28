@@ -38,3 +38,4 @@
   Wasps raking its length, two Bastions shutting the narrows, then out to the beacon at its mouth. Furnace Row (the
   smelter hall, Pavonis Works): walkers on the operating decks, the crane controls reached and held while the main
   ladle is cut loose, then the foreman's pack of two Jackals and their Rhino.
+- The hangar's idioms (`garage-slots`, `garage-parts`, `machine-sheet`) have a hangar in mana-ui's sample state, so the wireframe board and the idiom sweep draw them full.

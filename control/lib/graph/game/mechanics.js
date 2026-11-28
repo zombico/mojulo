@@ -17,17 +17,21 @@
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
-import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct } from './errand-mechanics.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct, lowerShift } from './errand-mechanics.js';
 import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
-import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
+import { lowerRespray, lowerGunshop, lowerForger } from './shop-mechanics.js';
+import { lowerRequest } from './request-mechanics.js';
 import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
 import { lowerGrade } from './grade.js';
 import { lowerWake } from './wake.js';
 import { lowerSortie } from './sortie.js';
-import { lowerWork } from './work-mechanics.js';
+import { lowerWork, SEAT_CORNERS } from './work-mechanics.js';
+import { SEATS as SEATS_KERNEL } from '../controls/seats-kernel.js';
+
+const { SEAT_COLORS, SEAT_LABELS } = SEATS_KERNEL;
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -61,7 +65,50 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // role: terminal | emitter | gate ; ends (terminals only): which results it can end in.
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
 // ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
-// a mechanic a seat works lowers a hand a seat, the work shift's) }.
+// a mechanic a seat works lowers a hand a seat, the work shift's), seatLives? (true: the seats count lives, so a seat's
+// hp spent is a seat down, rules-basic.js seat-falls, never the level lost), seatContest? ('versus' | 'free-for-all' |
+// 'teams': the seats against each other, soul.contest; absent, co-op) }.
+// A MATCH'S SIDES name the player as 'player' (the quick door's word, gameworld/quick.js deathmatchSides) where its pilot
+// is a designed hero ('hero'): the word is the level's player, unless a rival is so named
+const sidesOf = (T, P, rivals = []) => (P !== 'player' && !rivals.includes('player') && T && typeof T === 'object' && !Array.isArray(T)
+  ? Object.fromEntries(Object.entries(T).map(([k, L]) => [k, Array.isArray(L) ? L.map((c) => (c === 'player' ? P : c)) : L]))
+  : T);
+
+// THE BODIES A SHARED ZONE ANSWERS TO (a level with seats): seat 1's and every seat's (a list, the bus's zone `watch`),
+// so any of them takes a pickup or the way out; without seats seat 1's alone, as it was
+const takers = (ctx) => (Array.isArray(ctx.seats) && ctx.seats.length ? [ctx.player, ...ctx.seats.slice(0, 3)] : ctx.player);
+const seated = (ctx) => Array.isArray(ctx.seats) && ctx.seats.length > 0;
+// (a pickup with seats is taken once: its reactions only while its zone is on, the zone shut last; two seats in it on one
+// frame, or one walking back over it, take nothing more)
+const whileOn = (zone) => ({ if: { entity: zone, field: 'on', eq: true } });
+
+// FAIL-ON-DEATH WITH SEATS (a level with seats keeping the level's hp, docs/local-multiplayer-principles.md principle 4):
+// every seat its own hp, seat 1's the level's `hp` as it was, seat n's `hp:<n>`, each taken by the hits on its own body
+// (where hits are counted) and by the hazards it walks into (hazard-damage's)
+// and shown in its own corner in its colour. A seat's spent is a seat down: its hp whole again and its body felled (the
+// cast's `kill`), which the world takes as a fall (rules-basic.js seat-falls: a life where lives are counted, up beside
+// the others, or out). Seat 1's spent is the level lost, as before, unless the seats count lives (ctx.seatLives): then it
+// is a seat down like the others, and the level is lost when no seat is left.
+function seatedDeath(p, ctx, hits) {
+  const start = Number.isFinite(p.startHp) ? p.startHp : 100;
+  const hit = (ent, v) => (hits ? [{ on: `hit:${ent}`, do: 'inc', var: v, by: -hits, min: 0 }] : []);
+  const row = (v, n) => (p.bar === true ? { var: v, label: n === 1 ? 'Health' : SEAT_LABELS[n - 1], as: 'bar', max: start, color: n === 1 ? 'harm' : SEAT_COLORS[n - 1] } : { var: v, label: n === 1 ? 'HP' : `${SEAT_LABELS[n - 1]} HP`, ...(n === 1 ? {} : { color: SEAT_COLORS[n - 1] }) });
+  const seats = [...(ctx.seatLives ? [{ n: 1, v: 'hp', ent: ctx.player }] : []), ...ctx.seats.slice(0, 3).map((ent, k) => ({ n: k + 2, v: `hp:${k + 2}`, ent }))];
+  const vars = { hp: start }, watches = [], reactions = hit(ctx.player, 'hp'), hud = [row('hp', 1)];
+  if (!ctx.seatLives) watches.push({ type: 'dead', when: { var: 'hp', lte: 0 } });
+  for (const S of seats) {
+    const down = `seat-down:${S.n}`;
+    if (S.n > 1) {
+      vars[S.v] = start;
+      reactions.push(...hit(S.ent, S.v));
+      hud.push({ ...row(S.v, S.n), slot: SEAT_CORNERS[S.n] });
+    }
+    watches.push({ type: down, when: { var: S.v, lte: 0 } });
+    reactions.push({ on: down, do: 'set', var: S.v, to: start }, { on: down, do: 'ctrl', op: 'kill', who: S.ent });
+  }
+  return { world: { vars, watches, reactions, hud }, on: { dead: { end: 'fail' } } };
+}
+
 const MECHANICS = {
   // reach a goal zone → success. The walkability audit IS its completability check.
   'reach-exit': {
@@ -85,7 +132,7 @@ const MECHANICS = {
       return {
         world: {
           ...(held ? { vars: { [held.v]: 0 } } : {}),
-          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
+          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: takers(ctx) }],
           reactions: [...(held ? [{ on: 'down', match: { entity: held.who }, do: 'inc', var: held.v, by: 1 }] : []), { on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
         },
         // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
@@ -214,7 +261,14 @@ const MECHANICS = {
         items.add(item);
         world.entities.push({ id: zone, on: true, position: pk.at || [0, 0, 0] });
         // planar unless the pickup says otherwise (one raised on a ledge is reached by climbing to it, not by walking under it)
-        world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: takers(ctx) });
+        if (seated(ctx)) {
+          // (seats: any seat takes it, into the one bag, once)
+          world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'emit', type: 'pickup:' + item });
+          world.reactions.push({ on: 'enter', match: { zone }, ...whileOn(zone), do: 'inc', var: heldVar('bag', item), by: 1 });
+          world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+          return;
+        }
         world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'pickup:' + item });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: heldVar('bag', item), by: 1 });
@@ -236,10 +290,17 @@ const MECHANICS = {
       // `of: 'body'`: the player's body's own hp takes it (the stats' hp, its bar), no level hp beside it
       const body = ofBody(p, ctx, 'hazard-damage');
       const world = { sources: [], reactions: [], ...(body ? {} : { vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] }) };
+      // (seats keeping the level's hp: each seat's own, `hp:<n>`, as fail-on-death declares it)
+      if (!body && seated(ctx)) ctx.seats.slice(0, 3).forEach((_, k) => { world.vars[`hp:${k + 2}`] = world.vars.hp; });
       hazards.forEach((hz, j) => {
         const zone = `hz_${ctx.i}_${j}`, by = Number.isFinite(hz.damage) ? hz.damage : 20;
         // (planar, as a hazard on a floor is; `planar: false` meets it at its height: a pillar or a rock in a flight's way)
-        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], ...(Array.isArray(hz.half) ? { half: hz.half } : { radius: hz.radius != null ? hz.radius : 1.5 }), planar: hz.planar !== false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], ...(Array.isArray(hz.half) ? { half: hz.half } : { radius: hz.radius != null ? hz.radius : 1.5 }), planar: hz.planar !== false, watch: takers(ctx) });
+        if (seated(ctx)) {
+          // (seats: whoever walks in is hurt, its body or its own hp: seat 1's the level's `hp`, seat n's `hp:<n>`)
+          takers(ctx).forEach((ent, k) => world.reactions.push(body ? { on: 'enter', match: { zone, entity: ent }, do: 'ctrl', op: 'hurt', who: ent, by } : { on: 'enter', match: { zone, entity: ent }, do: 'inc', var: k ? `hp:${k + 1}` : 'hp', by: -by, min: 0 }));
+          return;
+        }
         world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by, min: 0 });
       });
       return { world };
@@ -319,8 +380,11 @@ const MECHANICS = {
       // whatever hurts it: a blow, a beam, a foe's touch, a hazard); no level hp, no readout of its own
       if (ofBody(p, ctx, 'fail-on-death')) {
         if (p.startHp !== undefined || p.hits !== undefined) throw new Error(`fail-on-death[${ctx.i}]: of: 'body' takes no startHp or hits: the body's hp is its own, and each hit takes what its source deals`);
+        // (seats counting lives: seat 1's body down is a seat down like the others', the level lost when no seat is left)
+        if (ctx.seatLives) return { world: {}, on: { dead: { end: 'fail' } } };
         return { world: { reactions: [{ on: 'down', match: { entity: ctx.player }, do: 'emit', type: 'dead' }] }, on: { dead: { end: 'fail' } } };
       }
+      if (seated(ctx)) return seatedDeath(p, ctx, hits);
       return {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
@@ -407,7 +471,13 @@ const MECHANICS = {
       pickups.forEach((pk, j) => {
         const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
         world.entities.push({ id: zone, on: true, position: at });
-        world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: takers(ctx) });
+        if (seated(ctx)) {
+          // (seats: any seat takes it, into the one count, once)
+          const g = whileOn(zone);
+          world.reactions.push({ on: 'enter', match: { zone }, ...g, do: 'emit', type: 'coin' }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: 'coins', by: 1 }, { on: 'enter', match: { zone }, ...g, do: 'inc', var: run, by: 1 }, { on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+          return;
+        }
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'coin' });   // (heard: its chime)
         world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'coins', by: 1 });
@@ -1185,6 +1255,8 @@ const MECHANICS = {
   call: { role: 'emitter', lower: lowerCall },
   // (a job given by a phone app, subscribed to and taken on the phone: no one to meet)
   task: { role: 'emitter', lower: lowerTask },
+  // (a driving job in a city vehicle, from its depot and back: gameworld/jobsified.js)
+  shift: { role: 'emitter', requires: ['inventory'], lower: lowerShift },
   // (a faction joined where its contact stands; its board's posting, finished by an act done)
   join: { role: 'emitter', lower: lowerJoin },
   act: { role: 'emitter', lower: lowerAct },
@@ -1195,6 +1267,10 @@ const MECHANICS = {
   // (the city's shops: a respray that loses the law, a gun shop's rounds; game/shop-mechanics.js)
   respray: { role: 'emitter', requires: ['inventory'], lower: lowerRespray },
   gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
+  // (a forger's papers: a licence a driving job may ask for, gameworld/jobsified.js `licence`)
+  forger: { role: 'emitter', requires: ['inventory'], lower: lowerForger },
+  // (a constituent's infra request: a work order, its material from the yard, its spots fixed; game/request-mechanics.js)
+  request: { role: 'emitter', requires: ['inventory'], lower: lowerRequest },
   // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
   mission: { role: 'emitter', lower: lowerMission },
 
@@ -1311,25 +1387,35 @@ const MECHANICS = {
       // the sides (two), each contender in one
       let side = null, sides = null;
       if (p.teams !== undefined) {
-        const T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+        const T = sidesOf(p.teams, P, who), names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
         const all = [P, ...who], listed = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
         if (names.length !== 2 || listed.length !== all.length || new Set(listed).size !== listed.length || !all.every((c) => listed.includes(c))) throw new Error(`frags[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player and every rival in one, once`);
         sides = names; side = Object.fromEntries(names.flatMap((k) => T[k].map((c) => [c, k])));
       }
+      // SEATS (a level with seats, docs/local-multiplayer-principles.md): every seat a contender as the player is, its own
+      // hp (`hp:<n>`), its fall, its frags in its corner. Co-op, the seats are the player's own side (none frags another);
+      // against each other (ctx.seatContest versus, free-for-all, teams), each is a foe to the rest (teams: two sides, the
+      // odd seats the player's and the even the other's). With sides (a team deathmatch's) seats against each other join
+      // them so, the odd the player's (gameworld/levels.js seatPart lays their teams the same way).
+      const S = seated(ctx) ? ctx.seats.slice(0, 3) : [], seatN = (c) => S.indexOf(c) + 2, against = !!ctx.seatContest;
+      const twoSides = ctx.seatContest === 'teams';
+      if (side && S.length) S.forEach((c) => { side[c] = !against || seatN(c) % 2 ? side[P] : sides.find((k) => k !== side[P]); });
       const spawnList = (L) => Array.isArray(L) && L.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite));
       const spawns = Array.isArray(p.spawns) ? p.spawns : [], spawnsOf = sides && p.spawns && !Array.isArray(p.spawns) ? p.spawns : null;
       if (spawnsOf ? !sides.every((k) => spawnList(spawnsOf[k])) : !spawnList(spawns)) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back${sides ? ' (or { <side>: [[x, y, z?], …] } per side)' : ''}`);
       const guard = p.guard === undefined ? 2 : Number.isFinite(p.guard) && p.guard >= 0 ? p.guard : NaN;
       if (Number.isNaN(guard)) throw new Error(`frags[${i}]: guard is the seconds a body back on its feet is not hurt, 0 or more`);
       const hp = Number.isFinite(p.hp) && p.hp > 0 ? p.hp : 100, hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : 10;
-      const C = [P, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
+      const C = [P, ...S, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
+      // (no sides: the seats' own relation, co-op allies or each against each; teams, odd with odd)
+      const ally = (a, c) => !side && (S.includes(a) || a === P) && (S.includes(c) || c === P) && (!against || (twoSides && (a === P ? 1 : seatN(a)) % 2 === (c === P ? 1 : seatN(c)) % 2));
       const team = (k) => `__team_${i}_${k}`, frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`;
       const tlead = `__tlead_${i}`, over = `__frags_over_${i}`, place = `__place_${i}`, clock = `__frags_t_${i}`, deaths = `__deaths_${i}`, mine = `__pf_${i}`, live = { var: over, eq: 0 };
-      const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0 }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
+      const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0, ...(S.length ? { [`__winner_${i}`]: 0 } : {}) }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
       C.forEach((c) => {
         Object.assign(world.vars, { [frag(c)]: 0, [last(c)]: 0 });
         // who hit it last (0: nobody since it last came back); with sides, only the other side's hits count
-        const foe = (a) => a !== c && (!side || side[a] !== side[c]);
+        const foe = (a) => a !== c && (!side || side[a] !== side[c]) && !ally(a, c);
         C.forEach((a, j) => { if (foe(a)) world.reactions.push({ on: `hit:${c}`, match: { by: a }, do: 'set', var: last(c), to: j + 1 }); });
         // its fall, credited to the last hitter, said as a kill (and counted for the hitter's side)
         C.forEach((a, j) => {
@@ -1339,7 +1425,7 @@ const MECHANICS = {
             { on: fell(c), if: got, do: 'inc', var: frag(a), by: 1 },
             { on: fell(c), if: got, do: 'emit', type: 'kill', killer: a, victim: c },
             ...(side ? [{ on: fell(c), if: got, do: 'inc', var: team(side[a]), by: 1 }, { on: fell(c), if: got, do: 'inc', var: tlead, by: side[a] === side[P] ? 1 : -1 }] : []),
-            { on: fell(c), if: got, do: 'emit', type: a === P ? mine : `__bf_${i}_${a}` },
+            { on: fell(c), if: got, do: 'emit', type: a === P ? mine : S.includes(a) ? `__sf_${i}_${a}` : `__bf_${i}_${a}` },
           );
         });
         world.reactions.push({ on: fell(c), do: 'set', var: last(c), to: 0 });
@@ -1351,13 +1437,19 @@ const MECHANICS = {
         // the limit (a side's, with sides)
         if (!side) {
           world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
-          world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });
+          world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P || S.includes(c) ? 'frags:won' : 'frags:lost' });
+          // (seats: who won it, the seat's number, for the results)
+          if (S.length && (c === P || S.includes(c))) world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'set', var: `__winner_${i}`, to: c === P ? 1 : seatN(c) });
         }
       });
       if (sides) sides.forEach((k) => {
         world.vars[team(k)] = 0;
         world.watches.push({ type: `__ttop_${i}_${k}`, when: { var: team(k), gte: frags } });
-        world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'emit', type: k === side[P] ? 'frags:won' : 'frags:lost' });
+        // (a side a seat plays on wins it for the couch, the side named; a side of bots alone, lost)
+        const ours = k === side[P] || S.some((c) => side[c] === k);
+        world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'emit', type: ours ? 'frags:won' : 'frags:lost' });
+        // (seats: which side won it, 1 the player's, 2 the other, for the results)
+        if (S.length) world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'set', var: `__winner_${i}`, to: k === side[P] ? 1 : 2 });
       });
       // the others fall as the cast says (their hp ran out); the player when the level's hp does, held down by the cast
       who.forEach((c) => world.reactions.push({ on: 'down', match: { entity: c }, do: 'emit', type: fell(c) }));
@@ -1384,6 +1476,19 @@ const MECHANICS = {
         ...(armored ? [{ on: fell(P), do: 'set', var: 'armor', to: 0 }] : []),
         { on: rise(P), do: 'set', var: 'hp', to: hp },
       );
+      // each seat as the player: its hp (a flat `hits` a hit, or what each round dealt), its fall when it runs out, felled
+      // by the cast and its hp whole when it rises; its hp and frags in its corner, in its colour
+      S.forEach((c) => {
+        const k = seatN(c), v = `hp:${k}`, at = { slot: SEAT_CORNERS[k], color: SEAT_COLORS[k - 1] };
+        world.vars[v] = hp;
+        world.watches.push({ type: fell(c), when: { var: v, lte: 0 } });
+        world.reactions.push(
+          ...(p.damage === true ? ['0', '1'].map((h) => ({ on: `hit:${c}`, match: { head: h }, if: live, do: 'inc', var: v, by: 'event.harm', min: 0 })) : [{ on: `hit:${c}`, if: live, do: 'inc', var: v, by: -hits, min: 0 }]),
+          { on: fell(c), do: 'ctrl', op: 'kill', who: c },
+          { on: rise(c), do: 'set', var: v, to: hp },
+        );
+        world.hud.push({ var: v, label: `${SEAT_LABELS[k - 1]} HP`, ...at }, { var: frag(c), label: `${SEAT_LABELS[k - 1]} frags`, as: 'counter', ...(side ? {} : { max: frags }), ...at });
+      });
       // the place: per other, the lead (the player's frags less its own) and an ahead flag (laps' rivals); with sides,
       // the side's lead over the other (`__tlead_<i>`) decides instead
       if (side) world.vars[tlead] = 0;
@@ -1433,6 +1538,46 @@ const MECHANICS = {
     },
   },
 
+  // MASH (a terminal, docs/local-multiplayer-principles.md principle 12): a contest read over a window of every seat's
+  // presses, a pure function of them: for `seconds` (10) each seat's fresh presses (the page's `press:<n>`, its jump or
+  // A) are counted, each in its corner in its colour, the window's clock between; at the horn the most wins (kept as
+  // `__mash_winner_<i>`: the seat's number, 0 a draw). `to`: a race to that count, the first to it the winner, the
+  // window shut at once. Without seats it is the player's alone: a count against the clock, or to break free. No
+  // physics, no camera.
+  mash: {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const i = ctx.i;
+      const seconds = p.seconds === undefined ? 10 : Number.isInteger(p.seconds) && p.seconds >= 1 ? p.seconds : NaN;
+      if (Number.isNaN(seconds)) throw new Error(`mash[${i}]: seconds is the window, a whole number from 1`);
+      const to = p.to === undefined ? null : Number.isInteger(p.to) && p.to >= 1 ? p.to : NaN;
+      if (Number.isNaN(to)) throw new Error(`mash[${i}]: to is the count a race runs to, a whole number from 1`);
+      const n = 1 + (seated(ctx) ? ctx.seats.slice(0, 3).length : 0), ks = Array.from({ length: n }, (_, k) => k + 1), count = (k) => `presses:${k}`;
+      const open = `__mash_open_${i}`, clock = `__mash_t_${i}`, winner = `__mash_winner_${i}`, horn = `__mash_horn_${i}`, live = { var: open, eq: 1 };
+      const world = { vars: { [open]: 1, [clock]: seconds, [winner]: 0 }, reactions: [], watches: [], timers: [], hud: [] };
+      for (const k of ks) {
+        world.vars[count(k)] = 0;
+        world.reactions.push({ on: `press:${k}`, if: live, do: 'inc', var: count(k), by: 1 });
+        world.hud.push({ var: count(k), label: SEAT_LABELS[k - 1], as: 'counter', slot: SEAT_CORNERS[k], color: SEAT_COLORS[k - 1] });
+        if (to) {
+          const got = `__mash_to_${i}_${k}`;
+          world.watches.push({ type: got, when: { var: count(k), gte: to } });
+          world.reactions.push({ on: got, if: live, do: 'set', var: winner, to: k }, { on: got, if: live, do: 'emit', type: 'mash:end' }, { on: got, do: 'set', var: open, to: 0 });
+        }
+      }
+      world.timers.push({ every: 1, emit: { type: `__mash_sec_${i}` }, while: live });
+      world.reactions.push({ on: `__mash_sec_${i}`, do: 'inc', var: clock, by: -1, min: 0 });
+      world.watches.push({ type: horn, when: { var: clock, lte: 0 } });
+      world.reactions.push(
+        { on: horn, if: live, do: 'argmax', of: ks.map(count), var: winner },
+        { on: horn, if: live, do: 'emit', type: 'mash:end' },
+        { on: horn, do: 'set', var: open, to: 0 },
+      );
+      world.hud.push({ var: clock, label: 'Time', as: 'clock' }, { on: 'mash:end', text: 'Time!', as: 'toast', ttl: 2 });
+      return { world, emits: ['mash:end'], on: { 'mash:end': { end: 'success' } } };
+    },
+  },
+
   // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
   // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
   // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
@@ -1440,7 +1585,7 @@ const MECHANICS = {
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
-      const i = ctx.i, P = ctx.player, T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+      const i = ctx.i, P = ctx.player, T = sidesOf(p.teams, P), names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
       const all = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
       if (names.length !== 2 || !all.every((c) => typeof c === 'string' && c) || new Set(all).size !== all.length || !all.includes(P)) throw new Error(`control[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player in one, each id once`);
       if (!(Array.isArray(p.at) && p.at.length >= 2 && p.at.every(Number.isFinite))) throw new Error(`control[${i}]: at is the point, [x, y, z?]`);
@@ -1580,6 +1725,8 @@ export function lowerMechanic(kind, params, ctx) {
     storeSchema: ctx && ctx.storeSchema,
     hints: (ctx && ctx.hints) || {},
     ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
+    ...(ctx && ctx.seatLives === true ? { seatLives: true } : {}),
+    ...(ctx && typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1637,7 +1784,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}) }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}), ...(ctx.seatLives === true ? { seatLives: true } : {}), ...(typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));

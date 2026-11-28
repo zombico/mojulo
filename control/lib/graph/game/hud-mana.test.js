@@ -44,6 +44,10 @@ describe('a level\'s rows on mana-ui', () => {
   });
   it('a banner is a moment, a toast a line of its slot', () => {
     expect(L.feed.rows.banners).toEqual([{ on: 'goal.*', text: 'GOAL {score}' }]);
+    // (a banner's second line, `sub`, carried where it is written: a round's pay under 'Round complete')
+    expect(hudToMana([{ on: 'shift:paid:*', as: 'banner', text: 'Round complete', sub: 'Paid 40 coin' }]).feed.rows.banners).toEqual([{ on: 'shift:paid:*', text: 'Round complete', sub: 'Paid 40 coin' }]);
+    expect(levelHud('console', { count: true }).count).toBe(true);
+    expect(levelHud('console').count).toBeUndefined();
     expect(L.feed.rows.toasts.map((t) => t.on ?? `var:${t.var}`)).toEqual(['hit', 'var:score']);
     expect(L.feed.rows.lines).toHaveLength(1);
   });
@@ -62,6 +66,11 @@ describe('a level\'s rows on mana-ui', () => {
     expect(C.slice(3).map((c) => c.when && c.when.bind)).toEqual(['gun.on', 'radar.on', 'wheel.open']);
     expect(C[2].props).toMatchObject({ at: 'bottom-left', variant: 'scrim', rest: { bind: 'hero.rest' } });
     expect(hudToMana([], { hero: false }).spec.hud.children).toEqual([]);
+    // (heroBar false: the pilot kept, its gun, radar and wheel, but no health strip in the corner: a frame's own HUD has it)
+    const F = hudToMana([], { heroBar: false });
+    expect(F.feed.hero).toBe(true);
+    expect(F.spec.hud.children.some((c) => c.props && c.props.at === 'bottom-left')).toBe(false);
+    expect(F.spec.hud.children.length).toBe(C.length - 1);
   });
   it('draws as a game: the health a strip in cells with no label, the corners on a scrim, the rest bare', () => {
     const E = hudToMana([{ var: 'hp', label: 'HP' }, { var: 'down', label: 'Down', as: 'counter', slot: 'top-left' }, { text: 'W walk', slot: 'bottom', ttl: 9 }]), J = JSON.stringify(E.spec);

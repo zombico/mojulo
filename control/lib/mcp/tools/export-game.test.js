@@ -5,7 +5,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 // Force the geometry hoist on toy-sized worlds so the dedup path is exercised (prod: 256KB).
 process.env.MOJULO_EXPORT_GEOMETRY_HOIST_MIN = '64';
 
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -125,7 +125,11 @@ describe('export_game — world/level games', () => {
     expect(result.geometry_bank.files).toBe(1);
     for (const lv of ['sk_eg_lv_a', 'sk_eg_lv_b']) {
       const page = readFileSync(path.join(result.dir, `levels/${lv}.html`), 'utf8');
-      expect(page).toContain(`const GROUPS = await (await fetch("../${groups[0]}")).json()`);
+      expect(page).toContain(`const GROUPS = await __mojGet("../${groups[0]}")`);
+      // (its loader first in its script, every bank it fetches named with the bytes the export wrote)
+      const L = page.indexOf('<script type="module">\nconst __mojGet = ');
+      expect(L).toBeGreaterThan(0);
+      expect(page).toContain(`"../${groups[0]}":${statSync(path.join(result.dir, groups[0])).size}`);
     }
     // the hoisted file is plain JSON and carries the packed terrain mesh
     const bank = JSON.parse(readFileSync(path.join(result.dir, groups[0]), 'utf8'));

@@ -42,7 +42,8 @@ export const REALITY = Object.freeze({
         'comic-night': { status: 'absent', effort: 'S', pkg: 'comic-look', requires: ['reality.look=comic-day'], note: 'the comic look by night: the same ink and bands, a city-night palette, rim light on the cast' },
       },
     },
-    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', since: { 'gothic-ashlar': '2026-11-11' } } },
+    // (11-24, the city museum: its gallery wings' kit)
+    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', since: { 'gothic-ashlar': '2026-11-11', 'bay-gallery': '2026-11-24' } } },
     medium: {
       values: {
         '3d': { status: 'built', lowers: 'lib/graph/scene/scene-three.js' },
@@ -78,7 +79,7 @@ export const REALITY = Object.freeze({
         themed: { status: 'built', since: '2026-11-09', requires: ['reality.interface=front'], lowers: 'lib/graph/game/play-shell-mana.js', note: 'a world\'s ui: the shell\'s attract, title, level list, options, results and loading screens on mana-ui, in the world\'s look (its guide lowered to a theme: type on a frame sized by the screen and the seat, a halo over the world, a legend bar, lean, transitions, sound cues), in its languages' },
         // partial 11-06 (the RPG on mana-ui; 11-09 the brawl yard, the fighter\'s lab): some games\' own screens run on
         // mana-ui; a level\'s HUD, talk, quest log and pause do not yet
-        'in-game': { status: 'partial', effort: 'M', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, a mission\'s briefing, HUD, pause and debrief (gameworld/mission-mana.js), the strategy boards, the board-game tables and the holo arena (11-10), the practice, work and game rooms\' menu (the shell\'s pause, 11-13); since 11-13 a level\'s own HUD rows on a world that says `ui` (game/hud-mana.js, one host a level page), a course\'s HUD, the pause button and the touch pad (11-14), a turn\'s picks; a level\'s talk menus and its quest log are still the page\'s own DOM, and a world with no `ui` keeps the page\'s HUD' },
+        'in-game': { status: 'partial', effort: 'M', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, a mission\'s briefing, HUD, pause and debrief (gameworld/mission-mana.js), the strategy boards, the board-game tables and the holo arena (11-10), the practice, work and game rooms\' menu (the shell\'s pause, 11-13); since 11-13 a level\'s own HUD rows on a world that says `ui` (game/hud-mana.js, one host a level page), a course\'s HUD, the pause button and the touch pad (11-14), a turn\'s picks; a metroidvania box\'s and a side map\'s HUD, banners, minimap and pause map in their looks, heard (11-24, 11-25), a frame\'s hangar (11-24); a level\'s talk menus and its quest log are still the page\'s own DOM, and a world with no `ui` keeps the page\'s HUD' },
       },
     },
     // what a game sounds like. A quick game says its music and its effects; a gameworld's `sound` (11-13) lays the sound

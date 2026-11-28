@@ -25,20 +25,27 @@
 // BURST_SMALL      a burst's radius under which it is a round's hit, not a burst of its own; BURST_BIG a blast's
 // FRAME_HUM        a unit's hum control (its held voice at a steady pitch: a drone's motors, a rotor, the tracks)
 // WARN_EVERY       the least seconds between two missile warnings
+// FRAME_EAR        where the field is heard from: every sound but the pilot's own by its distance from the pilot, full
+//                  within `near` m, falling away as (near / d)^`fall` beyond it, silent past `far` (a frame's fight is
+//                  hundreds of metres across: the shared rolloff, full to 250 m, heard all of it at once); and the
+//                  field's effects as a whole at `mix` of their level, under the music and the lines
 export const FRAME_STEP_GAIN = 0.55, BURST_SMALL = 5, BURST_BIG = 10, FRAME_HUM = 0.6, WARN_EVERY = 1.2;
+export const FRAME_EAR = Object.freeze({ near: 30, fall: 1.2, far: 700, mix: 0.55 });
 
 export function frameAudioScript() {
   return `
 // AN ASSAULT FRAME'S FIELD, HEARD (frame-audio.js)
 (function () {
-  const F = __AUDIO.frame, L = {}, FRAME_STEP_GAIN = ${FRAME_STEP_GAIN}, BURST_SMALL = ${BURST_SMALL}, BURST_BIG = ${BURST_BIG}, FRAME_HUM = ${FRAME_HUM}, WARN_EVERY = ${WARN_EVERY};
+  const F = __AUDIO.frame, L = {}, FRAME_STEP_GAIN = ${FRAME_STEP_GAIN}, BURST_SMALL = ${BURST_SMALL}, BURST_BIG = ${BURST_BIG}, FRAME_HUM = ${FRAME_HUM}, WARN_EVERY = ${WARN_EVERY}, EAR = ${JSON.stringify(FRAME_EAR)};
+  // (a sound's level by where it is: full near the pilot, falling away with distance, nothing far off)
+  const ear = (pos) => { const Lp = __listenerPos(); if (!Lp || !pos) return 1; const d = Math.hypot(pos[0] - Lp[0], pos[1] - Lp[1], pos[2] - Lp[2]); return d <= EAR.near ? 1 : d >= EAR.far ? 0 : Math.pow(EAR.near / d, EAR.fall) * Math.min(1, (EAR.far - d) / (EAR.far * 0.25)); };
   const W0 = F.world || {}, CK = F.cockpit || {}, PL = (F.parts && F.parts.legs) || {}, PB = (F.parts && F.parts.booster) || {};
   let first = true, booted = false, bSeq = null, rounds = null, warnT = -9, burstT = -9;
   const drives = {}, hums = {};
   // (a cue by its id among the level's cues: the engine plays a gesture list; the last heard kept for a headless probe)
   const C = __AUDIO.cues || {}, heard = window.__mojFrameHeard = [];
-  const play = (cue, gain) => { if (!cue || !C[cue]) return; __beatsCue(C[cue], gain); heard.push(cue); if (heard.length > 64) heard.shift(); };
-  const at = (e, P) => (P && e === P ? null : __proxGain(e.transform.pos));
+  const play = (cue, gain) => { if (!cue || !C[cue]) return; const g = (gain == null ? 1 : gain) * EAR.mix; if (g < 0.01) return; __beatsCue(C[cue], g); heard.push(cue); if (heard.length > 64) heard.shift(); };
+  const at = (e, P) => (P && e === P ? null : ear(e.transform.pos));
   const held = () => !!((window.__mojGarage && window.__mojGarage.up) || (window.__mojBriefing && window.__mojBriefing.up));
   const hpOf = (e) => (e.body && Number.isFinite(e.body.hp) ? e.body.hp : null);
   const kindOf = (e) => { const f = e.body && e.body.figure; return typeof f === 'string' && f.indexOf('unit-') === 0 ? f.slice(5) : null; };
@@ -54,7 +61,7 @@ export function frameAudioScript() {
     catch (err) { tab[k] = null; }
     return tab[k];
   };
-  const hold = (v, ctl, lv) => { if (!v) return; v.h.set(ctl); v.g.gain.setTargetAtTime(Math.max(0, lv) * v.level, __beatsCtx.currentTime, 0.12); };
+  const hold = (v, ctl, lv) => { if (!v) return; v.h.set(ctl); v.g.gain.setTargetAtTime(Math.max(0, lv) * v.level * EAR.mix, __beatsCtx.currentTime, 0.12); };
   (function __beatsFrame() {
     requestAnimationFrame(__beatsFrame);
     if (!__beatsEng || !__beatsCtx) return;
@@ -70,13 +77,13 @@ export function frameAudioScript() {
       now[p.id] = 1;
       if (first || hush || rounds[p.id] || !p.missile) continue;
       const o = Wd.byId && Wd.byId[p.owner], k = o && kindOf(o), U = k && F.units && F.units[k];
-      if (U && U.missile) { const l = L[o.id]; if (!l || Wd.time - (l.mT || -9) > 0.5) { play(U.missile, __proxGain(o.transform.pos)); if (l) l.mT = Wd.time; } }
+      if (U && U.missile) { const l = L[o.id]; if (!l || Wd.time - (l.mT || -9) > 0.5) { play(U.missile, ear(o.transform.pos)); if (l) l.mT = Wd.time; } }
       if (P && p.owner !== P.id && p.homing && p.homing.target === P.id && Wd.time - warnT > WARN_EVERY) { warnT = Wd.time; play(CK.warn, 0.6); }
     }
     rounds = now;
     // (bursts: a splash round's, where it went off)
     const top = Wd.bursts && Wd.bursts.length ? Wd.bursts[Wd.bursts.length - 1].seq : -1;
-    if (bSeq !== null && !hush) for (const b of Wd.bursts || []) if (b.seq > bSeq && (b.radius || 0) >= BURST_SMALL && Wd.time - burstT > 0.06) { burstT = Wd.time; play(b.radius >= BURST_BIG ? W0.blast : W0.burst, __proxGain(b.pos)); }
+    if (bSeq !== null && !hush) for (const b of Wd.bursts || []) if (b.seq > bSeq && (b.radius || 0) >= BURST_SMALL && Wd.time - burstT > 0.06) { burstT = Wd.time; play(b.radius >= BURST_BIG ? W0.blast : W0.burst, ear(b.pos)); }
     bSeq = Math.max(bSeq === null ? -1 : bSeq, top);
     for (const e of Wd.entities) {
       if (e.dormant) continue;
@@ -125,7 +132,7 @@ export function frameAudioScript() {
         }
       }
       if (fr && !down && e.thrust > 0) { const d = driveOf(e), v = e.thrust * (g == null ? 1 : g); if (!(thrust[d] >= v)) thrust[d] = v; }
-      if (U && U.hum && !down && !e.gone) { const v = __proxGain(e.transform.pos); if (!(hum[k] >= v)) hum[k] = v; }
+      if (U && U.hum && !down && !e.gone) { const v = ear(e.transform.pos); if (!(hum[k] >= v)) hum[k] = v; }
       l.hp = hpOf(e); l.down = down; l.hits = e.hits || 0; l.shield = !!e.shieldBroken; l.boost = !!e.boosting; l.qb = (e.qbT || 0) > 0;
       l.landed = e.landed; l.air = !!e.airborne; l.asc = !!e.ascending; l.en = !!e.enShut; l.lock = !!e.locked; l.wShots = e.weapon ? e.weapon.shots || 0 : 0;
     }

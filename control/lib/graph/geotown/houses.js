@@ -11,7 +11,7 @@
  *
  * Pure; the dice are the caller's.
  */
-import { readStyle, materialContext, wordTile, MATERIAL_WORDS, STYLE_STARTERS } from '../era/arch-style.js';
+import { readStyle, materialContext, wordTile, MATERIAL_WORDS, STYLE_STARTERS, PAINTED_WORDS } from '../era/arch-style.js';
 import { townLanguage } from '../era/out-town.js';
 import { structureStyle } from '../era/out-structures.js';
 
@@ -26,7 +26,8 @@ export function houseDress(S, cube) {
     const w = S.materials[surface], colour = S.palette[surface] ?? (w ? MATERIAL_WORDS[w].colour : null);
     if (!w && !colour) continue;
     for (const g of groups) {
-      const T = w ? wordTile(w, X, SEEDS[g]) : null;
+      // (a word painted its colour, PAINTED_WORDS, takes the palette's: every other word paints from the cube alone)
+      const T = w ? wordTile(w, colour && PAINTED_WORDS.includes(w) ? { ...X, paint: [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16)) } : X, SEEDS[g]) : null;
       const e = { ...(T ? { spec: T.spec, metres: T.metres } : {}), ...(surface === 'roof' ? { roof: true } : {}), ...(colour ? { colour } : {}) };
       if (e.spec || e.colour) out[g] = e;
     }

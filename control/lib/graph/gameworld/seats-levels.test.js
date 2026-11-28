@@ -6,6 +6,7 @@ import { gameStages, stageLevelOrder } from './levels.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { readSeats } from '../worlds/world-scene.js';
 import { synthesizeLevel } from '../game/level-synth.js';
+import { runSteps } from './runner.js';
 
 // SEATS, LOWERED: a gameworld whose cube says soul.seats two or four lays a body per extra seat
 // beside the hero (the hero itself, on its rule; while its seat is empty, after the hero on the escort motive) and names
@@ -93,4 +94,87 @@ describe('the sim with the lowered seats', () => {
     expect(() => readSeats({ bodies: ['p2'], pool: 'shared' }, E)).toThrow(/give lives/);
     expect(() => readSeats({ bodies: ['p2'], lives: 0 }, E)).toThrow(/1 to 99/);
   });
+});
+
+// SEATS AGAINST EACH OTHER (soul.contest): versus and free-for-all, each seat a side of its own (an empty one hunting,
+// never escorting); a deathmatch's frags owns its fallen (`downs: 'level'`), every seat a contender
+describe('seats against each other, lowered from the cube', () => {
+  const DM = (soul) => ({ ...quickWorld({ id: 'dm', quick: { goal: 'deathmatch', camera: 'third-person' }, style: { kit: 'trail-valley' } }), intent: { cube: { soul } } });
+  it('free-for-all: a side a seat, the contest and the match\'s own downs named, frags taking every seat', () => {
+    const w = DM({ seats: 'two', contest: 'free-for-all' }), m = level(w);
+    const [hero, two] = m.entities.filter((e) => e.pilotable);
+    expect([hero.team, two.team]).toEqual(['seat-1', 'seat-2']);
+    expect(two.ambient.mind).toEqual({ motivation: 'hunt' });
+    expect(two.ambient.escort).toBeUndefined();
+    expect(m.seats).toMatchObject({ bodies: ['hero-2'], contest: 'free-for-all', downs: 'level' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+    const { mechEvents } = synthesizeLevel(m);
+    expect(mechEvents.vars['hp:2']).toBeGreaterThan(0);
+    expect(mechEvents.hud.some((r) => r.label === 'P2 frags')).toBe(true);
+  }, 60_000);
+
+  it('co-op, as it was: every seat on the hero\'s side, no contest named', () => {
+    const m = level(DM({ seats: 'two' }));
+    const [hero, two] = m.entities.filter((e) => e.pilotable);
+    expect(two.team).toBe(hero.team);
+    expect(m.seats.contest).toBeUndefined();
+  }, 60_000);
+});
+
+describe('seats on a team deathmatch', () => {
+  it('teams: the odd seats on the hero\'s side and the even on the other, as the match\'s own sides; it composes', () => {
+    // (through the run's steps, as design_game lays it: the match's cast, its bots on their sides, comes with the goal)
+    const w = { ...quickWorld({ id: 'tdm', quick: { goal: 'deathmatch', camera: 'third-person', mode: 'team', hero: {} }, style: { kit: 'trail-valley' } }), intent: { cube: { soul: { seats: 'four', contest: 'teams' } } } };
+    const m = runSteps(w, { ref: 'tdm' }).find((x) => x.key.startsWith('level-')).order.manifest, team = (id) => m.entities.find((e) => e.id === id).team;
+    expect(['hero', 'hero-2', 'hero-3', 'hero-4'].map(team)).toEqual(['red', 'blue', 'red', 'blue']);
+    expect(m.entities.find((e) => e.id === 'hero-2').ambient.mind).toEqual({ motivation: 'hunt' });
+    expect(m.entities.find((e) => e.id === 'hero-3').ambient.mind).toEqual({ motivation: 'escort' });
+    expect(() => synthesizeLevel(m)).not.toThrow();
+  }, 60_000);
+});
+
+describe('roles on a ride', () => {
+  const ride = (soul) => ({ ...quickWorld({ id: 'crew', quick: { goal: 'reach', ride: 'car' }, style: { kit: 'trail-valley' } }), ...(soul ? { intent: { cube: { soul } } } : {}) });
+  const levelOf = (w) => runSteps(w, { ref: 'crew' }).find((x) => x.key.startsWith('level-')).order.manifest;
+  it('roles, two seats: the car a gun on a turret, seat 2 its gunner with no body of its own; the page reads it', () => {
+    const m = levelOf(ride({ seats: 'two', dependence: 'roles', pool: 'shared', join: 'lobby' }));
+    const car = m.entities.find((e) => e.pilotable);
+    expect(car.turret.mount.stabilized).toBe(true);
+    expect(car.weapon).toBeTruthy();
+    expect(m.seats).toEqual({ bodies: [], crew: { 2: { body: car.id, as: 'gunner' } }, max: 2, join: 'lobby', lives: 6, pool: 'shared' });
+    expect(m.entities.filter((e) => e.pilotable)).toHaveLength(1);
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+  }, 60_000);
+
+  it('a ride without roles is laid as it was: one seat, no gun', () => {
+    const m = levelOf(ride({ seats: 'two' })), car = m.entities.find((e) => e.pilotable);
+    expect(m.seats).toBeUndefined();
+    expect(car.turret).toBeUndefined();
+  }, 60_000);
+});
+
+describe('a split screen, lowered from the cube', () => {
+  const DM = (soul) => ({ ...quickWorld({ id: 'split', quick: { goal: 'deathmatch', camera: 'first-person', hero: {} }, style: { kit: 'trail-valley' } }), intent: { cube: { soul } } });
+  const levelOf = (w) => runSteps(w, { ref: 'split' }).find((x) => x.key.startsWith('level-')).order.manifest;
+  it('first person, split: a body a seat, the seats\' frame split, every seat a contender; the page reads it', () => {
+    const m = levelOf(DM({ seats: 'four', frame: 'split', contest: 'free-for-all' }));
+    expect(m.camera).toMatchObject({ rule: 'eye', hideTarget: true });
+    expect(m.seats).toMatchObject({ bodies: ['hero-2', 'hero-3', 'hero-4'], frame: 'split', contest: 'free-for-all' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+    expect(synthesizeLevel(m).mechEvents.hud.some((r) => r.label === 'P4 frags')).toBe(true);
+  }, 60_000);
+
+  it('first person on one screen seats one, as it was', () => {
+    const m = levelOf(DM({ seats: 'two' }));
+    expect(m.seats).toBeUndefined();
+  }, 60_000);
+});
+
+describe('turns, lowered from the cube', () => {
+  it('soul.input=turns: no seat bodies, the seats taking turns at the hero, each its own lives; the page reads it', () => {
+    const m = level(W({ soul: { seats: 'two', input: 'turns' } }));
+    expect(m.entities.filter((e) => e.pilotable)).toHaveLength(1);
+    expect(m.seats).toEqual({ bodies: [], turns: {}, max: 2, join: 'drop-in', lives: 3, pool: 'own' });
+    expect(readSeats(m.seats, m.entities)).toEqual(m.seats);
+  }, 60_000);
 });

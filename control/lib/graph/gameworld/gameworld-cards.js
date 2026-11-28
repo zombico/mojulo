@@ -96,7 +96,7 @@ import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.
 import { CRAFT } from '../skyscape/eye.js';
 import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
-import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
+import { STALLS as MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
@@ -1113,13 +1113,20 @@ function hijackCityCard() {
     '',
     'WHAT IS IN IT, each a word of the world:',
     '  levels.<id>.geocity   the district of a metro (its cars parked to take; traffic; passers-by who flee and fall)',
+    '                        a district by ring: HIJACK_DISTRICTS downtown | inner-city (walk-ups, low-rises, main streets) |',
+    '                        suburbs (colonials, garden apartments); any metro\'s `geocity.at` a ring: core, frame, outskirts',
     '  errands[].mission     { heat?: stars, clean?: lose them first, time?: seconds, final?: the end } on a contact\'s job',
     '  law: true | { stars, per, cars, armed, calm, busted, fine }   mayhem raises stars; police on foot and in cars',
     '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',
     '  factions.<id>          crews: turf, rivals, a board of acts (torch, tag, take)   app: \'taskfu\' fares on the phone',
+    '  errands[].vehicle     a driving job on the Jobsified app (jobsified.js): garbage (piles held at, F, emptied at the',
+    '                        dump, geocity `dump: true`), heavy (a call: trucks and machines to sites), bus (stops, riders), excavator (operated)',
     '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
     '',
-    'GROW IT: rename it; the hero (create_character words); another metro (`geocity.metro.from`); the story (missions); the',
+    'GROW IT: rename it; the hero (create_character words); its suburbs (`geocity.outskirts`: west-coast, tropical,',
+    '  san-francisco, sunset, northeast, bay-and-gable); another metro (`geocity.metro.from`: bayside, northeast); a LOCALE',
+    '  (los-angeles, miami, san-francisco, boston, toronto: its row in gameworld/locales.js says the style\'s geocube, hour,',
+    '  clouds and air, the world\'s grade and the outskirts to write together); the story (missions); the',
     '  crews; the law\'s numbers; the shops\' prices; a theme card. Era: gen-7 by default (the sun\'s shadows, the actors\'',
     '  and the buildings\' light), `style.geocube.era: \'gen-6\'` for a lighter page.',
   );

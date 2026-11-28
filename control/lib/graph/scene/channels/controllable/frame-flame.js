@@ -1,4 +1,4 @@
-// In-page script: AN ASSAULT FRAME'S THRUST — the booster's bells and its verniers burning as layered fire, a figure's
+// In-page script: AN ASSAULT FRAME'S THRUST — the booster's bells and its verniers glowing as layered plasma, a figure's
 // `thrusters` of kind `flame` (assault-frame/figure.js). Opt-in: a page whose figures carry none emits not one byte of it.
 //
 //   THE LAYERS   three nested open cones out of each mouth, each its own fire shader (scrolling noise along the plume,
@@ -7,7 +7,8 @@
 //                  core    white-hot to pale cyan, short and tight, the shock diamonds (bright bands down its length)
 //                          standing in it when it is driven hard
 //                  sheath  the exhaust's own colour (the palette's: an electric blue), longer, its noise quicker
-//                  tail    amber to a deep red at its end, the longest and the widest, licking and slow
+//                  tail    the exhaust's colour deepening toward the dark at its end, the longest and the widest, licking
+//                          and slow: a plasma's glow, not a fire's (no amber: the drive burns nothing, parts.js PROPELLANTS)
 //                and a flare on the mouth, the glow round the bell, swelling with the burn
 //   THE BURN     the entity's `thrust` (0 off, 1 full: the frame rule sets it, a quick boost the most): the plume's length,
 //                its width and its brightness follow it; a main bell burns longer than a vernier
@@ -18,7 +19,7 @@
 export const FLAME_LAYERS = Object.freeze({
   core: Object.freeze({ len: 0.55, rad: 0.5, band: Object.freeze([-1, 0.75]), hot: '#ffffff', cool: '#9fe8ff', speed: 9, grain: 3.2, alpha: 1.1, diamonds: 1 }),
   sheath: Object.freeze({ len: 0.9, rad: 1.0, band: Object.freeze([0.05, 0.8]), hot: null, cool: null, speed: 6.5, grain: 2.4, alpha: 0.75, diamonds: 0 }),
-  tail: Object.freeze({ len: 1.35, rad: 1.5, band: Object.freeze([0.3, 1.2]), hot: '#ffa040', cool: '#b01e14', speed: 3.6, grain: 1.8, alpha: 0.6, diamonds: 0 }),
+  tail: Object.freeze({ len: 1.35, rad: 1.5, band: Object.freeze([0.3, 1.2]), hot: null, cool: '#120a30', speed: 3.6, grain: 1.8, alpha: 0.6, diamonds: 0 }),
 });
 
 // (a page with a logarithmic depth buffer, a flight's long view, writes its depth so: the flame keeps its depth with it, or
@@ -68,8 +69,8 @@ void main() {
 /** The page's block: the flame kind's mesh (`__flameJet`) and its update (`__flameStep`), inlined when a figure has one. */
 export function frameFlameScript() {
   return `
-// AN ASSAULT FRAME'S THRUST (scene/channels/controllable/frame-flame.js): each mouth three nested cones of fire, a white-hot
-// core with its shock diamonds, a sheath of the exhaust's colour, an amber tail going red, and a flare on the mouth
+// AN ASSAULT FRAME'S THRUST (scene/channels/controllable/frame-flame.js): each mouth three nested cones of plasma, a white-hot
+// core with its shock diamonds, a sheath of the exhaust's colour, a tail deepening to the dark, and a flare on the mouth
 const __FLAME = ${JSON.stringify(FLAME_LAYERS)};
 let __flameTex = null;
 function __flameJet(th, holder, len, rad) {
@@ -84,7 +85,7 @@ function __flameJet(th, holder, len, rad) {
   for (const k of ['tail', 'sheath', 'core']) {
     const L = __FLAME[k], l = len * L.len, r = rad * L.rad, geo = new THREE.ConeGeometry(r, l, 18, 6, true);
     geo.translate(0, l / 2, 0);
-    const hot = L.hot ? new THREE.Color(L.hot) : own.clone().lerp(new THREE.Color(0xffffff), 0.35), cool = L.cool ? new THREE.Color(L.cool) : own.clone().multiplyScalar(0.7);
+    const hot = L.hot ? new THREE.Color(L.hot) : k === 'tail' ? own.clone().multiplyScalar(0.85) : own.clone().lerp(new THREE.Color(0xffffff), 0.35), cool = L.cool ? (k === 'tail' ? own.clone().lerp(new THREE.Color(L.cool), 0.7) : new THREE.Color(L.cool)) : own.clone().multiplyScalar(0.7);
     const U = { uBand0: { value: L.band[0] }, uBand1: { value: L.band[1] }, uLen: { value: l }, uHot: { value: hot }, uCool: { value: cool }, uTime: { value: 0 }, uAmt: { value: 0 }, uSpeed: { value: L.speed }, uGrain: { value: L.grain }, uAlpha: { value: L.alpha }, uDiamonds: { value: L.diamonds }, uSeed: { value: seed } };
     const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms: U, vertexShader: ${JSON.stringify(FLAME_VERT)}, fragmentShader: ${JSON.stringify(FLAME_FRAG)}, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     m.raycast = function () {}; m.frustumCulled = false; m.renderOrder = 6; holder.add(m);
