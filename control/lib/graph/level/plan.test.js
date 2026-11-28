@@ -90,6 +90,8 @@ describe('a map planned as segments', () => {
     expect(P({ route: ['A', 'B'] })).toThrow(/never reaches 'C'/);
     expect(P({ rows: ['A B', 'C .'], route: ['A', 'B', 'C'] })).toThrow(/do not share a side/);
     expect(P({ route: ['A', 'B', 'A'] })).toThrow(/walks a segment twice/);
+    expect(P({ route: [] })).toThrow(/the walk through the segments/);
+    expect(P({ route: ['A'] })).toThrow(/a lone block is the plan's only segment/);
     expect(() => readGrid({ plan, rows: ['# #'] })).toThrow(/never in rows/);
     expect(() => readGrid({ rows: ['# #'], segments: {} })).toThrow(/written against a plan/);
   });
@@ -132,6 +134,25 @@ describe('a map planned as segments', () => {
 
 // THE MAP'S PIECES (level/map-items.js): each segment's role placed on the map as stitched, the composer's set pieces at
 // the map's scale; the plan pins what it wants otherwise.
+// A LONE BLOCK (a route of one, the plan's only segment: an approach, gameworld/world-map.js approachLevel): crossed edge
+// to edge, set out from its west end and left by its east, its edges its gates
+describe('a lone block', () => {
+  const lone = (seg) => ({ tile: 24, plan: { size: 5, rows: ['A'], route: ['A'], key: { A: { name: 'the road' } } }, ...(seg ? { segments: { A: seg } } : {}) });
+  it('is laid straight across, west to east: set out from the west end, left by the east', () => {
+    const G = readGrid(lone());
+    expect(G.plan.roles).toEqual({ A: 'arrival' });
+    expect(G.plan.gates).toEqual([]);
+    expect(G.cells.filter((x) => x.kind === 'path').map((x) => [x.r, x.c])).toEqual([[2, 0], [2, 1], [2, 2], [2, 3], [2, 4]]);
+    const E = gridEnds({ seed: 1, grid: lone() });
+    expect(E.spawn[0]).toBeLessThan(24);
+    expect(E.exit[0]).toBeGreaterThan(4 * 24);
+  });
+  it('a written one is held to its law from its edges: every path reached from its way in or out', () => {
+    expect(() => readGrid(lone({ rows: ['. . . . .', '. . . . .', '# # # # #', '. . . . .', '. . # . .'] }))).toThrow(/not reached from its gates/);
+    expect(() => readGrid(lone({ rows: ['. . . . .', '. . . . .', '# # # # #', '. . # . .', '. . # . .'] }))).not.toThrow();
+  });
+});
+
 describe('a planned map\'s pieces', () => {
   it('places each role\'s piece on the way: the town its hero tree, the woods a pack, the shrine its boss', () => {
     const G = readGrid(grid());

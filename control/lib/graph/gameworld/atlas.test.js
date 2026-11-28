@@ -71,8 +71,10 @@ describe('the atlas of a world of world maps', () => {
   const foes = { grunt: { class: 'brute' }, boss: { class: 'brute', rank: 'boss', vehicle: 'hydra' }, ...Object.fromEntries(REGIONS.filter((R) => R.dragon).map((R) => [dragonKind(R.dragon), { class: 'brute', rank: 'boss', dragon: R.dragon }])) };
   const W = ceresWorld({ id: 'ceres', name: 'Ceres', seed: 2, foes }), A = designAtlas(W);
   it('a region a world map: a stop a block, its towns and its keep at theirs, its dragon\'s lair at the walk\'s end', () => {
-    expect(A.regions.map((r) => r.name)).toEqual(REGIONS.map((R) => R.name));
-    const L = A.regions[0], plan = W.levels[REGIONS[0].id].glyphs.plan;
+    // (the approach first, a map of its one block: the coast road)
+    expect(A.regions.map((r) => r.name)).toEqual(['The coast road', ...REGIONS.map((R) => R.name)]);
+    expect(A.regions[0].trail.stops).toHaveLength(1);
+    const L = A.regions[1], plan = W.levels[REGIONS[0].id].glyphs.plan;
     expect(L.trail.stops.map((s) => s.node)).toEqual([...plan.route, 'lair']);
     const towns = Object.values(plan.key).filter((k) => k.town !== undefined).map((k) => k.name);
     expect(L.places.filter((p) => p.kind === 'town').map((p) => p.name)).toEqual(towns);
@@ -80,8 +82,8 @@ describe('the atlas of a world of world maps', () => {
     expect(L.places.find((p) => p.kind === 'lair').name).toMatch(/storm drake's lair/i);
     expect(L.places.find((p) => p.kind === 'lair').at).toEqual(L.trail.stops.at(-1).at);
   });
-  it('the regions joined by their gates, each keyed by the shard before it; the page draws the lair\'s mark', () => {
-    expect(A.roads.map((r) => [r.from, r.to, r.kind, r.key])).toEqual(W.links.map((l) => [l.from, l.to, 'gate', l.key]));
+  it('the regions joined by their gates, each keyed by the shard before it, the approach by its open road; the page draws the lair\'s mark', () => {
+    expect(A.roads.map((r) => [r.from, r.to, r.kind, r.key ?? null])).toEqual(W.links.map((l) => [l.from, l.to, l.key ? 'gate' : 'road', l.key ?? null]));
     expect(gameworldAtlasHtml(W)).toContain('id="lair"');
   });
 });

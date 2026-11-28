@@ -3,7 +3,7 @@
 // way out), its first zone after it, a zone a block after that, travelled zone to zone. The concept on two cases, one
 // per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
-import { worldMapLevel, wildsLevel, WILDS, WORLD_MAP, PLACE_LIGHT } from './world-map.js';
+import { worldMapLevel, wildsLevel, WILDS, WORLD_MAP, PLACE_LIGHT, approachLevel, APPROACH } from './world-map.js';
 import { composeGameworld, MAP_FLORA } from './compose.js';
 import { readGeocube } from '../era/geocube.js';
 import { castingCall } from './foe-casting.js';
@@ -295,5 +295,21 @@ describe('a region\'s plains (`plains`)', () => {
     const rows = g.segments[F1]?.rows ?? null;
     if (rows) expect(rows[band.tile[0]].replace(/\s+/g, '')[band.tile[1]]).not.toBe('#');
     for (const l of lawsOf(worldMapLevel({ n: 3, plains: 2 }).level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+});
+
+// AN APPROACH (approachLevel): one block crossed west to east, the controls taught, an ambush up the road short of the way
+// on, the road on; ridden onto, getting down taught first (the ridden one: artesia.test.js)
+describe('an approach', () => {
+  it('one block: the controls, then a fight and the one that comes after it holding the way on, then the road on', () => {
+    const { level, ambush, tile } = approachLevel({ name: 'the old road' });
+    expect(level.glyphs.plan).toMatchObject({ rows: ['A'], route: ['A'] });
+    expect(level.glyphs.plan.key.A.ride).toBeUndefined();
+    const beats = level.glyphs.sketch.scenario.beats;
+    expect(beats.map((b) => b.id)).toEqual(['controls', APPROACH.ambush, APPROACH.rest, APPROACH.road]);
+    expect(beats[0].teach).toEqual(['move', 'look', 'jump', 'sprint']);
+    expect(beats.find((b) => b.id === APPROACH.rest)).toMatchObject({ after: ambush, opens: true, tile });
+    expect(approachLevel({ name: 'the old road', ridden: true }).level.glyphs.sketch.scenario.beats[0].teach[0]).toBe('dismount');
+    expect(() => readSketch(level.glyphs.sketch, readGrid({ tile: level.glyphs.tile, plan: level.glyphs.plan }).plan)).not.toThrow();
   });
 });

@@ -72,3 +72,28 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
 - **A rider's cloth on any body** (`polygonizer/hero-flow.js`): the cape's cloth replays a clip the body plays
   clamped, a rider's legs stretched to the irons, never refusing it. A clip that reached as solved is replayed as it
   was.
+- **The approach: the game begins on the coast road** (`gameworld/artesia.js` `APPROACH`, `gameworld/world-map.js`
+  `approachLevel`).
+  - **One block before Lagoona:** Ceres's chain now starts on the coast road, its way on to Lagoona an open road.
+    Artesia comes up it in Seimos's saddle. She is taught the controls with getting down first, then moving, looking,
+    the jump and the sprint.
+  - **The ambush:** goblins hold the merchant Rhayu up the road, out of sight of where she arrives. One comes first
+    (the blow), then two more (the lock-on and the dodge), the way on held until they fall.
+  - **Rhayu:** a cast member made from words (a stout man in a merchant's russet). Won, he thanks her in the talk box
+    (she is silent) and walks to the road's end; the quest "The road in" reads "Follow Rhayu to the harbour village".
+    At Lagoona's first page he says where they are, and the quest is done.
+  - **Every region is come into, nothing taught:** the approach teaches, so Lagoona is laid `opening: false` as the
+    rest are.
+- **A lone block** (`level/plan.js`): a plan whose route is its one segment, crossed edge to edge (in at the west edge,
+  out at the east), its edges its gates. Every plan of two segments or more reads as before.
+- **Getting down, taught** (`level/map-sketch.js` `TEACH.dismount`, `scene/channels/guide.js`): a lesson done once
+  the pilot is no horse with its rider up. A guide with no such lesson emits as before.
+- **In the saddle from the start** (`worlds/mount-units.js` `ridden`, `worlds/controllable/mount.js` `mount.up`,
+  `level/grid.js` `ride: 'up'`, `gameworld/levels.js`): a page whose first block says `ride: 'up'` lays the world's
+  horse that comes when called under the hero at the spawn, its rider seated before the first step, no approach or
+  getting on. Got off, it stands where it was left until whistled.
+- **A story on a map's page** (`gameworld/levels.js` `stageSpots`, `gameworld/story.js`).
+  - **Its beats are places:** a planned map's scenario fights and finds are places by their beat ids (the ambush), so
+    a moment stands its people at one.
+  - **A fight won:** a moment's `when: { won: '<beat id>' }` starts it as that fight's foes are all down; the page
+    counts their falls and raises `won:<beat>`.

@@ -101,7 +101,7 @@ import { obstacleStage, obstacleEnds } from './roll-course.js';
 import { courseCamera, COURSE_NEAR, COURSE_TALL_FOV } from './course-view.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
-import { storyScene, levelQuests, questRaises, storyActors } from './story.js';
+import { storyScene, levelQuests, questRaises, storyActors, wonEvent } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { complexRoute, complexLaws } from '../network/complex.js';
 import { withProgram, PROGRAMS } from '../era/programs.js';
@@ -1042,12 +1042,18 @@ function withClimbs(stage, L) {
 
 // (the world's HORSES stand on a stage of open ground: on a map, only on a page whose blocks are RIDDEN, `ride: true`,
 // level/grid.js: a region's plains; every other stage as it was)
-function riddenStage(stage) {
-  if (stage.section !== 'map') return true;
+// A page whose first block says `ride: 'up'` (an approach, world-map.js approachLevel) is come onto in the saddle: the
+// world's first horse that comes when called (else its first) RIDDEN from the start (worlds/mount-units.js `ridden`)
+function stageMounts(G, stage) {
+  if (!G.mounts) return null;
+  if (stage.section !== 'map') return G.mounts;
   const L = stage.manifest?.level, P = L?.grid?.plan;
-  if (!P) return true;
+  if (!P) return G.mounts;
   const segs = stage.zone !== undefined ? [].concat(stage.zone) : P.route ?? Object.keys(P.key ?? {});
-  return segs.some((S) => P.key?.[S]?.ride === true);
+  if (!segs.some((S) => P.key?.[S]?.ride === true || P.key?.[S]?.ride === 'up')) return null;
+  if (P.key?.[segs[0]]?.ride !== 'up' || !Array.isArray(G.mounts)) return G.mounts;
+  const i = Math.max(0, G.mounts.findIndex((m) => m?.call));
+  return G.mounts.map((m, j) => (j === i ? { ...m, ridden: true } : m));
 }
 export function stageLevelOrder(G, stage, opts = {}) {
   const laid0 = withClimbs(stage, levelOrder(G, stage, opts));
@@ -1558,7 +1564,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // THE DAMAGE RING (damage-ring.js): a quick shooter's level on foot and a deathmatch say where each hit came from, round
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts && riddenStage(stage) ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(stageMounts(G, stage) ? { mounts: stageMounts(G, stage) } : {}), game });
   // A FLEET in it (a sortie's capital ships and stations, fleet/): its blocks the airspace's to draw, the level under
   // destructible physics, weightless (matter.g 0), its blows at a space fight's power (FLEET_POWER: a fighter's bolt
   // dents armour and holes a hull's thin plate, a torpedo breaches a reactor's casing)
@@ -1737,6 +1743,16 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   }
   let play = basePlay;
   if (arrivals.length) play = { ...(play ?? {}), cues: [...(play?.cues ?? []), ...arrivals] };
+  // A FIGHT WON (a moment's `when: { won }`, story.js): each fall of that beat's foes counted, its event raised at the last
+  const wins = [...new Set((story?.scenes ?? []).map((sc) => sc.when?.on).filter((on) => typeof on === 'string' && on.startsWith(wonEvent(''))))];
+  if (wins.length) {
+    const P = foePlacements(G, stage.level, { ...ends, node: stage.node });
+    const cues = wins.flatMap((on) => {
+      const beat = on.slice(wonEvent('').length), mine = P.filter((p) => p.beat === beat), v = `__won_${beat.replace(/[^a-z0-9]+/gi, '_')}`;
+      return mine.length ? [...mine.map((p) => ({ id: `won-${p.id}`, when: { down: p.id }, once: true, then: { add: v, by: 1 } })), { id: `won-${beat}`, when: { var: v, gte: mine.length }, once: true, then: { emit: on } }] : [];
+    });
+    if (cues.length) play = { ...(play ?? {}), cues: [...(play?.cues ?? []), ...cues] };
+  }
   // (a party all with the pilot from the start carries no flag between levels)
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
@@ -1761,7 +1777,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
 }
 
 /** A stage's places by name: its start (the spawn), its exit, its pockets and landmarks in trail order (pocket,
- * pocket-2…), each on the lane when the stage is run side on. */
+ * pocket-2…), a planned map's scenario beats by their ids, each on the lane when the stage is run side on. */
 /**
  * A BUILDING's places, as a story binds to them (story.js bindStory): its way in (start), its goal room (exit and goal,
  * at its floor), where its boss stands (boss), and each room on the way: by its order (room, room-2 …) and by its own
@@ -1779,7 +1795,10 @@ export function buildingSpots(ends) {
 export function stageSpots(ends, lane = null) {
   const at = (p) => (lane ? onLane({ at: p }, lane).at : p);
   const named = (kind) => ends.beats.filter((b) => b.beat === kind).map((b, i) => ({ id: i ? `${kind}-${i + 1}` : kind, at: at(b.at) }));
-  return [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark')];
+  // (a planned map's scenario beats, by their ids: where each fight and each find stands, level/grid-ends.js; a story
+  // stands its people at one, an ambush's victim at the ambush)
+  const taken = new Set(['start', 'exit']), byBeat = [...(ends.encounters ?? []), ...(ends.finds ?? [])].filter((x) => x.beat && !taken.has(x.beat) && taken.add(x.beat)).map((x) => ({ id: x.beat, at: at(x.at) }));
+  return [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark'), ...byBeat];
 }
 
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */

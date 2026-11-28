@@ -156,7 +156,7 @@ export function readGrid(g, at = 'grid') {
 }
 
 /** What a region may say: its name, its rise (metres, the land's height there over the level's own), whether it is RIDDEN
- *  (`ride: true`: open country, the world's horses on its pages, gameworld/levels.js), its TOWN (a village's
+ *  (`ride: true`: open country, the world's horses on its pages, gameworld/levels.js; `'up'`: and come onto in the saddle), its TOWN (a village's
  *  look, era/village-look.js VILLAGE_LOOKS: its land laid level, its buildings in a palette of their own and dressed, the
  *  ground round them cleared), and the stage's own words every tile in it is built with (its look, what grows there, its
  *  grass, wind and snow). */
@@ -177,7 +177,7 @@ function readRegions(g, nr, nc, at) {
     for (const w of Object.keys(v)) if (!REGION_WORDS.includes(w)) throw new Error(`level: ${at}.key.${k}.${w} is not a region's word (words: ${REGION_WORDS.join(', ')})`);
     if (v.rise !== undefined && !(Number.isFinite(v.rise) && v.rise >= REGION_RISE.lo && v.rise <= REGION_RISE.hi)) throw new Error(`level: ${at}.key.${k}.rise is metres over the level's land, ${REGION_RISE.lo} to ${REGION_RISE.hi}`);
     if (v.town !== undefined && !VILLAGE_LOOK_IDS.includes(v.town)) throw new Error(`level: ${at}.key.${k}.town is a village's look (${VILLAGE_LOOK_IDS.join(', ')})`);
-    if (v.ride !== undefined && v.ride !== true) throw new Error(`level: ${at}.key.${k}.ride is true: the land is ridden, the world's horses on its pages (gameworld/levels.js)`);
+    if (v.ride !== undefined && v.ride !== true && v.ride !== 'up') throw new Error(`level: ${at}.key.${k}.ride is true (the land is ridden, the world's horses on its pages, gameworld/levels.js) or 'up' (and the hero comes onto it in the saddle)`);
   }
   for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) {
     const k = rows[r][c];

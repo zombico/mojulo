@@ -15,12 +15,19 @@
  *   REGIONS               the chain, in order: { id, name, says, hour, shift?, blocks, dragon?, shard?, boss? }
  *   regionCube(geocube, R) → the region's cube: the world's, with its land (biocube, snow) and its palette moved
  *   regionLevel(R, i, { geocube? }) → the region's gameworld level (its world map, its names, its climax, its hour, its cube)
- *   ceresWorld(world)     → the world laid as Ceres: its regions for its levels, the chain for its links, under every
- *                           key the creator wrote but its levels and links (pitch-start.js, the rail's starter)
+ *   APPROACH              the game's first page, before the first region: one block, the coast road (world-map.js
+ *                           approachLevel). Artesia comes up it on Seimos and gets down (the controls taught), goblins
+ *                           have the merchant Rhayu at the road's far end (the first fight taught), and he leads her on
+ *                           to Lagoona's harbour village (the story and its quest, below)
+ *   RHAYU, CERES_STORY, CERES_QUESTS   the merchant (a cast member in words), his moments, the quest they make
+ *   ceresApproach(geocube?) → the approach's gameworld level, in Lagoona's light and on its cube
+ *   ceresWorld(world)     → the world laid as Ceres: the approach then its regions for its levels, the chain for its
+ *                           links, Rhayu in its cast and his story, under every key the creator wrote but its levels and
+ *                           links (pitch-start.js, the rail's starter)
  *
  * Pure: the same world, the same Ceres.
  */
-import { worldMapLevel } from './world-map.js';
+import { worldMapLevel, approachLevel } from './world-map.js';
 import { DRAGONS } from '../boss/dragons.js';
 import { stampMegaworld } from './megaworld.js';
 
@@ -64,13 +71,42 @@ export function regionCube(geocube, R) {
   return { ...G, ...(R.biocube ? { biocube: R.biocube } : {}), ...(R.snow ? { snow: R.snow } : {}), ...(R.shift && G.palette && typeof G.palette === 'object' ? { palette: { ...G.palette, shift: { ...R.shift } } } : {}) };
 }
 
-/** A region as a gameworld level: its world map (its blocks named, its storybook town, its dragon its climax, the
- * first region alone teaching the controls), lit at its hour, on its own cube (regionCube: the world's `geocube` given). */
+/** A region as a gameworld level: its world map (its blocks named, its storybook town, its dragon its climax, come into
+ * with nothing taught: the approach teaches), lit at its hour, on its own cube (regionCube: the world's `geocube` given). */
 export function regionLevel(R, i = 0, { geocube } = {}) {
   if (R.dragon !== undefined && !DRAGONS[R.dragon]) throw new Error(`ceres: ${R.id}'s dragon is one of ${Object.keys(DRAGONS).join(', ')}`);
-  const { level } = worldMapLevel({ n: 3, plains: REGION_PLAINS, town: 'storybook', names: R.blocks, opening: i === 0, ...(R.dragon ? { climax: { [dragonKind(R.dragon)]: 1 } } : {}) });
+  // (the controls are the approach's to teach: every region is come into, nothing taught)
+  const { level } = worldMapLevel({ n: 3, plains: REGION_PLAINS, town: 'storybook', names: R.blocks, opening: false, ...(R.dragon ? { climax: { [dragonKind(R.dragon)]: 1 } } : {}) });
   const cube = regionCube(geocube, R);
   return { ...level, name: R.name, style: { hour: R.hour, ...(cube ? { geocube: cube } : {}) } };
+}
+
+// THE APPROACH: the game begins with Artesia's return, up the coast road to Lagoona's harbour village on Seimos
+export const APPROACH = f({ id: 'coast-road', name: 'the coast road', says: 'the coast road into Lagoona: Artesia rides home, cast out, and finds goblins on the road', region: 'lagoona' });
+// (the merchant the goblins hold on the road, in words: a stout man in a merchant's russet; the hero's tradition makes him)
+export const RHAYU = f({ name: 'Rhayu', looks: f({ body: f({ cast: 'male', tune: 'stout' }), hair: f({ hair: f({ style: 'crew' }) }), colour: f({ palette: f({ Top: '#9a5b2e' }) }) }) });
+const HARBOUR = REGIONS[0].blocks[0];
+/** His moments: he stands among the goblins at the ambush; won, he thanks her (she is silent) and walks on to the road's
+ * end; at the harbour village he says where they are. Each finds its place as the world is bound (story.js). */
+export const CERES_STORY = f([
+  f({ id: 'rhayu-thanks', who: ['rhayu'], where: f({ level: APPROACH.id, place: 'ambush' }), stand: f({ rhayu: 'ambush' }), when: f({ won: 'ambush-rest' }), sets: ['met-rhayu'], beats: f([
+    f({ line: f({ who: 'rhayu', say: 'Gone, all of them. I owe you my life, and my cart.' }) }),
+    f({ line: f({ who: 'rhayu', say: `I am Rhayu, a merchant of ${HARBOUR}. Goblins never came down the coast before the dragons turned.` }) }),
+    f({ line: f({ who: 'rhayu', say: 'The village is just along the road. Come, I will take you there.' }) }),
+    f({ do: f({ walk: f({ who: 'rhayu', to: 'exit', find: true }) }) }),
+  ]) }),
+  f({ id: 'rhayu-harbour', who: ['rhayu'], where: f({ level: REGIONS[0].id }), stand: f({ rhayu: 'start' }), when: f({ slot: 'before' }), sets: ['reached-harbour'], beats: f([
+    f({ line: f({ who: 'rhayu', say: `Here we are: ${HARBOUR}. Rest a while. The road on is no safer than the one behind us.` }) }),
+  ]) }),
+]);
+export const CERES_QUESTS = f([
+  f({ id: 'the-road-in', name: 'The road in', starts: 'met-rhayu', steps: f([f({ log: `Follow Rhayu to ${HARBOUR}`, done: 'reached-harbour', moments: ['rhayu-harbour'] })]) }),
+]);
+/** The approach as a gameworld level: one block, ridden onto, its ambush and the road on; Lagoona's light and cube. */
+export function ceresApproach({ geocube } = {}) {
+  const R = REGIONS.find((x) => x.id === APPROACH.region), { level } = approachLevel({ name: APPROACH.name, ridden: true, on: `Follow Rhayu to ${HARBOUR}` });
+  const cube = regionCube(geocube, R);
+  return { ...level, style: { hour: R.hour, ...(cube ? { geocube: cube } : {}) } };
 }
 
 /** The world laid as Ceres: its regions its levels, a megaworld chain their ways, each region past the first shut until
@@ -85,14 +121,17 @@ function seededCube(world) {
 }
 export function ceresWorld(world = {}) {
   const geocube = seededCube(world);
-  const levels = Object.fromEntries(REGIONS.map((R, i) => [R.id, regionLevel(R, i, { geocube })]));
+  const levels = { [APPROACH.id]: ceresApproach({ geocube }), ...Object.fromEntries(REGIONS.map((R, i) => [R.id, regionLevel(R, i, { geocube })])) };
   const gates = Object.fromEntries(REGIONS.slice(1).map((R, i) => { const prev = REGIONS[i]; return [R.id, prev.shard ? { key: prev.shard, keyAt: prev.id } : {}]; }).filter(([, g]) => g.key));
   const { levels: _l, links: _k, start: _s, megaworld: _m, ...kept } = world;
   return stampMegaworld({
     ...kept, ...(geocube !== world.style?.geocube ? { style: { ...world.style, geocube } } : {}), levels,
+    // (Rhayu in the cast, his moments and the quest they make, where the world has its people: the creator's own win)
+    ...(world.characters ? { characters: { ...world.characters, cast: { rhayu: RHAYU, ...(world.characters.cast ?? {}) } }, story: world.story ?? CERES_STORY, quests: world.quests ?? CERES_QUESTS } : {}),
     // (Seimos, on every ridden page: a region's plains)
     mounts: world.mounts ?? [{ coat: CERES.steed.coat, name: CERES.steed.name, call: true }],
-    megaworld: { shape: 'chain', rings: REGIONS.map((R) => [R.id]), gates },
+    // (the approach first, its way on open: the road into Lagoona)
+    megaworld: { shape: 'chain', rings: [[APPROACH.id], ...REGIONS.map((R) => [R.id])], gates },
     // (the world map the readout walks is the first region's: its opening block, its first zone)
     brief: { ...(world.brief ?? {}), ...(world.brief?.worldMap ? { worldMap: { level: REGIONS[0].id, blocks: levels[REGIONS[0].id].glyphs.plan.route.length, opening: levels[REGIONS[0].id].glyphs.plan.route.slice(0, 1), firstZone: levels[REGIONS[0].id].glyphs.zoned[0] } } : {}), ceres: { premise: CERES.premise, regions: REGIONS.map((R) => ({ id: R.id, name: R.name, hour: R.hour, ...(R.dragon ? { dragon: R.dragon } : { boss: R.boss }) })) } },
   });

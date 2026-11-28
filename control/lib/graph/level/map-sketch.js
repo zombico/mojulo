@@ -78,6 +78,8 @@ export const TEACH = Object.freeze({
   lock: { keys: 'C  lock on to a foe', say: 'the lock-on' },
   jump: { keys: 'Space  jump', say: 'the jump', fact: 'jump' },
   move: { keys: 'W A S D  move', say: 'moving', fact: 'move' },
+  // (getting down from the horse she arrives on, gameworld/world-map.js approachLevel: the page's interact key)
+  dismount: { keys: 'E  get down from your horse', say: 'getting down', fact: 'dismount' },
 });
 // (the mark each kind of beat stands at, by preference: the guide's place for it and the first look's)
 export const BEAT_PLACE = Object.freeze({ meet: ['npc'], encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret', 'loot'], rest: ['rest'], vista: ['landmark'], puzzle: ['hazard', 'landmark'], climb: ['hazard', 'landmark'] });

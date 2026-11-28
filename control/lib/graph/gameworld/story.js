@@ -12,6 +12,8 @@
  *     when, if?, sets?, once?, beats             a scene's (playscape/ui/scenes.js): what starts it, its conditions,
  *                                                the flags it sets, its beats. `when: { reach: m? }` starts it as the hero
  *                                                comes within m (4) of its place, or of its first person's stand;
+ *                                                `when: { won: '<beat id>' }` as a fight of the stage's scenario is won
+ *                                                (a planned map's, level/map-sketch.js: its foes all down);
  *                                                `when: { slot }` plays it in one of a tactics book's STORY SLOTS: on a
  *                                                level, 'before' (ahead of its battle; a walked stage's start) or 'after'
  *                                                (its battle won, before the level ends; a walked stage's exit as the
@@ -68,6 +70,8 @@ export const EPOCH_SLOTS = Object.freeze(['begin', 'end']);
 // raises it
 export const GAME_SLOTS = Object.freeze(['opening', 'prologue', 'ending']);
 export const seenFlag = (id) => `seen-${id}`;
+/** The bus event a fight of a planned map's scenario raises as its last foe falls, when a moment waits for it. */
+export const wonEvent = (beat) => `won:${beat}`;
 export function storyScene(m, cast = {}) {
   const names = Object.fromEntries((m.who ?? []).filter((w) => cast[w]?.name).map((w) => [w, cast[w].name]));
   const scene = { ...Object.fromEntries(SCENE_KEYS.filter((k) => m[k] !== undefined).map((k) => [k, m[k]])), ...(Object.keys(names).length ? { names } : {}) };
@@ -111,6 +115,8 @@ export function readStory(S) {
     if (reach !== undefined && (Object.keys(m.when).length !== 1 || !(reach === true || (Number.isFinite(reach) && reach > 0 && reach <= 30)))) {
       throw err(`${at}.when.reach is true (4 m) or metres up to 30, alone in when: the moment starts as the hero comes to its place`);
     }
+    const won = m.when?.won;
+    if (won !== undefined && (Object.keys(m.when).length !== 1 || !(typeof won === 'string' && ID.test(won)))) throw err(`${at}.when.won is a fight's beat id (a planned map's scenario, level/map-sketch.js), alone in when: the moment starts as that fight is won`);
     // the scene itself, read as a scene is (its beats, conditions and flags teach as scenes do)
     try { readScenes({ scenes: [storyScene(m)] }); } catch (e) { throw err(`${at}${e.message.replace(/^play\.scenes\[0\]/, '')}`); }
     return { ...m };
@@ -252,6 +258,8 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
       const r = m.when.reach === true ? 4 : m.when.reach;
       scene = { ...scene, when: { enter: { at: [spot[0], spot[1]], r } } };
     }
+    // won: the moment starts as a fight of the stage's scenario is won (its foes all down: levels.js storyPart counts them)
+    if (m.when && m.when.won !== undefined) scene = { ...scene, when: { on: wonEvent(m.when.won) } };
     slot.scenes.push(scene);
     for (const s of stands) if (!slot.cast.some((c) => c.id === s.id)) slot.cast.push({ ...s, ref: castRefs[s.id] ?? null });
     bound.push({ id: m.id, level: stage.level, node: stage.node, ...(place ? { place: place.id } : {}), ...(m.when?.slot ? { slot: m.when.slot } : {}) });

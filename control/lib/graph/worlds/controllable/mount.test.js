@@ -190,3 +190,39 @@ describe('a horse called', () => {
     expect(['bay', 'grey'].every((id) => !st.byId[id].calledBy)).toBe(true);
   });
 });
+
+// UP FROM THE START (a horse's `mount.up`, its rider's id: mount-units.js `ridden`): the rider in the saddle from the first
+// step, no approach, no getting on; got off, the horse stands where it was left until it is called
+describe('a horse ridden from the start', () => {
+  const upWorld = (rides = true) => E.createWorld({ entities: [
+    { id: 'hero', pilotable: true, rides, rule: { type: 'platform', speed: 5 }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0], heading: 0 } },
+    (() => { const h = horse('grey', [0, 0, 0]); h.mount = { ...h.mount, up: 'hero', call: true }; return h; })(),
+    { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero', dist: 5.5 } },
+  ] });
+  it('seats its rider before the first step: the horse the pilot, the camera its, the word spent', () => {
+    const st = run(upWorld(), DT), h = st.byId.grey, p = st.byId.hero;
+    expect(p.mountPhase).toBe('ride');
+    expect(p.mountedOn).toBe('grey');
+    expect(st.pilotId).toBe('grey');
+    expect(st.camera.rule.target).toBe('grey');
+    expect(p.transform.pos).toEqual(h.transform.pos);
+    expect(h.mount.up).toBeNull();
+    expect(st.mountEvents.map((x) => x.type)).toEqual(['mounted']);
+  });
+  it('a body that does not ride is not seated', () => {
+    const st = run(upWorld(false), DT);
+    expect(st.byId.hero.mountedOn).toBeFalsy();
+    expect(st.pilotId).toBe('hero');
+  });
+  it('got off, it stands where it was left until the whistle', () => {
+    const st = run(upWorld(), DT);
+    run(st, DT, { interact: 1 }); run(st, 4);
+    expect(st.pilotId).toBe('hero');
+    const at = st.byId.grey.transform.pos.slice(0, 2);
+    run(st, 3, { forward: 1 });
+    expect(st.byId.grey.transform.pos.slice(0, 2)).toEqual(at);
+    expect(Math.hypot(st.byId.hero.transform.pos[0] - at[0], st.byId.hero.transform.pos[1] - at[1])).toBeGreaterThan(5);
+    st.mountCall = 1; run(st, DT);
+    expect(st.byId.grey.calledBy).toBe('hero');
+  });
+});

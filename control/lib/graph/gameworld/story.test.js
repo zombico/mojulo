@@ -331,6 +331,19 @@ describe('the story in a building level (structure rails merged in)', () => {
   }, 240_000);
 });
 
+// A FIGHT WON (`when: { won: '<beat id>' }`): a moment that starts as a planned map's scenario fight is won, its foes all
+// down (levels.js storyPart counts them and raises the event; the approach's Rhayu, artesia.test.js, binds it on a page)
+describe('a moment on a fight won', () => {
+  const at = (m) => ({ id: 'm', where: { level: 'gate' }, beats: [{ line: { who: 'hero', say: 'Done.' } }], ...m });
+  it('is a beat id alone in when, and starts on that fight\'s win', async () => {
+    const { readStory, wonEvent } = await import('./story.js');
+    expect(readStory([at({ when: { won: 'ambush' } })])).toHaveLength(1);
+    expect(() => readStory([at({ when: { won: 'Ambush!' } })])).toThrow(/when.won is a fight's beat id/);
+    expect(() => readStory([at({ when: { won: 'ambush', reach: 4 } })])).toThrow(/when.won is a fight's beat id .*alone in when|when.reach/);
+    expect(wonEvent('ambush')).toBe('won:ambush');
+  });
+});
+
 describe('the game\'s slots: an opening, a prologue, an ending', () => {
   const line = [{ line: { who: 'hero', say: 'On.' } }];
   const at = (m) => ({ id: 'm', beats: line, ...m });

@@ -39,6 +39,9 @@ export function guideScript(guide, { host = false } = {}) {
   // that waits for its task, `when`; a guide with neither is as it was, byte for byte)
   const L0 = Array.isArray(guide.lessons) ? guide.lessons : [];
   const frameFacts = L0.some((l) => FRAME_FACTS.has(l.fact) || /^fire-/.test(l.fact || '')), waits = L0.some((l) => l.when);
+  // (getting down from a horse, \`dismount\`: done once the pilot is no horse with its rider up, worlds/controllable/mount.js;
+  // a guide with no such lesson is as it was, byte for byte)
+  const getsDown = L0.some((l) => l.fact === 'dismount');
   // (STRICT: a lesson waits for the pilot to do it, however long, and no count of them is shown: a level that teaches
   // its controls as it is played, the player getting each right before the next; absent, a lesson is let go after its
   // patience and numbered, as it was)
@@ -148,7 +151,7 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
     const fired = (k) => { const w = p.rule && p.rule.slots && p.rule.slots[k]; return !!(w && w.st && (w.st.shots || 0) > (ls.shots[k] || 0)); };
     const frameDone = L.fact === 'boost' ? (ls.boost || 0) >= 0.6 : L.fact === 'quick-boost' ? (p.qbT || 0) > 0 : L.fact === 'climb' ? (ls.climb || 0) >= 0.5
       : L.fact === 'assault-boost' ? !!p.ab : L.fact === 'lock' ? !!p.locked : /^fire-/.test(L.fact || '') ? fired(L.fact.slice(5)) : null;
-` : ''}    const done = ${frameFacts ? 'frameDone !== null ? frameDone : ' : ''}L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
+` : ''}    const done = ${frameFacts ? 'frameDone !== null ? frameDone : ' : ''}${getsDown ? "L.fact === 'dismount' ? !(p.mount && p.riderId) : " : ''}L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
     // (strict: the lesson done is said on the level's bus, \`lesson:<fact>\`, so an objective can wait for it: game/objectives.js \`act\`)
     if ((done && age >= LESSON.read)${strict ? '' : ' || age >= LESSON.patience'}) { ${strict ? "if (done && L.fact) { try { __inputQueue.push({ type: 'lesson:' + L.fact }); } catch (err) { /* (no bus on the page) */ } } " : ''}li++; ls = null; if (li >= LS.length) phase = 'play'; }
   }

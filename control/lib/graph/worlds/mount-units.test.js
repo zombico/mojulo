@@ -35,6 +35,20 @@ describe('a world\'s mounts', () => {
     expect(Object.keys(P.figures).sort()).toEqual(['mount:bay', 'mount:grey']);
   });
 
+  it('one ridden from the start stands under the hero at the spawn, its rider named for the runtime to seat', async () => {
+    expect(() => readMounts([{ ridden: 1 }])).toThrow(/ridden is true/);
+    expect(() => readMounts([{ ridden: true }, { ridden: true }])).toThrow(/one horse at most/);
+    const P = await lowerMounts(payload(), readMounts([{ coat: 'grey', ridden: true }, {}]), SOL, { riderId: 'hero' });
+    const [hero, up, loose] = P.entities;
+    expect(up.mount.up).toBe('hero');
+    expect(up.transform.pos).toEqual(hero.transform.pos);
+    expect(up.transform.heading).toBe(hero.transform.heading);
+    expect(loose.mount.up).toBeUndefined();
+    // (no one who rides: no one seated, the horse beside the spawn as any)
+    const Q = await lowerMounts(payload(), readMounts([{ ridden: true }]), { ...SOL, mount: null }, {});
+    expect(Q.entities[1].mount.up).toBeUndefined();
+  });
+
   it('with no one to ride them, they stand loose and are never offered', async () => {
     const P = await lowerMounts(payload(), readMounts(1), { ...SOL, mount: null }, {});
     expect(P.entities[0].rides).toBeUndefined();

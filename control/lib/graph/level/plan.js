@@ -30,7 +30,8 @@
  * THE ROLES (the scene composer's, era/compose-roles.js): the route's first segment the arrival, its last the climax, the
  * rest passages, a segment off the walk (reached by a join) a pocket; `key.<S>.role` pins one.
  *
- *   readPlan(plan, at?)                 → the plan read: { size, layout, route, at: { S: [row, col] }, gates, sides, ways, roles, key }
+ *   readPlan(plan, at?)                 → the plan read: { size, layout, route, at: { S: [row, col] }, gates, sides, ways, roles, key, lone? }
+ *                                         (`lone`: a route of one, the only segment: crossed edge to edge, west to east)
  *                                         (`sides[S]` its walk's way in and out; `ways[S]` every gate of it: { <side>: <neighbour> })
  *   fillSegment(P, S)                   → the default fill of segment S: { rows, key }
  *   readSegment(P, S, seg, at?)         → a written segment read and held to its law: { rows, key }
@@ -68,7 +69,7 @@ export function readPlan(plan, at = 'grid.plan') {
     where[g] = [r, c];
   }));
   const route = plan.route;
-  if (!Array.isArray(route) || route.length < 2) throw new Error(`level: ${at}.route is the walk through the segments, two or more, the first where it sets out and the last where its goal is`);
+  if (!Array.isArray(route) || !route.length) throw new Error(`level: ${at}.route is the walk through the segments, the first where it sets out and the last where its goal is (one alone: a lone block, crossed edge to edge)`);
   for (const S of route) if (!where[S]) throw new Error(`level: ${at}.route: '${S}' is not a segment of the layout (segments: ${Object.keys(where).join(', ')})`);
   if (new Set(route).size !== route.length) throw new Error(`level: ${at}.route walks a segment twice (${route.join(' → ')})`);
   // THE GATES: each step of the route between two neighbours, the side of each it leaves and enters by
@@ -80,6 +81,11 @@ export function readPlan(plan, at = 'grid.plan') {
     gates.push({ from: A, to: B, side });
     sides[A].out = side; sides[B].in = OPP[side];
   }
+  // A LONE BLOCK (a route of one, the only segment laid out: an approach, gameworld/artesia.js): crossed edge to edge,
+  // its way in at the map's west edge and its way out at the east, neither a gate (no neighbour lies beyond)
+  const lone = route.length === 1 && Object.keys(where).length === 1;
+  if (route.length === 1 && !lone) throw new Error(`level: ${at}.route walks one segment of several: a lone block is the plan's only segment, else the walk is two or more`);
+  if (lone) sides[route[0]] = { in: 'w', out: 'e' };
   // THE JOINS: more ways between neighbours, off the walk (each pair once, never a step the walk already takes)
   const neighbourSide = (A, B) => Object.keys(SIDES).find((s) => where[A][0] + SIDES[s][0] === where[B][0] && where[A][1] + SIDES[s][1] === where[B][1]);
   const joins = plan.joins === undefined ? [] : plan.joins;
@@ -127,7 +133,7 @@ export function readPlan(plan, at = 'grid.plan') {
       if (!ok) throw new Error(`level: ${at}.props.${pid} is false (none there) or { tile: [row, col] }, a tile of its segment (0 to ${n - 1})`);
     }
   }
-  return { size: n, layout, rows: layout.length, cols, route, at: where, gates, sides, ways, roles, key, ...(props ? { props } : {}) };
+  return { size: n, layout, rows: layout.length, cols, route, at: where, gates, sides, ways, roles, key, ...(props ? { props } : {}), ...(lone ? { lone: true } : {}) };
 }
 
 // a segment's rows as a grid of glyphs, and back
@@ -173,7 +179,8 @@ export function readSegment(P, S, seg, at = `grid.segments.${S}`) {
   // segment's own
   const NAME = { n: 'north', e: 'east', s: 'south', w: 'west' }, [R0, C0] = P.at[S];
   const facing = (s) => /^[A-Za-z]$/.test(P.layout[R0 + SIDES[s][0]]?.[C0 + SIDES[s][1]] ?? '.');
-  const gateAt = Object.fromEntries(Object.keys(P.ways[S]).map((side) => [gateTile(n, side).join(','), side]));
+  // (a lone block's ways in and out at the map's edges are its gates)
+  const gateAt = Object.fromEntries([...Object.keys(P.ways[S]), ...(P.lone ? [P.sides[S].in, P.sides[S].out] : [])].map((side) => [gateTile(n, side).join(','), side]));
   const onSide = (r, c) => Object.keys(SIDES).filter((s) => (s === 'n' && r === 0) || (s === 's' && r === n - 1) || (s === 'w' && c === 0) || (s === 'e' && c === n - 1));
   for (const [k, side] of Object.entries(gateAt)) { const [r, c] = k.split(',').map(Number); if (rows[r][c] !== '#') throw new Error(`level: ${at}: its gate on the ${NAME[side]} side (row ${r + 1}, column ${c + 1}) is a path ('#'), where the plan's way crosses into its neighbour`); }
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {

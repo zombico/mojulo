@@ -14,6 +14,8 @@
  *     pulls it up (its speed what it covered: a fence above its jump refused). Unridden it stands
  *     at ease, its loose clips (no carriage, the reins on the neck), its idle looping. Ground followed (the probe cast from
  *     its height), walls by the shared footprint eject.
+ *   UP FROM THE START (`mount.up`: its rider's id, worlds/mount-units.js `ridden`): the rider seated before the first step,
+ *     the approach and the getting-on skipped, the horse the pilot from the page's first frame.
  *   CALLED (the page's `state.mountCall`, a whistle): the nearest free horse comes to the one on foot who rides, on its own
  *     stick (turned toward them, checked by its stopping distance: `rule.come.stop`, else inside its own reach) and stands at their side.
  *   GETTING ON AND OFF (wraps stepWorld): the pilot (a body that `rides`: its figure carries the riding clips, mount/game.js)
@@ -222,6 +224,18 @@ export function buildMount(E) {
       const driven = state.pilotId === h.id;
       if (!driven && !h.cabRule) { h.cabRule = h.rule; h.rule = { type: 'mounted' }; h.speed = 0; }
       else if (driven && h.cabRule) { h.rule = h.cabRule; h.cabRule = null; }
+    }
+    // UP FROM THE START (a horse's `mount.up`, its rider's id: worlds/mount-units.js `ridden`): seated before the first
+    // step, the getting-on skipped, the horse the pilot; once, the word spent
+    for (const h of horses) {
+      if (!h.mount.up) continue;
+      const p = state.byId[h.mount.up];
+      h.mount.up = null;
+      if (!p || !p.rides || p.mountedOn || h.riderId || h.mount.cab) continue;
+      h.riderId = p.id; h.speed = 0; h.jumpT = null; h.gaitIx = 0;
+      p.mountedOn = h.id; p.mountPhase = 'ride'; p.mountT = 0; p.riderRule = p.rule; p.rule = { type: 'mounted' }; p.swingT = null; p.dodgeT = null; p.dashVel = null;
+      carry(p, h); state.pilotId = h.id; retarget(state, p.id, h.id, h.mount.camera || null);
+      event(state, { type: 'mounted', rider: p.id, mount: h.id });
     }
     const press = !!(input && input.interact) || !!state.mountPress;
     state.mountPress = 0;

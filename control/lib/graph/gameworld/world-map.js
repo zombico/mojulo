@@ -144,6 +144,38 @@ function terraces(G, steps) {
   return Object.fromEntries(Object.entries(P.segments).map(([S, v]) => [S, Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => z[(v.at[0] + r) * G.cols + v.at[1] + c]).join(' '))]));
 }
 
+/**
+ * AN APPROACH (a game's first page before its first region, gameworld/artesia.js): ONE BLOCK, a lone block of the plan
+ * (level/plan.js), its road straight across it from the map's west edge, where the hero arrives, to its east, the way on.
+ * The controls first, explained with the hero in hand: getting down (`ridden`: she arrives on her horse, the `dismount`
+ * lesson first), then moving, looking, the jump and the sprint (the guide's lessons). Then THE AMBUSH up the road, short
+ * of the way on (out of sight of the start, so the lessons have their room): one foe and the blow, then two more with the
+ * lock-on and the dodge (`after` the first), the way on held until both are won. Then the road on (`on`: what the way
+ * on is said to be, a story's follow).
+ *
+ *   approachLevel({ name, town?, ridden?, foe?, on? }) → { level, ambush: <beat id>, tile }   the level recipe, the
+ *                                             ambush's beat id (a story's place: levels.js stageSpots) and its tile
+ */
+export const APPROACH = Object.freeze({ ambush: 'ambush', rest: 'ambush-rest', road: 'road-on' });
+export function approachLevel({ name = 'the road', town = null, ridden = false, foe = 'grunt', on = null } = {}) {
+  const size = WORLD_MAP.size, m = MID(size), S = 'A';
+  const plan = { size, rows: [S], route: [S], key: { [S]: { name, fill: 'through', ...(town ? { town } : {}), ...(ridden ? { ride: 'up' } : {}) } } };
+  const L = PLACE_LIGHT[name];
+  if (L) plan.key[S] = { ...plan.key[S], palette: { shift: { ...L.shift } } };
+  const P = readPlan(plan), out = gateTile(size, P.sides[S].out);
+  // (the ambush a tile short of the way on: the road's far half, beyond a foe's sight of where she arrives)
+  const tile = [m, size - 2], cap = name[0].toUpperCase() + name.slice(1);
+  const beats = [
+    { id: 'controls', at: S, kind: 'arrival', say: cap, teach: [...(ridden ? ['dismount'] : []), 'move', 'look', 'jump', 'sprint'], pace: 'calm' },
+    { id: APPROACH.ambush, at: S, tile, kind: 'fight', say: `An ambush on ${name}`, foes: { [foe]: 1 }, teach: 'strike', pace: 'tension' },
+    { id: APPROACH.rest, at: S, tile, kind: 'fight', say: `More come on ${name}`, foes: { [foe]: 2 }, teach: ['lock', 'dodge'], pace: 'peak', opens: true, after: APPROACH.ambush },
+    { id: APPROACH.road, at: S, tile: out, kind: 'traverse', say: on ?? `On along ${name}`, pace: 'calm' },
+  ];
+  const heights = terraces(readGrid({ tile: WORLD_MAP.tile, plan }, 'glyphs'), { [S]: 0 });
+  const sketch = { scenario: { beats }, cliffs: true, segments: { [S]: { status: 'approved', height: heights[S] } } };
+  return { level: { name: cap, glyphs: { tile: WORLD_MAP.tile, plan, sketch, zoned: [], far: true, shrubs: { count: WORLD_MAP.shrubs } } }, ambush: APPROACH.ambush, tile };
+}
+
 /** A PARTY RPG'S WILDS: the blocks walked out from the town, in turn; the second of a round's wilds on is its own
  * stretch (`at`), the same blocks under other names, so no two stretches read alike. A row a block. */
 export const WILDS = Object.freeze([
