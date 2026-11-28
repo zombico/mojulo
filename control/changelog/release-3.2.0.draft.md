@@ -86,7 +86,8 @@ game's first session aims at a first level the person plays. The detailed log be
   from a town to its first boss and a world map, an action RPG over an open map, stylish action, a GTA-like open city
   (Hijack City), three flight rails and a scrolling shooter, a mech campaign, tactics and real-time strategy, sports
   with a TV broadcast, an endless runner, a match-3 saga, a work sim, a co-op kitchen and party games.
-- **Whole games from one sentence** for most families (the hill-climb page's genre probes).
+- **Whole games from one sentence** for most families, every couch game and racing among them: a kart cup, races on
+  city circuits, a driver-and-gunner run (the hill-climb page's genre probes). A designed game's hero can be a ride.
 - **It plays as a game:** start screens, menus, a HUD for each genre, pause, results, the next level and a touch pad,
   on the game UI runtime (mana-ui); phones, tablets and monitors.
 - **Couch play:** up to four on one screen or split screen, deathmatch, teams, turns, a lobby, drop-in co-op.
