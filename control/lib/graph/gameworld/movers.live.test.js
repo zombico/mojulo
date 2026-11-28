@@ -32,24 +32,35 @@ describe('a mover\'s house in a browser', () => {
     p.on('pageerror', (e) => errors.push(e.message));
     await p.setContent(emitThreeWorld({ ...P, inline: true }), { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.heave, { timeout: 180000 });
-    // (the mover stood beside the sofa nearest the door's side, facing it)
+    // (the mover stood beside the sofa nearest the door's side, facing it, and stood there again each time the page is
+    // asked, so nothing the steps between do moves it off)
     const id = await p.evaluate(() => {
-      const W2 = window.__mojCtrl.world, H = W2.entities.find((e) => e.pilotable), S = W2.heave;
-      const Q = S.pieces.filter((q) => q.name === 'sofa').sort((a, b) => a.min[0] - b.min[0])[0];
-      H.transform.pos[0] = (Q.min[0] + Q.max[0]) / 2; H.transform.pos[1] = Q.min[1] - 0.7; H.transform.pos[2] = Q.min[2] + (H.rule.eye || 0); H.transform.heading = Math.PI / 2;
-      return Q.id;
+      window.__atSofa = () => {
+        const W2 = window.__mojCtrl.world, H = W2.entities.find((e) => e.pilotable), S = W2.heave;
+        const Q = S.pieces.filter((q) => q.name === 'sofa').sort((a, b) => a.min[0] - b.min[0])[0];
+        H.transform.pos[0] = (Q.min[0] + Q.max[0]) / 2; H.transform.pos[1] = Q.min[1] - 0.7; H.transform.pos[2] = Q.min[2] + (H.rule.eye || 0); H.transform.heading = Math.PI / 2;
+        return Q.id;
+      };
+      return window.__atSofa();
     });
-    await wait(400);
-    const hint = await p.evaluate(() => { const d = [...document.querySelectorAll('div')].find((x) => /lift the|set down/.test(x.textContent || '')); return d ? d.textContent : null; });
+    // (each step waits for what it looks for, not for a time: a software-drawn page on a busy box steps a few frames a second)
+    const prompt = () => { const d = [...document.querySelectorAll('div')].find((x) => /lift the|set down/.test(x.textContent || '')); return d ? d.textContent : null; };
+    await p.waitForFunction((src) => { window.__atSofa(); return new Function(`return (${src})()`)(); }, { timeout: 120000 }, prompt.toString()).catch(() => {});
+    const hint = await p.evaluate(prompt);
     expect(hint).toMatch(/E\s+·\s+lift the sofa/);
-    await p.keyboard.down('KeyE'); await wait(120); await p.keyboard.up('KeyE'); await wait(400);
+    // (E held down until the page has stepped on it, then let go)
+    await p.keyboard.down('KeyE');
+    await p.waitForFunction(() => window.__mojCtrl.world.heave.held != null, { timeout: 120000 }).catch(() => {});
+    await p.keyboard.up('KeyE'); await wait(200);
     const held = await p.evaluate(() => { const S = window.__mojCtrl.world.heave; return { held: S.held, z: S.pieces.find((q) => q.id === S.held)?.min[2] ?? null }; });
     expect(held.held).toBe(id);
     expect(held.z).toBeGreaterThan(4.6);
     const after = await p.evaluate(async () => {
       const W2 = window.__mojCtrl.world, H = W2.entities.find((e) => e.pilotable), Z = W2.heave.drop;
       H.transform.pos[0] = Z.at[0]; H.transform.pos[1] = Z.at[1]; H.transform.pos[2] = Z.at[2] + (H.rule.eye || 0);
-      await new Promise((r2) => setTimeout(r2, 500));
+      const counted = () => W2.heave.loaded >= 1 && window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars['loaded-movers'] >= 1;
+      for (let t = 0; t < 600 && !counted(); t++) await new Promise((r2) => setTimeout(r2, 100));
+      await new Promise((r2) => setTimeout(r2, 300));
       const B = window.__mojBus && window.__mojBus.state;
       return { loaded: W2.heave.loaded, held: W2.heave.held, count: B ? B.vars['loaded-movers'] : null };
     });
