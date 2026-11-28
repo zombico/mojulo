@@ -190,6 +190,7 @@ import { readRunner } from '../worlds/controllable/runner.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
+import { rideRowOf } from '../vehicle-registry/ride.js';
 import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
 import { readFactions } from './factions.js';
@@ -332,7 +333,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'municipal', 'hidden', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'ride', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'municipal', 'hidden', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -342,7 +343,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'deathmatch', 'mash', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'opening', 'building', 'city', 'roadway', 'arena', 'deathmatch', 'mash', 'race', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -665,6 +666,14 @@ export function readGameworld(W) {
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
   // the BESTIARY (foes.js): the foe classes the world fields, each resolved once so a bad word says so here
   const quickGame = W.quick !== undefined && W.quick !== null;
+  // THE BOOK'S RIDE (11-28): the hero a vehicle, the quick door's ride words (vehicle-registry/ride.js rideOf); the road and
+  // trail stages are driven in it (runner.js bookRide)
+  if (W.ride !== undefined) {
+    const R = W.ride;
+    if (!isObj(R) || typeof R.ride !== 'string' || Object.keys(R).some((k) => !['ride', 'vehicle', 'tier', 'livery', 'wear'].includes(k))) throw new Error('gameworld: ride is { ride, vehicle?, tier?, livery?, wear? }: the hero a vehicle, as quick.ride words it');
+    if (!rideRowOf(R.ride)) throw new Error(`gameworld: ride.ride '${R.ride}' is not a ride (a car, coupe or van, or a vehicle the registry drives)`);
+    if (quickGame) throw new Error('gameworld: ride: a quick game rides by quick.ride');
+  }
   // (a quick brawl's or run & gun's crowd IS the world's bestiary: gameworld/brawl-cast.js)
   const brawlGame = quickGame && isObj(W.quick) && (W.quick.goal === 'brawl' || W.quick.goal === 'rungun');
   if (W.foes !== undefined && W.foes !== null && quickGame && !brawlGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
@@ -770,6 +779,17 @@ export function readGameworld(W) {
       if (isObj(D) && D.mode !== undefined && !['free-for-all', 'team', 'control'].includes(D.mode)) throw new Error(`gameworld: ${at}.deathmatch.mode is free-for-all, team or control`);
       if (L.walk === undefined || L.arena === undefined) throw new Error(`gameworld: ${at}.deathmatch is fought on the level's arena: give it a walk and an arena`);
       if (L.goal !== undefined) throw new Error(`gameworld: ${at}.deathmatch is the level's goal: no goal beside it`);
+    }
+    // A RACE (a book level form, 11-28): the quick door's race on the level's roadway (quick.js goalMechanics('race'),
+    // raceCast), the world's ride driven against its rivals for its laps
+    if (L.race !== undefined) {
+      const R = L.race;
+      if (R !== true && !(isObj(R) && Object.keys(R).every((k) => ['laps', 'rivals'].includes(k)))) throw new Error(`gameworld: ${at}.race is true or { laps?, rivals? }: a race on the level's roadway`);
+      if (isObj(R) && R.laps !== undefined && !(Number.isInteger(R.laps) && R.laps >= 1 && R.laps <= 9)) throw new Error(`gameworld: ${at}.race.laps is 1 to 9`);
+      if (isObj(R) && R.rivals !== undefined && !(Number.isInteger(R.rivals) && R.rivals >= 0 && R.rivals <= 7)) throw new Error(`gameworld: ${at}.race.rivals is 0 to 7`);
+      if (L.roadway === undefined) throw new Error(`gameworld: ${at}.race is run on the level's roadway: give it a roadway`);
+      if (W.ride === undefined) throw new Error(`gameworld: ${at}.race is driven: give the world a ride (ride: { ride })`);
+      if (L.goal !== undefined) throw new Error(`gameworld: ${at}.race is the level's goal: no goal beside it`);
     }
     // A PARTY ROUND (a book level form, 11-28): mechanics.js mash on the level's walk, its window or its race the level's
     if (L.mash !== undefined) {
@@ -1166,7 +1186,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(W.municipal !== undefined && readMunicipal(W.municipal) ? { municipal: readMunicipal(W.municipal) } : {}), ...(W.hidden !== undefined && readHidden(W.hidden) ? { hidden: readHidden(W.hidden) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(W.ride !== undefined ? { ride: JSON.parse(JSON.stringify(W.ride)) } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(W.municipal !== undefined && readMunicipal(W.municipal) ? { municipal: readMunicipal(W.municipal) } : {}), ...(W.hidden !== undefined && readHidden(W.hidden) ? { hidden: readHidden(W.hidden) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**
