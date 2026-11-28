@@ -14,3 +14,6 @@
   task is in hand, its count taken back, so the task is met only by every one of them down together.
 - Heard: a lift pod's drive held under it, a turret's heavy rounds, each a wreck as it goes (`sfx-shelf/frame-sounds.js`).
 - The frame HUD's boss bar reads a body with no rule of its own (the ship's hull).
+- The holo table's briefing knows the ship's two groups (`gameworld/frame-map.js`: a part group's bodies by its ship's
+  names) and draws them, a lift pod as a gunship and a turret as a turret (`campaign/holo-minis.js`); a spider bot has its
+  own miniature, a low body on six splayed legs.

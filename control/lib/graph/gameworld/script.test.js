@@ -45,3 +45,18 @@ describe('a script', () => {
     expect(() => readScript({ lines: [{ id: 'a', who: 'cole', text: 'x', on: 'start' }, { id: 'a', who: 'cole', text: 'y', on: 'win' }] })).toThrow(/id is its own name/);
   });
 });
+
+describe("a speaker's portrait", () => {
+  const PIC = 'data:image/jpeg;base64,' + 'A'.repeat(400);
+  it('a small still of the face, carried to the comms box in place of the initials; anything else refused', async () => {
+    const { readScript } = await import('./script.js');
+    const { commsData, commsScript } = await import('../scene/channels/comms.js');
+    const S = readScript({ speakers: { quattro: { name: 'Captain Quattro', portrait: PIC } }, lines: [{ id: 'a', who: 'quattro', on: { begin: 1 }, text: 'On our six.' }] }, { tasks: 2 });
+    expect(S.speakers.quattro.portrait).toBe(PIC);
+    const D = commsData(S);
+    expect(D.speakers.quattro.portrait).toBe(PIC);
+    expect(() => new Function(commsScript(D))).not.toThrow();
+    expect(() => readScript({ speakers: { q: { name: 'Q', portrait: 'https://example.com/q.jpg' } }, lines: [{ id: 'a', who: 'q', on: { begin: 1 }, text: 'x' }] }, { tasks: 2 })).toThrow(/portrait is a small still/);
+    expect(() => readScript({ speakers: { q: { name: 'Q', portrait: 'data:image/jpeg;base64,' + 'A'.repeat(70000) } }, lines: [{ id: 'a', who: 'q', on: { begin: 1 }, text: 'x' }] }, { tasks: 2 })).toThrow(/portrait is a small still/);
+  });
+});

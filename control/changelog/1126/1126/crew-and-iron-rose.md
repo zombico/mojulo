@@ -14,3 +14,7 @@
   teardrop lenses cut from the face shield (headgear/realistic.js, a shield's `lenses`: each at its eye, its foot fuller
   toward the outside, in a rim of the trim, a bridge across between them, the strap its arms). Before this no eyewear
   fitted the realistic head but the shooter's wrap.
+- A speaker's portrait (`gameworld/script.js`, a script speaker's `portrait`: a small still of their face, a data URI of
+  at most 60 KB carried in the recipe): the comms box draws it in place of the initials on their colour
+  (`scene/channels/comms.js`). A captain heard over the radio costs a few kilobytes, not a character's twelve megabytes:
+  Captain Quattro speaks so in level 2, his still a screenshot of his realistic hero.
