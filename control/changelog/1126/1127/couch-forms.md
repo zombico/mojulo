@@ -6,3 +6,5 @@
 - A sentence asking for an arena shooter now lays a game of three matches against bots, and one asking for a split-screen
   deathmatch lays three matches for four friends on a split screen, each player a hero. Both were answered with one level
   of the quick door before. No foes stand on a match beside its bots.
+- The hill-climb page now reads "yes" from a sentence for the arena shooter and the split-screen deathmatch, and the arena
+  shooter's rail (Infinity Crisis) is offered as a designed game as well as a quick one.

@@ -79,13 +79,21 @@ describe('a genre the book cannot lay from a sentence yet', () => {
     expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race', call: "{ goal: 'race' }" });
     expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
     // (one per kind of wait: a ride, a form)
-    expect(() => composeGameworld({ prompt: 'an arena shooter: a deathmatch against bots', seed: 1 })).toThrow(/waits on its kernel as a book level[\s\S]*goal: 'deathmatch'/);
     expect(() => composeGameworld({ prompt: 'a tower defence game', seed: 1 })).toThrow(/waits on its kernel as a book level/);
   });
 
   it('the genres a hero completes are laid: stealth\'s guards, a co-op platformer\'s side camera, a party\'s world', () => {
     for (const id of ['stealth', 'co-op-platformer', 'jrpg', 'dungeon-crawler', 'collectathon', 'metroidvania']) expect(pendingOf(id), id).toBeNull();
     expect(composeGameworld({ prompt: 'a stealth game sneaking past guards in a castle', seed: 1 }).intent).toEqual({ from: 'stealth' });
+  });
+
+  it('a deathmatch is a book form (11-27): an arena shooter laid as matches, a split deathmatch as matches for the couch', () => {
+    for (const id of ['arena-shooter', 'split-deathmatch']) expect(pendingOf(id), id).toBeNull();
+    const W = composeGameworld({ prompt: 'an arena shooter: a deathmatch against bots', seed: 1 }), L = Object.values(W.levels);
+    expect(W.intent).toEqual({ from: 'arena-shooter' });
+    expect(L.length).toBeGreaterThan(1);
+    for (const l of L) expect(l).toMatchObject({ arena: { words: expect.any(String) }, deathmatch: { bots: expect.any(Number) } });
+    expect(Object.values(composeGameworld({ prompt: 'a split screen deathmatch for four friends', seed: 1 }).levels)[0].deathmatch.bots).toBe(2);
   });
 });
 

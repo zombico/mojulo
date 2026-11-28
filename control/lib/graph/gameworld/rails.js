@@ -203,7 +203,7 @@ export const RAILS = Object.freeze({
   conscription: row({ name: 'Conscription', like: 'a first-person shooter: a soldier\'s run, cover, the guns',
     handles: row({ pole: 'conscription', genres: list(['shooter', 'military-sim']), quick: list(['shoot']) }), sizes: list(['quick', 'designed']), level1: 'a level: armed foes behind cover, shot through to the end' }),
   'infinity-crisis': row({ name: 'Infinity Crisis', like: 'an arena shooter: movement first, a deathmatch against bots',
-    handles: row({ pole: 'infinity-crisis', genres: list(['arena-shooter']), quick: list(['deathmatch']) }), sizes: list(['quick']), level1: 'a match: first to the frag limit' }),
+    handles: row({ pole: 'infinity-crisis', genres: list(['arena-shooter']), quick: list(['deathmatch']) }), sizes: list(['quick', 'designed']), level1: 'a match: first to the frag limit' }),
   'cogs-of-combat': row({ name: 'Cogs of Combat', like: 'a third-person cover shooter: heavy bodies, a roadie run, an evade roll',
     handles: row({ pole: 'cogs-of-combat', genres: list([]) }), sizes: list(['designed']), level1: 'a level: armed foes behind cover, from over the shoulder',
     lacks: list(['no genre cube of its own: a designed game names its feel over the shooter\'s cube']) }),
