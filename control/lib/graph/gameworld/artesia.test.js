@@ -1,7 +1,7 @@
 // CERES (gameworld/artesia.js): the world of Fable of Artesia, the rail's game, a megaworld chain of regions, each its own light,
 // each opened by the shard freed from the dragon of the one before.
 import { describe, it, expect } from 'vitest';
-import { CERES, REGIONS, REGION_IDS, regionLevel, ceresWorld, dragonKind } from './artesia.js';
+import { CERES, REGIONS, REGION_IDS, regionLevel, regionCube, ceresWorld, dragonKind } from './artesia.js';
 import { DRAGONS } from '../boss/dragons.js';
 import { readGameworld } from './world.js';
 import { megaworldLaws } from './megaworld.js';
@@ -24,7 +24,14 @@ describe('the land of Ceres', () => {
     expect(L0.name).toBe(R0.name); expect(L0.style).toEqual({ hour: R0.hour });
     const K = L1.glyphs.plan.key;
     expect(Object.values(K).map((k) => k.name).slice(0, 5)).toEqual([...R1.blocks]);
-    for (const k of Object.values(K)) expect(k.palette.shift).toMatchObject(R1.shift);
+    // (its own cube: the world's, its land and its palette moved; a world with no cube, none)
+    const geo = { from: 'island-noon', palette: { seed: 3 } }, C = regionLevel(R1, 1, { geocube: geo }).style.geocube;
+    expect(C).toEqual({ ...geo, ...(R1.biocube ? { biocube: R1.biocube } : {}), ...(R1.snow ? { snow: R1.snow } : {}), palette: { seed: 3, shift: { ...R1.shift } } });
+    expect(regionCube('island-noon', R1)).toMatchObject({ from: 'island-noon' });
+    expect(regionCube('island-noon', R1).palette).toBeUndefined();
+    expect(regionCube(undefined, R1)).toBeNull();
+    const snowy = REGIONS.find((R) => R.snow);
+    if (snowy) expect(regionCube(geo, snowy).snow).toBe(snowy.snow);
     const climax = (L) => L.glyphs.sketch.scenario.beats.find((b) => b.kind === 'climax');
     expect(climax(L1).foes).toEqual({ [dragonKind(R1.dragon)]: 1 });
     expect(L0.glyphs.sketch.scenario.beats.some((b) => b.teach)).toBe(true);
@@ -59,5 +66,17 @@ describe('the land of Ceres', () => {
     expect(keyed.produces.events).toContainEqual({ type: 'grant', slice: 'bag' });
     const plain = stageLevelOrder(G, S, { ref: 'lair', heroRef: 'hero' }).args.manifest.game;
     expect(plain.wins).toBeUndefined(); expect(plain.produces).toBeUndefined();
+  });
+});
+
+describe('one palette for Ceres', () => {
+  it('every region on the world\'s seed, its own shift over it: a seed already stamped kept, else settled from the world\'s', () => {
+    const geo = { from: 'island-noon', palette: { intent: 'x' } };
+    const W = ceresWorld({ seed: 7, style: { geocube: geo } }), seed = W.style.geocube.palette.seed;
+    expect(Number.isInteger(seed)).toBe(true);
+    expect(ceresWorld({ seed: 7, style: { geocube: geo } }).style.geocube.palette.seed).toBe(seed);
+    for (const R of REGIONS) expect(W.levels[R.id].style.geocube.palette).toEqual({ intent: 'x', seed, shift: { ...R.shift } });
+    const kept = ceresWorld({ seed: 7, style: { geocube: { ...geo, palette: { ...geo.palette, seed: 42 } } } });
+    expect(kept.levels[REGIONS[0].id].style.geocube.palette.seed).toBe(42);
   });
 });

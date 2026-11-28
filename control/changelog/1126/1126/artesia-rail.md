@@ -23,8 +23,12 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
     - Khabar, desert badlands at golden hour (ember);
     - Imperial City, the capital at night (the hydra, Olric's last).
 
-    Each is a world map (`regionLevel`): its blocks named, its storybook town, lit at its hour, every block moved
-    off the world's palette by its own shift. Only the first teaches the controls.
+    Each is a world map (`regionLevel`): its blocks named, its storybook town, lit at its hour, on its own cube
+    (`regionCube`). That cube is the world's, with the region's land (a biocube: coast, upland, alpine, desert, bare;
+    Letzo's snow) and the world's palette moved by the region's shift. The level's land is read whole from its cube,
+    so a block's own shift never reached the ground. Every region shares the world's palette seed (the one stamped,
+    else settled from the world's seed), so each is one palette moved, never a palette of its own. Only the first
+    region teaches the controls.
   - **The chain:** the regions are a megaworld chain. Each way in is shut until the shard freed in the region
     before is held.
   - **Laid from the rail:** a locked Fable of Artesia pitch composes Artesia as before (hero, feel, arsenal, style,
