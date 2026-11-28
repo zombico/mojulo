@@ -619,6 +619,26 @@ const MECHANICS = {
             { on: 'enter', match: { zone: theirs }, do: 'set', var: got, to: 1 },
           );
         }
+        // SEATS 2 to 4 (a level with seats, 11-28): each its own zone at the same place, the same once: health its own hp
+        // (`hp:<n>`, fail-on-death's or frags' with seats), rounds, overdrive and a gun its body's; armor is seat 1's
+        // level meter alone, so a seat leaves it lie
+        if (seated(ctx) && d.gives !== 'armor') ctx.seats.slice(0, 3).forEach((S, k) => {
+          const mine = `${zone}_s${k + 2}`, n = k + 2;
+          world.sources.push({ type: 'zone', zone: mine, at, radius: d.radius != null ? d.radius : 1.4, planar: true, watch: S });
+          const giveSeat = {
+            health: { do: 'inc', var: `hp:${n}`, by: d.amount ?? 25, max },
+            ammo: { do: 'ctrl', op: 'rearm', who: S, ...(d.amount !== undefined ? { by: d.amount } : {}) },
+            overdrive: { do: 'ctrl', op: 'status', who: S, is: 'overdrive', for: d.amount ?? 10 },
+            weapon: { do: 'ctrl', op: 'arm', who: S, slot: d.slot },
+          }[d.gives];
+          world.reactions.push(
+            { on: 'enter', match: { zone: mine }, if: untaken, ...giveSeat },
+            { on: 'enter', match: { zone: mine }, if: untaken, do: 'emit', type: `supply:${d.gives}`, by: S, ...(d.gives === 'weapon' ? { slot: d.slot } : {}) },
+            ...(back !== undefined ? [{ on: 'enter', match: { zone: mine }, if: untaken, do: 'emit', type: `__${zone}_taken` }] : []),
+            { on: 'enter', match: { zone: mine }, do: 'toggle', target: zone, to: false },
+            { on: 'enter', match: { zone: mine }, do: 'set', var: got, to: 1 },
+          );
+        });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: got, to: 1 });
         // back after its time: there again, to be taken again
@@ -1574,7 +1594,7 @@ const MECHANICS = {
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
-      const i = ctx.i, P = ctx.player, T = sidesOf(p.teams, P), names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+      const i = ctx.i, P = ctx.player; let T = sidesOf(p.teams, P); const names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
       const all = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
       if (names.length !== 2 || !all.every((c) => typeof c === 'string' && c) || new Set(all).size !== all.length || !all.includes(P)) throw new Error(`control[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player in one, each id once`);
       if (!(Array.isArray(p.at) && p.at.length >= 2 && p.at.every(Number.isFinite))) throw new Error(`control[${i}]: at is the point, [x, y, z?]`);
@@ -1582,8 +1602,13 @@ const MECHANICS = {
       const hold = p.hold === undefined ? 60 : Number.isInteger(p.hold) && p.hold >= 5 ? p.hold : NaN;
       if (Number.isNaN(radius) || Number.isNaN(hold)) throw new Error(`control[${i}]: radius is the point's reach in metres (4), hold the seconds on it that win (60, from 5)`);
       const at = [p.at[0], p.at[1], p.at[2] ?? 0], mineSide = names.find((k) => T[k].includes(P)), other = (k) => names.find((x) => x !== k);
+      // SEATS (a level with seats, 11-28): each on a side as frags lays it, co-op the player's, against each other the odd
+      // seats the player's and the even the other's; on the point as the player is. A side a seat holds wins it for the couch
+      const S = seated(ctx) ? ctx.seats.slice(0, 3) : [];
+      if (S.length) { const T2 = Object.fromEntries(names.map((k) => [k, [...T[k]]])); S.forEach((c, k) => T2[!ctx.seatContest || (k + 2) % 2 ? mineSide : other(mineSide)].push(c)); T = T2; }
+      const couch = (k) => k === mineSide || S.some((c) => T[k].includes(c));
       const n = (k) => `__cpn_${i}_${k}`, sc = (k) => `__cps_${i}_${k}`, inn = (c) => `__cpin_${i}_${c}`, over = `__cp_over_${i}`, live = { var: over, eq: 0 }, tick = `__cp_tick_${i}`;
-      const world = { vars: { [over]: 0 }, sources: [], reactions: [], watches: [], timers: [], entities: [{ id: `cp_${i}`, on: true, position: at }], hud: [] };
+      const world = { vars: { [over]: 0, ...(S.length ? { [`__cp_winner_${i}`]: 0 } : {}) }, sources: [], reactions: [], watches: [], timers: [], entities: [{ id: `cp_${i}`, on: true, position: at }], hud: [] };
       names.forEach((k) => {
         Object.assign(world.vars, { [n(k)]: 0, [sc(k)]: 0 });
         T[k].forEach((c) => {
@@ -1605,7 +1630,8 @@ const MECHANICS = {
           { on: `__cpa_${i}_${k}`, if: { var: n(k), gt: 0 }, do: 'inc', var: sc(k), by: 1 },
         );
         world.watches.push({ type: `__cpw_${i}_${k}`, when: { var: sc(k), gte: hold } });
-        world.reactions.push({ on: `__cpw_${i}_${k}`, if: live, do: 'emit', type: k === mineSide ? 'control:won' : 'control:lost' });
+        world.reactions.push({ on: `__cpw_${i}_${k}`, if: live, do: 'emit', type: couch(k) ? 'control:won' : 'control:lost' });
+        if (S.length) world.reactions.push({ on: `__cpw_${i}_${k}`, if: live, do: 'set', var: `__cp_winner_${i}`, to: k === mineSide ? 1 : 2 });
       });
       world.timers.push({ every: 1, emit: { type: tick }, while: live });
       world.reactions.push({ on: 'control:won', do: 'set', var: over, to: 1 }, { on: 'control:lost', do: 'set', var: over, to: 1 });

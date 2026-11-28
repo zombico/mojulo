@@ -101,3 +101,44 @@ describe('a match of two sides with seats', () => {
     expect(L.bus.vars.__team_0_red).toBe(0);
   });
 });
+
+// SUPPLIES WITH SEATS (11-28): seats 2 to 4 take a drop as the player does, health their own hp, the drop taken once
+describe('supplies with seats', () => {
+  it('seat 2 walks onto health: its own hp mended, the drop gone for the player', () => {
+    const mech = composeMechanics([FRAGS, { kind: 'supplies', max: 100, drops: [{ at: [4, 0, 0], gives: 'health', amount: 30 }] }], { player: 'hero', seats: ['hero-2'], seatContest: 'free-for-all' });
+    const L = simLevel({ entities: [pilot('hero', 0), pilot('hero-2', 8), bot('bot-1', 20)], events: mech.events, world: { seats: { bodies: ['hero-2'], downs: 'level' } } });
+    L.input.seats = { 2: {} };
+    hit(L, 'hero-2', 'hero', 1);
+    expect(L.bus.vars['hp:2']).toBe(50);
+    const put = (id, x) => { L.world.byId[id].transform.pos = [x, 0, 0]; L.frame(1 / 30); L.frame(1 / 30); };
+    put('hero-2', 4);
+    expect(L.bus.vars['hp:2']).toBe(80);
+    put('hero-2', 8); put('hero', 4);
+    expect(L.bus.vars.hp).toBe(100);
+    expect(said(L, 'supply:health')).toHaveLength(1);
+  });
+});
+
+// CONTROL WITH SEATS (11-28): seats on their sides on the point, a side a seat holds the couch's win
+describe('control with seats', () => {
+  const POINT = { kind: 'control', teams: { red: ['player', 'bot-2'], blue: ['bot-1'] }, at: [10, 0, 0], radius: 3, hold: 5 };
+  const L0 = (contest) => {
+    const mech = composeMechanics([POINT], { player: 'hero', seats: ['hero-2'], ...(contest ? { seatContest: contest } : {}) });
+    const L = simLevel({ entities: [pilot('hero', 0), pilot('hero-2', 30), bot('bot-1', 40), bot('bot-2', 50)], events: mech.events, world: { seats: { bodies: ['hero-2'], downs: 'level' } } });
+    L.input.seats = { 2: {} };
+    return L;
+  };
+  it('co-op: seat 2 alone on the point holds it for the player\'s side; held, won', () => {
+    const L = L0();
+    L.world.byId['hero-2'].transform.pos = [10, 0, 0];
+    L.run(6);
+    expect(said(L, 'control:won')).toHaveLength(1);
+  });
+  it('teams: seat 2 on the other side; held by it, won for the couch, side 2', () => {
+    const L = L0('teams');
+    L.world.byId['hero-2'].transform.pos = [10, 0, 0];
+    L.run(6);
+    expect(said(L, 'control:won')).toHaveLength(1);
+    expect(L.bus.vars.__cp_winner_0).toBe(2);
+  });
+});
