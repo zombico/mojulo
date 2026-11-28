@@ -123,7 +123,7 @@ export function frameHudScript() {
     if (ace) {
       aceEl.style.display = 'block'; aceN.textContent = ace.ace.name.toUpperCase();
       aceHp.style.width = (100 * Math.max(0, ace.body.hp) / (ace.body.hpMax || 1)).toFixed(1) + '%'; aceSt.style.width = (100 * (ace.stab ?? 1)).toFixed(1) + '%';
-      const ph = ace.rule.mind && ace.rule.mind.phases && ace.rule.mind.phases[ace.acePhase || 0];
+      const ph = ace.rule && ace.rule.mind && ace.rule.mind.phases && ace.rule.mind.phases[ace.acePhase || 0];
       aceSay.textContent = ph && ph.say && (ace.frTime - (ace.phaseAt || 0)) < 4 ? ph.say : '';
       const ts = ace.tell ? screenOf([ace.transform.pos[0], ace.transform.pos[1], ace.transform.pos[2] + ((ace.body && ace.body.aimH) || 6)]) : null;
       if (ts && !ts.back) { tellEl.style.display = 'block'; tellEl.style.left = ts.x + 'px'; tellEl.style.top = ts.y + 'px'; } else tellEl.style.display = 'none';

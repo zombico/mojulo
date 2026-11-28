@@ -12,3 +12,6 @@
   with the assets stood up whole, the task's foes back where they stood.
 - The frame HUD shows what is guarded (`scene/channels/controllable/frame-hud.js`): each asset's name and armour down the
   left, flashing red as it is hit and struck through when it is lost, and a mark over each on the screen.
+- The world keeps a frame field's own fields on a body (`rules-frame.js`, a normalizer): an asset's `guard`, so the HUD
+  finds it in play (the world drops what no module names, and had dropped it), a ship's `ship`, a part's `perch`, and
+  `shielded`.

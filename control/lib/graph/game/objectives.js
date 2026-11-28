@@ -40,6 +40,8 @@
  *          reached in the pause is met as it begins
  *   ops    the cast's ops issued as it begins, once ([{ op, who, … }], worlds/controllable/cast.js: a group that comes with
  *          it and is not its to down, `spawn`; an ally let go of its post): what its begin sets moving besides its own
+ *   regen  a clear's: the seconds each foe it downs takes to come back whole while the task is in hand (a gun that is
+ *          rebuilt), its count taken back: the task is met only by every one of them down together
  *   keep   ids kept up while it is in hand (an asset defended): one of them down then fails the level, or, with a
  *          retry, begins the task again as the player's fall does, the ids stood up whole
  *   retry  true | { after?, say? }: the player down while a task is in hand (RETRY): the screen faded, the player stood
@@ -109,6 +111,7 @@ export function lowerObjectives(p, ctx) {
       if (t.found !== undefined && !(typeof t.found === 'string' && t.found)) fail(`${at}.found is what the scan found, in words`);
     }
     if (t.kind === 'clear' || t.kind === 'man') { if (!Array.isArray(t.foes) || !t.foes.length || t.foes.some((f) => typeof f !== 'string' || !f)) fail(`${at}.foes is the ids to be downed, at least one`); }
+    if (t.regen !== undefined && !(t.kind === 'clear' && Number.isFinite(t.regen) && t.regen > 0 && t.regen <= 120)) fail(`${at}.regen is a clear's: the seconds a foe it downs takes to come back whole (up to 120), unless every one is down together first`);
     if (t.kind === 'man' && !(typeof t.gun === 'string' && t.gun)) fail(`${at}.gun is the id of the gun it is done with`);
     if (t.kind === 'hold') {
       if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long it is held, above 0`);
@@ -186,6 +189,13 @@ export function lowerObjectives(p, ctx) {
       world.vars[d] = 0;
       for (const f of t.foes) world.reactions.push({ on: 'down', match: { entity: f }, do: 'inc', var: d, by: 1 });
       world.watches.push({ type: metE(k), when: { var: d, gte: t.foes.length } });
+      // (regen: each foe it downs comes back whole after its seconds while the task is still in hand, its count taken back,
+      // so the task is met only by every one of them down together)
+      if (t.regen) for (const f of t.foes) {
+        const back = `${pre}:regen:${k}:${f}`;
+        world.sequences.push({ id: back, trigger: { on: 'down', entity: f }, steps: [{ await: { timer: t.regen } }, { do: 'emit', type: back }] });
+        world.reactions.push({ on: back, if: { var: cur, eq: k }, do: 'ctrl', op: 'spawn', who: f, fresh: true }, { on: back, if: { var: cur, eq: k }, do: 'inc', var: d, by: -1 });
+      }
     } else if (t.kind === 'gates') {
       // the gates in order: the next one due is a count that only moves while the task is in hand (-1 until it begins),
       // so a gate flown out of turn, or before, does nothing

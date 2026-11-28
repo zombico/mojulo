@@ -42,6 +42,8 @@ describe('an asset defended', () => {
     const op = readOperation(OP), cast = operationCast(op, ends);
     // (the pilot far off to one side, holding still: the drones go for the candle, not for it)
     const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [-300, -300, 0], heading: 0, pilot: true }), ...cast.entities], pilot: 'p' });
+    // (the world keeps its name: the HUD reads it there)
+    expect(st.byId.candle.guard).toBe('Roman Candle');
     const C = st.byId.candle, D = st.byId['w-1'], P = st.byId.p, gap = (A, B2) => Math.hypot(A.transform.pos[0] - B2.transform.pos[0], A.transform.pos[1] - B2.transform.pos[1]);
     const d0 = gap(D, C);
     for (let i = 0; i < 30 * 20; i++) E.stepWorld(st, {}, DT, flat);

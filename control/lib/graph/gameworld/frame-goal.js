@@ -30,6 +30,9 @@
  *     the pilot's side's (its rounds go through it, its lock passes it over); a group's `target: <prop id> | [ids]` sends a
  *     unit's mind at it (the nearest standing, the pilot once they are down); a task's `guard: [prop ids]` keeps it up
  *     (game/objectives.js `keep`: one down while the task is in hand fails it, or with `retry` begins it again, whole)
+ *     ship   { id, name?, at, alt?, heading?, guns?, regen?, comes? } a patrol ship over the field (SHIP), fought in two
+ *            steps by its two groups, `<id>-pods` then `<id>-guns` (shielded till then, each rebuilt unless all are down
+ *            together), its bar the sum of its parts'
  *     allies[].hold   true: it stands its ground, an instructor on the range; <task number>: till that task begins,
  *                     then it fights and keeps by the pilot (the cast's `unhold`, rules-frame.js)
  *     retry  true: the pilot down begins the task in hand again (game/objectives.js RETRY: the screen faded, the pilot up
@@ -48,7 +51,7 @@
  * Pure: the dice are the field's, seeded by the group's id.
  */
 import { SPECIMENS, readSpecimen, specimenWire } from '../prospect/specimens.js';
-import { unitRadius, GROUND_UNITS, GROUNDFORCE_SCALE } from '../groundforce/index.js';
+import { unitRadius, GROUND_UNITS, GROUNDFORCE_SCALE, PATROL_PODS, PATROL_GUNS } from '../groundforce/index.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
@@ -69,6 +72,9 @@ export const OPERATION = Object.freeze({
     // (a spider bot: a crawler on the ground, quick on its six legs, closing right in (`standoff`) to cut at what it is sent
     // at with the plasma at its mouth, short and hot; `crawl` the metres a stride of its legs covers, drawn; `fireArc` the
     // degrees off its line it cuts at: right under a tall thing, it cuts upward at its middle)
+    // (the patrol ship's parts, SHIP: its lift pods and its gun turrets, never fielded alone)
+    'patrol-pod': Object.freeze({ hp: 9000, damage: 0, rof: 0, range: 0, speed: 0 }),
+    'patrol-gun': Object.freeze({ hp: 4200, damage: 180, rof: 1.2, range: 900, speed: 420 }),
     crawler: Object.freeze({ hp: 1600, damage: 120, rof: 5, range: 45, speed: 240, move: 14, standoff: 14, crawl: 5, fireArc: 55 }),
     // (a flier, one of a swarm: light, quick, close, weaving round the frame; `air` the metres it is stood over the ground,
     // `standoff` the reach it closes to, `turn` how quick it comes round, `floor` the least it flies over the land)
@@ -106,7 +112,7 @@ const KINDS = ['turret', 'tank', 'walker', 'crawler', 'gnat', 'wasp', 'kite', 'h
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split', 'retry'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks', 'split', 'retry', 'ship'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks, ship)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -141,6 +147,14 @@ export function readOperation(v, at = 'goal.operation') {
     const intro = g.intro === undefined || g.intro === false ? null : readIntro(g.intro, `${gat}.intro`);
     return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(intro ? { intro } : {}), ...(g.reserve ? { reserve: true } : {}), ...(g.comes ? { comes: g.comes } : {}) , ...(g.target !== undefined ? { target: [].concat(g.target) } : {}) };
   });
+  // (its ship: a patrol ship over the field, SHIP; its pods and its guns two groups of its own, `<id>-pods` and
+  // `<id>-guns`, a task's to down, each part riding at its place on the hull)
+  const ship = v.ship === undefined ? null : readShip(v.ship, ids, `${at}.ship`);
+  if (ship) for (const [role, kind, count] of [['pods', 'patrol-pod', PATROL_PODS.length], ['guns', 'patrol-gun', ship.guns]]) {
+    const gid = `${ship.id}-${role}`;
+    ids.add(gid);
+    groups.push({ id: gid, kind, count, at: ship.at.slice(), spread: 0, part: { ship: ship.id, role }, ...(ship.comes ? { comes: ship.comes } : {}) });
+  }
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
     const tat = `${at}.tasks[${i}]`;
@@ -219,7 +233,7 @@ export function readOperation(v, at = 'goal.operation') {
   const assets = new Set((props ?? []).filter((p) => p.hp).map((p) => p.id));
   for (const g of groups) for (const x of g.target ?? []) if (!assets.has(x)) throw new Error(`${at}.groups: '${g.id}' is sent at '${x}', which is not a prop with armour (hp): ${[...assets].join(', ') || 'none'}`);
   tasks.forEach((t, i) => { for (const x of t.guard ?? []) if (!assets.has(x)) throw new Error(`${at}.tasks[${i}].guard: '${x}' is not a prop with armour (hp): ${[...assets].join(', ') || 'none'}`); });
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}), ...(v.retry ? { retry: true } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}), ...(split ? { split } : {}), ...(v.retry ? { retry: true } : {}), ...(ship ? { ship } : {}) };
 }
 /** A FOE'S INTRO (a group's `intro: true | { title?, line?, who? }`): the first time the group comes (its down task
  *  begins, or the level starts for a group awake from the start), a short scene: the letterbox, the camera pushed in on
@@ -266,6 +280,35 @@ function readMarks(v, at) {
     return [k, p.slice()];
   }));
 }
+
+/** THE PATROL SHIP over a frame's field (an operation's `ship`): a building-sized ship hanging on its lift pods over
+ *  the field (groundforce/ `patrol`), its pods and its gun turrets bodies of their own riding on it (rules-frame.js
+ *  `frame-perch`, a part's `perch`). Fought in two steps, each a task's: its PODS (`<id>-pods`), and with them all down it sinks, listing
+ *  (crippled: `frame-ship`); then its GUNS (`<id>-guns`), shielded until the task that downs them begins, each rebuilt
+ *  `regen` s after it falls unless every one is down together (game/objectives.js a clear's `regen`). Its bar on the HUD
+ *  under its `name`, its armour the sum of its parts'. It comes with task `comes` (asleep till then).
+ *    { id, name?, at: [x, y], alt? (m over the land), heading? (deg), guns? (1 to PATROL_GUNS.length), regen? (s),
+ *      comes?: <task number> } */
+export const SHIP = Object.freeze({ alt: 70, sink: 0.4, fall: 5, bob: 1.6, regen: 14, pod: 9000, gun: 4200 });
+function readShip(v, taken, at) {
+  if (!isObj(v)) throw new Error(`${at} is { id, name?, at: [x, y], alt?, heading?, guns?, regen?, comes? }`);
+  for (const k of Object.keys(v)) if (!['id', 'name', 'at', 'alt', 'heading', 'guns', 'regen', 'comes'].includes(k)) throw new Error(`${at}.${k} is not part of a ship (id, name, at, alt, heading, guns, regen, comes)`);
+  if (typeof v.id !== 'string' || !/^[a-z][a-z0-9-]{0,17}$/.test(v.id) || taken.has(v.id)) throw new Error(`${at}.id is its own short lower-case name, not a group's`);
+  if (!(Array.isArray(v.at) && v.at.length === 2 && v.at.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${at}.at is [x, y], each −1..1: a share of the field`);
+  if (v.alt !== undefined && !(Number.isFinite(v.alt) && v.alt >= 20 && v.alt <= 300)) throw new Error(`${at}.alt is the metres it hangs over the land, 20 to 300`);
+  if (v.heading !== undefined && !Number.isFinite(v.heading)) throw new Error(`${at}.heading is degrees`);
+  if (v.guns !== undefined && !(Number.isInteger(v.guns) && v.guns >= 1 && v.guns <= PATROL_GUNS.length)) throw new Error(`${at}.guns is 1 to ${PATROL_GUNS.length}`);
+  if (v.regen !== undefined && !(Number.isFinite(v.regen) && v.regen > 0 && v.regen <= 120)) throw new Error(`${at}.regen is the seconds a gun takes to be rebuilt, up to 120`);
+  if (v.comes !== undefined && !(Number.isInteger(v.comes) && v.comes >= 2)) throw new Error(`${at}.comes is the number of the task it comes with (2 or later)`);
+  if (v.name !== undefined && !(typeof v.name === 'string' && v.name && v.name.length <= 32)) throw new Error(`${at}.name is what its bar says, up to 32 letters`);
+  return { id: v.id, name: v.name ?? 'Patrol ship', at: v.at.slice(), alt: v.alt ?? SHIP.alt, ...(v.heading !== undefined ? { heading: v.heading } : {}), guns: v.guns ?? PATROL_GUNS.length, regen: v.regen ?? SHIP.regen, ...(v.comes ? { comes: v.comes } : {}) };
+}
+// (a ship's part's place on its hull, drawn metres in its frame [right, front, up], and the way it faces)
+const partPlace = (role, k) => {
+  const S = GROUNDFORCE_SCALE;
+  if (role === 'pods') { const [x, y] = PATROL_PODS[k]; return { at: [r2(x * S), r2(y * S), r2(-0.6 * S)], face: 0 }; }
+  const [x, y, z, f] = PATROL_GUNS[k]; return { at: [r2(x * S), r2(y * S), r2(z * S)], face: (f * Math.PI) / 180 };
+};
 
 /** An operation's PROPS checked (throws, teaching): [{ id, unit, at, raise?, hidden?, face? }]. A thing stood on the field
  *  for the level's scenes to move (the world's `scenes`, playscape/ui/scenes.js): a body drawn as a card (groundforce/,
@@ -389,6 +432,11 @@ const halfOf = (ends) => ends.frame?.half ?? 600;
 const placeOf = (ends, s) => { const h = halfOf(ends), [cx, cy] = ends.frame?.centre ?? [0, 0]; return [r2(cx + s[0] * h), r2(cy + s[1] * h)]; };
 // a group's members: spread round its place by the field's dice, seeded by its id
 function membersOf(g, ends) {
+  // (a ship's part: its own id at its place on the hull, the hull over the ship's place)
+  if (g.part) {
+    const [cx, cy] = placeOf(ends, g.at);
+    return Array.from({ length: g.count }, (_, k) => ({ id: `${g.part.ship}-${g.part.role === 'pods' ? 'pod' : 'gun'}-${k + 1}`, at: [cx, cy, r2(ends.ground(cx, cy))] }));
+  }
   let seed = 2166136261;
   for (const c of g.id) seed = Math.imul(seed ^ c.charCodeAt(0), 16777619);
   const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -418,11 +466,33 @@ export function operationMechanics(op, ends) {
   const ops = tasks.map(() => []);
   for (const g of op.groups) if (g.comes) for (const m of membersOf(g, ends)) ops[g.comes - 1].push({ op: 'spawn', who: m.id, fresh: true });
   for (const a of op.allies ?? []) if (Number.isInteger(a.hold)) ops[a.hold - 1].push({ op: 'unhold', who: a.id });
+  // (a ship: its hull comes with its task; the task that downs its guns takes their shields off as it begins, and each
+  // gun it downs is rebuilt after the ship's regen unless every one is down together, SHIP)
+  const S = op.ship, gunsOf = S ? `${S.id}-guns` : null;
+  if (S?.comes) ops[S.comes - 1].push({ op: 'spawn', who: S.id, fresh: true });
+  if (S) op.tasks.forEach((t, i) => { if (t.down?.includes(gunsOf)) for (const m of membersOf(op.groups.find((g) => g.id === gunsOf), ends)) ops[i].push({ op: 'expose', who: m.id }); });
   if (op.split?.back) { const S = op.split, [x, y] = placeOf(ends, S.to); ops[S.back - 1].push({ op: 'spawn', who: S.ally, at: [x, y, r2(ends.ground(x, y))] }, { op: 'unhold', who: S.ally }); }
   // (a retry: each fought group put back where it stood as its task is begun again; the pilot down is no loss then)
   const again = op.retry ? op.tasks.map((t) => (t.down ? op.groups.filter((g) => t.down.includes(g.id)).flatMap((g) => membersOf(g, ends).map((m) => ({ op: 'spawn', who: m.id, at: m.at, fresh: true }))) : [])) : null;
   // (quiet: the frame's own HUD says what it needs; the objectives show the task in hand and its own clock, no count)
-  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(op.tasks[i].guard ? { keep: op.tasks[i].guard.slice() } : {}), ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}), ...(again?.[i].length ? { again: again[i] } : {}) })), say: 'line', quiet: true, ...(op.retry ? { retry: true } : {}) }, ...(op.retry ? [] : [{ kind: 'fail-on-death', of: 'body' }])];
+  return [{ kind: 'objectives', tasks: tasks.map((o, i) => ({ ...o, ...(S && op.tasks[i].down?.includes(gunsOf) ? { regen: S.regen } : {}), ...(op.tasks[i].guard ? { keep: op.tasks[i].guard.slice() } : {}), ...(op.tasks[i].pause ? { pause: op.tasks[i].pause } : {}), ...(ops[i].length ? { ops: ops[i] } : {}), ...(again?.[i].length ? { again: again[i] } : {}) })), say: 'line', quiet: true, ...(op.retry ? { retry: true } : {}) }, ...(op.retry ? [] : [{ kind: 'fail-on-death', of: 'body' }])];
+}
+
+// a ship's pods or guns, each mounted at its place on the hull; its guns shielded till the task that downs them begins
+function shipParts(g, op, ends, asleep, entities, figures) {
+  const U = OPERATION.units[g.kind], fig = `unit-${g.kind}`, R = unitRadius(g.kind), dormant = asleep.has(g.id), guns = g.part.role === 'guns';
+  figures[fig] = { unit: { kind: g.kind, form: true } };
+  membersOf(g, ends).forEach((m, k) => {
+    const P = partPlace(g.part.role, k);
+    entities.push({
+      id: m.id, team: 'foes', ...(dormant ? { dormant: true } : {}), ...(guns ? { shielded: true } : {}),
+      perch: { on: g.part.ship, at: P.at, face: P.face },
+      ...(guns ? { rule: { type: 'ai', space: true, speed: 0, turn: 1.1, standoff: 0, fireArc: 10, burst: 0.8, pause: 1.6, sightRange: U.range, eye: R * 0.5 },
+        weapon: { foeRound: true, fxColor: 0xff5a3a, fxScale: FOE_ROUND.size * 1.6, fireClass: 'lob', auto: true, rof: U.rof, damage: U.damage, impact: 0.05, range: U.range, coreAngle: 2, assistAngle: 5, eye: R * 0.5, lobAngle: 0, projectileSpeed: U.speed, projectileGravity: 0, projRadius: 1.2, splashRadius: 6, fuse: (U.range / U.speed) * 1.3, noGround: true, passTeam: true, magazine: 9999 } } : {}),
+      body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, hpMax: U.hp, poise: 99, radius: R, egg: { a: R, c: r2(R * 0.6), cz: r2(R * 0.3) }, aimH: r2(R * 0.3), blast: 6 },
+      transform: { pos: [m.at[0] + P.at[0], m.at[1] + P.at[1], r2(m.at[2] + op.ship.alt + P.at[2])], heading: P.face, pitch: 0 },
+    });
+  });
 }
 
 export function operationCast(op, ends) {
@@ -430,8 +500,10 @@ export function operationCast(op, ends) {
   const p0 = ends.spawn;
   const toward = (at) => Math.atan2(p0[1] - at[1], p0[0] - at[0]);
   // (a group a down task names stands dormant until its task begins: the objectives wake it)
-  const asleep = new Set([...op.tasks.filter((t, i) => t.down && i > 0).flatMap((t) => t.down), ...op.groups.filter((g) => g.reserve || g.comes).map((g) => g.id)]);
+  const parts = new Set(op.groups.filter((g) => g.part).map((g) => g.id));
+  const asleep = new Set([...op.tasks.filter((t, i) => t.down && i > 0).flatMap((t) => t.down).filter((id) => !parts.has(id)), ...op.groups.filter((g) => g.reserve || g.comes).map((g) => g.id)]);
   for (const g of op.groups) {
+    if (g.part) { shipParts(g, op, ends, asleep, entities, figures); continue; }
     for (const m of membersOf(g, ends)) {
       const dormant = asleep.has(g.id);
       if (g.kind === 'frame') {
@@ -458,6 +530,15 @@ export function operationCast(op, ends) {
         ...(U.boss ? { ace: { id: g.kind, name: U.boss } } : {}),
       });
     }
+  }
+  // (its ship's hull, over its place, hanging on its pods: its bar the sum of its parts', never locked onto)
+  if (op.ship) {
+    const S = op.ship, [x, y] = placeOf(ends, S.at), R = unitRadius('patrol');
+    figures['unit-patrol'] = { unit: { kind: 'patrol', form: true } };
+    entities.push({ id: S.id, team: 'foes', ...(S.comes ? { dormant: true } : {}), ace: { id: 'patrol', name: S.name },
+      ship: { alt: S.alt, sink: SHIP.sink, fall: SHIP.fall, bob: SHIP.bob, pods: PATROL_PODS.map((_, k) => `${S.id}-pod-${k + 1}`), guns: Array.from({ length: S.guns }, (_, k) => `${S.id}-gun-${k + 1}`) },
+      body: { type: 'figure-rig', figure: 'unit-patrol', hittable: true, noLock: true, hp: 1, hpMax: 1, poise: 99, radius: R, egg: { a: R, c: r2(R * 0.35), cz: r2(R * 0.3) }, aimH: r2(R * 0.3) },
+      transform: { pos: [x, y, r2(ends.ground(x, y) + S.alt)], heading: S.heading !== undefined ? (S.heading * Math.PI) / 180 : toward([x, y]), pitch: 0 } });
   }
   // (its reward: each part granted to the save's parts as the operation is won, the game channel's `wins`)
   // (its allies: stood beside the drop, a little behind, facing the way on; a leader's places the operation's reaches' and

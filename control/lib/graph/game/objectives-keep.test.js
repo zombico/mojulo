@@ -49,3 +49,23 @@ describe("a task's keep", () => {
     expect(() => play([{ ...TASKS[1], keep: [] }])).toThrow(/keep is the ids kept up/);
   });
 });
+
+describe("a clear's regen", () => {
+  const GUNS = [{ id: 'a', kind: 'reach', text: 'A', at: [40, 0, 0], radius: 5 }, { id: 'b', kind: 'clear', text: 'B', foes: ['g1', 'g2'], regen: 5 }];
+  it('a gun downed comes back whole after its seconds, its count taken back; every one down together meets the task', () => {
+    const P = play(GUNS);
+    P.stand([40, 0, 0]); P.ops();
+    P.pump([{ type: 'down', entity: 'g1' }]);
+    P.time(5.3);
+    expect(P.ops()).toEqual(expect.arrayContaining([{ op: 'spawn', who: 'g1' }]));
+    P.pump([{ type: 'down', entity: 'g2' }]);
+    expect(P.s.vars[cur]).toBe(1);                                    // (g1 is back: not every one down)
+    P.pump([{ type: 'down', entity: 'g1' }]);
+    expect(P.s.vars[cur]).toBe(2);                                    // (both down together: met)
+    P.time(6); P.ops();
+    expect(P.s.vars[cur]).toBe(2);                                    // (and nothing comes back after)
+  });
+  it('is a clear\'s, in seconds', () => {
+    expect(() => play([{ ...GUNS[0], regen: 5 }])).toThrow(/regen is a clear's/);
+  });
+});

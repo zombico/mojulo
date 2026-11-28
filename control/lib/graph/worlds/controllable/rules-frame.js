@@ -85,7 +85,9 @@ export function buildRulesFrame(E) {
   const castOps = E.castOps;
   if (castOps) E.castOps = function (state, ops) {
     for (const o of ops || []) if (o && o.op === 'unhold' && state.byId && state.byId[o.who]) state.byId[o.who].unheld = true;
-    const out = castOps(state, (ops || []).filter((o) => !(o && o.op === 'unhold')));
+    // (the cast's `expose`: a body shielded till then (a ship's guns behind its lift) taken off its shield, hittable)
+    for (const o of ops || []) if (o && o.op === 'expose' && state.byId && state.byId[o.who]) { state.byId[o.who].invincible = false; state.byId[o.who].shielded = false; }
+    const out = castOps(state, (ops || []).filter((o) => !(o && (o.op === 'unhold' || o.op === 'expose'))));
     // (a frame spawned fresh, a retry's: up whole, its reel, its brace, its lunge and its way on gone, its stability full)
     for (const o of ops || []) {
       const e = o && o.op === 'spawn' && o.fresh && state.byId && state.byId[o.who];
@@ -109,7 +111,7 @@ export function buildRulesFrame(E) {
     const out = [];
     for (const id in world.byId) {
       const tg = world.byId[id];
-      if (tg === e || tg.isCamera || tg.gone || tg.downed || tg.dormant || !(tg.body && tg.body.hittable)) continue;
+      if (tg === e || tg.isCamera || tg.gone || tg.downed || tg.dormant || !(tg.body && tg.body.hittable) || tg.body.noLock) continue;
       if (e.team ? tg.team === e.team : !tg.team) continue;
       out.push(tg);
     }
@@ -475,6 +477,14 @@ export function buildRulesFrame(E) {
 
   // ── an ace's name, carried onto the body (the HUD's bar reads it): the world keeps only the fields it is told of ──
   E.registerNormalize((ent, raw) => { if (raw.ace && typeof raw.ace === 'object') ent.ace = { id: String(raw.ace.id), name: String(raw.ace.name) }; });
+  // (and a frame field's own: an asset's name, `guard`; a ship's hover, `ship`; a part's place on its host, `perch`; a
+  // body shielded until exposed, `shielded`, invincible till then)
+  E.registerNormalize((ent, raw) => {
+    if (typeof raw.guard === 'string' && raw.guard) ent.guard = raw.guard;
+    if (raw.ship && typeof raw.ship === 'object') ent.ship = { ...raw.ship, pods: (raw.ship.pods || []).slice(), guns: (raw.ship.guns || []).slice() };
+    if (raw.perch && typeof raw.perch === 'object' && typeof raw.perch.on === 'string') ent.perch = { on: raw.perch.on, at: (raw.perch.at || [0, 0, 0]).slice(), face: raw.perch.face || 0 };
+    if (raw.shielded === true) { ent.shielded = true; ent.invincible = true; }
+  });
 
   // ── the break: the engine's hit reaction arms a stagger on a broken bar; a frame takes it as its own reel, before the
   // reaction could root it (a timer, run ahead of the bodies' owners), and a killing blow is left to floor it ──
@@ -740,6 +750,38 @@ export function buildRulesFrame(E) {
       if (F.spin > 0) { e.locomotion = 'roll'; e.gaitPhase = (state.time * F.spin) % 1; }
     }
   }, 29);
+  // ── a SHIP over a frame's field (a body's `ship` { alt, sink, fall, bob, pods, guns }, gameworld/frame-goal.js): it
+  // hangs `alt` m over the land under it, breathing by `bob`; its pods all down, it sinks to `sink` of that over `fall` s,
+  // listing as it goes (crippled); its armour the sum of its pods' and guns' standing, so its bar falls with them and
+  // rises as a gun comes back ──
+  E.registerWorldPass('frame-ship', (state, input, dt, world) => {
+    if (!world || !world.ground || !(dt > 0)) return;
+    for (const e of state.entities) {
+      const S = e.ship;
+      if (!S || e.gone || e.dormant) continue;
+      const p = e.transform.pos, g = world.ground([p[0], p[1], p[2] + 400]) ?? 0, by = (ids) => (ids || []).map((id) => state.byId[id]).filter(Boolean);
+      const pods = by(S.pods), guns = by(S.guns);
+      if (!e.crippled && pods.length && pods.every((q) => q.downed || q.gone)) { e.crippled = true; e.crippledAt = state.time || 0; }
+      const k = e.crippled ? 1 - (1 - (S.sink ?? 0.4)) * Math.min(1, ((state.time || 0) - e.crippledAt) / (S.fall ?? 4)) : 1;
+      p[2] = g + (S.alt ?? 60) * k + (S.bob ?? 1.5) * Math.sin((state.time || 0) * 0.6);
+      e.transform.roll = e.crippled ? -0.09 * Math.min(1, ((state.time || 0) - e.crippledAt) / (S.fall ?? 4)) : 0;
+      let hp = 0, max = 0;
+      for (const q of [...pods, ...guns]) { const m = (q.body && q.body.hpMax) || 0; max += m; if (!q.downed && !q.gone) hp += Math.max(0, q.body.hp || 0); }
+      if (e.body && max > 0) { e.body.hpMax = max; e.body.hp = Math.max(1, hp); }
+    }
+  }, 31);
+  // ── a body PERCHED on another (`perch` { on, at: [right, front, up] m in the host's own frame, face? (rad) }): carried
+  // with its host each frame, turned with it (a pod faces as it does; a gun's mind turns it on its own) ──
+  E.registerWorldPass('frame-perch', (state) => {
+    for (const e of state.entities) {
+      const M = e.perch, H = M && state.byId[M.on];
+      if (!H || e.gone) continue;
+      const h = H.transform.heading || 0, f = [Math.cos(h), Math.sin(h)], r = [Math.sin(h), -Math.cos(h)], q = H.transform.pos, a = M.at;
+      e.transform.pos[0] = q[0] + a[0] * r[0] + a[1] * f[0]; e.transform.pos[1] = q[1] + a[0] * r[1] + a[1] * f[1]; e.transform.pos[2] = q[2] + a[2];
+      if (!(e.rule && e.rule.type === 'ai')) e.transform.heading = h + (M.face || 0);
+      if (H.downed && !e.downed && e.body) { e.body.hp = 0; e.downed = true; }
+    }
+  }, 32);
   // ── a crawler on a frame's field (an ai's `crawl` { stride }, a spider bot's): kept on the ground under it, its legs
   // walked by the ground it covers (the figure's `roll` clip a stride, groundforce/ crawlClip), still where it stands ──
   E.registerWorldPass('frame-crawl', (state, input, dt, world) => {
