@@ -130,3 +130,19 @@ describe('each village house its own door and windows; its surfaces textured', (
     expect(DOORWAY_JAMB).toBeGreaterThan(0);
   });
 });
+
+import { villageHour, VILLAGE_HOUR } from './village-look.js';
+describe('a village under the hour', () => {
+  it('by day the houses as they were; toward night dimmed as the land is and drawn to the night sky\'s hue', () => {
+    expect(villageHour({ day: 1, zenith: [40, 108, 220] })).toBeNull();
+    expect(villageHour(undefined)).toBeNull();
+    expect(villageLight('#f4ead6', 0.6, null)).toBe(villageLight('#f4ead6', 0.6));
+    const night = villageHour({ day: 0, zenith: [20, 30, 80] }), dusk = villageHour({ day: 0.5, zenith: [20, 30, 80] });
+    const lum = (h) => [1, 3, 5].reduce((a, i) => a + parseInt(h.slice(i, i + 2), 16), 0), rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const W = '#f4ead6', day = villageLight(W, 1), d = villageLight(W, 1, dusk), n = villageLight(W, 1, night);
+    expect(lum(n)).toBeLessThan(lum(d)); expect(lum(d)).toBeLessThan(lum(day));
+    // (no darker than the night's floor; its blue held over its red, the sky's)
+    expect(Math.max(...night)).toBeLessThanOrEqual(VILLAGE_HOUR.night + 1e-9);
+    const [r, , b] = rgbOf(n); expect(b / r).toBeGreaterThan(rgbOf(W)[2] / rgbOf(W)[0]);
+  });
+});

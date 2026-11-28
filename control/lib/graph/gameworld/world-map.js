@@ -38,11 +38,14 @@
  * author's (gameworld/segments.js, a `level:<id>/<segment>` req), and its play layer level design's (level/play-brief.js,
  * the worked example docs/examples/the-old-keep/); the readout's `worldmap` step says so.
  *
- *   worldMapLevel({ n, landscape?, roles? }) → { level, zoned } the map's level recipe (`glyphs` a planned map, its sketch's
+ *   worldMapLevel({ n, landscape?, roles?, town?, names?, climax?, opening? }) → { level, zoned } the map's level recipe (`glyphs` a planned map, its sketch's
  *                                             scenario, its blocks approved as laid; its beats' foes the casting call's
  *                                             roles, which stand them: foe-casting.js) for n levels'
  *                                             worth of world: the opening (one block), the first zone (two) and
  *                                             n − 1 zones more; `zoned` its pages of several blocks
+ *                                             (a REGION of a chain, gameworld/artesia.js: `names` its blocks' names by
+ *                                             their place on the walk, `climax` the foes its climax stands (its dragon),
+ *                                             `opening: false` come into with nothing taught; each absent, as before)
  *   wildsLevel({ landscape?, at? })           → a PARTY RPG's wilds (compose.js, a turn-based round's second ring):
  *                                             the same blocks, a stretch of them walked out from the town, a block a
  *                                             page (zoned), each laid by its template; a pack on each block's way past the first
@@ -158,7 +161,7 @@ export function wildsLevel({ landscape = 'meadow', at = 0 } = {}) {
 }
 
 /** The world map's level for n levels' worth of world (1 to 6): its plan, its blocks' rows, its scenario. */
-export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', 'harrier', 'elite', 'boss'], town = null } = {}) {
+export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', 'harrier', 'elite', 'boss'], town = null, names = null, climax = null, opening = true } = {}) {
   const k = WORLD_MAP.first + Math.max(0, Math.min(6, n) - 1), size = WORLD_MAP.size, letters = LETTERS.slice(0, k).split('');
   const [A, B, C] = letters, last = letters[k - 1], middles = letters.slice(WORLD_MAP.first, -1), F = WORLD_MAP.fills;
   const has = (r) => roles.includes(r), grunt = has('grunt') ? 'grunt' : roles[0], harrier = has('harrier') ? 'harrier' : grunt;
@@ -167,6 +170,8 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   const key = { [A]: { name: 'the village' }, [B]: { name: `the ${landscape} road`, fill: F.road }, [C]: { name: 'the old ruins', fill: F.ruins } };
   middles.forEach((S, i) => { key[S] = { name: MIDDLE_NAMES[i % MIDDLE_NAMES.length], fill: i === 0 ? F.town : F.zones[(i - 1) % F.zones.length] }; });
   key[last] = { ...(key[last] ?? {}), name: last === C ? 'the old ruins' : 'the castle heights', fill: F.goal, goal: { use: 'keep' } };
+  // (a REGION's own names, `names`: a block's name by its place on the walk, each one given over the map's own)
+  if (names) letters.forEach((S, i) => { if (typeof names[i] === 'string' && names[i]) key[S] = { ...key[S], name: names[i] }; });
   // (each place's light: its row's shift on the world's palette, a region's word)
   for (const S of letters) { const L = PLACE_LIGHT[key[S].name]; if (L) key[S] = { ...key[S], palette: { shift: { ...L.shift } } }; }
   const rows = layout(k), joins = joinsOf(rows, letters);
@@ -194,12 +199,18 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   const finds = {}, findAt = (S) => (finds[S] ??= landBeside(G[S], [], P.sides[S].out ? outOf(S) : null));
   const beats = [
     // THE OPENING (its own page): the controls with the hero in hand, then the enemy trail, each fight on the way and
-    // the way out held until both are won
-    { id: 'controls', at: A, kind: 'arrival', say: `Find your feet in ${key[A].name}`, teach: ['move', 'look', 'jump', 'sprint'], pace: 'calm' },
-    // (the lone foe is posted at the far end of the way, out of its sight of the start: the controls have their room,
-    // and it comes down the trail once the hero heads up it; the pair come from the same way out when it falls)
-    { id: 'lone', at: A, tile: outOf(A), kind: 'fight', say: `A lone foe comes down the way through ${key[A].name}`, foes: { [grunt]: 1 }, teach: 'strike', pace: 'tension' },
-    { id: 'pair', at: A, tile: outOf(A), kind: 'fight', say: `Two more come from the way out of ${key[A].name}`, foes: { [grunt]: 2 }, teach: ['lock', 'dodge'], pace: 'peak', opens: true, after: 'lone' },
+    // the way out held until both are won. A region past the first (`opening: false`) is come into, nothing taught: a
+    // breath, then a pair on its way out
+    ...(opening ? [
+      { id: 'controls', at: A, kind: 'arrival', say: `Find your feet in ${key[A].name}`, teach: ['move', 'look', 'jump', 'sprint'], pace: 'calm' },
+      // (the lone foe is posted at the far end of the way, out of its sight of the start: the controls have their room,
+      // and it comes down the trail once the hero heads up it; the pair come from the same way out when it falls)
+      { id: 'lone', at: A, tile: outOf(A), kind: 'fight', say: `A lone foe comes down the way through ${key[A].name}`, foes: { [grunt]: 1 }, teach: 'strike', pace: 'tension' },
+      { id: 'pair', at: A, tile: outOf(A), kind: 'fight', say: `Two more come from the way out of ${key[A].name}`, foes: { [grunt]: 2 }, teach: ['lock', 'dodge'], pace: 'peak', opens: true, after: 'lone' },
+    ] : [
+      { id: 'arrival', at: A, kind: 'arrival', say: `Into ${key[A].name}`, pace: 'calm' },
+      { id: 'pair', at: A, tile: outOf(A), kind: 'fight', say: `Foes on the way out of ${key[A].name}`, foes: { [grunt]: 2 }, pace: 'peak', opens: true },
+    ]),
     // THE FIRST ZONE: what the opening taught, tested
     { id: 'road', at: B, tile: inOf(B), kind: 'traverse', say: `Run ${key[B].name}`, pace: 'calm' },
     { id: 'pack', at: B, tile: heart(B), kind: 'fight', say: `Foes hold ${key[B].name}`, foes: harrier === grunt ? { [grunt]: 3 } : { [grunt]: 2, [harrier]: 1 }, pace: 'peak' },
@@ -207,7 +218,7 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
   ];
   if (last === C) beats.push(
     { id: 'climb', at: C, tile: inOf(C), kind: 'climb', say: `Climb to ${key[C].name}`, pace: 'tension' },
-    { id: 'gate-fight', at: C, tile: mid, kind: 'climax', say: `What holds ${key[C].name} waits at its heart`, foes: { [boss]: 1 }, pace: 'peak' });
+    { id: 'gate-fight', at: C, tile: mid, kind: 'climax', say: `What holds ${key[C].name} waits at its heart`, foes: climax ?? { [boss]: 1 }, pace: 'peak' });
   else {
     beats.push({ id: 'gate-fight', at: C, tile: heart(C), kind: 'fight', say: `The first zone's captain holds ${key[C].name}`, foes: { [elite]: 1 }, pace: 'peak', opens: true },
       ...(findAt(C) ? [{ id: 'ruins-find', at: C, tile: findAt(C), kind: 'find', say: `The captain's spoils in ${key[C].name}: a healing draught`, item: 'healing draught', pace: 'rest' }] : []));
@@ -217,7 +228,7 @@ export function worldMapLevel({ n = 3, landscape = 'meadow', roles = ['grunt', '
       ...(findAt(S) ? [{ id: `${S.toLowerCase()}-find`, at: S, tile: findAt(S), kind: 'find', say: `The foes' spoils in ${key[S].name}: a healing draught`, item: 'healing draught', pace: 'rest' }] : []));
     beats.push(
       { id: 'climb', at: last, tile: inOf(last), kind: 'climb', say: `Climb to ${key[last].name}`, pace: 'tension' },
-      { id: 'climax', at: last, tile: mid, kind: 'climax', say: `What holds ${key[last].name} waits before its keep`, foes: { [boss]: 1 }, pace: 'peak' });
+      { id: 'climax', at: last, tile: mid, kind: 'climax', say: `What holds ${key[last].name} waits before its keep`, foes: climax ?? { [boss]: 1 }, pace: 'peak' });
   }
   // A SHORTCUT COSTS MORE: each side way's band at its gate in the later block, after that block's first beat (so the
   // walk's own beats keep their order and their pace), off the walk's way

@@ -38,7 +38,7 @@
  * Pure: a function of the outdoor payload and the recipe. Colliders stay axis-aligned, so a building turns in
  * quarter turns.
  */
-import { villageOf, villageDress, villageLight, villagePaint, gableDress, villageTurret, turreted, VILLAGE, VILLAGE_TEXTURE } from './village-look.js';
+import { villageOf, villageDress, villageLight, villageHour, villagePaint, gableDress, villageTurret, turreted, VILLAGE, VILLAGE_TEXTURE } from './village-look.js';
 import { speak } from './out-anchor-structure.js';
 import { TOWN_TRADES, usedAs } from './town-trades.js';
 import { assembleStageScene, planStage } from './stage.js';
@@ -659,6 +659,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId, manifest.town?.paint);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
   const sun = unit(payload.sky?.sun?.dir ?? [0.45, -0.55, 0.7]);
+  // (a VILLAGE's houses under the hour: dimmed and cooled as the land is, era/village-look.js villageHour; by day, as
+  // they were)
+  const vHour = manifest._village ? villageHour(payload.sky) : null, vLight = (h, l) => villageLight(h, l, vHour);
   const seated = [], taken = [], reserved = [], grades = [], placed = [], pathFaces = [];
   const beats = (payload.anchors || []).filter((a) => a.kind === 'beat' && Array.isArray(a.at)).sort((p, q) => (p.s ?? p.at[1]) - (q.s ?? q.at[1]));
   const stones = beats.filter((a) => a.beat === 'landmark');
@@ -890,14 +893,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
       // (a VILLAGE's house in the village's own palette, era/village-look.js villagePaint: its plaster, stone, timber, roof
       // and paint by their groups, lit cleanly)
       const VgL = manifest._village ? villageOf(manifest._village.look, { id, use: b.use }, manifest.seed ?? 1) : null;
-      const Pv = VgL ? (g, v, nn, part = null) => villageLight(villagePaint(VgL, g, part), Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2])) : null;
+      const Pv = VgL ? (g, v, nn, part = null) => vLight(villagePaint(VgL, g, part), Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2])) : null;
       const shellF = lot.design.faces.flatMap((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), F0 = { ...quad(c, `town:${f.part}`, Pv ? Pv(f.group, f.value, nn, f.part) : Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; return f.group === 'str:opening' ? glazed(F0, nn, Pv ? VgL.frame : Pt('str:timber', 0.3)) : [dressed(F0, f.group)]; });
       const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return dressed({ ...quad(cs, 'town:plinth', Pv ? Pv('str:stone', 0.45, nn) : Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }, 'plinth'); });
       // (a screen over a light: one card, its star field a cutout texture, era/screen-tiles.js)
       const screenF = (lot.design.screens || []).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn))); cutouts.add(f.texture); return { corners: c.map(P3), group: 'town:screen', fill, cornerFills: c.map(() => fill), normal: P3(nn), outNormal: P3(nn), texture: f.texture, textureLit: true, uv: f.uv }; });
       // (A VILLAGE's house, a share of them by its dice: a turret at its front corner, era/village-look.js villageTurret)
       const turret = VgL && turreted(id, manifest.seed ?? 1) ? (() => { const R0 = rects[0], dims = lot.design.dims ?? {}, top = (dims.n ?? 2) * (dims.storeyH ?? 2.9);
-        return villageTurret(VgL, { x: R0[2], y: R0[1], z0: -below0, top }).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return villageTextured({ ...quad(c, f.group, villageLight(f.colour, Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]))), normal: P3(nn), outNormal: P3(nn) }); }); })() : [];
+        return villageTurret(VgL, { x: R0[2], y: R0[1], z0: -below0, top }).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return villageTextured({ ...quad(c, f.group, vLight(f.colour, Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]))), normal: P3(nn), outNormal: P3(nn) }); }); })() : [];
       faces = [...faces, ...shellF, ...screenF, ...plinth, ...turret];
       const top = Math.max(...lot.design.faces.flatMap((f) => f.corners.map((c) => c[2]))), B = F.boxes[0];
       colliders.push({ min: P3([B[0], B[1], floor - below0]), max: P3([B[2], B[3], floor + top]), of: `${id}:house` });
@@ -969,7 +972,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // A VILLAGE's look (`_village`, era/village-look.js): this building's colours, by what it is and its dice; lit as
     // an anime game lights a building, its shade side lifted, never dark
     const Vg = vern && manifest._village ? villageOf(manifest._village.look, { id, use: b.use }, manifest.seed ?? 1) : null;
-    const litHex = villageLight;
+    const litHex = vLight;
     const X = bay && !vern ? exteriorOf(P0.compose?.axes) : null;
     const shell0 = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
       // (lit by the land's sun where its sky has one, else by its day alone: a dusk under its moon, a night; the fill is

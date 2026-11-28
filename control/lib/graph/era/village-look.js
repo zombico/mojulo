@@ -21,7 +21,9 @@
  *   villageDress(V, { rects, tops, holes, ways, entry, below, pitch, use, wall }) → [{ corners, group, colour }] in the
  *                     plan's frame (metres, z up from the floor), the faces to paint and light as the shell is; `wall` the
  *                     wall's half thickness (a window's hole is measured on the room's face, its dress on the shell's)
- *   villageLight(hex, lam) → a face's colour under the sun: the shade side lifted, as an anime game lights a building
+ *   villageLight(hex, lam, hour?) → a face's colour under the sun: the shade side lifted, as an anime game lights a building;
+ *                     `hour` villageHour's factor (the sky's day and its night hue), absent at a full day
+ *   villageHour(sky)        → the hour's factor on a village's colours, or null by day (VILLAGE_HOUR)
  *   gableDress(tri, colour) → a gable end's barge boards, tie beam and king post, in the world's frame
  *   villagePaint(V, group)  → a building language's group in the village's palette (a street house's)
  *   VILLAGE_LANGUAGE        the fantasy language a town's street houses are spoken in
@@ -53,7 +55,17 @@ const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).to
 const deeper = (h, k) => hex(rgb(h).map((v) => v * k));
 
 /** A face's colour at its sun (lam, 0 turned away to 1 square to it): its shade side lifted, never grey. */
-export const villageLight = (h, lam) => hex(rgb(h).map((v) => v * (0.82 + 0.18 * Math.max(0, Math.min(1, lam)))));
+export const villageLight = (h, lam, hour = null) => hex(rgb(h).map((v, k) => v * (0.82 + 0.18 * Math.max(0, Math.min(1, lam))) * (hour ? hour[k] : 1)));
+/** THE HOUR ON A VILLAGE (its sky's `day`, 1 a day's to 0 a night's, and its zenith): the houses dimmed as the land is,
+ * and drawn toward the night sky's hue as the day goes (a lit window is the warm thing in it). A full day, null: the
+ * houses as they were, byte for byte. → [r, g, b] the factor on each channel, or null */
+export const VILLAGE_HOUR = Object.freeze({ night: 0.34, tint: 0.4 });
+export function villageHour(sky) {
+  const day = Math.max(0, Math.min(1, sky?.day ?? 1));
+  if (day >= 1) return null;
+  const z = Array.isArray(sky.zenith) ? sky.zenith : [40, 108, 220], m = Math.max(1, ...z), k = VILLAGE_HOUR.night + (1 - VILLAGE_HOUR.night) * day, t = VILLAGE_HOUR.tint * (1 - day);
+  return z.map((c) => Math.round(k * (1 - t + (t * c) / m) * 1e4) / 1e4);
+}
 /** One building's colours, by what it is and its dice. */
 export function villageOf(look, b, seed = 1) {
   const L = VILLAGE_LOOKS[look];

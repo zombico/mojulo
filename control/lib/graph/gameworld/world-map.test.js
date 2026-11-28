@@ -264,3 +264,16 @@ describe('the world map\'s settlements', () => {
     expect(Object.values(worldMapLevel({ n: 3 }).level.glyphs.plan.key).some((k) => k.town !== undefined)).toBe(false);
   });
 });
+
+describe('a region of a chain (`names`, `climax`, `opening`)', () => {
+  it('its blocks named as given, its climax its own foes, come into with nothing taught; absent, the map as it was', () => {
+    const base = worldMapLevel({ n: 3 }).level;
+    expect(worldMapLevel({ n: 3, names: null, climax: null, opening: true }).level).toEqual(base);
+    const { level } = worldMapLevel({ n: 3, names: ['the shore', 'the dunes'], climax: { 'dragon-storm': 1 }, opening: false }), g = level.glyphs;
+    expect(g.plan.key.A.name).toBe('the shore'); expect(g.plan.key.B.name).toBe('the dunes'); expect(g.plan.key.C.name).toBe(base.glyphs.plan.key.C.name);
+    const beats = g.sketch.scenario.beats;
+    expect(beats.find((b) => b.kind === 'climax').foes).toEqual({ 'dragon-storm': 1 });
+    expect(beats.some((b) => b.teach)).toBe(false);
+    expect(beats.find((b) => b.at === 'A' && b.kind === 'arrival').say).toMatch(/the shore/);
+  });
+});
