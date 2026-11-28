@@ -1,0 +1,472 @@
+{
+ "cast": "male",
+ "form": "realistic",
+ "physique": "athletic",
+ "hair": "undercut",
+ "outfit": {
+  "type": "outfit",
+  "style": "security",
+  "language": {
+   "bottom": {
+    "family": "woven",
+    "leg": "long",
+    "cut": "straight",
+    "into": "boots",
+    "pockets": "cargo"
+   }
+  },
+  "pieces": [
+   {
+    "kind": "vest",
+    "cut": "slick",
+    "back": false,
+    "replace": true
+   },
+   {
+    "kind": "kneepads"
+   },
+   {
+    "kind": "elbowpads"
+   },
+   {
+    "kind": "thighPouch",
+    "replace": true
+   }
+  ]
+ },
+ "palette": {
+  "OutfitTrim": "#1d2022",
+  "Top": "#1b1e21",
+  "Bottom": "#3a3f3b",
+  "OutfitSecond": "#2a2f2a",
+  "Leather": "#141414",
+  "Buckle": "#4a4a46",
+  "Shoes": "#111111",
+  "Helmet": "#3d4a40",
+  "Hair": "#5b3d26",
+  "HairHighlight": "#7a5536"
+ },
+ "face": {
+  "seed": 5,
+  "ethnicity": "western",
+  "age": 35,
+  "want": {
+   "chin": "soft",
+   "outline": "oval",
+   "eyes": "open",
+   "nose": "classical",
+   "cheeks": "full",
+   "brows": "thick"
+  },
+  "character": [
+   -0.6,
+   0.2
+  ]
+ },
+ "motion": {
+  "jog": true,
+  "sprint": true,
+  "stepVault": true,
+  "speedVault": true,
+  "hurdle": true,
+  "rollForward": true,
+  "throwOverhand": true
+ },
+ "clips": {
+  "climbUp": [
+   {
+    "shL": {
+     "pitch": 170
+    },
+    "shR": {
+     "pitch": 170
+    },
+    "elbowL": 5,
+    "elbowR": 5
+   },
+   {
+    "shL": {
+     "pitch": 175
+    },
+    "shR": {
+     "pitch": 175
+    },
+    "elbowL": 5,
+    "elbowR": 5,
+    "kneeL": 15,
+    "kneeR": 15,
+    "support": "none"
+   },
+   {
+    "shL": {
+     "pitch": 155
+    },
+    "shR": {
+     "pitch": 150
+    },
+    "elbowL": 95,
+    "elbowR": 100,
+    "spine": {
+     "sideBend": [
+      "right",
+      0.2
+     ]
+    },
+    "hipR": {
+     "pitch": 65,
+     "yaw": 55
+    },
+    "kneeR": 70,
+    "hipL": {
+     "pitch": 10
+    },
+    "kneeL": 25,
+    "support": "none"
+   },
+   {
+    "shL": {
+     "pitch": 95
+    },
+    "shR": {
+     "pitch": 80
+    },
+    "elbowL": 85,
+    "elbowR": 80,
+    "hinge": 20,
+    "spine": {
+     "sideBend": [
+      "right",
+      0.3
+     ]
+    },
+    "hipR": {
+     "pitch": 105,
+     "yaw": 75
+    },
+    "kneeR": 95,
+    "hipL": {
+     "pitch": 5
+    },
+    "kneeL": 20,
+    "support": "none"
+   },
+   {
+    "shL": {
+     "pitch": 30
+    },
+    "shR": {
+     "pitch": 20
+    },
+    "elbowL": 45,
+    "elbowR": 35,
+    "hinge": 55,
+    "spine": {
+     "sideBend": [
+      "right",
+      0.12
+     ]
+    },
+    "hipR": {
+     "pitch": 100,
+     "yaw": 25
+    },
+    "kneeR": 110,
+    "hipL": {
+     "pitch": 35,
+     "yaw": -35
+    },
+    "kneeL": 75,
+    "support": "none"
+   },
+   {}
+  ],
+  "crouchIdle": [
+   {
+    "crouch": 0.9,
+    "hinge": 46,
+    "shL": {
+     "pitch": 25
+    },
+    "shR": {
+     "pitch": 25
+    },
+    "elbowL": 70,
+    "elbowR": 70
+   },
+   {
+    "crouch": 0.92,
+    "hinge": 47,
+    "shL": {
+     "pitch": 26
+    },
+    "shR": {
+     "pitch": 24
+    },
+    "elbowL": 72,
+    "elbowR": 70
+   }
+  ],
+  "crouchWalk": [
+   {
+    "crouch": 0.85,
+    "hinge": 48,
+    "stagger": 0.22,
+    "shL": {
+     "pitch": 10
+    },
+    "shR": {
+     "pitch": 40
+    },
+    "elbowL": 70,
+    "elbowR": 75
+   },
+   {
+    "crouch": 0.93,
+    "hinge": 48,
+    "stagger": 0,
+    "shL": {
+     "pitch": 25
+    },
+    "shR": {
+     "pitch": 25
+    },
+    "elbowL": 72,
+    "elbowR": 72
+   },
+   {
+    "crouch": 0.85,
+    "hinge": 48,
+    "stagger": -0.22,
+    "shL": {
+     "pitch": 40
+    },
+    "shR": {
+     "pitch": 10
+    },
+    "elbowL": 75,
+    "elbowR": 70
+   },
+   {
+    "crouch": 0.93,
+    "hinge": 48,
+    "stagger": 0,
+    "shL": {
+     "pitch": 25
+    },
+    "shR": {
+     "pitch": 25
+    },
+    "elbowL": 72,
+    "elbowR": 72
+   }
+  ],
+  "proneIdle": [
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 150,
+     "yaw": 20,
+     "roll": -90
+    },
+    "elbowL": 95,
+    "shR": {
+     "pitch": 150,
+     "yaw": -20,
+     "roll": 90
+    },
+    "elbowR": 95,
+    "hipL": {
+     "pitch": 0,
+     "yaw": 6,
+     "roll": -30
+    },
+    "kneeL": 8,
+    "hipR": {
+     "pitch": 0,
+     "yaw": -6,
+     "roll": 30
+    },
+    "kneeR": 8
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 149,
+     "yaw": 20,
+     "roll": -90
+    },
+    "elbowL": 96,
+    "shR": {
+     "pitch": 151,
+     "yaw": -20,
+     "roll": 90
+    },
+    "elbowR": 94,
+    "hipL": {
+     "pitch": 0,
+     "yaw": 6,
+     "roll": -30
+    },
+    "kneeL": 8,
+    "hipR": {
+     "pitch": 0,
+     "yaw": -6,
+     "roll": 30
+    },
+    "kneeR": 8
+   }
+  ],
+  "proneCrawl": [
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 165,
+     "yaw": 10,
+     "roll": -90
+    },
+    "elbowL": 45,
+    "shR": {
+     "pitch": 128,
+     "yaw": -30,
+     "roll": 90
+    },
+    "elbowR": 115,
+    "hipR": {
+     "pitch": 10,
+     "yaw": -60,
+     "roll": 80
+    },
+    "kneeR": 100,
+    "hipL": {
+     "pitch": 0,
+     "yaw": 4,
+     "roll": -30
+    },
+    "kneeL": 6
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 150,
+     "yaw": 20,
+     "roll": -90
+    },
+    "elbowL": 95,
+    "shR": {
+     "pitch": 150,
+     "yaw": -20,
+     "roll": 90
+    },
+    "elbowR": 95,
+    "hipL": {
+     "pitch": 0,
+     "yaw": 6,
+     "roll": -30
+    },
+    "kneeL": 8,
+    "hipR": {
+     "pitch": 0,
+     "yaw": -6,
+     "roll": 30
+    },
+    "kneeR": 8
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shR": {
+     "pitch": 165,
+     "yaw": -10,
+     "roll": 90
+    },
+    "elbowR": 45,
+    "shL": {
+     "pitch": 128,
+     "yaw": 30,
+     "roll": -90
+    },
+    "elbowL": 115,
+    "hipL": {
+     "pitch": 10,
+     "yaw": 60,
+     "roll": -80
+    },
+    "kneeL": 100,
+    "hipR": {
+     "pitch": 0,
+     "yaw": -4,
+     "roll": 30
+    },
+    "kneeR": 6
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 150,
+     "yaw": 20,
+     "roll": -90
+    },
+    "elbowL": 95,
+    "shR": {
+     "pitch": 150,
+     "yaw": -20,
+     "roll": 90
+    },
+    "elbowR": 95,
+    "hipL": {
+     "pitch": 0,
+     "yaw": 6,
+     "roll": -30
+    },
+    "kneeL": 8,
+    "hipR": {
+     "pitch": 0,
+     "yaw": -6,
+     "roll": 30
+    },
+    "kneeR": 8
+   }
+  ]
+ },
+ "stocking": true,
+ "skin": {
+  "hairline": 0.8,
+  "temples": -6,
+  "hairColour": "#2e1f15"
+ }
+}

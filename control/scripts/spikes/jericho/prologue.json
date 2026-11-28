@@ -267,22 +267,13 @@
     "coral": {
       "name": "Coral",
       "role": "the operative, the player: solo",
-      "reads": "a man in his mid thirties, Caucasian, with facial hair",
+      "reads": "a man in his mid thirties, Caucasian, a soft, open American face with stubble",
       "spec": {
-        "from": "scripts/spikes/mission/operative.json",
-        "without": [
-          "headgear: bandana"
-        ],
-        "headgear": "a knit watch cap (NEW: no such card yet)",
-        "face": {
-          "ethnicity": "western",
-          "age": 35,
-          "beard": "stubble or short-boxed"
-        }
+        "from": "scripts/spikes/jericho/coral.json"
       },
       "look": {
-        "head": "a knit watch cap over slicked-back hair",
-        "body": "the template operative's: sufficient"
+        "head": "bare: an undercut, its fringe over the brow, the hairline low; thick dark brows; stubble",
+        "body": "the template operative's dark suit, the slim vest (its back panel off), kneepads, elbowpads, a thigh pouch"
       },
       "shares": "one body with Krait",
       "outfits": {
@@ -531,7 +522,6 @@
     "the siege walker driven in a scene: steps on a path, a turn, a howitzer shot, the fold to its tank form (its states exist on the boss; a scene playing them does not yet)",
     "the cargo submarine (no submarine on the craft shelf), its facade blown off it as breakable panels, its bay doors, its dive",
     "a weapon given in a scene (the command pistol into the kit)",
-    "the knit watch cap (a headgear card)",
     "a chapter's outfit for the hero (the wardrobe's looks, made for an action game's hero, not only an RPG party's armour)"
   ]
 }
