@@ -70,4 +70,5 @@
 - **A call just after a scene holds the world once the camera is back** (channels/calls.js): the follow camera rides the
   world's step, so a call that held the world on a scene's last frame kept the scene's camera (a high, close frame over
   the player's head) under it. A call raised as a scene ends comes up at once, its keys its own, and holds the world
-  1.5 s after the scene's end, the camera behind the player by then.
+  1.5 s and 45 frames after the scene's end (a slow page eases its camera a frame at a time), the camera behind the
+  player by then.
