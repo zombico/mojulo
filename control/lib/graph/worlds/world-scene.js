@@ -1453,6 +1453,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (sketch.manifest.courseTouch) payload.courseTouch = sketch.manifest.courseTouch;
     // the level's in-play HUD on mana-ui (scene/channels/mana-hud.js): its spec, its theme, what it reads. Absent ⇒ not a byte
     if (sketch.manifest.manaHud) payload.manaHud = sketch.manifest.manaHud;
+    // a planned map's own map (gameworld/city-map.js planMap, levels.js `mapUi`): its radar and its map on M, mana-ui's in
+    // the game's look. Absent ⇒ not a byte
+    if (sketch.manifest.kind === 'map' && sketch.manifest.mapUi && !payload.cityMap) {
+      const { theme, ...mapUi } = sketch.manifest.mapUi, M = (await import('@/lib/graph/gameworld/city-map.js')).planMap(sketch.manifest.level, mapUi);
+      if (M) payload.cityMap = { ...M, ...(theme !== undefined ? { theme } : { theme: null }) };
+    }
     // hangar: the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).

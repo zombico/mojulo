@@ -1169,7 +1169,8 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
   // a metro's traffic (channels/flow.js): its lanes stepped and its vehicles drawn near the camera; none ⇒ ''
   // (a played page with a car to get into: the traffic gives way to it and stands in its way, flow.js `play`)
   // a played city's map (channels/map-channel.js): a radar in the corner and the map on M, on mana-ui in the HUD's look; none ⇒ ''
-  const mapBlock = cityMap && manaHud && !capture ? mapScript(cityMap, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
+  // (a planned map's carries its own look, `theme`: on a page whose HUD is not mana-ui's it mounts mana-ui of its own)
+  const mapBlock = cityMap && (manaHud || cityMap.theme !== undefined) && !capture ? mapScript(cityMap, manaHud ? manaHud.theme ?? null : cityMap.theme, manaShared ? { shared: manaShared } : {}) : '';
   // what the hero carries as a screen (channels/bag-channel.js): the inventory on I, on mana-ui in the HUD's look; none ⇒ ''
   const bagBlock = bagUi && manaHud && !capture ? bagScript(bagUi, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
   // (the hero's trees as a screen on T, mana-ui's skill tree, where the world has them)

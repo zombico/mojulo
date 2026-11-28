@@ -2,7 +2,8 @@
 // stands on it as markers with icons; what it shows is the interface's to say (`ui.map`), checked; its page parses.
 import { execFileSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
-import { cityMap, readMapUi, CITY_MAP } from './city-map.js';
+import { cityMap, readMapUi, CITY_MAP, planMap } from './city-map.js';
+import { worldMapLevel } from './world-map.js';
 import { mapScript, mapSpec } from '../scene/channels/map-channel.js';
 import { manaUi } from '../../mana-ui/kernel.js';
 import { readUi } from '../playscape/ui/interface-look.js';
@@ -103,5 +104,37 @@ describe('mana-ui once a page, and legends that say their keys', () => {
     const html = rt.view();
     for (const k of ['>V<', '>+<', '>M<', 'View', 'Zoom']) expect(html).toContain(k);
     for (const k of ['TABNEXT', 'ACCEPT', 'BACK<']) expect(html).not.toContain(k);
+  });
+});
+
+// A PLANNED MAP's map (planMap, a world map's: gameworld/world-map.js): the whole plan on a square, north up; its blocks
+// the land (a ridden one open country), its ways roads, its places buildings; each block named, a town a house and the
+// walk's goal a star; the names written on the opened map, the foes awake on the corner, its corner the page's one radar
+describe('a planned map\'s map', () => {
+  const { level: L } = worldMapLevel({ n: 3, plains: 1, town: 'storybook', names: ['the village', 'the road', 'the ruins', 'the plains', 'the town', 'the keep'] });
+  const level = { grid: { tile: L.glyphs.tile, plan: L.glyphs.plan, ...(L.glyphs.segments ? { segments: L.glyphs.segments } : {}) }, sketch: L.glyphs.sketch };
+  it('lays every block, named where it stands, whichever page it is opened on', () => {
+    const M = planMap(level);
+    expect(M.markers.map((m) => m.label).sort()).toEqual(['the keep', 'the plains', 'the road', 'the ruins', 'the town', 'the village']);
+    expect(M.markers.find((m) => m.label === 'the keep').icon).toBe('star');
+    expect(M.markers.find((m) => m.label === 'the village').icon).toBe('home');
+    expect(M.shapes.filter((q) => q.kind === 'park')).toHaveLength(1);
+    expect(M.shapes.filter((q) => q.kind === 'land').length + 1).toBe(Object.keys(L.glyphs.plan.key).length);
+    for (const k of ['road', 'building']) expect(M.shapes.some((q) => q.kind === k)).toBe(true);
+    for (const q of M.shapes) for (const v of [q.x, q.y, q.x + q.w, q.y + q.h]) { expect(v).toBeGreaterThanOrEqual(-1e-6); expect(v).toBeLessThanOrEqual(1 + 1e-6); }
+    expect(M).toMatchObject({ names: true, foes: true, cars: false, corner: CITY_MAP.corner });
+    // (the same map from a page of it: a zone's word changes nothing)
+    expect(planMap({ ...level, zone: ['B', 'C'] })).toEqual(M);
+    expect(planMap(level, false)).toBeNull();
+    expect(planMap({ grid: { rows: ['#'] } })).toBeNull();
+  });
+  it('its page names its places and puts the grammar\'s scope away beside its corner; a city\'s is as it was', () => {
+    const M = planMap(level), html = mapScript({ ...M, theme: null });
+    expect(html).toContain('data-kind=poi]>.mana-caption{display:block}');
+    expect(html).toContain('.moj-hg .mana-place[data-at=bottom-right]{display:none');
+    expect(mapScript({ ...M, corner: false })).not.toContain('.moj-hg .mana-place[data-at=bottom-right]');
+    const city = mapScript(cityMap(PLAN, LEVEL));
+    expect(city).not.toContain('data-kind=poi]>.mana-caption{display:block}');
+    expect(city).not.toContain('.moj-hg .mana-place');
   });
 });

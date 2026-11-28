@@ -109,3 +109,13 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
     beats; the flow plays it in that slot.
   - **Ceres opens on its premise:** six slides (the dragons and the Amber, Artesia, Olric's theft, the prince in
     crystal and his facsimile, her exile, her return), then the coast road.
+- **A world map's map and radar** (`gameworld/city-map.js` `planMap`, `scene/channels/map-channel.js`,
+  `gameworld/levels.js` `mapUi`, `worlds/world-scene.js`, `scene/scene-three.js`).
+  - **The map on M:** a planned map's page, in a game with an interface (`ui`), opens its whole map on M, whichever of
+    its pages it is on. Its blocks are the land (a ridden one open country), its ways the roads, its places' buildings
+    drawn. Each block is named where it stands, a town marked a house and the walk's goal a star; you, and where to go,
+    on it as they move. `ui.map: false` says none, and its other words (`corner`, `views`, `radius`, `icons`) are the
+    city map's.
+  - **One radar:** its corner shows the land round her with the foes awake on it, and the HUD grammar's scope is put
+    away beside it. A city's map is as it was.
+  - **In the game's look:** on a page whose HUD is the grammar's, the map mounts mana-ui of its own in the game's theme.

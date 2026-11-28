@@ -174,6 +174,8 @@ describe('the approach', () => {
     expect(game.flow.steps.opening).toMatchObject({ kind: 'cutscene', slides: [...CERES_OPENING] });
     const L0 = steps.find((x) => x.key === `level-${REGIONS[0].id}-0`).order.manifest;
     expect(L0.mounts).toBeUndefined();
+    // (every map page its region's map on M and its radar, in the game's look, gameworld/city-map.js planMap)
+    for (const k of [`level-${APPROACH.id}-0`, `level-${REGIONS[0].id}-0`]) expect(steps.find((x) => x.key === k).order.manifest.mapUi).toMatchObject({ theme: expect.anything() });
     expect(L0.entities.some((e) => e.id === 'rhayu')).toBe(true);
   }, 120_000);
 });

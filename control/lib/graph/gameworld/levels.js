@@ -1596,6 +1596,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     const frameHero = pilotPart.entities?.[0]?.rule?.type === 'frame';
     manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}), ...((manifest.game?.mechanics ?? []).some((m) => m?.kind === 'shift') ? { count: true } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}), ...(frameHero ? { heroBar: false } : {}) } };
   }
+  // A PLANNED MAP's own map (gameworld/city-map.js planMap): a world map's page in a game with an interface (`ui`) has
+  // its radar and its map on M, in the game's look, unless its `ui.map` says false; none on a page that already has one
+  if (stage.section === 'map' && manifest.level?.grid?.plan && G.ui !== undefined && G.ui?.map !== false && !manifest.manaHud?.map) manifest = { ...manifest, mapUi: { ...(G.ui?.map && typeof G.ui.map === 'object' ? G.ui.map : {}), theme: interfaceLook(G).theme ?? null } };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : stage.section === 'mission' ? stage.mission.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says })) : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];

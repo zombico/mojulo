@@ -18,10 +18,17 @@
  *   cityMap(plan, manifest, ui?)     → { shapes, markers, box, side, corner, views, zoom, icons, key, cars } | null
  *       plan: a scene's ({ box: [x0, y0, x1, y1], shapes: [{ kind, r: [x0, y0, x1, y1], tall? }], places: [{ at, kind, card }] });
  *       manifest: the level's (its jobs' stops: city-guide.js jobsOf)
+ *   planMap(level, ui?)              → the same, of a PLANNED MAP (a world map, level/plan.js: gameworld/world-map.js) |
+ *                                      null: the whole map, whichever of its pages it is opened on; its blocks the land
+ *                                      (a ridden one open country), its ways the roads, its places' buildings, its water;
+ *                                      each block named where it stands (a town a house, the walk's goal a star), the
+ *                                      names written on the opened map (`names`); the foes awake on it (`foes`), its
+ *                                      corner the page's one radar
  * Pure.
  */
 import { iconOf } from '../../mana-ui/icons.js';
 import { jobsOf } from './city-guide.js';
+import { levelGrid } from '../level/map-sketch.js';
 
 export const CITY_MAP = Object.freeze({ corner: 'follow', views: Object.freeze(['plan', 'miniature', 'follow']), radius: 130, shops: true, cars: true,
   icons: Object.freeze({ goal: 'target', job: 'flag', shop: 'shop', car: 'car', respray: 'car', guns: 'shop' }) });
@@ -75,5 +82,45 @@ export function cityMap(plan, manifest, ui = undefined) {
     corner: U.corner === undefined ? CITY_MAP.corner : U.corner, views: [...(U.views ?? CITY_MAP.views)],
     zoom: r4(Math.max(1, Math.min(16, side / (2 * radius)))), icons, cars,
     key: [{ icon: icons.goal, name: 'Where to go' }, { icon: icons.job, name: 'A job\'s stop' }, ...((U.shops ?? CITY_MAP.shops) !== false ? [{ icon: icons.shop, name: 'A shop' }] : []), ...(cars ? [{ icon: icons.car, name: 'A car' }] : []), ...(sides.length ? [{ icon: 'person', name: 'A faction\'s contact' }] : [])],
+  };
+}
+
+/** A PLANNED MAP's map (a world map's, gameworld/world-map.js): its plan laid as the city's is, read off its grid. */
+export function planMap(level, ui = undefined) {
+  if (ui === false || !level?.grid?.plan) return null;
+  const U = isObj(ui) ? ui : {}, icons = { ...CITY_MAP.icons, ...(U.icons ?? {}) };
+  const G = levelGrid(level), T = G.tile, P = G.plan, n = P.size;
+  // (a block's words: the plan's as written, its region's as read)
+  const keyOf = (S) => ({ ...(level.grid.plan.key?.[S] ?? {}), ...(G.regions?.[S] ?? {}) });
+  // (a square over the whole grid, north up: the world's +y the map's top, row 0 at y 0 and the rows running south)
+  const side = Math.max(G.rows, G.cols) * T, ox = 0, oy = -side;
+  const X = (x) => (x - ox) / side, Y = (y) => 1 - (y - oy) / side, box = (x0, y0, w, h) => ({ x: r4(X(x0)), y: r4(Y(y0)), w: r4(w / side), h: r4(h / side) });
+  const shapes = [];
+  // the blocks: each its square of land, a ridden one open country
+  for (const [S, seg] of Object.entries(P.segments)) {
+    const [r0, c0] = seg.at, ride = !!keyOf(S).ride;
+    shapes.push({ kind: ride ? 'park' : 'land', ...box(c0 * T, -r0 * T, n * T, n * T) });
+  }
+  // its water, its ways (a strip from each tile's middle to each side it is open on) and its places' buildings
+  const w = T * 0.22, arm = { n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] };
+  for (const x of G.cells) {
+    const cx = (x.c + 0.5) * T, cy = -(x.r + 0.5) * T;
+    if (x.water || x.kind === 'water') { shapes.push({ kind: 'water', ...box(x.c * T, -x.r * T, T, T) }); continue; }
+    if (x.kind === 'path') {
+      shapes.push({ kind: 'road', ...box(cx - w / 2, cy + w / 2, w, w) });
+      for (const sd of x.open ?? []) { const [dx, dy] = arm[sd]; shapes.push({ kind: 'road', ...(dx ? box(dx > 0 ? cx : cx - T / 2, cy + w / 2, T / 2, w) : box(cx - w / 2, dy > 0 ? cy + T / 2 : cy, w, T / 2)) }); }
+    } else if (x.kind === 'place') shapes.push({ kind: 'building', tall: 1, ...box(cx - T * 0.28, cy + T * 0.28, T * 0.56, T * 0.56) });
+  }
+  // the blocks named where they stand: a town a house, the walk's goal a star, the rest their names alone
+  const markers = Object.entries(P.segments).map(([S, seg]) => {
+    const K = keyOf(S), at = [(seg.at[1] + n / 2) * T, -(seg.at[0] + n / 2) * T];
+    return { x: r4(X(at[0])), y: r4(Y(at[1])), kind: 'poi', icon: K.town !== undefined ? 'home' : K.goal !== undefined ? 'star' : 'pin', label: K.name ?? S };
+  });
+  const radius = U.radius ?? CITY_MAP.radius;
+  return {
+    box: [r4(ox), r4(oy)], side: r4(side), shapes, markers, names: true, foes: true,
+    corner: U.corner === undefined ? CITY_MAP.corner : U.corner, views: [...(U.views ?? CITY_MAP.views)],
+    zoom: r4(Math.max(1, Math.min(16, side / (2 * radius)))), icons, cars: false,
+    key: [{ icon: icons.goal, name: 'Where to go' }, { icon: 'home', name: 'A town' }, { icon: 'star', name: 'The keep' }, { icon: 'pin', name: 'A place' }, { icon: 'skull', name: 'A foe' }],
   };
 }

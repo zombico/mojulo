@@ -43,6 +43,11 @@ const MAP_CSS = '.moj-map{position:absolute;inset:0;pointer-events:none;z-index:
   + '.moj-map .mana-map-shape[data-kind=water]{background:color-mix(in srgb,var(--mana-shield) 42%,var(--mana-panel))}'
   + '.moj-map .mana-map-mark:not([data-kind=goal]):not([data-you=yes])>.mana-caption{display:none}';
 
+// (a planned map's places named on the opened map, `names`: its blocks are few and their names are the map)
+const NAMES_CSS = '.moj-map.open .mana-map-mark[data-kind=poi]>.mana-caption{display:block}';
+// (and its corner the page's one radar: the HUD grammar's scope, scene/channels/hud-grammar.js, put away beside it)
+const ONE_RADAR_CSS = '.moj-hg .mana-place[data-at=bottom-right]{display:none!important}';
+
 /** The page's side (inlined by toString): the runtime mounted, a frame's read of the pilot, the cars and the goal. */
 export function mapPage(M, ui, spec, css) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
@@ -64,11 +69,14 @@ export function mapPage(M, ui, spec, css) {
     const GV = window.__mojGuide && window.__mojGuide.view ? window.__mojGuide.view() : null, goal = GV && GV.goal ? GV.goal : null;
     const moving = [{ x: you.x, y: you.y, you: true, heading, kind: 'self', label: 'You' }];
     if (goal) moving.push({ x: r4(X(goal.at[0])), y: r4(Y(goal.at[1])), kind: 'goal', icon: M.icons.goal, label: goal.say });
+    // (a planned map's, `foes`: the foes awake about her, as the grammar's scope showed them, gameworld/radar.js; on her
+    // horse, her side is her own)
+    if (M.foes) { const side = ((me.riderId && W.byId[me.riderId]) || me).team; for (const e of W.entities) { if (!e || e === me || e.id === me.riderId || !e.transform || e.isCamera || e.dormant || e.downed || e.gone || !e.team || e.team === side || !e.body || !e.body.hittable) continue; moving.push({ x: r4(X(e.transform.pos[0])), y: r4(Y(e.transform.pos[1])), kind: 'foe', label: 'A foe', named: false }); } }
     if (M.cars) for (const e of W.entities) { if (!e.mount || !e.mount.cab || e.gone || e === me || !e.mount.pool) continue; moving.push({ x: r4(X(e.transform.pos[0])), y: r4(Y(e.transform.pos[1])), kind: 'poi', icon: M.icons.car, label: 'A car', named: false }); }
     const all = M.markers.concat(moving.slice(1), [moving[0]]);
     const near = all.filter((m) => m.you || m.kind === 'goal' || (Math.abs(m.x - you.x) < reach && Math.abs(m.y - you.y) < reach));
     const view = M.views[vi], focus = view === 'follow' || zoom > 1 ? you : { x: 0.5, y: 0.5 };
-    const next = JSON.stringify([you, heading, near.length, all.length, view, zoom, goal && goal.at]);
+    const next = JSON.stringify([you, heading, near.length, all.length, view, zoom, goal && goal.at, M.foes ? moving.filter((m) => m.kind === 'foe').map((m) => [Math.round(m.x * 400), Math.round(m.y * 400)]) : 0]);
     if (next === sig) return;
     sig = next;
     S.map = { shapes: M.shapes, all, near, you, focus, heading, north: 0, zoom: view === 'follow' ? Math.max(zoom, M.zoom / 2) : zoom, view, key: M.key };
@@ -99,6 +107,6 @@ export function mapScript(M, theme = null, { shared = null } = {}) {
   manaUi.readSpec(spec);
   return `
 // THE MAP (scene/channels/map-channel.js): a radar in the corner and the map on M, mana-ui's; its ground gameworld/city-map.js
-window.__mojMap = (${mapPage.toString()})(${json(M)}, ${shared || manaUiSource()}, ${json(spec)}, ${json(shared ? MAP_CSS : `${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${MAP_CSS}`)});
+window.__mojMap = (${mapPage.toString()})(${json(M)}, ${shared || manaUiSource()}, ${json(spec)}, ${json(`${shared ? '' : `${manaCss()}\n${themeCss(theme ?? 'greybox')}\n`}${MAP_CSS}${M.names ? NAMES_CSS : ''}${M.foes && M.corner ? ONE_RADAR_CSS : ''}`)});
 `;
 }
