@@ -61,6 +61,8 @@
     "book/README.md",
     "book/manifest.json",
     "book/chapters/**",
+    "i18n/config.js",
+    "messages/*.json",
     "!book/**/*.test.js",
     "!lib/embedder/models/**",
     "!lib/**/*.test.js",

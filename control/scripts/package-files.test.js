@@ -3,7 +3,7 @@
 // how `mojulo install recall` shipped without scripts/fetch-embed-model.js: the runtime installed,
 // and the model fetch failed.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -49,5 +49,51 @@ describe('package.json files covers what the shipped scripts run', () => {
     const names = [...commands.matchAll(/'([\w-]+)'/g)].map((m) => m[1]);
     expect(names.length).toBeGreaterThan(0);
     for (const name of names) expect(shipped, name).toContain(`scripts/${name}.mjs`);
+  });
+});
+
+// A lib module that imports above lib/ (or reads a file there by path) works from a checkout and
+// fails at load on every install unless `files` ships the target. That is how 3.2.0's first pack
+// broke the stdio server: lib/graph/game/title-words.js imports i18n/config.js and reads
+// messages/<locale>.json, and neither shipped. A `files` entry covers a target literally, as a
+// `dir/**` prefix, or as a `dir/*.ext` glob.
+function covered(rel) {
+  return pkg.files.some((f) => {
+    if (f.startsWith('!')) return false;
+    if (f === rel) return true;
+    if (f.endsWith('/**')) return rel.startsWith(f.slice(0, -2));
+    const glob = f.match(/^(.*\/)\*(\.\w+)$/);
+    return !!glob && rel.startsWith(glob[1]) && !rel.slice(glob[1].length).includes('/') && rel.endsWith(glob[2]);
+  });
+}
+
+function libModules(dir = 'lib', out = []) {
+  for (const e of readdirSync(path.join(CONTROL_DIR, dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) { if (!/^(node_modules|mobile-suit|__snapshots__|spike-output)$/.test(e.name)) libModules(rel, out); }
+    else if (/\.m?js$/.test(e.name) && !/\.test\.m?js$/.test(e.name)) out.push(rel);
+  }
+  return out;
+}
+
+describe('package.json files covers what lib reaches above lib/', () => {
+  it('ships every module a lib module imports from outside lib/', () => {
+    const IMPORT = /(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)'(\.\.\/[^']+\.m?js)'/gm;
+    let escapes = 0;
+    for (const rel of libModules()) {
+      for (const m of read(rel).matchAll(IMPORT)) {
+        const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
+        if (target.startsWith('lib/') || target.startsWith('../')) continue;
+        escapes++;
+        expect(covered(target), `${rel} imports ${target}`).toBe(true);
+      }
+    }
+    expect(escapes).toBeGreaterThan(0);   // title-words → i18n/config.js; a scan that finds none has gone blind
+  });
+
+  it('ships the locale catalogs title-words reads by path', () => {
+    for (const f of readdirSync(path.join(CONTROL_DIR, 'messages')).filter((n) => n.endsWith('.json'))) {
+      expect(covered(`messages/${f}`), f).toBe(true);
+    }
   });
 });
