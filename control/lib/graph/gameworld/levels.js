@@ -1356,7 +1356,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // where the run made the sheathed hero, opts.sheathRef)
     const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null;
     pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
-    seatable = !look;
+    // (first person seats more than one only on a split screen: a view a seat, soul.frame=split)
+    seatable = !look || cubeOfWorld(G).cube.soul?.frame === 'split';
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
     // the stage's buildings stop, when it has any). Asked for by name, it looks with the mouse (yaw and pitch) through
@@ -1593,6 +1594,8 @@ const SEAT_COUNT = Object.freeze({ two: 2, four: 4 }), SEAT_LIVES = 3;
 function seatPart(G, pilotPart, ends, lane) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
   if (!n) return { pilotPart, seats: null };
+  // (soul.input=turns: the alternating game, the seats taking turns at the hero itself, each its own lives: no bodies)
+  if (soul.input === 'turns') return { pilotPart, seats: { bodies: [], turns: {}, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', lives: SEAT_LIVES, pool: 'own' } };
   const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
   // (soul.contest: co-op, every seat on the hero's side; versus and free-for-all, each seat a side of its own, `seat-<n>`,
   // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`. On a level
@@ -1615,7 +1618,7 @@ function seatPart(G, pilotPart, ends, lane) {
   }
   // lives (soul.pool): each seat three of its own, or three a seat in one count the seats share; a fall costs one
   const lives = soul.pool === 'own' ? { lives: SEAT_LIVES, pool: 'own' } : soul.pool === 'shared' ? { lives: SEAT_LIVES * n, pool: 'shared' } : {};
-  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives, ...(rival || teams ? { contest: soul.contest } : {}) } };
+  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives, ...(rival || teams ? { contest: soul.contest } : {}), ...(soul.frame === 'split' ? { frame: 'split' } : {}) } };
 }
 
 /** ROLES (soul.dependence=roles, docs/local-multiplayer-principles.md principle 8: each job needed): a ride two seats

@@ -434,6 +434,19 @@ export function buildCore(E) {
         for (const e of entities) if (e.id === pilotId || state.seatOf[e.id]) state.seatHome[e.id] = e.transform.pos.slice();
       }
       spec.seats.bodies.slice(0, 3).forEach((id, k) => { const e = byId[id]; if (e && e.pilotable && e.id !== pilotId) { state.seatOf[id] = k + 2; e.rule = e.pilotRule; } });
+      // TURNS (opt-in `turns: { seconds? }`, soul.input=turns: the alternating arcade game): one body, the seats taking
+      // turns at it, seat 1's first; the pilot's input is its turn's seat's (seatInput), a fall or a down passes the turn
+      // (rules-basic.js seat-falls), `seconds` on a clock too
+      if (spec.seats.turns && typeof spec.seats.turns === 'object') {
+        const T = spec.seats.turns, max = Number.isInteger(spec.seats.max) ? spec.seats.max : Math.min(4, spec.seats.bodies.length + 1);
+        state.turnOf = { n: 1, t: 0, max: Math.max(2, Math.min(4, max)), seconds: Number.isFinite(T.seconds) && T.seconds > 0 ? T.seconds : null };
+      }
+      // SPLIT (opt-in `frame: 'split'`, docs/local-multiplayer-principles.md principle 3: a view a seat): each seat's body
+      // its own camera, the world camera's rule on it (`seatCams[n]`), stepped after the world's; no group frame
+      if (spec.seats.frame === 'split' && camera) {
+        state.splitView = true; state.seatCams = {};
+        for (const id in state.seatOf) state.seatCams[state.seatOf[id]] = normalizeEntity({ id: `__camera-${state.seatOf[id]}`, isCamera: true, transform: JSON.parse(JSON.stringify(camera.transform)), rule: { ...camera.rule, target: id }, body: { type: 'none' } }, entities.length);
+      }
     }
     runStateInits(state, spec);   // opt-in state layers (the match bout + wreck finisher — combat-match.js, S2)
     return state;
@@ -488,7 +501,7 @@ export function buildCore(E) {
     hooks = hooks || {};
     if (hooks.physics) hooks.physics(dt);
     for (const p of PRE_STEPS) { const ov = p.fn(state, input, dt, hooks); if (ov) input = ov; }
-    const world = { byId: state.byId, ground: hooks.ground || null, ...(hooks.surface ? { surface: hooks.surface } : {}), ...(hooks.padAt ? { padAt: hooks.padAt } : {}), colliders: state.colliders || null, ...(state.veils ? { veils: state.veils } : {}), ...(state.seatOf ? { seatOf: state.seatOf } : {}), pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cameraYaw() { return state.camera && state.camera.camYaw != null ? state.camera.camYaw : null; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
+    const world = { byId: state.byId, ground: hooks.ground || null, ...(hooks.surface ? { surface: hooks.surface } : {}), ...(hooks.padAt ? { padAt: hooks.padAt } : {}), colliders: state.colliders || null, ...(state.veils ? { veils: state.veils } : {}), ...(state.seatOf ? { seatOf: state.seatOf } : {}), ...(state.splitView ? { splitView: true } : {}), pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cameraYaw() { return state.camera && state.camera.camYaw != null ? state.camera.camYaw : null; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
     for (const e of state.entities) {
       if (e.isCamera) continue;
       for (const t of ENTITY_TIMERS) t.fn(e, dt, state);
@@ -506,6 +519,7 @@ export function buildCore(E) {
       const fn = RULES[state.camera.rule.type];
       if (fn) fn(state.camera, input, dt, world);
     }
+    if (state.seatCams) for (const n in state.seatCams) { const c = state.seatCams[n], fn = RULES[c.rule.type]; if (fn) fn(c, input, dt, world); }   // (a view a seat)
     state.time += dt;
     return state;
   }
@@ -514,7 +528,8 @@ export function buildCore(E) {
   // what a rule's "is this input mine" test adds for them; a seat with no player this frame has its body's rule set by the
   // world's drop (the 'seats' pre-step below). Without seats both read as nothing.
   const seated = (state, e) => !!(state.seatOf && state.seatOf[e.id]);
-  const seatInput = (state, e, input) => (state.seatOf && state.seatOf[e.id] ? readInput(input.seats && input.seats[state.seatOf[e.id]]) : input);
+  const seatInput = (state, e, input) => (state.seatOf && state.seatOf[e.id] ? readInput(input.seats && input.seats[state.seatOf[e.id]])
+    : state.turnOf && e.id === state.pilotId && state.turnOf.n > 1 ? readInput(input.seats && input.seats[state.turnOf.n]) : input);   // (turns: the pilot driven by its turn's seat)
   // the seated pilots, seat 1's first: who the AI hunts and who the camera frames
   const pilotsOf = (world) => {
     const out = world.pilotId && world.byId[world.pilotId] ? [world.byId[world.pilotId]] : [];

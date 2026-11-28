@@ -318,7 +318,7 @@ const SCREEN_ZONES_CSS = [
 ].join('\n');
 
 /** a page whose seats join by lobby (soul.join=lobby): a pilotable world with seats that say so */
-const hasControllableSeatsLobby = (seats, entities) => !!seats && seats.join === 'lobby' && Array.isArray(seats.bodies) && (seats.bodies.length > 0 || (!!seats.crew && Object.keys(seats.crew).length > 0)) && Array.isArray(entities) && entities.some((e) => e && e.pilotable);
+const hasControllableSeatsLobby = (seats, entities) => !!seats && seats.join === 'lobby' && Array.isArray(seats.bodies) && (seats.bodies.length > 0 || (!!seats.crew && Object.keys(seats.crew).length > 0) || !!seats.turns) && Array.isArray(entities) && entities.some((e) => e && e.pilotable);
 
 export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, jobStops = null, fixSites = null, operate = null, faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, mission = null, damageRing = null, briefing = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, sea = null, marine = null, soften = null, seaway = null, captureSize = null, tempo = null, keying = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null, veils = null, density = null, radarMap = null, anchors = null, barriers = null, kibble = null, lesson = null, speedfx = null, heldGates = null, trees = null, explored = null, ambient = null, comms = null, finds = null, plumes = null } = {}) {
   // SCREEN KEYS (game/screen-keys.js): a level made for a screen never asks for a key a thumb cannot press: each key it
@@ -1001,7 +1001,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
   // a flying lesson's brief over the level as it loads (gameworld/lesson-brief.js): never on a capture run
   const lessonBlock = lesson && !capture ? lessonChannelScript(lesson) : '';
   // a level whose seats join by lobby (channels/seat-lobby.js): who plays, before the level starts; never on a capture run
-  const seatLobbyBlock = hasControllableSeatsLobby(seats, entities) && !capture ? seatLobbyScript({ max: Math.min(4, seats.max ?? seats.bodies.length + 1 + Object.keys(seats.crew || {}).length, seats.bodies.length + 1 + Object.keys(seats.crew || {}).length) }) : '';
+  // a split screen (a world's seats.frame: a view a seat, channels/controllable/index.js __splitViews)
+  const splitScreen = !!(seats && seats.frame === 'split' && Array.isArray(entities) && entities.some((e) => e && e.pilotable));
+  const seatLobbyBlock = hasControllableSeatsLobby(seats, entities) && !capture ? seatLobbyScript({ max: Math.min(4, seats.max ?? (seats.turns ? 2 : seats.bodies.length + 1 + Object.keys(seats.crew || {}).length), seats.turns ? 4 : seats.bodies.length + 1 + Object.keys(seats.crew || {}).length) }) : '';
   // a flown craft's speed in the world round it (scene/channels/speed-fx.js): speed lines in the air, dust in space
   const speedfxBlock = speedfx && !capture ? speedFxScript(speedfx) : '';
 
@@ -2126,7 +2128,7 @@ if (_capture) {
   }
   __mojStep(${shootBlock ? '__shClock(t - __pauseOffset)' : 't - __pauseOffset'});${hasControllable ? `
   const __cB = performance.now();` : ''}
-  updateCutaway(); ${prePass}renderer.render(scene, camera);${hasControllable ? `
+  updateCutaway(); ${splitScreen ? `__splitViews(() => { ${prePass}renderer.render(scene, camera); });   // (a view a seat: channels/controllable/index.js)` : `${prePass}renderer.render(scene, camera);`}${hasControllable ? `
   window.__mojCost.tick(__cB - __cA, performance.now() - __cB);` : ''}${pixelBudget ? `
   __budget(t);` : ''}
 });

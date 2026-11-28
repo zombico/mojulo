@@ -1258,3 +1258,13 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // them: every fixture that embeds the controllable runtime (a seat downed, a seat's hp spent, a match's own downs), the
 // pages that embed the event bus (a zone watching a list, argmax), and `seat-lobby` written. Every other page is the
 // candidate's, byte for byte.
+// Re-pinned 2026-11-27 (1127-split-screen: a view a seat): every fixture that embeds the controllable runtime. `seats.frame:
+// 'split'` gives each seat's body its own camera (core.js seatCams, stepped after the world's) and the group frame and
+// leash stand aside (rules-basic.js: two conditions). The page's split (__splitViews) is opt-in: no fixture splits.
+// Re-pinned 2026-11-27 (1127-split-screen: turns): every fixture that embeds the controllable runtime. `seats.turns` (the
+// alternating game) is read into `turnOf` (core.js), the pilot driven by its turn's seat (seatInput), and the 'seat-falls'
+// pass passes the turn on a fall, a down or its clock (rules-basic.js: passTurn, its dt). The page's chip marks the turn
+// on a page with seats (`seat-lobby`). No fixture takes turns.
+// Re-pinned 2026-11-28 (1127-split-screen merged with 1116-rc after #156): the candidate's pins, then this branch's
+// emission over them: every fixture that embeds the controllable runtime (the seat cameras, the group frame's gate,
+// turns) and `seat-lobby` (the same runtime). Every other page is the candidate's, byte for byte.

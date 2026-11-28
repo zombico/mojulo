@@ -257,7 +257,8 @@ export function pageFigures(figures) {
 function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const crewN = seats.crew && typeof seats.crew === 'object' ? Object.keys(seats.crew).length : 0;   // (a gunner seat: no body of its own, turret.js)
-  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1 + crewN, bodies.length + 1 + crewN));
+  const room = seats.turns ? 4 : bodies.length + 1 + crewN;   // (turns: the seats take turns at one body, as many as it says)
+  const max = Math.max(1, Math.min(4, seats.max ?? room, room));
   return `// ── SEATS ──
 const __SK = (${buildSeatsKernel.toString()})();
 let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
@@ -304,7 +305,7 @@ function __seatStrip() {
   const L = __world.seatLives, lives = (n) => (L ? (__world.seatPool === 'shared' ? L.shared : L[n]) : null);
   // a seat's own hp (seats 2 to 4, its body's; seat 1's is the level's HUD): a bar in its chip, in tenths
   const hpOf = (n) => { const e = n > 1 && __world.byId[__SEAT_BODY[n - 2]]; return e && Number.isFinite(e.hpMax) && e.hpMax > 0 && !e.gone ? Math.max(0, Math.min(1, e.body.hp / e.hpMax)) : null; };
-  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n) + ':' + (hpOf(x.n) == null ? '' : Math.round(hpOf(x.n) * 10))).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '');
+  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '') + ':' + lives(x.n) + ':' + (hpOf(x.n) == null ? '' : Math.round(hpOf(x.n) * 10))).join(',') + (L && __world.seatPool === 'shared' ? '/' + L.shared : '') + (__world.turnOf ? '>' + __world.turnOf.n : '');
   if (said === __seatSaid) return;
   __seatSaid = said;
   // the shell (game-seats): who sits where, so its pause names the seat that opened it
@@ -314,7 +315,7 @@ function __seatStrip() {
     const x = __SK.seat(__SEATS, n), c = document.createElement('span'), col = __SK.SEAT_COLORS[n - 1];
     c.style.cssText = 'padding:2px 8px;border-radius:10px;border:2px solid ' + col + ';color:' + (x ? '#fff' : col) + ';background:' + (x && !x.away ? col : 'rgba(0,0,0,.45)');
     const out = __world.seatOut && __world.seatOut[n];
-    c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
+    c.textContent = (__world.turnOf && __world.turnOf.n === n && !__world.seatsOver ? '\u25b6 ' : '') + __SK.SEAT_LABELS[n - 1] + (x ? (out ? ' out' : x.away ? ' away' : '') + (L && !out && __world.seatPool !== 'shared' ? ' \u2665' + lives(n) : '') : ' press to join');
     const hp = x && !out ? hpOf(n) : null;
     if (hp != null) { const b = document.createElement('span'), f = document.createElement('span'); b.style.cssText = 'display:inline-block;vertical-align:middle;margin-left:6px;width:34px;height:5px;border-radius:3px;background:rgba(0,0,0,.5)'; f.style.cssText = 'display:block;height:100%;border-radius:3px;background:#fff;width:' + Math.round(hp * 100) + '%'; b.appendChild(f); c.appendChild(b); }
     __seatEl.appendChild(c);
@@ -354,7 +355,49 @@ function __withSeats(inp) {
   __seatStrip();
   return { ...inp, seats };
 }
-window.__mojSeats = () => __SEATS;${seats.join === 'lobby' ? `
+window.__mojSeats = () => __SEATS;${seats.frame === 'split' ? `
+// ── SPLIT: a view a seat (core.js seatCams, docs/local-multiplayer-principles.md principle 3). A three camera a seat
+// beside seat 1's, driven plainly from its world camera (its place, its look, its roll: no pull-in on a wall for seats 2 to
+// 4 yet); the frame's render a viewport each present seat, two side by side, three or four in quarters; in first person
+// each eye's own body hidden in its own view and seen in the others'.
+const __splitCam = {};
+function __splitDrive() {
+  if (!__world.seatCams) return;
+  for (const n in __world.seatCams) {
+    const c = __world.seatCams[n], p = c.transform.pos;
+    const k = __splitCam[n] || (__splitCam[n] = camera.clone());
+    let look = c.lookAt;
+    if (!look) { const h = c.transform.heading, pi = c.transform.pitch || 0; look = [p[0] + Math.cos(pi) * Math.cos(h), p[1] + Math.cos(pi) * Math.sin(h), p[2] + Math.sin(pi)]; }
+    k.position.set(p[0], p[1], p[2]); k.up.set(0, 0, 1); k.lookAt(look[0], look[1], look[2]);
+    if (c.roll) k.rotateZ(-c.roll);
+  }
+}
+const __eyeOf = (c) => (c && c.rule && c.rule.type === 'eye' && c.rule.hideTarget ? c.rule.target : null);
+let __splitN = 0;
+function __splitViews(renderMain) {
+  const W = renderer.domElement.clientWidth, H = renderer.domElement.clientHeight;
+  const on = __SEATS.seats.filter((x) => !x.away && (x.n === 1 || __splitCam[x.n]));
+  __splitN = on.length;
+  if (on.length < 2) { renderMain(); return; }
+  const w = W / 2, h = H / 2;
+  const rects = on.length === 2 ? [[0, 0, w, H], [w, 0, w, H]] : [[0, h, w, h], [w, h, w, h], [0, 0, w, h], [w, 0, w, h]];
+  const eyes = {};
+  if (__eyeOf(__world.camera)) eyes[1] = __eyeOf(__world.camera);
+  for (const n in (__world.seatCams || {})) if (__eyeOf(__world.seatCams[n])) eyes[n] = __eyeOf(__world.seatCams[n]);
+  const a0 = camera.aspect;
+  if (on.length === 3) renderer.clear();
+  renderer.setScissorTest(true);
+  on.forEach((x, i) => {
+    const [vx, vy, vw, vh] = rects[i], cam = x.n === 1 ? camera : __splitCam[x.n];
+    for (const n in eyes) { const b = __bodies[eyes[n]]; if (b) b.visible = +n !== x.n; }
+    cam.aspect = vw / vh; cam.updateProjectionMatrix();
+    renderer.setViewport(vx, vy, vw, vh); renderer.setScissor(vx, vy, vw, vh);
+    if (x.n === 1) renderMain(); else renderer.render(scene, cam);
+  });
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
+  camera.aspect = a0; camera.updateProjectionMatrix();
+}
+window.__mojSplit = () => ({ views: __splitN, cams: Object.keys(__splitCam).map(Number) });` : ''}${seats.join === 'lobby' ? `
 // (a lobby, channels/seat-lobby.js: its seats are taken while it is open, the world held behind it; it closes them)
 window.__mojSeatsOpen = (open) => { __SEATS = __SK.setOpen(__SEATS, open); __seatStrip(); };` : ''}
 window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color: '#' + __seatRing[n].material.color.getHexString(), visible: __seatRing[n].visible }));
@@ -6153,7 +6196,7 @@ ${hangarHook}  __msHookParams();${seats && seats.join === 'lobby' ? `
   // (a fight holds the world, but its bodies act and stand where it stages them: a figure with a battle act or a staged
   // place is drawn on, the rest stand as they were)
   else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
-  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${figPose ? `
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${seats && seats.frame === 'split' ? '\n  __splitDrive();   // (a view a seat: its camera)' : ''}${xr ? '   // (in the headset the head is the camera)' : ''}${figPose ? `
   __poseFrame();   // (the pose grade cut in on the figures a close shot is on)` : ''}${figFar ? `
   __farFrame();   // (a figure far off drawn as its far twin)` : ''}${tempoLook ? `
   // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its

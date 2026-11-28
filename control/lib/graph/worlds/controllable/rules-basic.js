@@ -248,7 +248,7 @@ export function buildRulesBasic(E) {
   // with no seats: null, and the camera frames its target as it always did.
   const playing = (world) => E.pilotsOf(world).filter((p) => !p.downed && !p.gone && p.rule === p.pilotRule);
   function groupFrame(r, world, dist) {
-    if (!world.seatOf) return null;
+    if (!world.seatOf || world.splitView) return null;   // (split: a view a seat, each its own)
     // (one playing seat frames itself only when it is not the camera's own target: seat 1 out, seat 2 still in)
     const P = playing(world);
     if (!P.length || (P.length === 1 && P[0].id === r.target)) return null;
@@ -559,23 +559,36 @@ export function buildRulesBasic(E) {
   // seatedDeath) is taken as a fall once its collapse has played (SEAT_DOWN_HOLD s): a life, then up again beside the
   // others with its hp whole, or out. Seat 1's down is the level's own (fail-on-death's), unless the seats count lives.
   const SEAT_DOWN_HOLD = 1.5;
-  E.registerWorldPass('seat-falls', (state) => {
+  // TURNS (core.js state.turnOf): the next seat with lives left takes the body; none, the seats are over
+  const passTurn = (state) => {
+    const T = state.turnOf, L = state.seatLives, out = state.seatOut || {};
+    for (let k = 1; k <= T.max; k++) {
+      const n = ((T.n - 1 + k) % T.max) + 1;
+      if (!out[n] && (!L || (L[n] ?? 0) > 0)) { T.n = n; T.t = 0; return; }
+    }
+    state.seatsOver = true;
+  };
+  E.registerWorldPass('seat-falls', (state, input, dt) => {
     if (!state.seatOf) return;
-    const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? 1 : state.seatOf[e.id]);
+    const all = E.pilotsOf(state), seatN = (e) => (e.id === state.pilotId ? (state.turnOf ? state.turnOf.n : 1) : state.seatOf[e.id]);
+    // (a turn on the clock: it passes, no life spent)
+    if (state.turnOf && state.turnOf.seconds && !state.seatsOver) { state.turnOf.t += dt || 0; if (state.turnOf.t >= state.turnOf.seconds) passTurn(state); }
     for (const e of all) {
       if (e.gone) continue;
       const n = seatN(e);
       let down = false;
-      if ((n > 1 || state.seatLives) && e.downed && !state.seatDownsLevel) {
+      if ((n > 1 || state.seatLives || state.turnOf) && e.downed && !state.seatDownsLevel) {
         if (e.seatDownAt == null) e.seatDownAt = state.time;
         down = state.time - e.seatDownAt >= SEAT_DOWN_HOLD;
       }
       if (!down && e.transform.pos[2] >= state.seatFloor) continue;
-      if (n === 1 && !state.seatLives) continue;
+      if (n === 1 && !state.seatLives && !state.turnOf) continue;
+      const turn = !!state.turnOf && e.id === state.pilotId;
       if (state.seatLives) {
         const k = state.seatPool === 'shared' ? 'shared' : n;
         state.seatLives[k] = Math.max(0, (state.seatLives[k] ?? 0) - 1);
-        if (!state.seatLives[k]) {
+        if (!state.seatLives[k] && turn) state.seatOut[n] = true;   // (turns: the seat is out, the body goes on to the next)
+        else if (!state.seatLives[k]) {
           for (const o of state.seatPool === 'shared' ? all : [e]) { state.seatOut[seatN(o)] = true; o.gone = true; }
           if (!all.some((o) => !o.gone && o.rule === o.pilotRule)) state.seatsOver = true;
           continue;
@@ -592,12 +605,13 @@ export function buildRulesBasic(E) {
         e.downed = false; e.castDown = false; e.seatDownAt = null; e.staggerT = null; e.downPauseT = null; e.reactionEnded = false;
         e.locomotion = 'forward'; e.moving = false; e.gaitPhase = 0;
       }
+      if (turn) passTurn(state);   // (turns: the body back, the next seat's turn)
     }
   });
 
   E.registerWorldPass('group-leash', (state) => {
     const cam = state.camera, r = cam && cam.rule;
-    if (!state.seatOf || !r || !GROUP_DIST[r.type]) return;
+    if (!state.seatOf || state.splitView || !r || !GROUP_DIST[r.type]) return;
     const world = { byId: state.byId, seatOf: state.seatOf, pilotId: state.pilotId };
     const G = groupFrame(r, world, r.dist ?? GROUP_DIST[r.type]);
     if (!G) return;
