@@ -449,6 +449,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   } else if (bossed(G)) steps.push(bossStep(G, ref, { ready: true }));
   if (guarded(G)) steps.push(guardStep(G, ref, { ready: true }));
   if (gunned(G)) steps.push(gunnerStep(G, ref, { ready: true }));
+  // (the book's ride, a designed world's `ride`: minted beside the people, driven on every road and trail stage)
+  const BR = bookRide(G, ref, { ready: true });
+  steps.push(...BR.steps);
   // the bestiary's foes (foes.js): one beast for each entry a level stands, waiting on nothing
   steps.push(...foeSteps(G, ref, { ready: true }));
   const foeRefs = foeRefsOf(G, ref);
@@ -604,8 +607,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // level's: fail-on-death and the hazards on the body, a touch's cost the same share of its hp; foes.js onBody)
     // (a world on lives, mechanics.lives, has no hp to bind: a touch costs a life, the level's lives mechanic's)
     // (a deathmatch keeps its own hp, its falls and its comebacks: frags', never the body's)
-    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && G.levels[s.level]?.deathmatch === undefined && G.levels[s.level]?.mash === undefined && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
-    const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
+    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && G.levels[s.level]?.deathmatch === undefined && G.levels[s.level]?.mash === undefined && G.levels[s.level]?.race === undefined && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
+    const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight, ride: BR.ride }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null, talk: G.ui !== undefined ? 'box' : 'menu' }) : null;
@@ -627,7 +630,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(steps.some((x) => x.key.startsWith('hero-held-')) ? { heldRefs: Object.fromEntries(steps.filter((x) => x.key.startsWith('hero-held-')).map((x) => [x.key.slice(10), x.ref])) } : {}), ...(ownAll ? { moves: ownAll } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref), ...(s.section === 'metroidvania' && Object.keys(castleRefs).length ? { castleBossRefs: castleRefs } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(BR.ride && drives(s) ? { ride: BR.ride } : {}), ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(steps.some((x) => x.key.startsWith('hero-held-')) ? { heldRefs: Object.fromEntries(steps.filter((x) => x.key.startsWith('hero-held-')).map((x) => [x.key.slice(10), x.ref])) } : {}), ...(ownAll ? { moves: ownAll } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref), ...(s.section === 'metroidvania' && Object.keys(castleRefs).length ? { castleBossRefs: castleRefs } : {}) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // (what each member wears, seen: its looks on its figure, the page showing the one its armour names: wardrobe.js)
@@ -752,9 +755,16 @@ const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
 const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed', 'follow', 'orbit']);
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
-function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
+function goalArgs(G, s, lastOf, ref, { fought = false, ride = null } = {}) {
   // A DEATHMATCH (levels.<id>.deathmatch, a book level form): the quick door's match from the level's own words, its bots
   // the world's gunner (gunnerStep), its pilot armed as the quick deathmatch's
+  // A RACE (levels.<id>.race, on a roadway): the quick door's race from the level's words and the world's ride, its laps and
+  // checkpoints the roadway's, its rivals on the grid driving the ride's rule (raceCast)
+  const RC = G.levels[s.level]?.race;
+  if (RC !== undefined && ride) {
+    const Q = { goal: 'race', ...G.ride, ...(RC === true ? { rivals: 3 } : { rivals: RC.rivals ?? 3, ...(RC.laps !== undefined ? { laps: RC.laps } : {}) }) };
+    return { goal: (ends) => goalMechanics(Q, ends), goalCast: (ends) => raceCast(Q, ends, ride) };
+  }
   // A PARTY ROUND (levels.<id>.mash): mechanics.js mash, its window (10 s) or its race the level's
   const MS = G.levels[s.level]?.mash;
   if (MS !== undefined) {
@@ -896,6 +906,21 @@ function bossStep(G, ref, ready) {
   const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} boss`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
   return { key: 'foe', ref: childRef(ref, 'foe'), ...ready, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
 }
+/** THE BOOK'S RIDE (a designed world's `ride`, 11-28): its hero a vehicle, as the quick door's is (vehicle-registry/ride.js
+ * rideOf: an assembled ride minted as its own sketch at `<ref>-ride`, a loft or a machine astride compiled in place); every
+ * road and trail stage is driven in it (`drives`). { steps, ride }: no ride said, none. */
+const drives = (s) => s.section === 'roadway' || s.section === 'trail';
+function bookRide(G, ref, ready) {
+  const R = G.ride;
+  if (!R) return { steps: [], ride: null };
+  const seed = Number.isInteger(G.seed) ? G.seed : 1, rode = rideOf(R);
+  if (rode.kind === 'assembly') {
+    const rideRef = childRef(ref, 'ride'), build = rideBuild(rode.ride, seed);
+    return { steps: [{ key: 'ride', ref: rideRef, ...ready, order: { title: build.title, manifest: build }, print: fingerprint({ ride: R.ride, seed }) }], ride: { ref: rideRef, rule: quickRideRule(R, rideRule(rode.ride, seed)) } };
+  }
+  return { steps: [], ride: rode.kind === 'loft' ? loftRide(R, rode, seed) : rode.kind === 'cycle' ? cycleRide(R, rode) : null };
+}
+
 /** The guards' figure: a sneak's guard rolled in the game's setting, made as the boss is at `<ref>-guard`. */
 function guardStep(G, ref, ready) {
   const Q = { goal: 'sneak' }, F = quickFigure(G, Q, 'guard', settingOfGame(G, Q));
@@ -934,13 +959,15 @@ function worldSteps(world, G, ref, composite) {
   if (guarded(G)) steps.push(guardStep(G, ref, settled(ground)));
   if (gunned(G)) steps.push(gunnerStep(G, ref, settled(ground)));
   steps.push(...foeSteps(G, ref, settled(ground)));
+  const BR = bookRide(G, ref, settled(ground));
+  steps.push(...BR.steps);
   const foeRefs = foeRefsOf(G, ref);
   const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     // (its foes stand beside its goal's cast; the walker is first person, so it is hit under its eye)
-    const GA = goalArgs(G, s, lastOf, ref), hostile = hostileOf(G, s, foeRefs, false, lastOf[s.level] === s.index);
-    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...(s.section === 'street' ? { foeRefs } : {}), ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
+    const GA = goalArgs(G, s, lastOf, ref, { ride: BR.ride }), hostile = hostileOf(G, s, foeRefs, false, lastOf[s.level] === s.index);
+    const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...(BR.ride && drives(s) ? { ride: BR.ride } : {}), ...(s.section === 'street' ? { foeRefs } : {}), ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const C = composedStages(stages, levelRefs, map, composite);

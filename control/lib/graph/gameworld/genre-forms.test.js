@@ -15,7 +15,7 @@ import { runSteps } from './runner.js';
 describe('the genre\'s form', () => {
   it('names genres that exist, and each form\'s level is a level the book reads', () => {
     for (const id of [...Object.keys(GENRE_FORMS), ...Object.keys(HAND_OFFS)]) expect(GENRES[id], id).toBeTruthy();
-    for (const [id, F] of Object.entries(GENRE_FORMS)) expect(() => readGameworld({ id: 'w', levels: { a: F.level(0, 1) } }), id).not.toThrow();
+    for (const [id, F] of Object.entries(GENRE_FORMS)) expect(() => readGameworld({ id: 'w', ...(F.ride ? { ride: F.ride } : {}), levels: { a: F.level(0, 1) } }), id).not.toThrow();
   });
 
   it('a genre with a form has every level laid in it: no walk, no town, the brief says so', () => {
@@ -76,9 +76,8 @@ describe('the genre\'s form', () => {
 describe('a genre the book cannot lay from a sentence yet', () => {
   it('is refused with what it waits on and the one level it plays alone, nothing laid in its place', () => {
     for (const [id, why] of Object.entries(PENDING)) { expect(GENRES[id], id).toBeTruthy(); expect(WAITS[why], id).toBeTruthy(); expect(GENRE_FORMS[id], id).toBeUndefined(); }
-    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race', call: "{ goal: 'race' }" });
-    expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
-    // (one per kind of wait: a ride, a form)
+    expect(pendingOf('co-op-kitchen')).toEqual({ waits: WAITS.form, one: 'work', call: "{ goal: 'work', cooks: 2 }" });
+    expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(/waits on its kernel as a book level[\s\S]*design_game\(\{ quick: \{ goal: 'work', cooks: 2 \} \}\)/);
     expect(() => composeGameworld({ prompt: 'a tower defence game', seed: 1 })).toThrow(/waits on its kernel as a book level/);
   });
 
@@ -86,6 +85,14 @@ describe('a genre the book cannot lay from a sentence yet', () => {
     for (const id of ['stealth', 'co-op-platformer', 'jrpg', 'dungeon-crawler', 'collectathon', 'metroidvania']) expect(pendingOf(id), id).toBeNull();
     expect(composeGameworld({ prompt: 'a stealth game sneaking past guards in a castle', seed: 1 }).intent).toEqual({ from: 'stealth' });
   });
+
+  it('a ride is the book\'s (11-28): a kart racer laid as races in its kart, a driver-and-gunner game as runs for a crew', () => {
+    for (const id of ['kart-racer', 'racing', 'driver-and-gunner']) expect(pendingOf(id), id).toBeNull();
+    const K = composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 });
+    expect(K.ride).toEqual({ ride: 'car', vehicle: 'kart' });
+    for (const l of Object.values(K.levels)) expect(l).toMatchObject({ roadway: { course: expect.any(String) }, race: { laps: 3, rivals: 3 } });
+    expect(composeGameworld({ prompt: 'a driver and gunner game: one drives the truck, one shoots the turret', seed: 1 }).ride).toEqual({ ride: 'car' });
+  }, 120_000);   // (two whole worlds composed: their own limit, as the deathmatch's)
 
   it('a deathmatch is a book form (11-27): an arena shooter laid as matches, a split deathmatch as matches for the couch', () => {
     for (const id of ['arena-shooter', 'split-deathmatch']) expect(pendingOf(id), id).toBeNull();

@@ -60,6 +60,14 @@ export const GENRE_FORMS = Object.freeze({
   // fill the arena, a view each (the cube's soul: split, seats)
   'arena-shooter': Object.freeze({ form: 'deathmatch', name: 'Match', hero: Object.freeze({}), screen: 'screen', level: () => matchLevel(DEATHMATCH.bots) }),
   'split-deathmatch': Object.freeze({ form: 'deathmatch', name: 'Match', hero: Object.freeze({}), screen: 'screen', level: () => matchLevel(2) }),
+  // a race a level (11-28, the book's ride and race: world.js ride, levels.<id>.race): a roadway course a level, the world's
+  // ride driven against its rivals for its laps (the form's `ride` the world's); a kart's courses short and twisting, a car's
+  // the city's blocks and the figure eight (never the champions' duel: two cars)
+  'kart-racer': Object.freeze({ form: 'race', name: 'Cup', ride: Object.freeze({ ride: 'car', vehicle: 'kart' }), screen: 'screen', level: (i) => ({ roadway: { course: ['kart-oval', 'kart-sprint', 'figure-eight'][i % 3], dress: true }, race: { laps: 3, rivals: 3 } }) }),
+  racing: Object.freeze({ form: 'race', name: 'Race', ride: Object.freeze({ ride: 'coupe' }), screen: 'screen', level: (i) => ({ roadway: { course: ['city-blocks', 'figure-eight', 'kart-oval'][i % 3], dress: true }, race: { laps: 3, rivals: 3 } }) }),
+  // a ride a level for a crew (driver-and-gunner: the cube's seats two, roles, levels.js crewPart): a trail driven to its end,
+  // one at the wheel and one on the roof gun
+  'driver-and-gunner': Object.freeze({ form: 'ride', name: 'Run', ride: Object.freeze({ ride: 'car' }), screen: 'screen', level: () => ({ walk: { nodes: { road: { trail: {} } } } }) }),
   // a round a level (11-28, a book party round: world.js levels.<id>.mash): a ground to stand on, the round on it, the
   // couch's heroes its players (the cube's soul: four, each against each, a window, a lobby)
   'party-mash': Object.freeze({ form: 'mash', name: 'Round', hero: Object.freeze({}), screen: 'screen', level: (i) => ({ walk: { nodes: { square: { trail: {} } } }, mash: i % 2 ? { seconds: 20, to: 40 } : { seconds: 10 } }) }),
@@ -85,22 +93,18 @@ export const WAITS = Object.freeze({
   form: 'its kernel as a book level (today it plays as one level alone)',
 });
 export const PENDING = Object.freeze({
-  racing: 'ride', 'kart-racer': 'ride',
   'tower-defense': 'form', rts: 'form', tactics: 'form', farming: 'form', rhythm: 'form', roguelike: 'form', 'block-puzzle': 'form',
   'pixel-puzzle': 'form', 'versus-fighter': 'form', 'athletics-meet': 'form', 'net-game': 'form', 'turn-sport': 'form', 'team-goal-game': 'form',
   'co-op-kitchen': 'form',
-  // (the couch's crewed ride, one level of the quick door's for now)
-  'driver-and-gunner': 'ride',
 });
 // the one level a pending genre plays alone today (quick.js QUICK_GOALS, the one-level door), said beside its refusal
 const ONE_LEVEL = Object.freeze({
-  racing: 'race', 'kart-racer': 'race', shooter: 'shoot', 'tower-defense': 'defend', rts: 'conquer',
+  shooter: 'shoot', 'tower-defense': 'defend', rts: 'conquer',
   farming: 'farm', rhythm: 'rhythm', 'block-puzzle': 'puzzle', 'versus-fighter': 'fight', 'athletics-meet': 'meet', 'net-game': 'contest',
   'turn-sport': 'contest', 'team-goal-game': 'contest', 'endless-runner': 'runner', 'co-op-kitchen': 'work',
-  'driver-and-gunner': 'reach',
 });
 // (and the words that make it what the genre is, where the goal alone does not: the cooks a co-op kitchen seats)
-const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }), 'driver-and-gunner': Object.freeze({ ride: 'car', players: 2 }) });
+const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }) });
 /** The quick door that plays a pending genre's one level alone, as the producer says it: `{ goal: 'work', cooks: 2 }`. */
 export const oneLevelCall = (id) => (ONE_LEVEL[id] ? `{ goal: '${ONE_LEVEL[id]}'${Object.entries(ONE_WITH[id] ?? {}).map(([k, v]) => `, ${k}: ${JSON.stringify(v)}`).join('')} }` : null);
 

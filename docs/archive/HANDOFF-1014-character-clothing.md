@@ -1,5 +1,7 @@
 # Handoff: 1014 character clothing (branch `1014-character-enhancements`)
 
+> Archived: a branch hand-off note from 1014, kept for history.
+
 Analysis and rationale: `docs/character-clothing-gap.md`. Changelog: the Unreleased section
 "Character clothing: the anime silhouette" in `control/CHANGELOG.md` (update it for the second commit's items below).
 

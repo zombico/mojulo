@@ -1,6 +1,6 @@
 # Mojulo, the long tour
 
-> The long-form README as it stood at v2.0.4. The repo README is now a short set of worked examples; this page keeps the full catalog of what mojulo makes, who it is for, and the reasoning behind the posture.
+> The long tour: what the [README](../README.md) leaves out for space. Written at v2.0.4 and trimmed since; the README and [from nothing to a first level](zero-to-level-one.md) are the current front. Where this page names a tool, the agent's routing index (`forward_context`) is the truth.
 
 [![npm](https://img.shields.io/npm/v/mojulo)](https://www.npmjs.com/package/mojulo)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
@@ -23,6 +23,28 @@ Mojulo is a 3D compiler for agents: a local MCP server where everything your cod
 **Mojulo feeds the tools you already use; it does not compete with them.** It is the agent-driven upstream — it authors the truth at home, and the edge tool consumes it without guessing at the seam. It is not a renderer trying to out-render Unreal, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders. The engine or the printer is where it is optionally *finished*.
 
 **Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own: photo references are read by the agent's eyes, games are verified by agent-compiled traversals, and the reasoning bill stays on your existing Claude or ChatGPT subscription.
+
+---
+
+## A facility, planned before it is built
+
+Ask for a facility, say a military base with a hangar, barracks, an armoury and a reactor plant at its heart, each unlike the last, and you see the plan first: the way in from level to level, and each level's walls, floors, paint and light as the build will lay them. Nothing is built until you say yes.
+
+| | |
+|---|---|
+| ![The plan's "To the core" page: the four levels drawn as rings around the reactor at the centre, each stair or door on its join, beside a table of each level's look as colour swatches and the design rules the plan holds](images/wcd-demo-book.png) | ![One level's finishes, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band, each a tile of its material with its size, and the colours of its lights](images/wcd-demo-finishes.png) |
+
+<sub>The plan you approve: the way in, level by level, and one level's materials and light.</sub>
+
+Then it is built to that plan, each level in its own materials, and stocked for what it is: bunks and footlockers in the barracks, weapon racks in the armoury, sandbags at the guard posts, an extinguisher by every door.
+
+| | |
+|---|---|
+| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](images/wcd-demo-hangar-corridor.jpg) |
+| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor: board-formed concrete, yellow and green steel on its columns, a cable along the wall under its tray, hazard stripes at a doorway](images/wcd-demo-armoury-corridor.jpg) |
+| ![The reactor plant's generator hall: white panels, a catwalk and two stairs, the generator on its plinth between jersey barriers](images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](images/wcd-demo-reactor-corridor.jpg) |
+
+<sub>"I'm making a stealth game. Build me a multi-level military base to infiltrate": the hangar, the barracks, the armoury and the reactor plant, as built.</sub>
 
 ---
 
@@ -102,157 +124,7 @@ Everything above is a few kilobytes of parameters plus a `kind`, or an OpenSCAD 
 
 ## Quickstart
 
-The fastest path: don't install anything yourself. Paste this into the coding
-agent you already run (Claude Code, Codex) and let it drive — it checks the
-machine first, reports what it found, and asks before installing anything:
-
-```text
-Help me install mojulo — a free, local 3D factory you'll drive over MCP.
-Orientation, if you can fetch it: https://mojulo.ai/llms.txt
-(mirror if the site is down: https://github.com/zombico/mojulo)
-
-1. First just check: run `node --version`. Mojulo needs Node 22.14+.
-   Tell me what you found before changing anything.
-2. If Node is missing or too old, ask my permission, then install it
-   the way this machine expects (brew / winget / nvm / apt).
-3. Run `npx mojulo init`. Run by you (no terminal), it only prints what
-   it would change: which agents' configs it would wire mojulo into, and
-   the dashboard it would open at localhost:3001. Show me that, and with
-   my go-ahead re-run it with `--yes`. Everything stays on my machine.
-4. When it finishes, tell me to open a fresh session and ask you:
-   "what is this?"
-
-Never install anything without asking me first.
-```
-
-Driving it yourself instead? You need two things installed first:
-
-1. **Node.js 22.14 or newer** — mojulo is installed and run through `npx`, which ships
-   with Node. Check with `node --version`; if you don't have it (or it's older than
-   22.14), install it from [nodejs.org](https://nodejs.org) — or ask your coding
-   agent to install it for you.
-2. A **desktop coding agent** (Claude Code/Codex) or a high-end local model —
-   mojulo is model-agnostic and runs on whatever model your harness provides.
-   (Claude Desktop works too — `init` detects and wires it — but a coding agent
-   gets more out of the workshop.)
-
-Platforms, honestly: built and verified on macOS (Apple Silicon). Linux runs the test
-suite in CI and a cold install of 2.0.1 was checked on x64 and arm64 containers. Windows
-was verified natively with Claude Code — `npx mojulo init` completed and a first render
-landed — but Codex there, and the engine gates on any platform but macOS, have not been.
-If you run it somewhere we haven't, open an issue with what you saw.
-
-No provider key. Your agent is the reasoning loop, so objects, worlds, games,
-scores and exports all run keyless. A key enters only when something has to
-*paint* a directed image, or when you use `mint_solid`'s prompt door.
-
-```bash
-npx mojulo init
-```
-
-`init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
-and opens the dashboard at `http://localhost:3001` (or the next free port — the
-installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
-The first install is the big one: npx pulls a ~7 MB package plus its dependencies (about 227 MB
-on disk, about 79 MB downloaded, measured for 3.0.0); after that, starts are instant. The
-dashboard is its own package, fetched the first time you open it, and the local search model is
-the opt-in `mojulo install recall`. Measured sizes, lazy first-use downloads, and what each engine
-leg needs: [docs/tech-requirements.md](tech-requirements.md).
-
-**Why these dependencies.** All of them run on your machine. `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
-geometry, `sharp` handles images, `puppeteer-core` drives a *local* headless Chrome for stills (the
-browser itself is fetched only for an explicit render, or skipped if you already have Chrome), and
-`better-sqlite3` is the one database file under `~/.mojulo/`. Nothing in that list reaches the
-network on its own. The per-dependency sheet, with sizes, is in the same tech-requirements page.
-
-The dashboard opens in English but ships fully translated in every locale under `control/messages/`,
-including right-to-left scripts — switch anytime under **Settings → Language**.
-
-On a slow connection, or if you'd rather your agent's first connect never wait on
-npx resolving the package, install globally instead and re-run `init`:
-
-```bash
-npm install -g mojulo && mojulo init     # update later with: npm update -g mojulo
-```
-
-### First look — no key required
-
-Back in your agent, try these in order. Each renders locally and hands you a URL:
-
-```
-what is this?                        → forward_context: mojulo orients itself, out loud
-make me a coffee mug, 90 mm tall     → mint_solid (workbench) → open /sketches/<ref>, download the .stl
-generate a 3D city at night          → compose_world (base: city) → open the /scene URL
-make me a walkable world             → compose_world (base: controllable) → drive it at /world
-turn those into a game               → create_game → play at /sketches/<ref>
-hand its levels to Godot             → export_model { engine: 'godot' } → open the project, play level.tscn
-make it a desktop app                → export_game { target: 'desktop' } → npm install && npm start
-```
-
-The first prompt is the one to watch: your agent reads mojulo's own routing
-index (`forward_context`) to decide what to do. That's the substrate explaining
-itself — no key, no cloud call, nothing deployed.
-
-### Handing off from the command line
-
-The MCP tools cover every export. The CLIs add the machine gate and are what
-you run when the engine is installed. Always from `control/`:
-
-```bash
-node scripts/export-unreal.mjs  --ref <ref> --lit    # an Unreal asset pack + gate (MOJULO_UNREAL); --lit lets the engine light it
-node scripts/export-blender.mjs --ref <ref>          # Blender art-pass pack + gate (MOJULO_BLENDER)
-node scripts/slice-print.mjs    --ref <ref>          # export the 3MF and slice it; stamps mojulo-print-gate.json (MOJULO_SLICER)
-node scripts/visual-gate.mjs    --ref <level>        # a level's shots on the page and in each engine installed, scored; a contact sheet
-```
-
-A level's engine handoff (`export_model { engine }`) returns the commands that import and probe it headless in that
-engine. Every export leg takes `--out <dir>` to write somewhere other than `data/outcomes/<ref>/`, `--no-gate` to
-emit without the engine, and `--lit` for the PBR handoff. The slicer also takes `--3mf <file>` for a
-file you already have and `--target-mm` to fit a maquette first.
-
-### Optional workers for the 3D loop
-
-Each is a separate install you host yourself; mojulo never starts or depends on
-them, your agent is the bridge, and absence degrades one loop without breaking any.
-
-- **Blender** — the GI bake into vertex colours, premium stills, and the USD/GLB verify gate. [docs/local-blender-worker.md](local-blender-worker.md)
-- **A slicer** — PrusaSlicer, Bambu Studio (OrcaSlicer is detected but not yet run) for the print gate. [docs/local-slicer-worker.md](local-slicer-worker.md)
-- **A mesh sculptor** — TripoSR, Hunyuan3D or a cloud API for high-frequency surface detail over mojulo's greybox; the result binds back with provenance. [docs/local-mesh-worker.md](local-mesh-worker.md)
-- **An image painter** — for directed images only: an image-capable agent, or a self-hosted ComfyUI + Qwen worker (large models, loopback only). [docs/local-image-worker.md](local-image-worker.md)
-
-### Manual wiring (if you prefer)
-
-If you'd rather not run the installer, wire mojulo into your host directly:
-
-```bash
-# Claude Code (--scope user makes mojulo available in every project, not just this directory):
-claude mcp add --scope user mojulo -- npx -y mojulo
-
-# Codex: add to ~/.codex/config.toml
-[mcp_servers.mojulo]
-command = "npx"
-args = ["-y", "mojulo"]
-```
-
-```jsonc
-// Claude Desktop: add under "mcpServers" in claude_desktop_config.json
-// (macOS: ~/Library/Application Support/Claude/ · Windows: %APPDATA%\Claude\)
-// then restart Claude Desktop. If it fails to start with "spawn npx ENOENT",
-// replace "npx" with the absolute path from `which npx` — the app's GUI
-// environment often can't see nvm/homebrew installs.
-"mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
-```
-
-Open the dashboard separately anytime with `npx -y mojulo-ui` (its own npm package since 3.0.0; `npx -y -p mojulo mojulo-ui` fetches it on first use).
-
-### Commands
-
-`init` is the one command you need; these are the pieces it wires up, for reference:
-
-- `npx mojulo init` — one-shot installer: detect hosts, wire each, optional key, open the dashboard.
-- `npx -y mojulo` — the stdio MCP server itself (what `init` wires your agent to run).
-- `npx -y mojulo-ui` — open the dashboard (`--port N`, `--no-open`); `npx -y -p mojulo mojulo-ui` does the same through `mojulo`, downloading the dashboard package first if it is not installed.
-- `npx -y -p mojulo mojulo-config set <provider> <key>` — store a provider key, encrypted (`anthropic` / `openai` / `ollama`).
+Install and first asks are in the [README](../README.md#get-started): the Claude Code plugin, or `npx mojulo init` for any other agent. Hosts other than Claude: [AGENTS.md](../AGENTS.md). Optional workers (Blender, a slicer, OpenSCAD, a game engine) are found on their own: [tech-requirements.md](tech-requirements.md).
 
 ---
 
@@ -286,9 +158,7 @@ The factory is the point. The same recipe discipline covers a wider shelf, prese
 
 - **Diagrams and charts** — flowcharts, stacked bars, donuts, KPI tiles via `create_sketch`; one geometry family draws a flowchart and climbs the whole 3D ladder.
 - **Directed images** — a composition-locked scaffold that an external image model paints (your agent's own image capability, or the local worker). The design stays sovereign; the painted render binds back with provenance.
-- **Publications, research, plans, stashes** — cooks (briefs, decks, comics, picture books, whole static sites), a searchable research notebook, plans tracked from draft to executed, and typed buckets the agent files inputs into. All land as plain files you diff and regenerate.
-- **Connected services** — workflows over the MCPs you already run (Drive, Gmail, Linear, your CRM), synthesized by your agent from a **catalyst** into a runnable artifact you own, with the wiring recorded in a durable contextmap. Mojulo ships no native integrations by design. [docs/catalysts.md](catalysts.md), [docs/meta-context.md](meta-context.md)
-- **Local apps** — a local process plus MCP sidecar whose inference parks back on your agent, so no per-app LLM key. [docs/app-runtime.md](app-runtime.md)
+- **Publications, plans, stashes** — cooks (briefs, decks, comics, picture books, whole static sites), plans tracked from draft to executed, and typed buckets the agent files inputs into. All land as plain files you diff and regenerate.
 
 The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues.
 
@@ -329,7 +199,7 @@ A spectrum, all driving the same open-source, self-hosted stack from their own M
 - **Teachers and course builders** who tune a study object once, keep it in their cookbook, and recall it by intent a term later.
 - **Anyone with a Claude/ChatGPT subscription** who wants their agent to ship files other tools already read, not chat transcripts.
 
-The wider shelf reaches further: indie makers vibe-coding side projects without a SaaS bill, and teams with a pile of MCPs who want them wired together once with the reasoning recorded.
+The wider shelf reaches further: indie makers with side projects and no SaaS bill, and teams who want a game prototyped on the web before their engine takes it.
 
 ---
 
@@ -369,8 +239,6 @@ Per-package docs: [control/README.md](../control/README.md) — the npm package 
 - [docs/mcp-integration.md](mcp-integration.md) — connecting an agent, the tool surface, catalysts and composition recipes
 - [docs/install-capabilities.md](install-capabilities.md) — kernel, always-on packs, and the install groups
 - [docs/catalysts.md](catalysts.md) — what a catalyst is and how to author one
-- [docs/meta-context.md](meta-context.md), [docs/mcp-orbit.md](mcp-orbit.md) — connected-services composition
-- [docs/app-runtime.md](app-runtime.md) — the app runner daemon
 - [docs/responsibility-model.md](responsibility-model.md) — the operator-owns-consequences posture
 
 ---

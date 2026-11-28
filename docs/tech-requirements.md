@@ -9,7 +9,7 @@ code wins and this page is wrong — fix it here.
 Companion facts: the `get_substrate` drawer in
 [control/lib/mcp/tools/context.js](../control/lib/mcp/tools/context.js) (the canonical
 self-description; keep site copy consistent with it), [install-capabilities.md](install-capabilities.md)
-(kernel + packs), and the [README quickstart](../README.md#quickstart).
+(kernel + packs), and the [README quickstart](../README.md#get-started).
 
 ---
 
@@ -33,7 +33,7 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 | **A desktop OS** | macOS is the development and verification platform. Windows and Linux are handled by the installer and the native binaries below, but the engine gates are not verified there (see [Platform notes](#platform-notes)). | — |
 | **No GPU** | Headless WebGL bakes rasterize on the CPU via SwiftShader. A GPU only matters for optional workers you host yourself (Blender Cycles, ComfyUI). | [lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js) |
 | **Seeing a big game** | A level over a cloud box's page limit is played on the creator's own machine (its GPU): the workshop says so before it is built. | [workshop.md](workshop.md) |
-| **No provider key** | Studio, games, publications, research, apps: keyless. A key enters only when something must *paint* (image models) or when you use `mint_solid`'s prompt door. | [README](../README.md#quickstart) |
+| **No provider key** | Studio, games, publications, research, apps: keyless. A key enters only when something must *paint* (image models) or when you use `mint_solid`'s prompt door. | [README](../README.md#get-started) |
 | **RAM / CPU** | **No measured minimum.** Nothing in the tree states one. Do not put a number on the site until one is measured. | — |
 
 ---
@@ -46,6 +46,11 @@ The install took 11.1 s, and the installed server answered `initialize` in 2.0 t
 fresh `MOJULO_HOME`s (the server alone, after the install). One run on one machine, with a fast
 network, so it bounds nothing; it is not the macOS cold start below, which ran `npx` through a local
 registry and timed both together. Sizes are decimal MB, `du` on disk.
+
+**3.2 is bigger: re-measure at its release.** A pack of the 3.2 branch on 2026-11-28 (`npm pack --dry-run
+--ignore-scripts` from `control/`, so without the precompiled JSX the release adds) lists 4,578 files: a **22.3 MB**
+tarball, **68.7 MB** unpacked, about twice 3.1.1's. That is an estimate from source, not a published install; the
+figures below stay 3.1.1's until the published 3.2.0 is measured the same way.
 
 The 3.0.0 measurement, **2026-09-28**: the core tarball packed from its release branch, cold-started 10
 times with an empty npm cache and a fresh `MOJULO_HOME` through a local registry stand-in on macOS
@@ -379,7 +384,7 @@ not claim a door at a level its profile does not carry.
   runtime from the default install and lets `init` run without a terminal. Re-minting that
   recipe on macOS gives byte-identical geometry, index, colour and UV buffers; the one embedded
   texture PNG is pixel-identical but its deflate stream differs (see the determinism caveat
-  under [Where it goes](../README.md#where-it-goes)). On 2026-10-17, from a source checkout on Linux x64
+  under [Where it goes](../README.md#take-it-with-you)). On 2026-10-17, from a source checkout on Linux x64
   (a cloud container, Node 22.22.0, run as root), Claude Code drove mojulo as its stdio MCP server
   through whole sessions: a floor plan read from a picture into `mint_building`, rooms through
   `design_interior`, World renders through `forge_motion` and a `stitch_motion` of them (the
@@ -389,7 +394,7 @@ not claim a door at a level its profile does not carry.
   and answered `initialize` (the measurement under [Package size](#package-size-and-disk-footprint)).
   Still unverified on Linux: the dashboard, the embedder and the engine gates.
   Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the app-runtime
-  daemon has a systemd user-unit recipe in [app-runtime.md](app-runtime.md). Same env-var story
+  daemon has a systemd user-unit recipe in [app-runtime.md](archive/app-runtime.md). Same env-var story
   for engines; not verified.
 - **Native modules**: `better-sqlite3` uses a prebuilt binary when one exists for your OS, CPU, and
   Node version and otherwise compiles with `node-gyp`, which needs a C++ toolchain. If an install
