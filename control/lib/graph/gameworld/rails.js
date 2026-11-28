@@ -230,7 +230,7 @@ export const RAILS = Object.freeze({
     seen: list(['side']) }),
   // ── off their feet: named for their type (they have no house title yet) ──
   racing: row({ name: 'Racing', like: 'a race: a track or a road, checkpoints, rivals, the best time kept',
-    handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick']), level1: 'a race: the laps, the podium' }),
+    handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick', 'designed']), level1: 'a race: the laps, the podium' }),
   flight: row({ name: 'Flight', like: 'flying: a gate course, a dogfight, a sector of space',
     handles: row({ genres: list(['air-combat']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
   // a licence earned lesson by lesson (pilot-school.js: its starter, the lessons on one airfield, each graded)

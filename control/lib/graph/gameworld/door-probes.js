@@ -40,7 +40,7 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a level whose hero drives a ride, won by laps',
     holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some((e) => e.rule?.type === 'drive') && mechanicsOf(m).includes('laps')),
     reference: { quick: { goal: 'race', ride: 'car', vehicle: 'kart', rivals: 3 } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'shoot', genre: 'shooter', prompt: 'a first-person shooter: clear a warehouse of armed guards',
@@ -179,7 +179,7 @@ export const DOOR_PROBES = Object.freeze([
     concept: 'a ride with a seat that works its gun',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && isObj(m.seats.crew) && Object.keys(m.seats.crew).length > 0),
     reference: { quick: { goal: 'reach', ride: 'car', players: 2 } },
-    now: 'not',
+    now: 'type',
   },
   {
     family: 'split', genre: 'split-deathmatch', prompt: 'a split screen deathmatch for four friends',
