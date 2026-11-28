@@ -2599,6 +2599,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // an assault frame's operation told on the holo table over its field (campaign/operation-brief.js): its level carries
   // the table's data whole, made as the level was. Absent ⇒ nothing
   else if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.briefing?.data && typeof sketch.manifest.briefing.data === 'object') payload.briefing = { data: sketch.manifest.briefing.data };
+  // (a geocube level with a guide of its own, a frame's: the way to its tasks' places and what it teaches as it is played,
+  // channels/guide.js)
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.guide && Array.isArray(sketch.manifest.guide.steps) && !payload.guide) payload.guide = sketch.manifest.guide;
+  // (and its spoken lines, shown as they are said: gameworld/script.js, channels/comms.js)
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.comms && sketch.manifest.comms.lines) payload.comms = sketch.manifest.comms;
+  // (and its finds, each scan's specimen revealed as it is met: channels/find-reveal.js)
+  if (payload && sketch.manifest.kind === 'geocube' && Array.isArray(sketch.manifest.finds) && sketch.manifest.finds.length) payload.finds = sketch.manifest.finds;
+  // (and its plumes, a prop's drive lit: channels/plume.js)
+  if (payload && sketch.manifest.kind === 'geocube' && Array.isArray(sketch.manifest.plumes) && sketch.manifest.plumes.length) payload.plumes = sketch.manifest.plumes;
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
   // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {

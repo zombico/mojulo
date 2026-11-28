@@ -33,7 +33,7 @@ export function frameMapData(G, id) {
   const goal = G.levels[id]?.goal, op = goal?.operation !== undefined ? readOperation(goal.operation) : { groups: [], tasks: [] };
   const cast = operationCast(op, ends), mech = operationMechanics(op, ends)[0];
   const groups = op.groups.map((g) => ({ id: g.id, kind: g.kind, members: cast.entities.filter((e) => e.id === g.id || e.id.startsWith(`${g.id}-`)).map((e) => e.transform.pos.slice()) }));
-  const beacons = mech.tasks.map((t, i) => (t.kind === 'reach' ? { task: i + 1, at: t.at, radius: t.radius } : null)).filter(Boolean);
+  const beacons = mech.tasks.map((t, i) => (t.kind === 'reach' || t.kind === 'scan' ? { task: i + 1, at: t.at, radius: t.radius } : null)).filter(Boolean);
   return { field: { centre: F.centre, half: F.half, bound: ends.frame.bound, sea: F.sea }, spawn: ends.spawn, exit: ends.exit, radar: RADAR, groups, beacons, heightAt: F.landAt };
 }
 

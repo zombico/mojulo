@@ -19,6 +19,7 @@
 import { frameBody, FRAME_PALETTES, readFrameLook, frameFaceCount } from './body.js';
 import { frameClips } from './clips.js';
 import { readBuild } from './assemble.js';
+import { PARTS, PROPELLANTS } from './parts.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { formLight, skyMood } from '../car-designer/form-light.js';
 
@@ -67,10 +68,12 @@ export function frameFigure(spec, { setting = null } = {}) {
   }))]));
   const baked = new Map(body.bones.map(({ id }) => [id, body.faces.get(id).map((fc) => ({ corners: fc.corners, fill: fc.fill }))]));
   const fig = packVehicleFigure(body.bones, baked, { keys: 2, rolls: [], form });
-  // (a bell's exhaust: its mouth, its plume aft along its axis, the main bells long and the verniers short)
+  // (a bell's exhaust: its mouth, its plume aft along its axis, the main bells long and the verniers short, in its
+  // booster's propellant's colour, parts.js PROPELLANTS: the plasma it throws, and the wake it leaves)
+  const gas = PARTS.booster[body.build.booster]?.propellant ?? 'argon', exhaust = PROPELLANTS[gas]?.colour ?? C.exhaust;
   const thrusters = body.thrusters.map((t) => {
     const size = r4(Math.max(...t.half));
-    return { bone: t.bone, local: t.at, dir: t.dir, size, half: [size, size], len: r4(size * (PLUME[t.kind] ?? PLUME.vernier)), kind: 'flame', color: C.exhaust, role: t.kind };
+    return { bone: t.bone, local: t.at, dir: t.dir, size, half: [size, size], len: r4(size * (PLUME[t.kind] ?? PLUME.vernier)), kind: 'flame', color: exhaust, role: t.kind };
   });
   return {
     ...fig,
@@ -78,6 +81,7 @@ export function frameFigure(spec, { setting = null } = {}) {
     thrusters,
     form: { ...formLight(skyMood(setting?.sky), frameMaterials(body.palette), {}), normalBias: 0.1 },
     figH: body.height,
+    wake: { propellant: gas, colour: exhaust },
     frame: { build: body.build, height: body.height, hips: body.hips, mounts: body.mounts, footprint: body.footprint, palette: body.palette, wear: body.wear, faces: frameFaceCount(body) },
   };
 }

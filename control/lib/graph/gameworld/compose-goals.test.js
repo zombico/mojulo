@@ -140,15 +140,19 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (re-pinned 2026-11-25, 1123-meteroidvania-rail merging 1124-side-scroll-backgrounds: a geocube carries the box its
     // metroidvania is built in (gameworld/metroidvania/cube.js: the cube's library and its tint), so each level's
     // geocube style gains `box: { library: 'castle', tint: 0 }` for this gothic cube and nothing else moved, a0e638e8 -> b09bbe72)
-    expect(fingerprint(unladdered(unaudited(orders)))).toBe('b09bbe72');
-    expect(fingerprint(unladdered(unaudited(ground)))).toBe('64b2bc96');
+    // (re-pinned 2026-11-27, 1126-full-game-rail: the results screen names the level (game-screens.js), so each level's
+    // game contract carries its world's `title` and its own `name` (levels.js withScreens), two lines an order and nothing
+    // else: without them every order below prints as it did. b09bbe72 -> 896d5062, 64b2bc96 -> ef6b13c0,
+    // cd58ee08 -> 78fbe4d8, b57152eb -> a804ed8f, 610ba5bf -> 5d4a69f7, fd0f2b8d -> a3761537)
+    expect(fingerprint(unladdered(unaudited(orders)))).toBe('896d5062');
+    expect(fingerprint(unladdered(unaudited(ground)))).toBe('ef6b13c0');
     // (re-pinned 2026-11-07, 1107-action-rpg merging 1105-rc: the hero's figure maps the library's Sprint_Loop as its
     // `sprint` clip (playscape/player.js, the stamina sprint's legs), one more clip in each order's hero figure and nothing
     // else: without it the orders print 3229f9a0 as before, 3229f9a0 -> 71917dd0)
-    expect(fingerprint(unladdered(unaudited(hero)))).toBe('cd58ee08');   // (3498540d -> 3229f9a0: the play grade, above)
-    expect(fingerprint(unaudited(orders))).toBe('b57152eb');   // (642958c3 -> aa47dab1: the play grade, above; c97f28f9 -> b57152eb: the cube's box, above)
-    expect(fingerprint(unaudited(ground))).toBe('610ba5bf');   // (eadb7584 -> b14f4c0f: the play grade, above)
-    expect(fingerprint(unaudited(hero))).toBe('fd0f2b8d');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
+    expect(fingerprint(unladdered(unaudited(hero)))).toBe('78fbe4d8');   // (3498540d -> 3229f9a0: the play grade, above)
+    expect(fingerprint(unaudited(orders))).toBe('a804ed8f');   // (642958c3 -> aa47dab1: the play grade, above; c97f28f9 -> b57152eb: the cube's box, above)
+    expect(fingerprint(unaudited(ground))).toBe('5d4a69f7');   // (eadb7584 -> b14f4c0f: the play grade, above)
+    expect(fingerprint(unaudited(hero))).toBe('a3761537');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
