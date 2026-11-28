@@ -116,7 +116,8 @@ describe('a platformer\'s lives and coins', () => {
     expect(m.world.sources[0]).toMatchObject({ zone: 'cn_1_0', radius: 0.9, planar: false, watch: 'hero' });
     expect(m.world.watches).toEqual([{ type: 'oneup', when: { var: '__coins_run_1', gte: 2 } }]);
     expect(m.world.reactions.at(-1)).toEqual({ on: 'oneup', do: 'set', var: '__coins_run_1', to: 0 });
-    expect(m.world.reactions).toContainEqual({ on: 'enter', match: { zone: 'cn_1_0' }, do: 'emit', type: 'coin' });
+    // (taken once: while its zone is on, 11-28)
+    expect(m.world.reactions).toContainEqual({ on: 'enter', match: { zone: 'cn_1_0' }, if: { entity: 'cn_1_0', field: 'on', eq: true }, do: 'emit', type: 'coin' });
     expect(m.world.hud).toEqual([{ var: 'coins', label: 'Coins', as: 'counter' }]);
   });
 });

@@ -183,7 +183,7 @@ describe('seats on the World page', () => {
 
   it('a gunner seat: seat 2\'s right stick slews the car\'s turret, seat 1\'s stick drives it', async () => {
     const car = { id: 'car', pilotable: true, rule: { type: 'drive', topSpeed: 20, eye: 0 }, body: { type: 'mesh', shape: 'box', size: [2, 4, 1.4] }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 },
-      turret: { mount: { at: [0, 0, 1.6], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 } },
+      turret: { mount: { at: [0, 0, 1.6], look: 0.1, stabilized: true, traverse: { rate: 140, accel: 700 }, elevation: { rate: 60, accel: 300, min: -6, max: 30 } }, gun: { barrel: 1.3 }, look: { view: 'chase', size: 2 } },
       weapon: { fireClass: 'sight', auto: true, cooldown: 0.15, magazine: 40, reload: 2.5, damage: 1, range: 40 } };
     const html = emitThreeWorld({ faces: [floor], entities: [car], camera: { rule: 'follow', target: 'car', dist: 11, height: 4.5 }, seats: { bodies: [], crew: { 2: { body: 'car', as: 'gunner' } } }, inline: true });
     if (!browser) return;
@@ -208,6 +208,9 @@ describe('seats on the World page', () => {
     await frames(40);
     const c = await st();
     expect(Math.hypot(c.x - b.x, c.y - b.y)).toBeGreaterThan(0.5);
+    // (the one screen the driver's, 11-28: the chase behind the hull, never the gun's sight; the gun's aim a pip in the gunner's blue)
+    expect(await page.evaluate(() => window.__mojCtrl.turret().view)).toBe('chase');
+    expect(await page.evaluate(() => [...document.querySelectorAll('div')].some((d) => d.style.borderRadius === '50%' && d.style.borderColor === 'rgb(59, 123, 229)'))).toBe(true);
     expect(errors).toEqual([]);
     await page.close();
   }, 60000);

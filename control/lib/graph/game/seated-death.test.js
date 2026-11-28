@@ -98,13 +98,16 @@ describe('the level\'s zones answer every seat', () => {
   const put = (L, at) => { for (const [id, x] of Object.entries(at)) L.world.byId[id].transform.pos = [x, 0, 0]; L.frame(1 / 30); L.frame(1 / 30); };
 
   it('a coin seat 2 walks into counts, once: walked back over, or both in it on one frame', () => {
-    const L = sim([{ kind: 'coins', pickups: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }] }, EXIT]);
+    const L = sim([{ kind: 'coins', pickups: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }, { at: [13, 0, 0] }] }, EXIT]);
     put(L, { 'hero-2': 5 });
     expect(L.bus.vars.coins).toBe(1);
     put(L, { 'hero-2': 0 }); put(L, { 'hero-2': 5 });
     expect(L.bus.vars.coins).toBe(1);
     put(L, { hero: 9, 'hero-2': 9 });
     expect(L.bus.vars.coins).toBe(2);
+    // (a score a seat, 11-28: each coin its taker's too, the first in it on a shared frame its own)
+    put(L, { hero: 13, 'hero-2': 0 });
+    expect([L.bus.vars['coins:1'], L.bus.vars['coins:2'], L.bus.vars.coins]).toEqual([2, 1, 3]);
   });
 
   it('seat 2 at the way out takes it', () => {
@@ -119,5 +122,16 @@ describe('the level\'s zones answer every seat', () => {
     expect([L.bus.vars.hp, L.bus.vars['hp:2']]).toEqual([30, 20]);
     put(L, { hero: 5 });
     expect([L.bus.vars.hp, L.bus.vars['hp:2']]).toEqual([20, 20]);
+  });
+});
+
+describe('a pickup alone, walked back over (11-28)', () => {
+  it('counts once: a coin and an item, the one player walking back over them', () => {
+    const mech = composeMechanics([{ kind: 'coins', pickups: [{ at: [5, 0, 0] }] }, { kind: 'collect', pickups: [{ item: 'gem', at: [9, 0, 0] }] }, EXIT], { player: 'hero', storeSchema: { slices: [{ name: 'bag', kind: 'inventory' }] } });
+    const L = simLevel({ entities: [hero('hero', 0)], events: mech.events });
+    const at = (x) => { L.world.byId.hero.transform.pos = [x, 0, 0]; L.frame(1 / 30); L.frame(1 / 30); };
+    at(5); at(0); at(5); at(9); at(0); at(9);
+    expect(L.bus.vars.coins).toBe(1);
+    expect(L.bus.vars['held:bag:gem']).toBe(1);
   });
 });
