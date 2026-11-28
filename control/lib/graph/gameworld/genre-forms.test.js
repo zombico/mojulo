@@ -94,7 +94,9 @@ describe('a genre the book cannot lay from a sentence yet', () => {
     expect(L.length).toBeGreaterThan(1);
     for (const l of L) expect(l).toMatchObject({ arena: { words: expect.any(String) }, deathmatch: { bots: expect.any(Number) } });
     expect(Object.values(composeGameworld({ prompt: 'a split screen deathmatch for four friends', seed: 1 }).levels)[0].deathmatch.bots).toBe(2);
-  });
+    // (two whole worlds composed, each arena tunnelled from its words: some 20 s alone, past the default 30 s on a loaded
+    // shard; its own limit, as the castle's e2e has)
+  }, 120_000);
 });
 
 describe('the hero frame: a genre on foot is laid with a hero, its camera and its screen', () => {
