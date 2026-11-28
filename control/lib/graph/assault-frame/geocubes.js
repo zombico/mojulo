@@ -137,6 +137,17 @@ export const FIELD_GEOCUBES = f({
       'The craters are the ground: bowls to drop into and fight across, their rims the cover.',
     ]),
   }),
+  'belt-crag': f({
+    id: 'belt-crag', title: 'Belt crag', reads: 'A broken rock in the asteroid belt: charcoal spurs and blocks thrown up round a cratered floor under a black sky, the Sun small and hard, a neighbouring rock hanging over it',
+    light: BELT, colour: REGOLITH, register: f({ steps: 0, key: 0.42 }), surfaces: SURFACES, inside: INSIDE,
+    outside: f({ ...FIELD_OUTSIDE('crag', { dry: true, rock: BELT_ROCK, seed: 'crag' }), relief: BROKEN }),
+    why: f([
+      'The sky is the darkest thing: black at noon, the stars out, the Sun a small white disc a third of ours.',
+      'Hard low light and no air: every spur throws a long shadow, its shade the regolith leaned blue, never black.',
+      'Charcoal rock in value steps, no hue: the colour is kept for what was made, a frame and its paint.',
+      'The spurs are the cover: tall rock between a frame and what fights it from overhead, benched to climb, its clefts to slip through.',
+    ]),
+  }),
   'smelter-hall': f({
     id: 'smelter-hall', title: 'Smelter hall', reads: 'A steelworks melt shop half a kilometre across: furnaces glowing under their hoods, decks and ramps, a crane overhead, slag on a concrete floor',
     light: HALL_LIGHT('#ffdcae', '#ff6a18', '#3b2d22'),
@@ -175,6 +186,7 @@ export const FIELD_GEOCUBE_PALETTES = f({
   'sandstone-gorge': f({ intent: 'a red sandstone canyon, its floor and its river under a deep desert sky', key: 'mid', heat: 0.55, weight: 0.2, activity: 0, scheme: 'complementary', hues: f({ sky: 212, rock: 16, soil: 24, ground: 30, foliage: 64, accent: '#2f7fd0' }) }),
   'scree-scarp': f({ intent: 'a brown scarp over pale scree fans in a hard dry light', key: 'mid', heat: 0.45, weight: 0.2, activity: -0.1, scheme: 'analogous', hue: '#8e5a40', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
   'belt-asteroid': f({ intent: 'a charcoal asteroid under a black sky, one warm accent', key: 'low', heat: -0.1, weight: 0.5, activity: -0.4, scheme: 'mono-accent', hues: f({ rock: 30 }), lock: f({ accent: '#d07a2a' }) }),
+  'belt-crag': f({ intent: 'a charcoal crag in the belt under a black sky, one warm accent', key: 'low', heat: -0.1, weight: 0.5, activity: -0.4, scheme: 'mono-accent', hues: f({ rock: 30 }), lock: f({ accent: '#d07a2a' }) }),
   'crater-plain': f({ intent: 'a stony desert plain struck by meteorites under a deep sky', key: 'mid', heat: 0.5, weight: 0.2, activity: 0.1, scheme: 'analogous', hue: '#86503a', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
   'smelter-hall': f({ intent: 'a steelworks melt shop: dark steel and concrete in smoke, lit by lamps and molten metal', key: 'low', heat: 0.4, weight: 0.5, activity: 0.2, scheme: 'mono-accent', hues: f({ rock: 210 }), lock: f({ accent: '#ff7a1a' }) }),
   'refinery-works': f({ intent: 'a refinery under its enclosure: grey steel and gravel in sodium light, heaters glowing', key: 'low', heat: 0.5, weight: 0.5, activity: 0.3, scheme: 'mono-accent', hues: f({ rock: 205 }), lock: f({ accent: '#ffb000' }) }),

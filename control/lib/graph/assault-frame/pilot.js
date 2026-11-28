@@ -65,7 +65,7 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
   return {
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
     rule: {
-      type: 'frame', move: mv, en: A.en, fcs: A.fcs, gravity, ...(q === 1 ? {} : { hardLand: r2(18 * q) }), slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick, steady: A.parts.legs.steady ?? 1,
+      type: 'frame', move: mv, en: A.en, fcs: A.fcs, gravity, ...(q === 1 ? {} : { hardLand: r2(18 * q) }), slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus, hold: A.stab.hold }, kick: A.kick, steady: A.parts.legs.steady ?? 1,
       // (the ground its walk's cycle covers, from its own legs: clips.js frameStride, so a foot holds where it landed)
       stride: r2(strideOf(build) * k),
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: r2((A0.move.height + 2) * k),

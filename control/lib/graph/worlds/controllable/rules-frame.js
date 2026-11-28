@@ -47,12 +47,18 @@
  *     press and dodge; a duel keeps its reach, a rush assault-boosts in and lunges after a TELL (`tell` s, its optics
  *     flared: `tell` the fact) and rests after, a desperate one charges and looses its braced cannon. Crossing into a phase
  *     wakes its reserve (`adds`: a group's bodies) or steadies its bar (`regen`).
- *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus }): every
- *     round's impact (its weapon's `stagger`) chips the bar, which comes back on its own (`poiseRegen`); broken, the frame
- *     REELS for `stab.stagger` s: no boost, no quick boost, no climb, no guns, carried on by what it was doing and
- *     pulled down, and every hit on it lands `stab.bonus` times as hard. The engine's hit reaction would freeze it where
+ *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus, hold,
+ *     brake }, STAB): every round's impact (its weapon's `stagger`, assault-frame/parts.js: ballistic rounds build it
+ *     fastest) chips the bar, which BUILDS while the fire is kept on: it comes back on its own (`poiseRegen`) only once
+ *     the frame has gone `hold` s unhit. Broken, the frame REELS for `stab.stagger` s: no keys at all (no boost, no
+ *     quick boost, no climb, no guns, no dodge), braked to a standstill where it is (`brake`, its way checked by that
+ *     much a second; in the air it still comes down), and every hit on it lands `stab.bonus` times as hard: two
+ *     seconds of a target that neither moves nor dodges. The engine's hit reaction would freeze it where
  *     it stood (a rooted clip that suppresses the rule); a frame reels on its own physics, so the break is taken here.
  *     Pressure it until it breaks, then punish it: the fight's loop.
+ *   • A SQUAD (a mind's `squad` { id, way: 'pack' | 'team-aware' }, the cosmos mind facet's): frames that fight as one,
+ *     squadPlan: a pack on the pilot from both sides, one pressing and one keeping its range; team-aware, split one to each
+ *     of the pilot's side; either way a mate that reels covered by the nearest, going in on whoever is over it.
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
@@ -82,7 +88,9 @@ export function buildRulesFrame(E) {
   const castOps = E.castOps;
   if (castOps) E.castOps = function (state, ops) {
     for (const o of ops || []) if (o && o.op === 'unhold' && state.byId && state.byId[o.who]) state.byId[o.who].unheld = true;
-    const out = castOps(state, (ops || []).filter((o) => !(o && o.op === 'unhold')));
+    // (the cast's `expose`: a body shielded till then (a ship's guns behind its lift) taken off its shield, hittable)
+    for (const o of ops || []) if (o && o.op === 'expose' && state.byId && state.byId[o.who]) { state.byId[o.who].invincible = false; state.byId[o.who].shielded = false; }
+    const out = castOps(state, (ops || []).filter((o) => !(o && (o.op === 'unhold' || o.op === 'expose'))));
     // (a frame spawned fresh, a retry's: up whole, its reel, its brace, its lunge and its way on gone, its stability full)
     for (const o of ops || []) {
       const e = o && o.op === 'spawn' && o.fresh && state.byId && state.byId[o.who];
@@ -106,7 +114,7 @@ export function buildRulesFrame(E) {
     const out = [];
     for (const id in world.byId) {
       const tg = world.byId[id];
-      if (tg === e || tg.isCamera || tg.gone || tg.downed || tg.dormant || !(tg.body && tg.body.hittable)) continue;
+      if (tg === e || tg.isCamera || tg.gone || tg.downed || tg.dormant || !(tg.body && tg.body.hittable) || tg.body.noLock) continue;
       if (e.team ? tg.team === e.team : !tg.team) continue;
       out.push(tg);
     }
@@ -151,6 +159,9 @@ export function buildRulesFrame(E) {
     // (an ALLY, a wingman on the pilot's side: it fights the nearest foe awake near it; with none, it leads the pilot)
     let P = P0;
     if (M.ally) { const F = allyFoe(e, world, M.engage ?? 500); if (!F) return escortKeys(e, dt, M, P0, out); P = F; }
+    // (a SQUAD, the cosmos mind facet's squad: its frames fight as one, SQUAD below: whom it fights and how it goes at them)
+    const SQ = M.squad && !M.ally ? squadPlan(e, M.squad, world, P0) : null;
+    if (SQ) P = SQ.target;
     const t = e.transform, q = P.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1], dz = q[2] - t.pos[2], d = Math.hypot(dx, dy);
     e.mindFace = Math.atan2(dy, dx); e.mindPitch = Math.atan2(dz, d || 1);
     // (an ace's phase, by its armour's share: its reach, its press and its dodge; crossing into one calls its reserve in
@@ -175,9 +186,44 @@ export function buildRulesFrame(E) {
     if (e.locked) { out.fire = d < 420 ? 1 : 0; out.alt = blade ? (d < blade.range * 0.9 ? 1 : 0) : d < 320 && dice(e) < 0.5 ? 1 : 0; out.backR = dice(e) < dt * 0.6 ? 1 : 0; out.backL = dice(e) < dt * 0.3 ? 1 : 0; }
     if (!PH && blade && e.locked && d > blade.range && d < range * 2.2 && (M.aggression ?? 0.6) > 0.5) { out.forward = 1; out.strafe = 0; if (!e.ab && dice(e) < dt * 0.8) out.ab = 1; }
     if (PH) aceKeys(e, PH, out, d, dt, blade);
+    // (its squad's shape: round the foe from its own side, the nearer pressing in while the other keeps its range; one
+    // covering a squadmate that reels goes in on whoever is over it, everything it has)
+    if (SQ) {
+      e.squadRole = SQ.role; e.squadTarget = P.id;
+      if (SQ.role === 'cover') { out.forward = d > range * 0.5 ? 1 : 0; out.boost = 1; out.qb = 0; if (e.locked) { out.fire = 1; out.backR = out.backL = dice(e) < dt * 2 ? 1 : 0; } }
+      else {
+        out.strafe = SQ.side;
+        out.forward = SQ.role === 'press' ? (d > range * 0.75 ? 1 : d < range * 0.45 ? -1 : 0) : d > range * 1.4 ? 1 : d < range * 1.05 ? -1 : 0;
+      }
+    }
     // (the pilot reeling: the moment to punish it, everything it has, in close)
     if (e.locked && P.stagger > 0) { out.fire = out.alt = 1; out.backR = out.backL = 1; out.forward = d > range * 0.6 ? 1 : 0; out.qb = 0; out.kick = d < ((e.rule.kick && e.rule.kick.range) ?? 80) ? 1 : 0; }
     return out;
+  }
+
+  // ── A SQUAD of frames (a mind's `squad` { id, way }, the cosmos mind facet's squad: gameworld/frame-goal.js a group's
+  // `squad`): its mates are the frames of its id standing, in the order of their ids. WAY `pack`: every one on the one
+  // foe, the pilot, each from its own side of it (the first left, the next right), the nearer pressing in and the other
+  // keeping its range, so a pilot that turns on one gives its back to the other. WAY `team-aware`: the pilot's side split
+  // between them, one each (the pilot, then its wingmen in turn), the nearer to its own pressing. Either way a mate
+  // that REELS is covered: the one nearest it turns on whoever is closest over it and goes in, everything it has. ──
+  function squadPlan(e, S, world, P0) {
+    const mates = [];
+    for (const id in world.byId) { const b = world.byId[id], m = b.rule && b.rule.mind; if (b.rule && b.rule.type === 'frame' && m && m.squad && m.squad.id === S.id && !b.downed && !b.gone && !b.dormant) mates.push(b); }
+    mates.sort((a, b) => (a.id < b.id ? -1 : 1));
+    const k = Math.max(0, mates.indexOf(e)), side = k % 2 ? 1 : -1;
+    const foes = [P0];
+    for (const id in world.byId) { const b = world.byId[id], m = b.rule && b.rule.mind; if (b.rule && b.rule.type === 'frame' && m && m.ally && !b.downed && !b.gone && !b.dormant) foes.push(b); }
+    const at = (a, b) => Math.hypot(a.transform.pos[0] - b.transform.pos[0], a.transform.pos[1] - b.transform.pos[1]);
+    // (a mate reeling, and this the one nearest it: cover it)
+    const reeling = mates.find((m) => m !== e && m.stagger > 0);
+    if (reeling && mates.filter((m) => m !== reeling).sort((a, b) => at(a, reeling) - at(b, reeling))[0] === e) {
+      const over = foes.slice().sort((a, b) => at(a, reeling) - at(b, reeling))[0];
+      return { target: over, role: 'cover', side };
+    }
+    const target = S.way === 'team-aware' ? foes[k % foes.length] : P0;
+    const near = mates.filter((m) => (S.way === 'team-aware' ? foes[mates.indexOf(m) % foes.length] === target : true)).sort((a, b) => at(a, target) - at(b, target))[0];
+    return { target, role: near === e ? 'press' : 'keep', side };
   }
 
   // a lunge begun: onto the locked foe if it is within the reach, else straight ahead; `by` the kick or the slot
@@ -197,7 +243,7 @@ export function buildRulesFrame(E) {
     if (e.acePhase !== i) {
       e.acePhase = i; e.phaseAt = e.frTime || 0;
       const P = phases[i];
-      if (P.regen && Number.isFinite(e.poiseRegen)) { if (e.poiseRegen0 == null) e.poiseRegen0 = e.poiseRegen; e.poiseRegen = e.poiseRegen0 * P.regen; }
+      if (P.regen && Number.isFinite(e.poiseRegen)) { if (e.poiseRegen0 == null) e.poiseRegen0 = e.frPoiseRegen ?? e.poiseRegen; e.frPoiseRegen = e.poiseRegen = e.poiseRegen0 * P.regen; }
       // (its reserve: every body of the group it names, woken where it stood)
       if (P.adds) for (const id in world.byId) { const b = world.byId[id]; if (b.dormant && (id === P.adds || id.indexOf(P.adds + '-') === 0)) b.dormant = false; }
     }
@@ -382,6 +428,8 @@ export function buildRulesFrame(E) {
 
     // ── move, and meet the ground ──
     const lastZ = t.pos[2];
+    // (reeling: its way checked hard, stood still where it broke; in the air it still comes down)
+    if (reeling) { const k = Math.exp(-((r.stab && r.stab.brake) ?? STAB.brake) * dt); e.v[0] *= k; e.v[1] *= k; }
     t.pos[0] += e.v[0] * dt; t.pos[1] += e.v[1] * dt; t.pos[2] += e.v[2] * dt;
     const g2 = groundAt(t.pos[0], t.pos[1], t.pos[2]) ?? 0;
     // (STICKY FEET: a frame on its feet that has not jumped or climbed stays on the ground over a crest or a dip, held
@@ -451,21 +499,40 @@ export function buildRulesFrame(E) {
       e.frHp = e.body.hp;
     }
     // (the bar held empty while it reels: it comes back from nothing once the reel is over)
-    if (reeling) { e.stagger = Math.max(0, e.stagger - dt); e.locomotion = e.airborne ? 'fall' : 'land'; e.thrust = 0; if (Number.isFinite(e.poise)) e.poise = 0; }
+    if (reeling) { e.stagger = Math.max(0, e.stagger - dt); e.locomotion = e.airborne ? 'fall' : 'land'; e.thrust = 0; e.moving = false; if (Number.isFinite(e.poise)) e.poise = 0; }
+    // (the build-up: the bar comes back only once its frame has gone `hold` s unhit; a hit is the bar gone down since
+    // the last frame. Its own rate kept aside, an ace's phase setting it, phaseOf)
+    if (Number.isFinite(e.poise) && Number.isFinite(e.poiseRegen)) {
+      if (e.frPoiseRegen == null) e.frPoiseRegen = e.poiseRegen;
+      e.frUnhit = e.frPoise != null && e.poise < e.frPoise - 1e-9 ? 0 : (e.frUnhit ?? Infinity) + dt;
+      e.poiseRegen = e.frUnhit < ((r.stab && r.stab.hold) ?? STAB.hold) ? 0 : e.frPoiseRegen;
+      e.frPoise = e.poise;
+    }
     e.stab = Number.isFinite(e.poise) && e.poiseMax > 0 ? Math.round((e.poise / e.poiseMax) * 100) / 100 : 1;
   }
+  // (a frame's stability by default: a reel of 2 s, a hit on it 1.5 times as hard, the bar back after 1 s unhit, its way
+  // checked at 8 a second; assault-frame/assemble.js gives a built frame its own)
+  const STAB = Object.freeze({ stagger: 2, bonus: 1.5, hold: 1, brake: 8 });
   // (what a reeling frame's keys are: none)
   const REEL = Object.freeze({ forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 });
 
   // ── an ace's name, carried onto the body (the HUD's bar reads it): the world keeps only the fields it is told of ──
   E.registerNormalize((ent, raw) => { if (raw.ace && typeof raw.ace === 'object') ent.ace = { id: String(raw.ace.id), name: String(raw.ace.name) }; });
+  // (and a frame field's own: an asset's name, `guard`; a ship's hover over the field, `overfield` (not `ship`: a starfighter's systems, rules-starfighter.js); a part's place on its host, `perch`; a
+  // body shielded until exposed, `shielded`, invincible till then)
+  E.registerNormalize((ent, raw) => {
+    if (typeof raw.guard === 'string' && raw.guard) ent.guard = raw.guard;
+    if (raw.overfield && typeof raw.overfield === 'object') ent.overfield = { ...raw.overfield, pods: (raw.overfield.pods || []).slice(), guns: (raw.overfield.guns || []).slice() };
+    if (raw.perch && typeof raw.perch === 'object' && typeof raw.perch.on === 'string') ent.perch = { on: raw.perch.on, at: (raw.perch.at || [0, 0, 0]).slice(), face: raw.perch.face || 0 };
+    if (raw.shielded === true) { ent.shielded = true; ent.invincible = true; }
+  });
 
   // ── the break: the engine's hit reaction arms a stagger on a broken bar; a frame takes it as its own reel, before the
   // reaction could root it (a timer, run ahead of the bodies' owners), and a killing blow is left to floor it ──
   E.registerEntityTimer('frame-stagger', (e) => {
     if (!(e.rule && e.rule.type === 'frame') || e.staggerT == null || e.downed) return;
     // (a break while it already reels is no new reel: never a lock it cannot leave)
-    if (!(e.stagger > 0)) { e.stagger = (e.rule.stab && e.rule.stab.stagger) ?? 1.6; e.staggers = (e.staggers || 0) + 1; }
+    if (!(e.stagger > 0)) { e.stagger = (e.rule.stab && e.rule.stab.stagger) ?? STAB.stagger; e.staggers = (e.staggers || 0) + 1; }
     e.staggerT = null; e.reactDur = null; e.reactClip = 'stagger'; e.locomotion = e.staggerReturn || e.locomotion;
     // (the bar refilled by the break, as the engine's is: empty to the eye a breath, then back from nothing)
     e.poise = 0;
@@ -708,7 +775,10 @@ export function buildRulesFrame(E) {
       const r = e.rule, F = r && r.flight;
       if (!F || r.type !== 'ai' || e.gone || e.downed || e.dormant || e.staggerT != null || !FLIGHT[F.mode]) continue;
       if (!e.flight) e.flight = { v: [0, 0, 0] };
-      const W = FLIGHT[F.mode](e, F, P, ground, dt), v = e.flight.v, p = e.transform.pos;
+      // (sent at an asset, a rule's `target` ids: it flies on the nearest of them standing, the pilot once they are down)
+      let A = null;
+      if (Array.isArray(r.target)) { let bd = Infinity; for (const id of r.target) { const o = state.byId[id]; if (!o || o.downed || o.gone || o.dormant) continue; const dd = (o.transform.pos[0] - e.transform.pos[0]) ** 2 + (o.transform.pos[1] - e.transform.pos[1]) ** 2; if (dd < bd) { bd = dd; A = o; } } }
+      const W = FLIGHT[F.mode](e, F, A || P, ground, dt), v = e.flight.v, p = e.transform.pos;
       if (!W) continue;
       // (its velocity steered toward its mark at its speed, as fast as its turn lets it; none: it brakes and hangs)
       const want = W.at ? (() => { const d = [W.at[0] - p[0], W.at[1] - p[1], W.at[2] - p[2]], n = Math.hypot(d[0], d[1], d[2]) || 1, sp = Math.min(W.speed, n / Math.max(dt, 0.05)); return [d[0] / n * sp, d[1] / n * sp, d[2] / n * sp]; })() : [0, 0, 0];
@@ -721,6 +791,52 @@ export function buildRulesFrame(E) {
       if (F.spin > 0) { e.locomotion = 'roll'; e.gaitPhase = (state.time * F.spin) % 1; }
     }
   }, 29);
+  // ── a SHIP over a frame's field (a body's `overfield` { alt, sink, fall, bob, pods, guns }, gameworld/frame-goal.js): it
+  // hangs `alt` m over the land under it, breathing by `bob`; its pods all down, it sinks to `sink` of that over `fall` s,
+  // listing as it goes (crippled); its armour the sum of its pods' and guns' standing, so its bar falls with them and
+  // rises as a gun comes back ──
+  E.registerWorldPass('frame-ship', (state, input, dt, world) => {
+    if (!world || !world.ground || !(dt > 0)) return;
+    for (const e of state.entities) {
+      const S = e.overfield;
+      if (!S || e.gone || e.dormant) continue;
+      const p = e.transform.pos, g = world.ground([p[0], p[1], p[2] + 400]) ?? 0, by = (ids) => (ids || []).map((id) => state.byId[id]).filter(Boolean);
+      const pods = by(S.pods), guns = by(S.guns);
+      if (!e.crippled && pods.length && pods.every((q) => q.downed || q.gone)) { e.crippled = true; e.crippledAt = state.time || 0; }
+      const k = e.crippled ? 1 - (1 - (S.sink ?? 0.4)) * Math.min(1, ((state.time || 0) - e.crippledAt) / (S.fall ?? 4)) : 1;
+      p[2] = g + (S.alt ?? 60) * k + (S.bob ?? 1.5) * Math.sin((state.time || 0) * 0.6);
+      e.transform.roll = e.crippled ? -0.09 * Math.min(1, ((state.time || 0) - e.crippledAt) / (S.fall ?? 4)) : 0;
+      let hp = 0, max = 0;
+      for (const q of [...pods, ...guns]) { const m = (q.body && q.body.hpMax) || 0; max += m; if (!q.downed && !q.gone) hp += Math.max(0, q.body.hp || 0); }
+      if (e.body && max > 0) { e.body.hpMax = max; e.body.hp = Math.max(1, hp); }
+    }
+  }, 31);
+  // ── a body PERCHED on another (`perch` { on, at: [right, front, up] m in the host's own frame, face? (rad) }): carried
+  // with its host each frame, turned with it (a pod faces as it does; a gun's mind turns it on its own) ──
+  E.registerWorldPass('frame-perch', (state) => {
+    for (const e of state.entities) {
+      const M = e.perch, H = M && state.byId[M.on];
+      if (!H || e.gone) continue;
+      const h = H.transform.heading || 0, f = [Math.cos(h), Math.sin(h)], r = [Math.sin(h), -Math.cos(h)], q = H.transform.pos, a = M.at;
+      e.transform.pos[0] = q[0] + a[0] * r[0] + a[1] * f[0]; e.transform.pos[1] = q[1] + a[0] * r[1] + a[1] * f[1]; e.transform.pos[2] = q[2] + a[2];
+      if (!(e.rule && e.rule.type === 'ai')) e.transform.heading = h + (M.face || 0);
+      if (H.downed && !e.downed && e.body) { e.body.hp = 0; e.downed = true; }
+    }
+  }, 32);
+  // ── a crawler on a frame's field (an ai's `crawl` { stride }, a spider bot's): kept on the ground under it, its legs
+  // walked by the ground it covers (the figure's `roll` clip a stride, groundforce/ crawlClip), still where it stands ──
+  E.registerWorldPass('frame-crawl', (state, input, dt, world) => {
+    if (!world || !world.ground || !(dt > 0)) return;
+    for (const e of state.entities) {
+      const r = e.rule, C = r && r.crawl;
+      if (!C || r.type !== 'ai' || e.gone || e.downed || e.dormant) continue;
+      const p = e.transform.pos, g = world.ground([p[0], p[1], p[2] + 60]);
+      if (g != null) p[2] = g;
+      const was = e.crawlAt || p, d = Math.hypot(p[0] - was[0], p[1] - was[1]);
+      e.crawlAt = [p[0], p[1]];
+      e.locomotion = 'roll'; e.gaitPhase = ((e.gaitPhase || 0) + d / (C.stride || 5)) % 1; e.moving = d > 1e-4;
+    }
+  }, 30);
   // ── guns slung forward (a flight's `under`): they cannot bear more than `under` degrees below it, so a pilot right
   // under the gunship is not fired on while it stays there (`blind`); before the weapons, so the trigger it gives is held ──
   E.registerEntityAction('frame-broadside', (e, input, dt, state) => {

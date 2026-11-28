@@ -15,6 +15,8 @@
  *                  dark? }) where it wears its own colours over the palette's
  *
  *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card; `flies`: it is stood in the air, not on the ground)
+ *   (a card that is a PART, `part`: a piece of one boss, the patrol ship's hull, lift pods and turrets, PATROL_PODS and
+ *    PATROL_GUNS: never fielded alone, so on no stage's shelf)
  *   GROUND_PROP_IDS                 the cards that are PROPS (`prop`): a thing a level's scene stands and moves (a pusher
  *                                     rocket lowered onto a rock), never a foe a stage fields
  *   unitFaces(kind)                 → faces { corners, fill } lit (baked under one key, the lit parts their own colour),
@@ -241,6 +243,19 @@ function harrowParts() {
 }
 
 /** The units, by kind. */
+// the spider bot's legs, life metres: each [hip x, hip y, knee x, knee y, foot x, foot y], left then right, front to back
+// (the legs splayed forward in front, back behind), its hips along the thorax's sides
+const CRAWLER_LEGS = Object.freeze([[0.62, 0.6, 1.45, 1.35, 2.15, 1.95], [0.7, 0.15, 1.7, 0.2, 2.5, 0.25], [0.62, -0.3, 1.45, -1.0, 2.1, -1.65]]
+  .flatMap(([hx, hy, kx, ky, fx, fy]) => [Object.freeze([-hx, hy, -kx, ky, -fx, fy]), Object.freeze([hx, hy, kx, ky, fx, fy])]));
+// HOW A CRAWLER'S LEGS GO, a stride of the figure's `roll` clip: each swung about its hip by `swing` rad and lifted
+// `lift` rad as it comes forward, in two tripods half a stride apart (a leg's row and side)
+export const CRAWL = Object.freeze({ keys: 12, swing: 0.34, lift: 0.3 });
+
+// the patrol ship's lift pods under its quarters, life metres [x, y] (their pylons on the hull; the pods hang at z ~0)
+export const PATROL_PODS = Object.freeze([[-9.5, 9], [9.5, 9], [-9.5, -12], [9.5, -12]].map((p) => Object.freeze(p)));
+// and its gun turrets, life metres [x, y, z, facing (deg, 0 its own front)]: two on its back, one each flank, two at its chin
+export const PATROL_GUNS = Object.freeze([[0, 9, 9.2, 0], [0, -4, 9.2, 180], [-7.9, 4, 4.4, 90], [7.9, -6, 4.4, -90], [-3.5, 15, 0.1, 0], [3.5, -10, 0.1, 180]].map((p) => Object.freeze(p)));
+
 export const GROUND_UNITS = Object.freeze({
   // dug in, a ring of armour round a domed turret, its twin guns long: it turns to the craft and fires up at it
   turret: Object.freeze({
@@ -455,6 +470,160 @@ export const GROUND_UNITS = Object.freeze({
       ...P.pipe([0.62, -0.6, 4.75], [0.62, -0.6, 5.7], 0.04, 'dark', 6),
     ],
   }),
+  // A SPIDER BOT: a crawler that walks the ground to what it is sent at and cuts into it at its mouth. A low armoured body
+  // in three (a wedge of a head, a thorax the legs hang from, a swollen abdomen behind it, orange so it reads on grey
+  // rock), six legs on high knees in two tripods, a cluster of red eyes across its brow and a pair of mandibles with a
+  // lit plasma cutter between them, the end it leads with. Each leg is its own bone (`legs`: their hips, drawn metres),
+  // the figure's `roll` clip swinging them in their tripods and lifting each as it comes forward.
+  crawler: Object.freeze({
+    label: 'spider bot', reads: 'a low armoured crawler on six high-kneed legs, a red-eyed wedge of a head with mandibles and a lit cutter, an orange abdomen behind',
+    size: 2.2, hp: 3, rof: 6, range: 60, points: 80,
+    livery: Object.freeze({ hull: '#5b626b', hull2: '#e2632d', accent: '#e9e4d6' }),
+    parts: () => [
+      // (the thorax the legs hang from, the head before it, the abdomen behind)
+      ...P.box([0, 0.15, 1.05], [1.5, 1.3, 0.62], 'hull', { ch: 0.22 }),
+      ...P.box([0, 0.15, 1.42], [1.1, 0.9, 0.16], 'dark', { ch: 0.06 }),
+      ...P.box([0, 1.08, 0.98], [1.05, 0.66, 0.5], 'hull', { ch: 0.2 }),
+      ...P.box([0, 1.2, 1.24], [0.8, 0.42, 0.12], 'dark', { ch: 0.05 }),
+      ...[-0.3, -0.1, 0.1, 0.3].map((x) => P.box([x, 1.42, 1.08 + (Math.abs(x) < 0.2 ? 0.07 : 0)], [0.12, 0.05, 0.1], 'sensor')).flat(),
+      ...P.dome([0, -0.95, 0.72], 0.85, 1.05, 0.72, 0.62, 'hull2', 12, 3),
+      ...P.prism([0, -0.95, 0], 0.86, 1.06, 0.62, 0.74, 'dark', 12),
+      ...P.box([0, -0.95, 1.36], [0.12, 1.2, 0.06], 'accent'),
+      // (its mandibles and the cutter lit between them)
+      ...[-1, 1].flatMap((sd) => P.pipe([sd * 0.3, 1.32, 0.86], [sd * 0.14, 1.92, 0.66], 0.08, 'dark', 6)),
+      ...P.box([0, 1.88, 0.68], [0.12, 0.14, 0.1], 'drive'),
+      // (six legs: each from its hip up to a high knee and down to a foot, its own bone)
+      ...CRAWLER_LEGS.flatMap(([hx, hy, kx, ky, fx, fy], i) => [
+        ...P.ball([hx, hy, 1.05], 0.2, 'dark', 8, 3),
+        ...P.pipe([hx, hy, 1.05], [kx, ky, 1.85], 0.12, 'hull', 6),
+        ...P.ball([kx, ky, 1.85], 0.15, 'dark', 8, 3),
+        ...P.pipe([kx, ky, 1.85], [fx, fy, 0.08], 0.08, 'dark', 6),
+        ...P.box([fx, fy, 0.06], [0.18, 0.18, 0.12], 'accent'),
+      ].map((f) => ({ ...f, bone: `leg${i}` }))),
+    ],
+    legs: () => CRAWLER_LEGS.map(([hx, hy]) => [hx * GROUNDFORCE_SCALE, hy * GROUNDFORCE_SCALE, 1.05 * GROUNDFORCE_SCALE]),
+  }),
+  // THE PATROL SHIP (`part`s of one boss: never fielded alone): a Rock Hydra patrol ship that comes down over a field
+  // on lift engines, the size of a building (some 110 m long as drawn). Its HULL: a long armoured body with a stepped
+  // prow, a raised spine, a bridge block aft lit red across its windows, plated flanks banded in the company's orange, a
+  // stern of main drive bells (cold while it hangs on its lift); four LIFT PODS slung under its quarters (`patrol-pod`),
+  // each a cowled nacelle with its drive glowing under it, and gun TURRETS on its back, its flanks and its chin
+  // (`patrol-gun`). The pods and the turrets are their own bodies riding on the hull (gameworld/frame-goal.js `ship`).
+  patrol: Object.freeze({
+    label: 'patrol ship', reads: 'a long armoured ship on lift engines, a stepped prow, a raised spine and a red-windowed bridge aft, orange bands down its plated flanks',
+    size: 18, hp: 60, rof: 0, range: 0, points: 0, flies: true, part: true,
+    livery: Object.freeze({ hull: '#6b727b', hull2: '#4c535c', accent: '#e2632d' }),
+    parts: () => [
+      // (the body: a long armoured box over a narrower keel, its plated flanks and the orange band down each)
+      ...P.box([0, -2, 4.6], [15, 34, 6.2], 'hull', { ch: 1.6 }),
+      ...P.box([0, -2, 1.3], [10.5, 30, 2.4], 'hull2', { ch: 1 }),
+      ...[-1, 1].flatMap((sd) => [
+        ...P.box([sd * 7.55, -2, 5.6], [0.18, 30, 0.9], 'accent'),
+        ...[-14, -6, 2, 10].map((y) => P.box([sd * 7.45, y, 3.6], [0.3, 6.6, 2.2], 'hull2', { ch: 0.4 })).flat(),
+      ]),
+      // (the stepped prow: three tiers narrowing forward, its chin and a sensor slit)
+      ...P.box([0, 17.5, 4.2], [12.5, 5, 5.2], 'hull', { ch: 1.4 }),
+      ...P.box([0, 21.4, 3.7], [9, 3.4, 3.8], 'hull', { ch: 1.1 }),
+      ...P.box([0, 24.1, 3.3], [5.6, 2.6, 2.6], 'hull2', { ch: 0.8 }),
+      ...P.box([0, 25.42, 3.5], [3.4, 0.1, 0.4], 'sensor'),
+      // (the raised spine and the bridge block aft, its windows lit red)
+      ...P.box([0, 2, 8.4], [5, 24, 1.6], 'hull2', { ch: 0.6 }),
+      ...P.box([0, -12, 9.8], [8, 7, 3.4], 'hull', { ch: 1 }),
+      ...P.box([0, -8.46, 10.2], [6.4, 0.1, 0.8], 'sensor'),
+      ...[-1, 1].map((sd) => P.box([sd * 4.02, -12, 10.2], [0.1, 5, 0.6], 'sensor')).flat(),
+      ...P.pipe([1.8, -13.5, 11.5], [1.8, -13.5, 15], 0.18, 'dark', 6),
+      ...P.pipe([-2.2, -12.5, 11.5], [-2.2, -12.5, 13.6], 0.24, 'dark', 6),
+      // (the stern: three main drive bells, cold, their throats dark)
+      ...[-4.5, 0, 4.5].flatMap((x) => [
+        ...P.box([x, -19.6, 4.6], [3.6, 1.2, 3.6], 'dark', { ch: 0.4 }),
+        ...P.prism([x, -20.8, 4.6], 1.6, 1.6, -0.6, 0.6, 'dark', 10).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], -20.8 + (c[2] - 0) - 0, 4.6 + (c[1] + 20.8)]) })),
+      ]),
+      // (the pods' pylons, the pods themselves their own bodies)
+      ...PATROL_PODS.flatMap(([x, y]) => P.box([x * 0.72, y, 2.2], [Math.abs(x) * 0.5, 2.2, 1.2], 'dark', { ch: 0.3 })),
+    ],
+  }),
+  // a lift pod off the patrol ship: a cowled nacelle, its drive glowing under it, a red light on its cowl
+  'patrol-pod': Object.freeze({
+    label: 'lift pod', reads: 'a cowled lift engine nacelle, its drive glowing under it',
+    size: 2.6, hp: 8, rof: 0, range: 0, points: 0, flies: true, part: true,
+    livery: Object.freeze({ hull: '#6b727b', hull2: '#4c535c', accent: '#e2632d' }),
+    parts: () => [
+      ...P.prism([0, 0, 0], 2.3, 2.3, -1.6, 1.6, 'hull', 14),
+      ...P.prism([0, 0, 0], 2.42, 2.42, 0.3, 0.8, 'accent', 14),
+      ...P.prism([0, 0, 0], 2.0, 2.0, 1.6, 2.1, 'hull2', 14),
+      ...P.prism([0, 0, 0], 1.9, 1.9, -2.0, -1.6, 'dark', 14),
+      ...P.prism([0, 0, 0], 1.6, 1.6, -2.08, -2.0, 'drive', 14),
+      ...P.box([0, 2.3, 1.2], [0.5, 0.12, 0.3], 'sensor'),
+    ],
+  }),
+  // a gun turret off the patrol ship: a squat armoured housing on a ring, twin long barrels forward, a red eye
+  'patrol-gun': Object.freeze({
+    label: 'ship turret', reads: 'a squat armoured turret on a ring, twin long barrels, a red eye',
+    size: 1.8, hp: 6, rof: 1.2, range: 900, points: 0, part: true,
+    livery: Object.freeze({ hull: '#6b727b', hull2: '#4c535c', accent: '#e2632d' }),
+    parts: () => [
+      ...P.prism([0, 0, 0], 1.5, 1.5, 0, 0.4, 'dark', 12),
+      ...P.box([0, 0, 0.95], [2.2, 2.4, 1.1], 'hull', { ch: 0.4 }),
+      ...P.box([0, -0.4, 1.56], [1.6, 1.3, 0.2], 'accent', { ch: 0.1 }),
+      ...P.box([0, 1.22, 1.05], [0.9, 0.08, 0.2], 'sensor'),
+      ...twin(1.1, 3.9, 0.95, 0.7, 0.14),
+    ],
+  }),
+  // THE IRON ROSE (a PROP: stood and moved by a level's scene): the company's mining tender, the ship that tows rock and
+  // lowers the Roman Candles onto it. Some 160 m as drawn: a long off-white hull banded in steel blue, a raised bridge
+  // forward with its windows lit warm, two cable gantries amidships with their drums and the cables hanging, cargo
+  // cradles slung under its belly, radiator fins down its flanks, three drive bells aft burning blue-white.
+  'iron-rose': Object.freeze({
+    label: 'iron rose', reads: 'a long off-white mining tender banded in steel blue, a raised bridge forward with warm-lit windows, two cable gantries amidships, cradles under its belly, three drive bells aft',
+    size: 22, hp: 1, rof: 0, range: 0, points: 0, prop: true, flies: true,
+    livery: Object.freeze({ hull: '#c9ccd0', hull2: '#3d5a73', accent: '#d9a441' }),
+    parts: () => [
+      ...P.box([0, 0, 5], [12, 50, 9], 'hull', { ch: 2 }),
+      ...P.box([0, 26.5, 4.4], [9, 4, 6.8], 'hull', { ch: 1.6 }),
+      ...[-1, 1].map((sd) => P.box([sd * 6.05, 0, 6.2], [0.2, 46, 1.2], 'hull2')).flat(),
+      ...P.box([0, 0, 9.65], [7, 44, 0.3], 'hull2'),
+      // (the bridge forward, its windows lit warm across its face and down its sides)
+      ...P.box([0, 18, 11.2], [9, 9, 4], 'hull', { ch: 1 }),
+      ...P.box([0, 22.55, 11.6], [7.4, 0.1, 1.2], 'drive'),
+      ...[-1, 1].map((sd) => P.box([sd * 4.55, 18, 11.6], [0.1, 6.5, 1], 'drive')).flat(),
+      ...P.pipe([2.5, 15, 13.2], [2.5, 15, 17.5], 0.2, 'dark', 6),
+      // (two cable gantries amidships: legs, a crossbeam, a drum, the cables hanging over the side)
+      ...[4, -10].flatMap((y) => [
+        ...[-1, 1].flatMap((sd) => P.pipe([sd * 5.5, y, 9.6], [sd * 5.5, y, 17], 0.45, 'dark', 8)),
+        ...P.box([0, y, 17.4], [13, 1.4, 1], 'hull2', { ch: 0.3 }),
+        ...P.prism([0, y, 0], 1.6, 1.6, 15.2, 16.6, 'accent', 12),
+        ...[-1, 1].flatMap((sd) => P.pipe([sd * 6.2, y, 17], [sd * 6.6, y, 2], 0.08, 'dark', 4)),
+      ]),
+      // (cradles under its belly, radiator fins down its flanks)
+      ...[14, -2, -18].flatMap((y) => P.box([0, y, 0.2], [8, 7, 1.4], 'hull2', { ch: 0.4 })),
+      ...[-1, 1].flatMap((sd) => [-6, -14].map((y) => P.box([sd * 9, y, 6], [6, 5, 0.25], 'dark')).flat()),
+      // (aft: three drive bells, burning)
+      ...[-3.8, 0, 3.8].flatMap((x) => [
+        ...P.box([x, -25.6, 5], [3.2, 1.6, 3.2], 'dark', { ch: 0.3 }),
+        ...P.prism([x, -27, 5], 1.5, 1.5, -1, 1, 'dark', 12).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], -27 + c[2], 5 + (c[1] + 27)]) })),
+        ...P.prism([x, -28.05, 5], 1.2, 1.2, -0.05, 0.05, 'drive', 12).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], -28.05 + c[2], 5 + (c[1] + 28.05)]) })),
+      ]),
+    ],
+  }),
+  // A BRIDGE SET (a PROP, drawn at a person's scale: a captain stood in it is seen through it, the talk box's live face):
+  // a deck, a back wall of three dark viewports in their frames, consoles down each side lit amber and red, a chair
+  'bridge-set': Object.freeze({
+    label: 'bridge set', reads: 'a ship\'s bridge: a deck, a back wall of three dark viewports in their frames, lit consoles each side, a captain\'s chair',
+    size: 2, hp: 1, rof: 0, range: 0, points: 0, prop: true,
+    livery: Object.freeze({ hull: '#4a525c', hull2: '#2c3138', accent: '#d9a441' }),
+    parts: () => [
+      ...P.box([0, 0, -0.04], [4.4, 3.4, 0.08], 'hull2'),
+      ...P.box([0, -1.3, 0.75], [4.4, 0.12, 1.5], 'hull', { ch: 0.04 }),
+      ...[-1.3, 0, 1.3].flatMap((x) => [...P.box([x, -1.22, 0.85], [1.1, 0.04, 0.8], 'dark'), ...P.box([x, -1.2, 1.27], [1.16, 0.06, 0.05], 'hull2'), ...P.box([x, -1.2, 0.43], [1.16, 0.06, 0.05], 'hull2')]),
+      ...[-1, 1].flatMap((sd) => [
+        ...P.box([sd * 1.85, -0.3, 0.4], [0.5, 1.6, 0.8], 'hull', { ch: 0.04 }),
+        ...P.box([sd * 1.85, -0.3, 0.82], [0.46, 1.5, 0.04], 'hull2'),
+        ...[-0.8, -0.4, 0, 0.3].map((y, i) => P.box([sd * 1.85, y, 0.85], [0.3, 0.1, 0.02], i % 2 ? 'sensor' : 'drive')).flat(),
+      ]),
+      ...P.box([0, 0.9, 0.25], [0.6, 0.6, 0.12], 'hull2'),
+      ...P.box([0, 1.15, 0.55], [0.6, 0.1, 0.6], 'hull2'),
+    ],
+  }),
   // A PROP, not a foe (`prop`: stood by a level's scene, never fielded by a stage): a ROMAN CANDLE, a pusher rocket that
   // a mining ship lowers onto a rock on cables and drills in, its bell to the sky. Its drill spike under its foot (z < 0)
   // goes into the ground as it is set down; a braced collar, a long tank body banded twice, the throat and the bell.
@@ -483,7 +652,7 @@ export const GROUND_UNITS = Object.freeze({
   }),
 });
 // (the foes a stage fields; a prop is stood only by a level's own scene: GROUND_PROP_IDS)
-export const GROUND_UNIT_IDS = Object.freeze(Object.keys(GROUND_UNITS).filter((k) => !GROUND_UNITS[k].prop));
+export const GROUND_UNIT_IDS = Object.freeze(Object.keys(GROUND_UNITS).filter((k) => !GROUND_UNITS[k].prop && !GROUND_UNITS[k].part));
 export const GROUND_PROP_IDS = Object.freeze(Object.keys(GROUND_UNITS).filter((k) => GROUND_UNITS[k].prop));
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -560,14 +729,33 @@ export function unitFigure(kind, { form = false, setting = null } = {}) {
   // (a card with rotors, `hubs`: a bone each, at its hub, spun flat about the vertical by the figure's `roll` clip, each its
   // `turns` way; the rest the root)
   const hubs = U && U.hubs ? U.hubs() : [], spun = hubs.map((_, i) => `rotor${i}`);
-  const bones = [{ id: 'root', head: [0, 0, 0] }, ...hubs.map((h, i) => ({ id: spun[i], head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) }))];
+  // (a crawler's legs, `legs`: a bone each at its hip, walked by the figure's `roll` clip, crawlClip)
+  const legs = U && U.legs ? U.legs() : [];
+  const bones = [{ id: 'root', head: [0, 0, 0] }, ...hubs.map((h, i) => ({ id: spun[i], head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) })), ...legs.map((h, i) => ({ id: `leg${i}`, head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) }))];
   const byBone = (fs) => new Map(bones.map((b) => [b.id, fs.filter((f) => (f.bone ?? 'root') === b.id)]));
   const opts = hubs.length ? { keys: 12, rolls: spun, axis: 'z', ...(U.turns ? { turns: [...U.turns] } : {}) } : { keys: 2, rolls: [] };
+  const walk = (fig) => (legs.length ? { ...fig, clips: { ...fig.clips, roll: crawlClip(bones) } } : fig);
   if (form) {
     const F = unitFormFaces(kind);
-    const fig = packVehicleFigure(bones, byBone(faces), { ...opts, form: byBone(F) });
+    const fig = walk(packVehicleFigure(bones, byBone(faces), { ...opts, form: byBone(F) }));
     return { ...fig, form: { ...formLight(skyMood(setting?.sky), UNIT_MATERIALS, {}), normalBias: 0.1 }, groundforce: { kind, label: U.label, faces: F.length, form: true } };
   }
-  const fig = packVehicleFigure(bones, byBone(faces), opts);
+  const fig = walk(packVehicleFigure(bones, byBone(faces), opts));
   return { ...fig, groundforce: { kind, label: U.label, faces: faces.length } };
+}
+
+// a crawler's stride as the `roll` clip: per key, per bone [qx, qy, qz, qw, hx, hy, hz]; the root still, each leg swung
+// about the vertical through its hip and lifted about its long axis as it comes forward, its tripod half a stride apart
+// from the other (a leg's row plus its side, odd or even)
+function crawlClip(bones) {
+  const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0, K = CRAWL.keys, out = [];
+  for (let k = 0; k < K; k++) for (const b of bones) {
+    const m = /^leg(\d+)$/.exec(b.id);
+    if (!m) { out.push(0, 0, 0, 1, ...b.head); continue; }
+    const i = Number(m[1]), side = b.head[0] < 0 ? -1 : 1, ph = 2 * Math.PI * (k / K + (((i >> 1) + (i & 1)) % 2) * 0.5);
+    const a = CRAWL.swing * Math.sin(ph), th = -side * CRAWL.lift * Math.max(0, Math.cos(ph));
+    const sz = Math.sin(a / 2), cz = Math.cos(a / 2), sy = Math.sin(th / 2), cy = Math.cos(th / 2);
+    out.push(r4(-sz * sy), r4(cz * sy), r4(cy * sz), r4(cz * cy), ...b.head);
+  }
+  return { k: K, b: out };
 }

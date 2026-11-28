@@ -40,6 +40,10 @@
  *          reached in the pause is met as it begins
  *   ops    the cast's ops issued as it begins, once ([{ op, who, … }], worlds/controllable/cast.js: a group that comes with
  *          it and is not its to down, `spawn`; an ally let go of its post): what its begin sets moving besides its own
+ *   regen  a clear's: the seconds each foe it downs takes to come back whole while the task is in hand (a gun that is
+ *          rebuilt), its count taken back: the task is met only by every one of them down together
+ *   keep   ids kept up while it is in hand (an asset defended): one of them down then fails the level, or, with a
+ *          retry, begins the task again as the player's fall does, the ids stood up whole
  *   retry  true | { after?, say? }: the player down while a task is in hand (RETRY): the screen faded, the player stood
  *          up whole where it fell after `after` s and the task in hand begun again (a clear's foes up and whole, its
  *          `again` ops: [{ op, who, … }], a foe put back where it stood), the level going on; with it, a fall is no loss
@@ -107,6 +111,7 @@ export function lowerObjectives(p, ctx) {
       if (t.found !== undefined && !(typeof t.found === 'string' && t.found)) fail(`${at}.found is what the scan found, in words`);
     }
     if (t.kind === 'clear' || t.kind === 'man') { if (!Array.isArray(t.foes) || !t.foes.length || t.foes.some((f) => typeof f !== 'string' || !f)) fail(`${at}.foes is the ids to be downed, at least one`); }
+    if (t.regen !== undefined && !(t.kind === 'clear' && Number.isFinite(t.regen) && t.regen > 0 && t.regen <= 120)) fail(`${at}.regen is a clear's: the seconds a foe it downs takes to come back whole (up to 120), unless every one is down together first`);
     if (t.kind === 'man' && !(typeof t.gun === 'string' && t.gun)) fail(`${at}.gun is the id of the gun it is done with`);
     if (t.kind === 'hold') {
       if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long it is held, above 0`);
@@ -133,6 +138,7 @@ export function lowerObjectives(p, ctx) {
       if (by !== 1) fail(`${at}: a protect is met by seconds (kept up that long) or by arrive ({ at, radius? }: the first of them gets there), one of them`);
       if (t.arrive !== undefined && !(t.arrive && isVec(t.arrive.at))) fail(`${at}.arrive is { at: [x, y, z], radius? }`);
     }
+    if (t.keep !== undefined && !(Array.isArray(t.keep) && t.keep.length && t.keep.every((w) => typeof w === 'string' && w))) fail(`${at}.keep is the ids kept up while it is in hand (an asset defended), at least one`);
     for (const f of [...(t.foes ?? []), ...(t.waves ?? []).flat()]) { if (woken.has(f)) fail(`${at}: '${f}' is woken twice (a foe is woken once: name another)`); woken.add(f); }
     if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one)`);
     if (t.door !== undefined && !(t.door && isVec(t.door.at) && isVec(t.door.back))) fail(`${at}.door is { at, back }: the way on and where a body is put back while it is sealed`);
@@ -183,6 +189,13 @@ export function lowerObjectives(p, ctx) {
       world.vars[d] = 0;
       for (const f of t.foes) world.reactions.push({ on: 'down', match: { entity: f }, do: 'inc', var: d, by: 1 });
       world.watches.push({ type: metE(k), when: { var: d, gte: t.foes.length } });
+      // (regen: each foe it downs comes back whole after its seconds while the task is still in hand, its count taken back,
+      // so the task is met only by every one of them down together)
+      if (t.regen) for (const f of t.foes) {
+        const back = `${pre}:regen:${k}:${f}`;
+        world.sequences.push({ id: back, trigger: { on: 'down', entity: f }, steps: [{ await: { timer: t.regen } }, { do: 'emit', type: back }] });
+        world.reactions.push({ on: back, if: { var: cur, eq: k }, do: 'ctrl', op: 'spawn', who: f, fresh: true }, { on: back, if: { var: cur, eq: k }, do: 'inc', var: d, by: -1 });
+      }
     } else if (t.kind === 'gates') {
       // the gates in order: the next one due is a count that only moves while the task is in hand (-1 until it begins),
       // so a gate flown out of turn, or before, does nothing
@@ -352,6 +365,14 @@ export function lowerObjectives(p, ctx) {
     });
     world.hud.push({ on: again, text: R.say, ttl: 2.4 });
   }
+  // (a task's keep: one of its ids down while it is in hand loses the level, or, where a retry is, begins it again, the
+  // ids stood up whole where they stood)
+  T.forEach((t, k) => {
+    for (const w of t.keep ?? []) {
+      world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, eq: k }, do: 'emit', type: p.retry !== undefined ? `${pre}:lost` : 'objectives:failed', task: t.id });
+      if (p.retry !== undefined) world.reactions.push({ on: `${pre}:again`, if: { var: cur, eq: k }, do: 'ctrl', op: 'spawn', who: w, fresh: true });
+    }
+  });
   for (const ch of ['watches', 'sequences', 'timers', 'entities', 'sources']) if (!world[ch].length) delete world[ch];
   const banded = T.some((t) => t.kind === 'band'), landed = T.some((t) => t.kind === 'land');
   if (banded) world.vars[names.slip] = 0;
@@ -360,7 +381,7 @@ export function lowerObjectives(p, ctx) {
   const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, ...(woken.size ? [{ var: downs, label: 'Foes down', best: 'high' }] : []), { var: time, label: 'Time', best: 'low', unit: 's' },
     ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : []),
     ...(p.retry !== undefined ? [{ var: names.retries, label: 'Retries', best: 'low' }] : [])];
-  const fails = T.some((t) => t.kind === 'protect');
+  const fails = T.some((t) => t.kind === 'protect' || (t.keep && p.retry === undefined));
   if (fails) world.hud.push({ on: 'objectives:failed', text: 'Failed', as: 'toast', ttl: 2 });
   if (T.some((t) => t.kind === 'gates')) world.hud.push({ on: 'objective:gate', text: 'gate {event.n} of {event.of}', as: 'toast', ttl: 1 });
   return { world, on: { 'objectives:done': { end: 'success' }, ...(fails ? { 'objectives:failed': { end: 'fail' } } : {}) }, keep, emits: ['objective:begin', 'objective:done', 'objective:sealed', 'objective:gate', 'objectives:done', 'objectives:failed', 'wave'] };

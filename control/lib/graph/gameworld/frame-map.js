@@ -32,7 +32,9 @@ export function frameMapData(G, id) {
   const stage = { manifest: frameLevelManifest(R), frame: R.airspace.frame }, ends = frameFieldEnds(stage), F = frameField(stage.manifest.cube);
   const goal = G.levels[id]?.goal, op = goal?.operation !== undefined ? readOperation(goal.operation) : { groups: [], tasks: [] };
   const cast = operationCast(op, ends), mech = operationMechanics(op, ends)[0];
-  const groups = op.groups.map((g) => ({ id: g.id, kind: g.kind, members: cast.entities.filter((e) => e.id === g.id || e.id.startsWith(`${g.id}-`)).map((e) => e.transform.pos.slice()) }));
+  // (a ship's part group, `<ship>-pods` or `<ship>-guns`: its bodies are `<ship>-pod-<n>` or `<ship>-gun-<n>`)
+  const pre = (g) => (g.part ? `${g.part.ship}-${g.part.role === 'pods' ? 'pod' : 'gun'}-` : `${g.id}-`);
+  const groups = op.groups.map((g) => ({ id: g.id, kind: g.kind, members: cast.entities.filter((e) => e.id === g.id || e.id.startsWith(pre(g))).map((e) => e.transform.pos.slice()) }));
   const beacons = mech.tasks.map((t, i) => (t.kind === 'reach' || t.kind === 'scan' ? { task: i + 1, at: t.at, radius: t.radius } : null)).filter(Boolean);
   return { field: { centre: F.centre, half: F.half, bound: ends.frame.bound, sea: F.sea }, spawn: ends.spawn, exit: ends.exit, radar: RADAR, groups, beacons, heightAt: F.landAt };
 }

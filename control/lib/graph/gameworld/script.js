@@ -5,18 +5,20 @@
  * subtitle), read whole as the game's script (the script book) by whoever records the voices: every line has an id.
  *
  *   readScript(v, { tasks, at? }) → { speakers, lines } (throws, teaching)
- *     v       { speakers?: { <who>: { name, colour? } }, lines: [{ id, who, text, on, after? }] }
+ *     v       { speakers?: { <who>: { name, colour?, portrait? (a still of their face, a small data URI) } }, lines: [{ id, who,
+ *             text, on, after? }] }
  *     on      'start' | 'win' | 'lost' | { begin: <task n> } | { done: <task n> } | { found: <task n> } | { wave: <n> } |
  *             { down: <entity id> }   (tasks counted from 1, as the level's objectives number them)
  *     after   seconds after the moment (0 to 30)
  *   scriptSequences(lines) → the bus's sequences (worlds/event-bus.js): each line's moment its trigger, `comms:<id>` raised
- *   SCRIPT                 the numbers: the most lines a level, the longest line
+ *   SCRIPT                 the numbers: the most lines a level, the longest line, the largest portrait (characters)
  *
  * The moments are the objectives' own events (game/objectives.js: objective:begin / done / found carry the task's id,
  * `t<n>` as a frame operation names them), the cast's `down`, `wave`, `objectives:done`, `dead`. Pure.
  */
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-export const SCRIPT = Object.freeze({ lines: 80, text: 240, after: 30 });
+export const SCRIPT = Object.freeze({ lines: 80, text: 240, after: 30, portrait: 60000 });
+const PORTRAIT = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const ID = /^[a-z][a-z0-9-]{0,40}$/;
 
@@ -29,9 +31,11 @@ export function readScript(v, { tasks = 0, at = 'script' } = {}) {
     if (!isObj(v.speakers)) fail('.speakers is { <who>: { name, colour? } }');
     for (const [w, S] of Object.entries(v.speakers)) {
       if (!ID.test(w)) fail(`.speakers: '${w}' is a speaker's id, lower-case`);
-      if (!isObj(S) || typeof S.name !== 'string' || !S.name || S.name.length > 24) fail(`.speakers.${w} is { name, colour? }: what the line is shown as said by`);
+      if (!isObj(S) || typeof S.name !== 'string' || !S.name || S.name.length > 24) fail(`.speakers.${w} is { name, colour?, portrait? }: what the line is shown as said by`);
       if (S.colour !== undefined && !HEX.test(S.colour)) fail(`.speakers.${w}.colour is #rrggbb`);
-      speakers[w] = { name: S.name, ...(S.colour ? { colour: S.colour } : {}) };
+      // (a PORTRAIT: a still of the speaker's face, a small image carried in the recipe, shown in place of the initials)
+      if (S.portrait !== undefined && !(typeof S.portrait === 'string' && PORTRAIT.test(S.portrait) && S.portrait.length <= SCRIPT.portrait)) fail(`.speakers.${w}.portrait is a small still of their face, a data URI (jpeg, png or webp) of at most ${Math.round(SCRIPT.portrait / 1024)} KB`);
+      speakers[w] = { name: S.name, ...(S.colour ? { colour: S.colour } : {}), ...(S.portrait ? { portrait: S.portrait } : {}) };
     }
   }
   if (!Array.isArray(v.lines) || !v.lines.length || v.lines.length > SCRIPT.lines) fail(`.lines is 1 to ${SCRIPT.lines} lines`);

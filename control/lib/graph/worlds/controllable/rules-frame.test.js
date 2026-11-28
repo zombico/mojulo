@@ -408,6 +408,43 @@ describe('the assault frame', () => {
     expect(F.staggers).toBe(1);
   });
 
+  it('the bar builds under fire: it comes back only once the frame has gone its hold unhit', () => {
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), frameEntity('vanguard', { id: 'f', at: [300, 0, 0], team: 'foes', mind: {} })], pilot: 'p', ai: 'off' }), F = st.byId.f;
+    const S = assembleFrame('vanguard').stab;
+    run(st, {}, 2);
+    // (a hit: the bar taken down; it stays down through the hold, then comes back at its rate. The engine's own regen
+    // may take one frame's worth in the tick the hit lands, before the frame sees it: within a hundredth of a bar)
+    F.poise = S.max * 0.5;
+    run(st, {}, Math.round((S.hold * 0.8) / DT));
+    expect(Math.abs(F.poise - S.max * 0.5)).toBeLessThan(0.01);
+    run(st, {}, Math.round((S.hold * 0.4 + 0.5) / DT));
+    expect(F.poise).toBeGreaterThan(S.max * 0.5 + S.regen * 0.3);
+    // (hit again before its hold is out: the clock starts over)
+    F.poise = S.max * 0.4; run(st, {}, Math.round((S.hold * 0.6) / DT));
+    F.poise -= 0.01; run(st, {}, Math.round((S.hold * 0.6) / DT));
+    expect(Math.abs(F.poise - (S.max * 0.4 - 0.01))).toBeLessThan(0.02);
+  });
+
+  it('broken, a frame stands still for its reel: braked where it broke, its keys and its guns dead, its mind no dodge', () => {
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), frameEntity('vanguard', { id: 'f', at: [200, 0, 0], team: 'foes', mind: {} })], pilot: 'p' }), F = st.byId.f;
+    const S = assembleFrame('vanguard').stab;
+    expect(S.stagger).toBe(2);
+    run(st, {}, 30);
+    // (broken at a skate: its way checked to nothing within a third of a second, and held there)
+    F.v = [40, 25, 0]; F.stagger = S.stagger;
+    run(st, {}, 20);
+    const at = F.transform.pos.slice(), rounds = (st.projectiles || []).filter((q) => q.from === 'f' || q.owner === 'f').length;
+    expect(Math.hypot(F.v[0], F.v[1])).toBeLessThan(2.5);
+    run(st, {}, Math.round((S.stagger - 0.5) / DT));
+    expect(Math.hypot(F.transform.pos[0] - at[0], F.transform.pos[1] - at[1])).toBeLessThan(3);
+    expect((st.projectiles || []).filter((q) => q.from === 'f' || q.owner === 'f').length).toBe(rounds);
+    expect(F.moving).toBe(false);
+    // (the reel out: it takes its keys up again)
+    run(st, {}, 30);
+    expect(F.stagger).toBe(0);
+  });
+
+
   it('under a roof is stopped by the works\' walls, walks under a deck, and looks for its ground from a step, not the sky', () => {
     const wall = { min: [30, -50, -1], max: [40, 50, 60] }, deck = { min: [-200, -50, 14], max: [-20, 50, 16] };
     const indoor = (colliders) => E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true, probe: 3, collide: { radius: 4, height: 9, step: 2 } })], pilot: 'p', colliders });
