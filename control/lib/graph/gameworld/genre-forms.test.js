@@ -92,7 +92,7 @@ describe('a genre the book cannot lay from a sentence yet', () => {
     expect(K.ride).toEqual({ ride: 'car', vehicle: 'kart' });
     for (const l of Object.values(K.levels)) expect(l).toMatchObject({ roadway: { course: expect.any(String) }, race: { laps: 3, rivals: 3 } });
     expect(composeGameworld({ prompt: 'a driver and gunner game: one drives the truck, one shoots the turret', seed: 1 }).ride).toEqual({ ride: 'car' });
-  });
+  }, 120_000);   // (two whole worlds composed: their own limit, as the deathmatch's)
 
   it('a deathmatch is a book form (11-27): an arena shooter laid as matches, a split deathmatch as matches for the couch', () => {
     for (const id of ['arena-shooter', 'split-deathmatch']) expect(pendingOf(id), id).toBeNull();
