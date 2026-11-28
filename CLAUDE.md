@@ -67,10 +67,11 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 - Current state of the branch: what is unreleased, `node scripts/changelog.mjs` (from `control/`): the Unreleased section
   of [control/CHANGELOG.md](control/CHANGELOG.md), then the theme files under `control/changelog/`.
   Releases before 3.0.0, and the detailed log behind 3.0.0, are in
-  [control/CHANGELOG-2.x.md](control/CHANGELOG-2.x.md); the detailed log behind 3.1.1 is
-  [control/CHANGELOG-3.1.md](control/CHANGELOG-3.1.md) (archives; add nothing new to either).
+  [control/CHANGELOG-2.x.md](control/CHANGELOG-2.x.md); the detailed logs behind 3.1.1 and 3.2.0 are
+  [control/CHANGELOG-3.1.md](control/CHANGELOG-3.1.md) and [control/CHANGELOG-3.2.md](control/CHANGELOG-3.2.md)
+  (archives; add nothing new to any of them).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 3.1.1, released 2026-10-16 (`mojulo` 3.1.0 reached npm from a stale build and is
+- Version: `package.json` says 3.2.0, released 2026-11-28 (`mojulo` 3.1.0 reached npm from a stale build and is
   deprecated; code and docs that say 3.1.0 mean 3.1.1). The plugin, `glama.json` and `server.json` pin the same
   version, checked by `control/scripts/check-plugin-version.mjs`. The exported World page is self-contained by
   default; `cdn: true` is the CDN build an artifact host needs. Older releases and their quirks are in the archives

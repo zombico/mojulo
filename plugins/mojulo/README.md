@@ -13,7 +13,7 @@ thinking is Claude's, in your session. It needs no account, no API key and no GP
 to the maintainer or to any analytics service; mojulo's only log is a local record of its own tool
 calls, which you can turn off.
 
-This plugin starts the open-source mojulo MCP server (mojulo 3.1.1, which Claude Code installs from the
+This plugin starts the open-source mojulo MCP server (mojulo 3.2.0, which Claude Code installs from the
 lockfile the plugin ships, `package-lock.json`, when you add or update the plugin). It adds a skill
 that tells Claude to start from mojulo's routing index, and a skill for each way in: make a character,
 design a game, design an object, make a 3D exhibit, design a building and design an interior, each
@@ -102,13 +102,13 @@ below happens only on the action named.
 
 | Kind | What | When |
 |---|---|---|
-| Installs | `mojulo@3.1.1` and its dependencies, exactly as `package-lock.json` names them (versions and integrity hashes, which npm checks), from registry.npmjs.org, into Claude Code's copy of the plugin, with install scripts off | When you add or update the plugin, by Claude Code itself; the plugin carries no installer of its own |
+| Installs | `mojulo@3.2.0` and its dependencies, exactly as `package-lock.json` names them (versions and integrity hashes, which npm checks), from registry.npmjs.org, into Claude Code's copy of the plugin, with install scripts off | When you add or update the plugin, by Claude Code itself; the plugin carries no installer of its own |
 | Fetches | A version lookup on registry.npmjs.org, anonymous | Only when Claude calls `check_for_updates` |
-| Fetches | The dashboard, `mojulo-ui@3.1.1`, from registry.npmjs.org, once | Only when you open it yourself: `npx -y -p mojulo@3.1.1 mojulo-ui` announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1` |
-| Fetches | The search runtime (npm) and its model (about 130 MB, huggingface.co) | Only when you run `npx -y mojulo@3.1.1 install recall` in a terminal. The server never fetches it on its own; without it, search ranks by words |
+| Fetches | The dashboard, `mojulo-ui@3.2.0`, from registry.npmjs.org, once | Only when you open it yourself: `npx -y -p mojulo@3.2.0 mojulo-ui` announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1` |
+| Fetches | The search runtime (npm) and its model (about 130 MB, huggingface.co) | Only when you run `npx -y mojulo@3.2.0 install recall` in a terminal. The server never fetches it on its own; without it, search ranks by words |
 | Never | Chrome for Testing, ffmpeg, three.js from a CDN | Renders use your installed browser, MP4 encodes your installed ffmpeg, and an exported page carries its own three.js |
 | Runs | A headless browser (the one you have), ffmpeg (the one you have), `git` | Renders and encodes on the action that needs them; `git` only when you ask Claude to save a recipe (`save_recipe`): local commits in `~/.mojulo/data/cookbook`, with your git identity and no remote. It never pushes |
-| Runs, only if you set it up | Blender, the `claude` CLI, app processes | Blender through `npx -y mojulo@3.1.1 script …` from a terminal; the `claude` CLI when `MOJULO_AGENT_RUNTIME=claude-code-headless` is set; apps inside the opt-in app runtime (`mojulo-app-runtime`), which the server never starts itself. Godot, Unity and Unreal are never started |
+| Runs, only if you set it up | Blender, the `claude` CLI, app processes | Blender through `npx -y mojulo@3.2.0 script …` from a terminal; the `claude` CLI when `MOJULO_AGENT_RUNTIME=claude-code-headless` is set; apps inside the opt-in app runtime (`mojulo-app-runtime`), which the server never starts itself. Godot, Unity and Unreal are never started |
 | Writes | `~/.mojulo/` (or `$MOJULO_HOME`) | The database, your recipes and cookbook, exports under `data/outcomes/` and `data/exports/`, preview caches, and the opt-in search runtime |
 | Writes | The OS temp directory | While a headless browser or an MP4 encode runs, removed afterwards (a Blender bake leaves its `moj-bake-*` folders) |
 | Writes | A folder you name | Only for `install_scaffold`, which writes an app there, `.env` included |
@@ -169,7 +169,7 @@ your content.
 - Your recipes, cookbook and exports carry over as they are. A home a 2.x install used may also hold
   `data/artifacts/`, where the chatbot factory kept each bot's `.env` with its provider key in plain
   text; 3.0 never reads it, and you can delete it.
-- This plugin now pins `mojulo@3.1.1` instead of running whatever npm has newest. Plugin releases
+- This plugin now pins `mojulo@3.2.0` instead of running whatever npm has newest. Plugin releases
   move that pin.
 
 ## Updating and removing

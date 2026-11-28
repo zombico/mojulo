@@ -154,6 +154,25 @@ describe('check-plugin-version', () => {
       expect(checkPlaceholders({ root })).toEqual([]);
     });
 
+    it('lets npm publish run before the lockfile can name the release, and relaxes nothing else', () => {
+      // the release commit: everything 3.2.0 but the plugin's package, whose lockfile waits for the published tarball
+      const pending = { version: '3.2.0', plugin: '3.1.0', locked: lockFor('3.1.0'), glama: 'mojulo@3.2.0', server: '3.2.0' };
+      tree(pending);
+      expect(checkManifestVersions({ root })).toEqual([
+        'plugins/mojulo/package.json depends on mojulo 3.1.0, expected 3.2.0',
+        'plugins/mojulo/package-lock.json: the root depends on mojulo 3.1.0, expected 3.2.0 (node control/scripts/plugin-lock.mjs, after npm publish)',
+        'plugins/mojulo/package-lock.json: it locks mojulo 3.1.0, expected 3.2.0 (node control/scripts/plugin-lock.mjs, after npm publish)',
+      ]);
+      expect(checkManifestVersions({ root, prepublish: true })).toEqual([]);
+      // the lockfile is still held to its own rules, and the other manifests to the version
+      tree({ ...pending, locked: { ...lockFor('3.1.0'), lockfileVersion: 1 }, server: '3.1.0' });
+      expect(checkManifestVersions({ root, prepublish: true })).toEqual([
+        'plugins/mojulo/package-lock.json: lockfileVersion is 1, expected 2 or 3 (node control/scripts/plugin-lock.mjs, after npm publish)',
+        'server.json: version is 3.1.0, expected 3.2.0',
+        'server.json: packages[mojulo].version is 3.1.0, expected 3.2.0',
+      ]);
+    });
+
     it('checks the release tag when asked', () => {
       tree();
       expect(checkManifestVersions({ root, expect: '3.2.0' })).toEqual(['control/package.json is 3.1.0, expected 3.2.0']);

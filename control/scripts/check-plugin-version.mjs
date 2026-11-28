@@ -20,7 +20,9 @@
  * anyone who already installed it. Compared against the merge base of <ref> and HEAD. A base version
  * not yet released (no `v<version>` tag) has no installed copies, so it takes changes as it stands.
  * `--expect <version>` also requires package.json to be that version (the release workflow passes
- * the tag).
+ * the tag). `--prepublish` is the check `npm publish` runs (prepublishOnly): the plugin's package.json and lockfile
+ * may still name the version before, since the lockfile holds the published tarball's hash and plugin-lock.mjs writes
+ * it only once the release is on npm; the lockfile is still held to every other rule, and nothing else is relaxed.
  *
  * The plugin folder stays inside what the plugin directory reads: under 512 files, each under 256 KiB (past either
  * a version is held for a reviewer), and no `server/` launcher left from 3.1.
@@ -73,7 +75,7 @@ export const SERVER_ARG = '${CLAUDE_PLUGIN_ROOT}/node_modules/mojulo/scripts/mcp
 // What the plugin directory reads without holding a version for a reviewer (claude.com/docs/plugins/pre-submission-checklist)
 export const DIRECTORY_MAX_FILES = 512;
 export const DIRECTORY_MAX_FILE_BYTES = 256 * 1024;
-function pluginServerProblems(root, plugin, version) {
+function pluginServerProblems(root, plugin, version, prepublish = false) {
   const problems = [];
   const entries = Object.entries(plugin.mcpServers || {});
   if (entries.length !== 1) problems.push(`${PLUGIN_MANIFEST}: expected one mcpServers entry, found ${entries.length}`);
@@ -89,12 +91,14 @@ function pluginServerProblems(root, plugin, version) {
   const pkg = read('package.json');
   if (pkg) {
     const deps = Object.keys(pkg.dependencies || {});
-    if (pkg.dependencies?.mojulo !== version) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json depends on mojulo ${pkg.dependencies?.mojulo}, expected ${version}`);
+    if (pkg.dependencies?.mojulo !== version && !prepublish) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json depends on mojulo ${pkg.dependencies?.mojulo}, expected ${version}`);
     if (deps.some((d) => d !== 'mojulo')) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json depends on more than mojulo`);
     if (pkg.overrides) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json sets overrides, which Claude Code's plugin install refuses`);
   }
   const lock = read('package-lock.json');
-  if (lock) problems.push(...lockProblems(lock, version).map((p) => `${PLUGIN_PACKAGE_DIR}/package-lock.json: ${p} (node control/scripts/plugin-lock.mjs, after npm publish)`));
+  // (before npm publish the lockfile is the last release's, consistent with the package.json beside it)
+  const lockVersion = prepublish && typeof pkg?.dependencies?.mojulo === 'string' ? pkg.dependencies.mojulo : version;
+  if (lock) problems.push(...lockProblems(lock, lockVersion).map((p) => `${PLUGIN_PACKAGE_DIR}/package-lock.json: ${p} (node control/scripts/plugin-lock.mjs, after npm publish)`));
   if (existsSync(path.join(root, PLUGIN_DIR, 'server'))) problems.push(`${PLUGIN_DIR}/server/ is the 3.1 launcher; the plugin runs the package Claude Code installs`);
   const files = listFiles(root, PLUGIN_DIR);
   if (files.length >= DIRECTORY_MAX_FILES) problems.push(`${PLUGIN_DIR} holds ${files.length} files; the plugin directory holds a version of ${DIRECTORY_MAX_FILES} or more for a reviewer`);
@@ -121,8 +125,9 @@ function listFiles(root, rel) {
  * @param {object} opts
  * @param {string} [opts.root] — the repo root
  * @param {string} [opts.expect] — a version package.json must equal
+ * @param {boolean} [opts.prepublish] — before npm publish: the plugin's package and lockfile may name the release before
  */
-export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) {
+export function checkManifestVersions({ root = REPO_ROOT, expect = null, prepublish = false } = {}) {
   const read = (rel) => JSON.parse(readFileSync(path.join(root, rel), 'utf8'));
   const problems = [];
   const { version } = read('control/package.json');
@@ -132,7 +137,7 @@ export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) 
   if (!SEMVER.test(String(plugin.version || ''))) {
     problems.push(`${PLUGIN_MANIFEST}: version ${JSON.stringify(plugin.version)} is not a semver string`);
   }
-  problems.push(...pluginServerProblems(root, plugin, version));
+  problems.push(...pluginServerProblems(root, plugin, version, prepublish));
   problems.push(...launcherProblems('glama.json', read('glama.json').mcpServers, version));
 
   const server = read('server.json');
@@ -207,10 +212,11 @@ export function checkPluginVersionBump({ root = REPO_ROOT, since }) {
 }
 
 function parseArgs(argv) {
-  const out = { since: null, expect: null };
+  const out = { since: null, expect: null, prepublish: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--since') out.since = argv[++i];
     else if (argv[i] === '--expect') out.expect = argv[++i];
+    else if (argv[i] === '--prepublish') out.prepublish = true;
     else throw new Error(`unknown argument ${argv[i]}`);
   }
   return out;
@@ -219,7 +225,7 @@ function parseArgs(argv) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = parseArgs(process.argv.slice(2));
   const problems = [
-    ...checkManifestVersions({ expect: args.expect }),
+    ...checkManifestVersions({ expect: args.expect, prepublish: args.prepublish }),
     ...checkPlaceholders(),
     ...(args.since ? checkPluginVersionBump({ since: args.since }) : []),
   ];
