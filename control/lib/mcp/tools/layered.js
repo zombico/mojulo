@@ -715,6 +715,11 @@ function realisticExpand(plan, hero) {
   // (and each family's set of its hinges, which the clips are given by posedCoatClips)
   if (wear?.coat) R.coatPoses = wear.coat.poses;
   if (S.headFit) R.headFit = S.headFit;
+  // (and what the head's skin paint reads off the recipe, the realistic laws' (relationalHeadWorn): the painted brows, the
+  // beard's and the scalp's coats, `faceHairPaint`, and the clipped hair's shadow, `hairClip`. A dressed hero's recipe is
+  // expanded afresh on the slice, so these were left on the slice and its skin was painted without them: no brows)
+  if (S.faceHairPaint) R.faceHairPaint = S.faceHairPaint;
+  if (S.hairClip) R.hairClip = S.hairClip;
   // the dials: the dressed expansion's (a garment rides its body part's), the slice's blends over the new stations, a
   // part the slice removed left out
   R.dials = Object.fromEntries(Object.entries(R.dials || {}).map(([k, d]) => {

@@ -62,3 +62,8 @@
   build's piece that says `replace: true` stands in for its style card's pieces of its kind, where the build's and the
   card's were both worn (the security card's slick vest under the operative's plate one, its back panel with it). Absent,
   every outfit as it was.
+- **A dressed realistic hero's brows painted again** (lib/mcp/tools/layered.js `realisticExpand`): a dressed hero's
+  recipe is expanded afresh on the body's slice, and only the head's fit was carried over from it; the painted brows,
+  the beard's and the scalp's coats (`faceHairPaint`) and the clipped hair's shadow (`hairClip`), which the realistic
+  laws set on the slice, were left behind, so the skin was painted without them. Both now ride the recipe. Every dressed
+  realistic hero re-renders with its brows and its lash line; an undressed one, as it was.
