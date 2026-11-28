@@ -1,5 +1,5 @@
 /**
- * CERES — Fable of Artesia laid as its own game (rails.js `fable-of-artesia`, its variant `ceres`): an action RPG in the
+ * CERES — the world of Fable of Artesia, the rail's game (rails.js `fable-of-artesia`, pitch-start.js): an action RPG in the
  * Link to the Past and Link's Awakening mould, its heroine silent. Artesia, chief of the royal guard and second in line
  * to the throne of Ceres, is cast out by a facsimile of her brother, the prince, whom the wizard Olric holds in a crystal
  * prison. Olric rules the dragons of Ceres through the Royal Amber. She crosses the land region by region, freeing each
@@ -15,7 +15,7 @@
  *   REGIONS               the chain, in order: { id, name, says, hour, shift?, blocks, dragon?, shard?, boss? }
  *   regionLevel(R, i)     → the region's gameworld level (its world map, its hour, its light, its names, its climax)
  *   ceresWorld(world)     → the world laid as Ceres: its regions for its levels, the chain for its links, under every
- *                           key the creator wrote but its levels and links (pitch-start.js, the `ceres` variant)
+ *                           key the creator wrote but its levels and links (pitch-start.js, the rail's starter)
  *
  * Pure: the same world, the same Ceres.
  */

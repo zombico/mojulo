@@ -1,4 +1,4 @@
-// CERES (gameworld/artesia.js): Fable of Artesia laid as its own game, a megaworld chain of regions, each its own light,
+// CERES (gameworld/artesia.js): the world of Fable of Artesia, the rail's game, a megaworld chain of regions, each its own light,
 // each opened by the shard freed from the dragon of the one before.
 import { describe, it, expect } from 'vitest';
 import { CERES, REGIONS, REGION_IDS, regionLevel, ceresWorld, dragonKind } from './artesia.js';
@@ -38,9 +38,9 @@ describe('the land of Ceres', () => {
     W.links.forEach((l, i) => expect(l).toMatchObject({ from: REGION_IDS[i], to: REGION_IDS[i + 1], kind: 'gate', key: REGIONS[i].shard, keyAt: REGION_IDS[i] }));
     for (const l of megaworldLaws(W.megaworld)) expect(l.ok, l.says).toBe(true);
   });
-  it('laid from the rail\'s variant: the composed Artesia, its one map the regions; each dragon cast on its region\'s climax', () => {
-    const P = pitchStart({ id: 'g', name: 'Ceres', rail: { from: 'fable-of-artesia', variant: 'ceres', locked: true } });
-    expect(P.laid).toMatchObject({ variant: 'ceres', levels: [...REGION_IDS] });
+  it('laid from the rail: the composed Artesia, its one map the regions; each dragon cast on its region\'s climax', () => {
+    const P = pitchStart({ id: 'g', name: 'Ceres', rail: { from: 'fable-of-artesia', locked: true } });
+    expect(P.laid).toMatchObject({ levels: [...REGION_IDS] });
     expect(P.world.feel).toBe('fable-of-artesia');
     expect(readGameworld(P.world).ids).toEqual([...REGION_IDS]);
     const C = castingCall(P.world);

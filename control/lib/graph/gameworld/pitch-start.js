@@ -143,8 +143,8 @@ export function pitchStart(world, { title } = {}) {
   // (a VARIANT's street words on each street the starter lays: the heroes' tuning on a beat-em-up's, rails.js variants)
   const V = P.variant ? variantOf(R, P.variant) : null;
   const W1 = V?.street ? { ...W0, levels: Object.fromEntries(Object.entries(W0.levels).map(([k, L]) => [k, isObj(L?.street) ? { ...L, street: { ...V.street, ...L.street } } : L])) } : W0;
-  // (a REGIONS variant, Fable of Artesia's Ceres: the composed world, its one map replaced by the land's regions on a
-  // megaworld chain, artesia.js)
-  const W = V?.regions === 'ceres' ? ceresWorld(W1) : W1;
+  // (Fable of Artesia's game, CERES: the composed world, its one map replaced by the world's regions on a megaworld
+  // chain, artesia.js)
+  const W = R.id === 'fable-of-artesia' ? ceresWorld(W1) : W1;
   return { world: W, laid: { by: 'compose', from: S.starts, ...(V ? { variant: V.id } : {}), levels: Object.keys(W.levels), says: SAYS } };
 }
