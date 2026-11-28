@@ -8,6 +8,7 @@
  *   frameAudio({ units?, indoor?, flavor? }) → the level's `audio`: { sfx: { cues, on, vary }, frame, wind? , ambience? }
  *     units    the unit kinds the level stands (OPERATION.units' keys); a kind the kit does not know is heard as a turret
  *     indoor   a works' field (assault-frame/field.js `indoor`): its furnaces held under it, no wind
+ *     airless  a field with no air (its cube's heavens void: the space ground): no wind
  *     flavor   the game's own recordings (a card's `flavor`): its stingers and anything else it records, over the shelf's
  *
  * Every part's sounds are carried, not only the frame's stock build's: the hangar fits any part the save holds, and the
@@ -23,7 +24,7 @@ const ON = Object.freeze({ 'objective:begin': 'task', 'objective:done': 'done', 
 // the field's air: Mars's thin wind (the channel's wind, by the camera's motion), a works' fire held low
 export const FRAME_AIR = Object.freeze({ wind: Object.freeze({ level: -30, freq: 520, vary: true }), works: Object.freeze({ voice: 'fire-burning', level: 0.18 }) });
 
-export function frameAudio({ units = [], indoor = false, flavor = null } = {}) {
+export function frameAudio({ units = [], indoor = false, airless = false, flavor = null } = {}) {
   const cues = {}, opts = { style: 'realistic', flavor };
   // (a word list → a cue id of the level's, `fr:<word>`, its gestures once however many things play it)
   const cue = (words) => {
@@ -55,6 +56,6 @@ export function frameAudio({ units = [], indoor = false, flavor = null } = {}) {
   return {
     sfx: { cues, on, vary: true },
     frame: { weights, drives, arms, units: unitsOut, cockpit, world, parts, ui },
-    ...(indoor ? (air ? { ambience: { voice: air, level: FRAME_AIR.works.level } } : {}) : { wind: { ...FRAME_AIR.wind } }),
+    ...(indoor ? (air ? { ambience: { voice: air, level: FRAME_AIR.works.level } } : {}) : airless ? {} : { wind: { ...FRAME_AIR.wind } }),
   };
 }

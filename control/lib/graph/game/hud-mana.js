@@ -4,7 +4,7 @@
  * (scene/channels/mana-hud.js). The rows keep their meaning and their slots; what changes is who draws them: the
  * theme the game's screens wear, so a level's readouts, its moments and its menus are one look.
  *
- *   hudToMana(rows, { register?, hero?, touch?, style? }) → { spec: { hud }, feed: { rows, hero } }   (touch: the level is
+ *   hudToMana(rows, { register?, hero?, heroBar?, touch?, style? }) → { spec: { hud }, feed: { rows, hero } }   (touch: the level is
  *                                              steered by a virtual pad: a legend says the thumbs while the pad is up;
  *                                              style: the level carries a style meter, drawn at the right: its tier
  *                                              and the combo; feed.style says the host feeds it; immersive: the HUD
@@ -71,7 +71,7 @@ export function readRadarLook(r) {
   return { ...r };
 }
 
-export function hudToMana(rows, { register = null, hero = true, touch = false, radar = null, boss = false, style = false, immersive = style, vitals = null } = {}) {
+export function hudToMana(rows, { register = null, hero = true, heroBar = true, touch = false, radar = null, boss = false, style = false, immersive = style, vitals = null } = {}) {
   const { widgets } = normalizeHud(Array.isArray(rows) ? rows : [], register ? { register } : {});
   const vars = {}, keyOf = new Map(), gates = [], banners = [], toasts = [], lines = {};
   const varKey = (name) => { if (!keyOf.has(name)) { const k = `v${keyOf.size}`; keyOf.set(name, k); vars[k] = name; } return keyOf.get(name); };
@@ -134,7 +134,8 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, r
     // THE PILOT, at the bottom left: the health a strip in cells (the level's health row folded in, else its own), its
     // sprint thin under it, the slow-motion's charge beside them; resting while full
     const hp = hpStrip ? { value: hpStrip.value, max: hpStrip.max } : { value: B('hero.hp'), max: B('hero.hpMax') };
-    if (!cluster) regions.unshift({ use: 'region', props: { at: 'bottom-left', variant: immersive ? 'bare' : 'scrim', rest: B('hero.rest') }, children: [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
+    // (heroBar false: the pilot's own HUD carries its health, a frame's: no strip in the corner, the rest as it is)
+    if (!cluster && heroBar) regions.unshift({ use: 'region', props: { at: 'bottom-left', variant: immersive ? 'bare' : 'scrim', rest: B('hero.rest') }, children: [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
       { use: 'charge', props: { value: B('focus.value'), state: B('focus.state'), icon: 'clock', label: B('focus.label') }, when: B('focus.on') },
       { use: 'stack', props: { gap: 'tight' }, children: [
         { use: 'bar', props: { ...hp, variant: 'hp', segments: 4, size: 'large', figures: false }, ...(hpStrip ? hpStrip.gate : { when: B('hero.hasHp') }) },

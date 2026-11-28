@@ -23,6 +23,68 @@ describe('the assault frame', () => {
     expect(P.locomotion).toBe('boost');
   });
 
+  it('walks a cycle a stride, by the ground it covers', () => {
+    const st = run(world(), { forward: 1 }, 90), P = st.byId.p, ph0 = P.gaitPhase, x0 = P.transform.pos[0];
+    run(st, { forward: 1 }, 120);
+    expect((P.gaitPhase - ph0) * P.rule.stride).toBeCloseTo(P.transform.pos[0] - x0, 0);
+  });
+
+  it('keeps its way on in the air off the booster: a jump from a walk carries on, a standing jump is steered forward', () => {
+    const st = run(world(), { forward: 1 }, 90), P = st.byId.p;
+    run(st, { forward: 1, jump: 1 }, 1);
+    run(st, { forward: 1 }, 20);
+    expect(P.airborne).toBe(true);
+    expect(P.speed).toBeGreaterThan(A.move.walk * 0.95);
+    // (from a stand: the keys take it forward through the air)
+    const s2 = run(world(), {}, 30), P2 = s2.byId.p;
+    run(s2, { jump: 1 }, 1);
+    run(s2, { forward: 1 }, 40);
+    expect(P2.airborne).toBe(true);
+    expect(P2.speed).toBeGreaterThan(A.move.walk * 0.5);
+  });
+
+  it('keeps its feet on bumpy ground, and goes over a ledge into the air', () => {
+    // (rolling ground: a crest every 12 m, a metre high; a frame walked and skated over it stays on it)
+    const bumps = { ground: ([x]) => Math.sin(x / 12 * Math.PI * 2) * 1 + 1 };
+    const st = world(), P = st.byId.p;
+    let air = 0;
+    for (let i = 0; i < 240; i++) { E.stepWorld(st, { forward: 1, boost: i > 120 ? 1 : 0 }, DT, bumps); if (P.airborne) air++; }
+    expect(P.transform.pos[0]).toBeGreaterThan(60);
+    expect(air).toBe(0);
+    // (a ledge: ten metres down at x = 20; it walks off it and falls)
+    const ledge = { ground: ([x]) => (x < 20 ? 10 : 0) }, s2 = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 10], pilot: true })], pilot: 'p' }), Q = s2.byId.p;
+    let fell = false;
+    for (let i = 0; i < 180 && !fell; i++) { E.stepWorld(s2, { forward: 1 }, DT, ledge); fell = Q.airborne; }
+    expect(fell).toBe(true);
+  });
+
+  it('a quick boost turns toward the keys held through its burst', () => {
+    const st = world(), P = st.byId.p;
+    run(st, { forward: 1, qb: 1 }, 1);
+    const a0 = Math.atan2(P.v[1], P.v[0]);
+    run(st, { strafe: 1 }, Math.round((A.move.qbTime * 0.8) / DT));
+    // (right of a frame facing +x is −y: turned toward it, still at the burst's speed)
+    expect(Math.atan2(P.v[1], P.v[0])).toBeLessThan(a0 - 0.5);
+    expect(Math.hypot(P.v[0], P.v[1])).toBeGreaterThan(A.move.qb * 0.9);
+  });
+
+  it('fires where the reticle looks: both hands\' rounds meet on the ground the sight\'s ray meets, or on a foe in its way', () => {
+    // (the camera behind the frame and over its shoulder, looking down past it to the ground some 120 m out)
+    const o = [-22, -2.2, 16], hit = [120, 0, 0], d = [hit[0] - o[0], hit[1] - o[1], hit[2] - o[2]], aim = [...o, ...d];
+    const cross = (st) => st.projectiles.map((p) => { const v = p.vel, s = (hit[0] - p.pos[0]) / v[0]; return [p.pos[0] + v[0] * s, p.pos[1] + v[1] * s, p.pos[2] + v[2] * s]; });
+    const st = world();
+    run(st, { fire: 1, alt: 1, aim }, 1);
+    expect(st.projectiles.length).toBeGreaterThanOrEqual(2);
+    for (const q of cross(st)) expect(Math.hypot(q[0] - hit[0], q[1] - hit[1], q[2] - hit[2])).toBeLessThan(3);
+    // (a foe standing on the ray, nearer: the rounds go to it)
+    const foe = { ...frameEntity('raptor', { id: 'f', at: [60, 0, 0], team: 'foes' }), rule: { type: 'none' } };
+    const s2 = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), foe], pilot: 'p', ai: 'off' });
+    const F = s2.byId.f, c = [60, 0, (F.body.aimH ?? 2)], d2 = [c[0] - o[0], c[1] - o[1], c[2] - o[2]];
+    run(s2, { fire: 1, aim: [...o, ...d2] }, 1);
+    const p = s2.projectiles[0], u = (c[0] - p.pos[0]) / p.vel[0];
+    expect(Math.hypot(p.pos[1] + p.vel[1] * u - c[1], p.pos[2] + p.vel[2] * u - c[2])).toBeLessThan(2);
+  });
+
   it('quick-boosts a burst across, costing the generator, then waits for its cooldown', () => {
     const st = world(), P = st.byId.p;
     run(st, { strafe: 1, qb: 1 }, 1);

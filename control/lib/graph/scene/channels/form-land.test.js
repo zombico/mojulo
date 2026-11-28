@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { inflateSync } from 'node:zlib';
-import { formLandScript, GROUND_PARALLAX, STONE_LADDER, FAR_LAND, packLand, LAND_PACK } from './form-land.js';
+import { formLandScript, GROUND_PARALLAX, STONE_LADDER, STONE_STILL, FAR_LAND, packLand, LAND_PACK } from './form-land.js';
 import { FAR_GROUPS } from '../../form/land-read.js';
 
 const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
@@ -32,6 +32,15 @@ describe('the ground\'s parallax kinds', () => {
     const page = formLandScript({ ...land, dress: { pebbles: 0.35 } });
     expect(page).toContain('+ roadP');
     expect(page).toContain('smoothstep( 0.590, 0.710,');
+  });
+
+  it('a still field lays its biggest stones once and never swaps them as the eye moves; any other the ladder, as it was', () => {
+    const ladder = formLandScript(land), still = formLandScript(land, null, { still: true });
+    expect(ladder).toContain('ladder(pov, CO.eye, CO.reach, CO.px)');
+    expect(ladder).not.toContain('const KEEP = new Uint8Array(D.stones.n)');
+    expect(still).not.toContain('ladder(pov, CO.eye, CO.reach, CO.px)');
+    expect(still).toContain(`k < Math.min(ord.length, ${STONE_STILL.most})`);
+    expect(still).toContain('window.__formStones');
   });
 
   it('samples the natural layers stochastically only where the land asks (a cube\'s outside.tiling): absent, as it was', () => {

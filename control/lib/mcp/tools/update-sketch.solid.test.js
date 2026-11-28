@@ -831,7 +831,7 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
     await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/seconds', value: 100 }] })).rejects.toThrow(/clips\.cheer\.seconds: the clip's length in seconds, 0\.25 … 60/);
     await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/keys/1/face', value: 'grin' }] })).rejects.toThrow(/clips\.cheer\.keys\[1\]\.face: unknown anime pose 'grin'/);
     expect(JSON.stringify(row().manifest)).toBe(before);
-  });
+  }, 120000);   // (it mints an anime hero and resolves its World, as its neighbours do: 14 s alone, over 30 s on a loaded CI shard)
   it('the landmark head takes a key\'s face (its words) and the blink; every other head refuses them by name at the door', async () => {
     const cheer = [{ support: 'both', crouch: 0.1 }];
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: [{ ...cheer[0], face: 'happy' }] } } })).rejects.toThrow(/clips\.cheer\[0\]\.face: one of neutral, smile, determined, surprised/);

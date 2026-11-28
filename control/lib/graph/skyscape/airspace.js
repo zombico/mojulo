@@ -50,6 +50,7 @@ import { readPaletteSpec } from '../color-theorist/solve.js';
 import { aerialPageConfig } from './aerial.js';
 import { readSkyAsk, flightSky } from './sky.js';
 import { giantGround } from '../sol/skies.js';
+import { frameGravity } from '../assault-frame/pilot.js';
 import { nightLightsConfig } from './night-lights.js';
 import { AQUA_PRESETS } from '../materials/aqua-look.js';
 import { countryFaces } from './country.js';
@@ -105,13 +106,16 @@ export function validateAirspace(m) {
   }
   // an assault frame (assault-frame/, the frame rule): stood on the ground and fought on it, not flown
   if (m.frame !== undefined) {
-    if (!m.frame || typeof m.frame !== 'object' || Array.isArray(m.frame)) e.push('airspace.frame is { build?, palette?, garage?, briefing?, flavor? }: an assault frame stood on the ground');
+    if (!m.frame || typeof m.frame !== 'object' || Array.isArray(m.frame)) e.push('airspace.frame is { build?, palette?, garage?, briefing?, flavor?, gravity? }: an assault frame stood on the ground');
     else {
-      for (const k of Object.keys(m.frame)) if (!['build', 'palette', 'garage', 'briefing', 'flavor'].includes(k)) e.push(`airspace.frame.${k} is not a frame's setting (build, palette, garage, briefing, flavor)`);
+      for (const k of Object.keys(m.frame)) if (!['build', 'palette', 'garage', 'briefing', 'flavor', 'gravity'].includes(k)) e.push(`airspace.frame.${k} is not a frame's setting (build, palette, garage, briefing, flavor, gravity)`);
       // (garage: true, the hangar before the operation: the frame fitted from the parts the player has, scene/channels/controllable/frame-garage.js)
       if (m.frame.garage !== undefined && typeof m.frame.garage !== 'boolean') e.push('airspace.frame.garage is true where the frame is fitted in its hangar before it goes out');
       // (briefing: true, the operation told on the holo table before the drop, campaign/operation-brief.js)
       if (m.frame.briefing !== undefined && typeof m.frame.briefing !== 'boolean') e.push('airspace.frame.briefing is true where the operation is told on the holo table before the drop');
+      // (gravity: the game's gravity the frame fights in, assault-frame/pilot.js FRAME_GRAVITY: 'planetary' (a planet's, the
+      // default), 'space' (the space ground: an asteroid, the Moon, a platform), or m/s²)
+      if (m.frame.gravity !== undefined) { try { frameGravity(m.frame.gravity); } catch (x) { e.push(`airspace.frame.gravity: ${x.message}`); } }
       // (flavor: the game's own recordings, the sound library's cards of that flavor, heard over the shelf's: gameworld/frame-sound.js)
       if (m.frame.flavor !== undefined && !(typeof m.frame.flavor === 'string' && /^[a-z][a-z0-9-]{1,40}$/.test(m.frame.flavor))) e.push('airspace.frame.flavor is the game\'s own sounds by name (warlords-of-mars): the library\'s cards of that flavor');
       if (m.frame.build !== undefined) { try { readBuild(m.frame.build, 'airspace.frame.build'); } catch (err) { e.push(err.message); } }

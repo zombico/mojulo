@@ -1,5 +1,5 @@
 import { emitBeatsKernel } from '../../beats/beats-kernel.js';
-import { audioFeatures, gestureSampleCards, pagePatches } from '../../beats/beats-features.js';
+import { audioFeatures, gestureSampleCards, pagePatches, sampleCards } from '../../beats/beats-features.js';
 import { sampleSliceBase64 } from '../../sound-library/library.js';
 import { MSG_AUDIO as GAME_MSG_AUDIO } from '../../game/level-contract.js';
 import { safeJson } from '../emit-util.js';
@@ -22,7 +22,7 @@ import { frameAudioScript } from './frame-audio.js';
 // the bus fades the playing score out and the mood's piece in on an engine of its own; `music:stop` fades to silence;
 // `music:place` brings the place's own score back (the explore piece where the level has a fight's). While a piece
 // plays, the fight's change waits. Before the unlock gesture the change is kept, and played as the sound starts.
-function piecesScript(combat, mix) {
+function piecesScript(combat, mix, samples) {
   return `
 let __piece = null, __pieceEng = null, __scoreUp = true;
 const __FADE = 1.5;
@@ -57,7 +57,7 @@ function __musicTo(w) {
   if (w === 'place') { __scoreOn(t); return; }
   const r = __AUDIO.pieces[w];
   if (w === 'stop' || !r) return;
-  const e = __BEATS.createEngine(__beatsCtx);${mix ? `
+  const e = __BEATS.createEngine(__beatsCtx);${samples ? ' __samplesFor(e);' : ''}${mix ? `
   e.setSfx({}); __beatsEng.linkDuck(e);` : ''}
   __playOn(e, r); __fadeIn(e, t); __pieceEng = e;
 }
@@ -102,7 +102,10 @@ export function audioChannelScript(audio) {
   // recorded sounds (the sound library's, opt-in): the samples the payload's recorded gestures name, inlined when this
   // machine holds them, decoded by the cue engine at the unlock; a cue before they are decoded plays its synthesized
   // fallback. A payload without recorded gestures (every world where the library is not installed) emits nothing here.
-  const cards = gestureSampleCards(audio), samples = cards.length ? sampleSliceBase64(cards) : null;
+  // (and the music's own recorded parts, a score whose `recorded` puts its parts on their twins: every engine that plays
+  // a score is handed them, each its own copy, since decoding takes its bytes)
+  const music = [audio.soundtrack, audio.combat, audio.boss, ...Object.values(audio.pieces || {})].filter((m) => m && typeof m === 'object' && /^beats-/.test(m.kind || ''));
+  const cards = [...new Set([...gestureSampleCards(audio), ...sampleCards(...music)])].sort(), samples = cards.length ? sampleSliceBase64(cards) : null;
   // a city's cars' own events (audio.engine.cueOf, sound-sheet.js citySounds): the car taken heard by its own cues, and the
   // events only some cars have (a siren, a reverse beeper, a backfire, the lock); absent, not a byte of it
   // a racing car's (a ride's) own events and tyres (audio.engine.ride, sound-sheet.js rideEvents): absent, not a byte of it
@@ -116,7 +119,8 @@ const __AUDIO = ${safeJson(audio)};
 const __BEATS_PATCHES = ${safeJson(combat || pieces ? pagePatches(audio.soundtrack, ...(combat ? [audio.combat] : []), ...(bossOn ? [audio.boss] : []), ...Object.values(audio.pieces || {})) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}${samples ? `
-const __SAMPLES = ${safeJson(samples)};` : ''}
+const __SAMPLES = ${safeJson(samples)};
+const __samplesFor = (eng) => eng.loadSamples({ cards: __SAMPLES.cards, bytes: Object.fromEntries(Object.entries(__SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])), roots: __SAMPLES.roots, loops: __SAMPLES.loops, vels: __SAMPLES.vels, keyAt: __SAMPLES.keyAt, keyRoot: __SAMPLES.keyRoot });` : ''}
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
 // CPU quiet while muted. resume() only sticks post-gesture — the pointerdown unlock owns that.
 function __beatsApply() {
@@ -132,13 +136,14 @@ function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume().catch(() => {}); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
   __beatsEng = __BEATS.createEngine(__beatsCtx);${samples ? `
-  __beatsEng.loadSamples({ cards: __SAMPLES.cards, bytes: Object.fromEntries(Object.entries(__SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])), roots: __SAMPLES.roots, loops: __SAMPLES.loops, vels: __SAMPLES.vels, keyAt: __SAMPLES.keyAt, keyRoot: __SAMPLES.keyRoot });   // the recorded sounds` : ''}${mix ? `
+  __samplesFor(__beatsEng);   // the recorded sounds` : ''}${mix ? `
   __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
 ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx)${bossOn ? ', boss: __BEATS.createEngine(__beatsCtx)' : ''} };${mix ? `
     __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays${bossOn ? '\n    __engs.boss.setSfx({}); __beatsEng.linkDuck(__engs.boss);' : ''}` : ''}
-    __engs.combat.master.gain.value = 0;${bossOn ? ' __engs.boss.master.gain.value = 0;' : ''}
+    __engs.combat.master.gain.value = 0;${bossOn ? ' __engs.boss.master.gain.value = 0;' : ''}${samples ? `
+    for (const e of Object.values(__engs)) __samplesFor(e);   // the scores' recorded parts` : ''}
     __startTrack(__engs.explore, __AUDIO.soundtrack);
     __musicT0 = __beatsCtx.currentTime + 0.08;   // the explore piece's t0: its bar lines are where a change may land` : `    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
@@ -152,7 +157,7 @@ ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __
 renderer.domElement.addEventListener('pointerdown', __beatsUnlock);
 // (a key, a pad's play or the game shell's word that sound is on also unlock it: a game played on the keys or hosted in the
 // shell's frame, which delegates autoplay, is never clicked, and was silent)
-window.addEventListener('keydown', __beatsUnlock);${pieces ? piecesScript(combat, !!mix) : ''}${audio.tension ? `
+window.addEventListener('keydown', __beatsUnlock);${pieces ? piecesScript(combat, !!mix, !!samples) : ''}${audio.tension ? `
 // THE TENSION (adaptive-music.js, the same closure the tests hold): raised by the level's own events off the bus log
 // (like the stingers: the reducer drains reaction-emitted events internally), leaking back toward calm. Read-only.
 const __ADAPT = (${buildAdaptive.toString()})();
