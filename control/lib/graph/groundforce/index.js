@@ -241,6 +241,14 @@ function harrowParts() {
 }
 
 /** The units, by kind. */
+// the spider bot's legs, life metres: each [hip x, hip y, knee x, knee y, foot x, foot y], left then right, front to back
+// (the legs splayed forward in front, back behind), its hips along the thorax's sides
+const CRAWLER_LEGS = Object.freeze([[0.62, 0.6, 1.45, 1.35, 2.15, 1.95], [0.7, 0.15, 1.7, 0.2, 2.5, 0.25], [0.62, -0.3, 1.45, -1.0, 2.1, -1.65]]
+  .flatMap(([hx, hy, kx, ky, fx, fy]) => [Object.freeze([-hx, hy, -kx, ky, -fx, fy]), Object.freeze([hx, hy, kx, ky, fx, fy])]));
+// HOW A CRAWLER'S LEGS GO, a stride of the figure's `roll` clip: each swung about its hip by `swing` rad and lifted
+// `lift` rad as it comes forward, in two tripods half a stride apart (a leg's row and side)
+export const CRAWL = Object.freeze({ keys: 12, swing: 0.34, lift: 0.3 });
+
 export const GROUND_UNITS = Object.freeze({
   // dug in, a ring of armour round a domed turret, its twin guns long: it turns to the craft and fires up at it
   turret: Object.freeze({
@@ -455,6 +463,39 @@ export const GROUND_UNITS = Object.freeze({
       ...P.pipe([0.62, -0.6, 4.75], [0.62, -0.6, 5.7], 0.04, 'dark', 6),
     ],
   }),
+  // A SPIDER BOT: a crawler that walks the ground to what it is sent at and cuts into it at its mouth. A low armoured body
+  // in three (a wedge of a head, a thorax the legs hang from, a swollen abdomen behind it, orange so it reads on grey
+  // rock), six legs on high knees in two tripods, a cluster of red eyes across its brow and a pair of mandibles with a
+  // lit plasma cutter between them, the end it leads with. Each leg is its own bone (`legs`: their hips, drawn metres),
+  // the figure's `roll` clip swinging them in their tripods and lifting each as it comes forward.
+  crawler: Object.freeze({
+    label: 'spider bot', reads: 'a low armoured crawler on six high-kneed legs, a red-eyed wedge of a head with mandibles and a lit cutter, an orange abdomen behind',
+    size: 2.2, hp: 3, rof: 6, range: 60, points: 80,
+    livery: Object.freeze({ hull: '#5b626b', hull2: '#e2632d', accent: '#e9e4d6' }),
+    parts: () => [
+      // (the thorax the legs hang from, the head before it, the abdomen behind)
+      ...P.box([0, 0.15, 1.05], [1.5, 1.3, 0.62], 'hull', { ch: 0.22 }),
+      ...P.box([0, 0.15, 1.42], [1.1, 0.9, 0.16], 'dark', { ch: 0.06 }),
+      ...P.box([0, 1.08, 0.98], [1.05, 0.66, 0.5], 'hull', { ch: 0.2 }),
+      ...P.box([0, 1.2, 1.24], [0.8, 0.42, 0.12], 'dark', { ch: 0.05 }),
+      ...[-0.3, -0.1, 0.1, 0.3].map((x) => P.box([x, 1.42, 1.08 + (Math.abs(x) < 0.2 ? 0.07 : 0)], [0.12, 0.05, 0.1], 'sensor')).flat(),
+      ...P.dome([0, -0.95, 0.72], 0.85, 1.05, 0.72, 0.62, 'hull2', 12, 3),
+      ...P.prism([0, -0.95, 0], 0.86, 1.06, 0.62, 0.74, 'dark', 12),
+      ...P.box([0, -0.95, 1.36], [0.12, 1.2, 0.06], 'accent'),
+      // (its mandibles and the cutter lit between them)
+      ...[-1, 1].flatMap((sd) => P.pipe([sd * 0.3, 1.32, 0.86], [sd * 0.14, 1.92, 0.66], 0.08, 'dark', 6)),
+      ...P.box([0, 1.88, 0.68], [0.12, 0.14, 0.1], 'drive'),
+      // (six legs: each from its hip up to a high knee and down to a foot, its own bone)
+      ...CRAWLER_LEGS.flatMap(([hx, hy, kx, ky, fx, fy], i) => [
+        ...P.ball([hx, hy, 1.05], 0.2, 'dark', 8, 3),
+        ...P.pipe([hx, hy, 1.05], [kx, ky, 1.85], 0.12, 'hull', 6),
+        ...P.ball([kx, ky, 1.85], 0.15, 'dark', 8, 3),
+        ...P.pipe([kx, ky, 1.85], [fx, fy, 0.08], 0.08, 'dark', 6),
+        ...P.box([fx, fy, 0.06], [0.18, 0.18, 0.12], 'accent'),
+      ].map((f) => ({ ...f, bone: `leg${i}` }))),
+    ],
+    legs: () => CRAWLER_LEGS.map(([hx, hy]) => [hx * GROUNDFORCE_SCALE, hy * GROUNDFORCE_SCALE, 1.05 * GROUNDFORCE_SCALE]),
+  }),
   // A PROP, not a foe (`prop`: stood by a level's scene, never fielded by a stage): a ROMAN CANDLE, a pusher rocket that
   // a mining ship lowers onto a rock on cables and drills in, its bell to the sky. Its drill spike under its foot (z < 0)
   // goes into the ground as it is set down; a braced collar, a long tank body banded twice, the throat and the bell.
@@ -560,14 +601,33 @@ export function unitFigure(kind, { form = false, setting = null } = {}) {
   // (a card with rotors, `hubs`: a bone each, at its hub, spun flat about the vertical by the figure's `roll` clip, each its
   // `turns` way; the rest the root)
   const hubs = U && U.hubs ? U.hubs() : [], spun = hubs.map((_, i) => `rotor${i}`);
-  const bones = [{ id: 'root', head: [0, 0, 0] }, ...hubs.map((h, i) => ({ id: spun[i], head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) }))];
+  // (a crawler's legs, `legs`: a bone each at its hip, walked by the figure's `roll` clip, crawlClip)
+  const legs = U && U.legs ? U.legs() : [];
+  const bones = [{ id: 'root', head: [0, 0, 0] }, ...hubs.map((h, i) => ({ id: spun[i], head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) })), ...legs.map((h, i) => ({ id: `leg${i}`, head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) }))];
   const byBone = (fs) => new Map(bones.map((b) => [b.id, fs.filter((f) => (f.bone ?? 'root') === b.id)]));
   const opts = hubs.length ? { keys: 12, rolls: spun, axis: 'z', ...(U.turns ? { turns: [...U.turns] } : {}) } : { keys: 2, rolls: [] };
+  const walk = (fig) => (legs.length ? { ...fig, clips: { ...fig.clips, roll: crawlClip(bones) } } : fig);
   if (form) {
     const F = unitFormFaces(kind);
-    const fig = packVehicleFigure(bones, byBone(faces), { ...opts, form: byBone(F) });
+    const fig = walk(packVehicleFigure(bones, byBone(faces), { ...opts, form: byBone(F) }));
     return { ...fig, form: { ...formLight(skyMood(setting?.sky), UNIT_MATERIALS, {}), normalBias: 0.1 }, groundforce: { kind, label: U.label, faces: F.length, form: true } };
   }
-  const fig = packVehicleFigure(bones, byBone(faces), opts);
+  const fig = walk(packVehicleFigure(bones, byBone(faces), opts));
   return { ...fig, groundforce: { kind, label: U.label, faces: faces.length } };
+}
+
+// a crawler's stride as the `roll` clip: per key, per bone [qx, qy, qz, qw, hx, hy, hz]; the root still, each leg swung
+// about the vertical through its hip and lifted about its long axis as it comes forward, its tripod half a stride apart
+// from the other (a leg's row plus its side, odd or even)
+function crawlClip(bones) {
+  const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0, K = CRAWL.keys, out = [];
+  for (let k = 0; k < K; k++) for (const b of bones) {
+    const m = /^leg(\d+)$/.exec(b.id);
+    if (!m) { out.push(0, 0, 0, 1, ...b.head); continue; }
+    const i = Number(m[1]), side = b.head[0] < 0 ? -1 : 1, ph = 2 * Math.PI * (k / K + (((i >> 1) + (i & 1)) % 2) * 0.5);
+    const a = CRAWL.swing * Math.sin(ph), th = -side * CRAWL.lift * Math.max(0, Math.cos(ph));
+    const sz = Math.sin(a / 2), cz = Math.cos(a / 2), sy = Math.sin(th / 2), cy = Math.cos(th / 2);
+    out.push(r4(-sz * sy), r4(cz * sy), r4(cy * sz), r4(cz * cy), ...b.head);
+  }
+  return { k: K, b: out };
 }

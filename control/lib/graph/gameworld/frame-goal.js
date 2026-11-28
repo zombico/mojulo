@@ -5,7 +5,7 @@
  * the objectives mechanic (game/objectives.js), in the level's own words.
  *
  *   goal: { operation: { groups: [...], tasks: [...], time? } }
- *     groups   [{ id, kind: 'turret' | 'tank' | 'walker' | 'gnat' | 'wasp' | 'kite' | 'harrow' | 'thunderhead' (fliers, stood
+ *     groups   [{ id, kind: 'turret' | 'tank' | 'walker' | 'crawler' (a spider bot, on the ground) | 'gnat' | 'wasp' | 'kite' | 'harrow' | 'thunderhead' (fliers, stood
  *              in the air, the last two gunships with a boss's bar) | 'hammer' (a missile
  *              launcher) | 'bastion' (a shield-bearer) | 'frame', count?, at: [x, y] (a share of the field: −1..1 each
  *              way, the frame starting at [0, −0.55]), spread? (m), build? (a frame's: a STOCK name), palette?,
@@ -66,6 +66,10 @@ export const OPERATION = Object.freeze({
     turret: Object.freeze({ hp: 3200, damage: 90, rof: 3, range: 520, speed: 340 }),
     tank: Object.freeze({ hp: 4200, damage: 260, rof: 0.6, range: 480, speed: 260, move: 9 }),
     walker: Object.freeze({ hp: 2600, damage: 70, rof: 5, range: 360, speed: 380, move: 6 }),
+    // (a spider bot: a crawler on the ground, quick on its six legs, closing right in (`standoff`) to cut at what it is sent
+    // at with the plasma at its mouth, short and hot; `crawl` the metres a stride of its legs covers, drawn; `fireArc` the
+    // degrees off its line it cuts at: right under a tall thing, it cuts upward at its middle)
+    crawler: Object.freeze({ hp: 1600, damage: 120, rof: 5, range: 45, speed: 240, move: 14, standoff: 14, crawl: 5, fireArc: 55 }),
     // (a flier, one of a swarm: light, quick, close, weaving round the frame; `air` the metres it is stood over the ground,
     // `standoff` the reach it closes to, `turn` how quick it comes round, `floor` the least it flies over the land)
     // (a launcher: no gun, homing missiles off its rack, the engine's launcher, worlds/controllable/combat-ranged.js
@@ -98,7 +102,7 @@ export const OPERATION = Object.freeze({
 // (the enemy's rounds: a hot red-orange in the shot's look, scene/channels/controllable/index.js foeLooks)
 const FOE_ROUND = Object.freeze({ color: 0xff5a36, size: 0.42 });
 export const OPERATION_LEGEND = 'mouse  turn & aim · W A S D  move · Shift  boost · C  quick boost · X  assault boost · F  kick · Space  jump, hold to climb · click / right click  hands · Q / E  shoulders';
-const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'thunderhead', 'hammer', 'bastion', 'frame'];
+const KINDS = ['turret', 'tank', 'walker', 'crawler', 'gnat', 'wasp', 'kite', 'harrow', 'thunderhead', 'hammer', 'bastion', 'frame'];
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
@@ -447,7 +451,7 @@ export function operationCast(op, ends) {
       figures[fig] = { unit: { kind: g.kind, form: true } };
       entities.push({
         id: m.id, team: 'foes', ...(dormant ? { dormant: true } : {}),
-        rule: { type: 'ai', space: true, ...(g.target ? { target: g.target.slice() } : {}), speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6, ...(g.wary ? { mind: { aggressiveness: 'defensive' } } : {}) },
+        rule: { type: 'ai', space: true, ...(g.target ? { target: g.target.slice() } : {}), ...(U.crawl ? { crawl: { stride: U.crawl } } : {}), speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: U.fireArc ?? 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6, ...(g.wary ? { mind: { aggressiveness: 'defensive' } } : {}) },
         ...(!U.rof ? {} : { weapon: { foeRound: true, fxColor: FOE_ROUND.color, fxScale: FOE_ROUND.size, fireClass: 'lob', auto: true, rof: U.rof, damage: U.damage, impact: 0.02, range: U.range, coreAngle: 2, assistAngle: 5, eye: R * 0.6, lobAngle: 0, projectileSpeed: U.speed, projectileGravity: 0, projRadius: 0.8, splashRadius: g.kind === 'tank' ? 4 : 0, fuse: U.range / U.speed * 1.3, noGround: true, passTeam: true, smokeTrail: g.kind === 'tank', fxColor: 0xff5a3a, foeRound: true, magazine: 9999 } }),
         body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, hpMax: U.hp, poise: 99, ...(U.shield ? { shield: { ...U.shield } } : {}), radius: R, egg: { a: R, c: r2(R * 0.6), cz: r2(U.hitAt ?? R * 0.4) }, aimH: r2(U.hitAt ?? R * 0.4), blast: 4 },
         transform: { pos: U.air ? [m.at[0], m.at[1], r2(m.at[2] + U.air)] : m.at, heading: toward(m.at), pitch: 0 },

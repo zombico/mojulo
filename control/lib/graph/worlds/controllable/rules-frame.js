@@ -740,6 +740,20 @@ export function buildRulesFrame(E) {
       if (F.spin > 0) { e.locomotion = 'roll'; e.gaitPhase = (state.time * F.spin) % 1; }
     }
   }, 29);
+  // ── a crawler on a frame's field (an ai's `crawl` { stride }, a spider bot's): kept on the ground under it, its legs
+  // walked by the ground it covers (the figure's `roll` clip a stride, groundforce/ crawlClip), still where it stands ──
+  E.registerWorldPass('frame-crawl', (state, input, dt, world) => {
+    if (!world || !world.ground || !(dt > 0)) return;
+    for (const e of state.entities) {
+      const r = e.rule, C = r && r.crawl;
+      if (!C || r.type !== 'ai' || e.gone || e.downed || e.dormant) continue;
+      const p = e.transform.pos, g = world.ground([p[0], p[1], p[2] + 60]);
+      if (g != null) p[2] = g;
+      const was = e.crawlAt || p, d = Math.hypot(p[0] - was[0], p[1] - was[1]);
+      e.crawlAt = [p[0], p[1]];
+      e.locomotion = 'roll'; e.gaitPhase = ((e.gaitPhase || 0) + d / (C.stride || 5)) % 1; e.moving = d > 1e-4;
+    }
+  }, 30);
   // ── guns slung forward (a flight's `under`): they cannot bear more than `under` degrees below it, so a pilot right
   // under the gunship is not fired on while it stays there (`blind`); before the weapons, so the trigger it gives is held ──
   E.registerEntityAction('frame-broadside', (e, input, dt, state) => {
