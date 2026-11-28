@@ -35,7 +35,7 @@ describe('the ground force', () => {
   it('in the form render: each face its role\'s metal and colour, its round parts shaded round and its edges kept', () => {
     // (a flier with fans and a ball, chosen in code: the first that flies)
     const k = GROUND_UNIT_IDS.find((u) => GROUND_UNITS[u].flies) ?? kind, F = unitFormFaces(k);
-    for (const f of F) { expect(UNIT_MATERIALS[f.material]).toBeTruthy(); expect(f.albedo).toBe(GROUNDFORCE_PALETTE[f.material]); }
+    for (const f of F) { expect(UNIT_MATERIALS[f.material]).toBeTruthy(); expect(f.albedo).toBe({ ...GROUNDFORCE_PALETTE, ...(GROUND_UNITS[k].livery ?? {}) }[f.material]); }
     // (some corners smoothed off their face's own normal, a box's corner never past the crease)
     const bent = F.flatMap((f) => f.cornerNormals.map((n) => n[0] * f.outNormal[0] + n[1] * f.outNormal[1] + n[2] * f.outNormal[2]));
     expect(bent.some((d) => d < 0.999)).toBe(true);
@@ -69,5 +69,12 @@ describe('the ground force', () => {
     // (a card without hubs packs as one bone, as it always did)
     const plain = GROUND_UNIT_IDS.find((u) => !GROUND_UNITS[u].hubs);
     expect(unitFigure(plain, { form: true }).bones.map((b) => b.id)).toEqual(['root']);
+  });
+
+  it('a card in its own livery wears its colours over the palette\'s; one without wears the palette', () => {
+    const own = GROUND_UNIT_IDS.find((u) => GROUND_UNITS[u].livery), plain = GROUND_UNIT_IDS.find((u) => !GROUND_UNITS[u].livery);
+    const L = GROUND_UNITS[own].livery, role = Object.keys(L)[0];
+    expect(unitFormFaces(own).filter((f) => f.material === role).every((f) => f.albedo === L[role])).toBe(true);
+    expect(unitFormFaces(plain).every((f) => f.albedo === GROUNDFORCE_PALETTE[f.material])).toBe(true);
   });
 });

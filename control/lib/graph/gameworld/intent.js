@@ -90,7 +90,7 @@ const WORDS = Object.freeze({
   'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter'],
   'run-and-gun': ['run and gun', 'run gun', 'run-and-gun', 'run n gun', 'side-scrolling shooter', 'side scrolling shooter', 'contra', 'metal slug', 'guns blazing'],
   'driver-and-gunner': ['driver and gunner', 'one drives one shoots', 'turret', 'gunner'],
-  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch'],
+  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch', 'split screen deathmatch', 'split-screen deathmatch'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
   'open-city-crime': ['gta', 'grand theft auto', 'gta-like', 'gta like', 'carjack', 'carjacking', 'car jacking', 'steal cars', 'steal a car', 'wanted level', 'crime game', 'open world crime', 'crime sandbox', 'sandbox city', 'hijack', 'getaway', 'police chase', 'heist'],
   // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
@@ -152,7 +152,7 @@ const NAMES = Object.freeze({
   'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter'], 'driver-and-gunner': ['driver and gunner'],
   // (a brief's `&` is read as a space, so 'run gun' is how "run & gun" arrives)
   'run-and-gun': ['run and gun', 'run gun', 'run-and-gun', 'run n gun', 'side-scrolling shooter', 'side scrolling shooter', 'contra', 'metal slug'],
-  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen'], 'city-stalker': ['web swing', 'web-swing', 'web-slinging'],
+  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'split screen deathmatch', 'split-screen deathmatch', 'couch deathmatch'], 'city-stalker': ['web swing', 'web-swing', 'web-slinging'],
   'open-city-crime': ['gta', 'grand theft auto', 'carjacking', 'wanted level', 'crime sandbox'],
   'athletics-meet': ['athletics', 'track and field', 'decathlon', 'olympics'],
   'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pickleball', 'squash'],
@@ -198,7 +198,7 @@ const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
  * sport's genre. */
 export function quickGenre(Q) {
   if (!Q) return null;
-  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'work' && Q.cooks > 1 ? 'co-op-kitchen' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
+  return (Q.goal === 'mash' ? 'party-mash' : Q.goal === 'deathmatch' && Q.players > 1 && (Q.camera ?? 'first-person') === 'first-person' ? 'split-deathmatch' : Q.ride !== undefined && Q.players > 1 ? 'driver-and-gunner' : Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'work' && Q.cooks > 1 ? 'co-op-kitchen' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
 }
 
 export function cubeOfWorld(world) {
@@ -214,6 +214,14 @@ export function cubeOfWorld(world) {
   if (Q?.run) put(cube, 'time', 'progression', 'runs');
   // cooks sharing a work shift's kitchen (quick.cooks): its seats, all on one side, sitting down at any time
   if (Q?.goal === 'work' && Q.cooks > 1) { put(cube, 'soul', 'seats', Q.cooks > 2 ? 'four' : 'two'); put(cube, 'soul', 'contest', 'co-op'); put(cube, 'soul', 'join', 'drop-in'); }
+  // a couch game on one level (quick.players): a party round each against each over a window, a deathmatch each against
+  // each (split in first person), a ride its driver and its gunner; each seated in a lobby
+  if (Number.isInteger(Q?.players) && Q.players > 1) {
+    put(cube, 'soul', 'seats', Q.players > 2 ? 'four' : 'two'); put(cube, 'soul', 'join', 'lobby');
+    if (Q.goal === 'mash') { put(cube, 'soul', 'contest', 'free-for-all'); put(cube, 'soul', 'input', 'window'); }
+    else if (Q.goal === 'deathmatch') { put(cube, 'soul', 'contest', 'free-for-all'); if ((world?.camera ?? Q.camera ?? 'first-person') === 'first-person') put(cube, 'soul', 'frame', 'split'); }
+    else if (Q.ride !== undefined) { put(cube, 'soul', 'contest', 'co-op'); put(cube, 'soul', 'dependence', 'roles'); put(cube, 'soul', 'pool', 'shared'); }
+  }
   if (world?.style?.pixel) put(cube, 'reality', 'medium', 'pixel');
   // its main quest (main-quest.js): the arc its shape is, the periods it spans, how loose its sides are
   const MQ = world?.mainQuest && typeof world.mainQuest === 'object' ? world.mainQuest : null;

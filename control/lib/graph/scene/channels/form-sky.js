@@ -110,8 +110,9 @@ export function formSkyInput({ sun, zenith, horizon, clouds, cumulus }) {
  *  skyscape/sky.js groundCumulus): they are drawn in sky space (sky-cumulus.js) and the sheet is a thin high layer over
  *  them; absent, the page's bytes as they were. `capture` (a capture page's): the clouds' own clock is the capture's
  *  (window.__mojClock, pinned by its frame()) when it is set, so a still is the same however long it took to draw; absent,
- *  the page's bytes as they were. */
-export function formSkyScript({ capture = false, cumulus = false } = {}) {
+ *  the page's bytes as they were. `airless` (the land's sky carries `void`: an airless cube, its heavens' void): no air in
+ *  the sky, so no light in it, no cloud, no veil and no haze, the stars and the sun's disc alone; absent, as it was. */
+export function formSkyScript({ capture = false, cumulus = false, airless = false } = {}) {
   // (with the flight sky's cumulus (sky-cumulus.js) the sheet is the names below; without, the page as it was)
   const KK = cumulus ? 'KH' : 'K', CV = cumulus ? 'coverH' : 'cover';
   return `
@@ -139,7 +140,9 @@ export function formSkyScript({ capture = false, cumulus = false } = {}) {
     const U = { uSun: { value: sun }, uSunL: { value: new THREE.Vector3(...sunL) }, uAmb: { value: new THREE.Vector3(...amb) }, uZen: { value: new THREE.Vector3(...zen) }, uHor: { value: new THREE.Vector3(...hor) },
       uA: { value: new THREE.Vector3(...A) }, uCover: { value: ${CV} }, uDark: { value: K.dark }, uVeil: { value: K.veil }, uStretch: { value: ${KK}.stretch }, uThin: { value: ${KK}.thin ?? 1 },
       uAlt: { value: ${KK}.alt ?? FSK.clouds.alt }, uTime: { value: 0 }, uSeed: { value: W.seed ?? 1 }, uDrift: { value: new THREE.Vector2(FSK.clouds.drift / FSK.clouds.scale, 0) } };
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false, fog: false,
+${airless ? `    // (no air: an airless cube's sky lights nothing and holds nothing, its haze none; the stars and the sun's disc alone)
+    A.fill(0); U.uA.value.set(0, 0, 0); U.uCover.value = 0; U.uVeil.value = 0;
+` : ''}    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false, fog: false,
       vertexShader: 'varying vec3 vWorld;\\nvoid main() { vec4 w = modelMatrix * vec4( position, 1.0 ); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
       fragmentShader: ${JSON.stringify(SKY_FRAG)} }));
     dome.renderOrder = -1.9; dome.frustumCulled = false; dome.raycast = () => {}; scene.add(dome);

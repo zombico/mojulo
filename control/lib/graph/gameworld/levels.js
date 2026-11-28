@@ -28,11 +28,14 @@
 import { WALKINS } from '../geocity/walkins.js';
 import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
-import { frameEntity, frameMounts, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
+import { frameEntity, frameMounts, frameGravity, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
 import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
-import { OPERATION_LEGEND } from './frame-goal.js';
+import { OPERATION_LEGEND, FRAME_LESSON_TASK } from './frame-goal.js';
+import { frameScore } from './frame-score.js';
 import { frameAudio } from './frame-sound.js';
+import { scriptSequences } from './script.js';
+import { commsData } from '../scene/channels/comms.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
 import { facilityBuilding } from '../era/facilities.js';
@@ -56,7 +59,7 @@ import { layLevel } from '../level/index.js';
 import { readGrid } from '../level/grid.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
-import { withGeocube } from '../era/geocube.js';
+import { withGeocube, readGeocube } from '../era/geocube.js';
 import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
@@ -490,10 +493,12 @@ export function frameFieldEnds(stage) {
   if (FIELD_ENDS.has(key)) return FIELD_ENDS.get(key);
   if (FIELD_ENDS.size > 8) FIELD_ENDS.clear();
   const F = frameField(stage.manifest.cube), [cx, cy] = F.centre, half = F.half, g = (x, y) => r3(F.heightAt(x, y));
+  // (an airless field, the space ground's: no air to carry a sound or hold a boost's dust up, its dust the regolith's own)
+  const C = readGeocube(stage.manifest.cube), airless = !!(C.light.heavens && C.light.heavens.void);
   const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
   // (under a roof, a works' field: its ground looked for a step over a frame's feet, its works' solids stopping it)
-  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
-    ...(F.indoor ? { indoor: true, probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}), ...(stage.frame.flavor ? { flavor: stage.frame.flavor } : {}) };
+  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: stage.frame.gravity === undefined ? FRAME_WORLD.gravity : frameGravity(stage.frame.gravity), build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
+    ...(F.indoor ? { indoor: true, probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}), ...(stage.frame.flavor ? { flavor: stage.frame.flavor } : {}), ...(airless ? { airless: true, dust: parseInt((C.colour.sand ?? C.colour.floor).slice(1), 16) } : {}) };
   const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
   for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [], colliders: F.colliders ?? [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   FIELD_ENDS.set(key, out);
@@ -1042,7 +1047,22 @@ export function stageLevelOrder(G, stage, opts = {}) {
   // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
   const S = G.screen ? screenLevel(G.screen, L) : L;
   // a game played in a headset (scene/channels/xr.js): each level's page opens a session that plays it. Absent: no key
-  return G.xr ? { ...S, args: { ...S.args, manifest: { ...S.args.manifest, xr: G.xr } } } : S;
+  const X = G.xr ? { ...S, args: { ...S.args, manifest: { ...S.args.manifest, xr: G.xr } } } : S;
+  return withScreens(G, stage, X);
+}
+// THE GAME'S SCREENS (scene/channels/game-screens.js) on a level's contract: the names its results say (the game's, the
+// level's), its noun (a frame's operation is a Mission), the look they are painted in (the world's interface theme's
+// colours, where it names one), and its opening (a level's `opening`: the title screen that loads it, a chapter's card)
+function withScreens(G, stage, L) {
+  const m = L.args?.manifest;
+  if (!m?.game) return L;
+  const lv = G.levels[stage.level] ?? {}, U = G.ui && typeof G.ui === 'object' ? G.ui : null;
+  const theme = U && U.theme && U.theme !== 'world' ? (() => { try { return readTheme(U.theme); } catch { return null; } })() : null;
+  const look = theme ? Object.fromEntries(['ink', 'panel', 'line', 'accent', 'accent2', 'harm'].filter((k) => typeof theme.tokens?.[k] === 'string').map((k) => [k, theme.tokens[k]])) : null;
+  const name = typeof lv.name === 'string' ? lv.name : typeof m.title === 'string' ? m.title : null;
+  const opening = lv.opening ? { title: lv.opening.title ?? G.name, ...(lv.opening.kicker ? { kicker: lv.opening.kicker } : {}), ...(lv.opening.press ? { press: lv.opening.press } : {}), ...(lv.opening.chapter ? { chapter: { ...(lv.opening.chapter.label ? { label: lv.opening.chapter.label } : {}), name: lv.opening.chapter.name ?? name } } : {}) } : null;
+  const game = { ...m.game, title: G.name, ...(name ? { name } : {}), ...(lv.airspace?.frame ? { noun: 'Mission' } : {}), ...(look && Object.keys(look).length ? { look } : {}), ...(opening ? { opening } : {}) };
+  return { ...L, args: { ...L.args, manifest: { ...m, game } } };
 }
 function withOwnMoves(L, byRef) {
   const m = L.args?.manifest;
@@ -1215,7 +1235,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
       // (the page's smoke, world-scene.js `smoke`: billows down a bazooka's, a mortar's and a missile's trail, a rolling
       // cloud where each bursts, the dust a boost raises off the land)
-      smoke: { burstCount: 16, dust: { tint: 0xb07a52 } },
+      smoke: { burstCount: 16, dust: { tint: F.dust ?? 0xb07a52 } },
     };
     // (the save's build, the hangar's: the page stands it in the frame's place, assault-frame/hangar.js; with a garage,
     // the parts the player has too, and the build it fits is kept)
@@ -1223,9 +1243,26 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
     // (told on the holo table before the drop, campaign/operation-brief.js: the briefing channel over the level)
     if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
+    // (its guide, channels/guide.js: the way to each place a task names (a reach's, a scan's: a scan's with its ring, the
+    // rings pulsing in while it is stood in), shown as its task begins,
+    // an arrow and the metres under the objectives' own line, which says what it is (said once, not twice)
+    // and passed as it is met, the objectives' task in hand its clock; and what it teaches as it is played, frame-goal.js
+    // FRAME_LESSONS, each group as its task begins)
+    const OB = game.mechanics.find((m) => m && m.kind === 'objectives');
+    const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, ...(t.kind === 'scan' ? { ring: true } : {}), when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
+    // (its script, gameworld/script.js: each line raised on the bus at its moment, shown on the page as comms)
+    // (its finds, a scan's specimen revealed as it is met: scene/channels/find-reveal.js)
+    if (X0?.finds?.length) pilotPart = { ...pilotPart, finds: X0.finds };
+    // (its plumes, a prop's drive lit as the bus says: scene/channels/plume.js)
+    if (X0?.plumes?.length) pilotPart = { ...pilotPart, plumes: X0.plumes };
+    if (X0?.script) pilotPart = { ...pilotPart, events: { ...pilotPart.events, sequences: [...(pilotPart.events.sequences ?? []), ...scriptSequences(X0.script.lines)] }, comms: commsData(X0.script) };
+    // (a frame level that teaches: each lesson waits for the pilot to do it, no count shown; and the keys' legend along
+    // the bottom left off, the lessons saying each key as it comes: the screen is the game's)
+    if (ways.length || X0?.lessons?.length) pilotPart = { ...pilotPart, guide: { steps: ways, ...(X0?.lessons?.length ? { lessons: X0.lessons, strict: true } : {}), done: '', top: 96 } };
+    if (X0?.lessons?.length && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: pilotPart.events.hud.filter((h) => !(h.slot === 'bottom' && h.ttl)) } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
-    if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, flavor: F.flavor ?? null }) };
+    if (!audio) pilotPart = { ...pilotPart, audio: { ...frameScore(), ...frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, airless: !!F.airless, flavor: F.flavor ?? null }) } };
     // (an operation's reward, frame-goal.js: the parts its win grants, the game channel's `wins`)
     if (F.garage && X0?.wins?.length) { game.wins = X0.wins; game.produces = { ...game.produces, events: [...game.produces.events, { type: 'grant', slice: PARTS_SLICE }] }; }
   } else if (stage.section === 'airspace') {
@@ -1322,7 +1359,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // where the run made the sheathed hero, opts.sheathRef)
     const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null;
     pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
-    seatable = !look;
+    // (first person seats more than one only on a split screen: a view a seat, soul.frame=split)
+    seatable = !look || cubeOfWorld(G).cube.soul?.frame === 'split';
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
     // the stage's buildings stop, when it has any). Asked for by name, it looks with the mouse (yaw and pitch) through
@@ -1535,7 +1573,10 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
   if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !MX && !manifest.events?.grammar) {
     const U = G.ui && typeof G.ui === 'object' ? G.ui : {};
-    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}), ...((manifest.game?.mechanics ?? []).some((m) => m?.kind === 'shift') ? { count: true } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}) } };
+    // (a frame's level: its pilot's armour and generator are the frame's own HUD's, scene/channels/controllable/frame-hud.js;
+    // the mana HUD keeps the pilot, so the page's own default panels stay down, but draws no health strip of its own)
+    const frameHero = pilotPart.entities?.[0]?.rule?.type === 'frame';
+    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}), ...((manifest.game?.mechanics ?? []).some((m) => m?.kind === 'shift') ? { count: true } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}), ...(frameHero ? { heroBar: false } : {}) } };
   }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -1556,6 +1597,8 @@ const SEAT_COUNT = Object.freeze({ two: 2, four: 4 }), SEAT_LIVES = 3;
 function seatPart(G, pilotPart, ends, lane) {
   const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
   if (!n) return { pilotPart, seats: null };
+  // (soul.input=turns: the alternating game, the seats taking turns at the hero itself, each its own lives: no bodies)
+  if (soul.input === 'turns') return { pilotPart, seats: { bodies: [], turns: {}, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', lives: SEAT_LIVES, pool: 'own' } };
   const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
   // (soul.contest: co-op, every seat on the hero's side; versus and free-for-all, each seat a side of its own, `seat-<n>`,
   // so none spares another and the minds hunt each; teams, the odd seats and the even, `seats-a` and `seats-b`. On a level
@@ -1578,7 +1621,7 @@ function seatPart(G, pilotPart, ends, lane) {
   }
   // lives (soul.pool): each seat three of its own, or three a seat in one count the seats share; a fall costs one
   const lives = soul.pool === 'own' ? { lives: SEAT_LIVES, pool: 'own' } : soul.pool === 'shared' ? { lives: SEAT_LIVES * n, pool: 'shared' } : {};
-  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives, ...(rival || teams ? { contest: soul.contest } : {}) } };
+  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in', ...lives, ...(rival || teams ? { contest: soul.contest } : {}), ...(soul.frame === 'split' ? { frame: 'split' } : {}) } };
 }
 
 /** ROLES (soul.dependence=roles, docs/local-multiplayer-principles.md principle 8: each job needed): a ride two seats

@@ -56,6 +56,13 @@
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
+ *   • A MIND'S ROUNDS are fired at where its target is as they leave the gun (no lead: a round seen coming can be dodged,
+ *     a step or a quick boost aside); `mind.leadShots` leads them as the pilot's lock does. Missiles home as before.
+ *   • HELD: while the pilot's input is held (`input.held`: a scene playing, a menu up, the page's freeze) every mind
+ *     stands down with it, its keys idle (a scene's cast still moves it: a walk, a glide), and takes up again after.
+ *   • AN ALLY THAT HOLDS (`mind.hold`): it stands its ground turned to the pilot, fighting only a foe that comes to it,
+ *     until the cast's `unhold` op lets it go (a level's task begun: game/objectives.js `ops`), and from then it fights
+ *     and keeps by the pilot as any ally does (e.unheld).
  *
  * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
  * burn the page's thrusters draw, 0..1), stab (its stability left, 0..1 of its bar), stagger (seconds left reeling, 0 when not),
@@ -71,6 +78,22 @@
 export function buildRulesFrame(E) {
   const { clamp, RULES } = E;
   const GRAV = 9.81;
+  // (the cast's `unhold`: an ally that holds its ground let go, the cast's own ops run as they were)
+  const castOps = E.castOps;
+  if (castOps) E.castOps = function (state, ops) {
+    for (const o of ops || []) if (o && o.op === 'unhold' && state.byId && state.byId[o.who]) state.byId[o.who].unheld = true;
+    const out = castOps(state, (ops || []).filter((o) => !(o && o.op === 'unhold')));
+    // (a frame spawned fresh, a retry's: up whole, its reel, its brace, its lunge and its way on gone, its stability full)
+    for (const o of ops || []) {
+      const e = o && o.op === 'spawn' && o.fresh && state.byId && state.byId[o.who];
+      if (!e || !(e.rule && e.rule.type === 'frame')) continue;
+      e.stagger = 0; e.staggerT = null; e.reactClip = null; e.reactDur = null; e.brace = null; e.lunge = null; e.ab = false;
+      if (Number.isFinite(e.poiseMax)) e.poise = e.poiseMax;
+      if (Array.isArray(e.v)) e.v = [0, 0, 0];
+      if (Number.isFinite(e.enMax)) e.en = e.enMax;
+    }
+    return out;
+  };
 
   // a seeded die per body (its id's hash, stepped): a mind's choices, never the browser's
   function dice(e) {
@@ -90,12 +113,44 @@ export function buildRulesFrame(E) {
     return out;
   };
   const aimDir = (h, p) => [Math.cos(h) * Math.cos(p), Math.sin(h) * Math.cos(p), Math.sin(p)];
+  // (how far the pilot may drop behind a leading ally before it waits for it, metres)
+  const ALLY_WAIT = 600;
+
+  // ── an ally's: the nearest foe awake within its reach of it, else none ──
+  function allyFoe(e, world, reach) {
+    const p = e.transform.pos;
+    let best = null, bd = reach;
+    for (const f of foesOf(e, world)) { if (f.team !== 'foes') continue; const d = Math.hypot(f.transform.pos[0] - p[0], f.transform.pos[1] - p[1], f.transform.pos[2] - p[2]); if (d < bd) { bd = d; best = f; } }
+    return best;
+  }
+  // ── an ally with no foe near: to the next of its places the pilot has not reached, waiting there (and waiting for the
+  // pilot if it has dropped far behind), else at the pilot's side ──
+  function escortKeys(e, dt, M, P, out) {
+    const t = e.transform, q = P.transform.pos, L = M.lead || [];
+    // (holding its ground, an instructor on the range: where it stands, turned to the pilot)
+    if (M.hold && !e.unheld) { e.mindFace = Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]); e.mindPitch = 0; return out; }
+    let i = e.leadI || 0;
+    while (i < L.length && Math.hypot(q[0] - L[i].at[0], q[1] - L[i].at[1]) < (L[i].r || 40)) i++;
+    e.leadI = i;
+    const lead = i < L.length, behind = Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]);
+    // (leading: the place, unless the pilot has dropped far behind; else beside the pilot, a little off)
+    const g = lead && behind < ALLY_WAIT ? L[i].at : [q[0] + Math.cos((P.transform.heading || 0) + Math.PI / 2) * 30, q[1] + Math.sin((P.transform.heading || 0) + Math.PI / 2) * 30, q[2]];
+    const dx = g[0] - t.pos[0], dy = g[1] - t.pos[1], d = Math.hypot(dx, dy);
+    e.mindFace = d > 1 ? Math.atan2(dy, dx) : (P.transform.heading || 0); e.mindPitch = 0;
+    const stop = lead && behind < ALLY_WAIT ? 12 : 25;
+    out.forward = d > stop ? 1 : 0;
+    out.boost = d > 90 ? 1 : 0;
+    return out;
+  }
 
   // ── a mind's keys: an enemy frame's own input, read off the pilot ──
   function mindInput(e, dt, world) {
-    const M = e.rule.mind, P = world.pilotId && world.byId[world.pilotId];
+    const M = e.rule.mind, P0 = world.pilotId && world.byId[world.pilotId];
     const out = { forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 };
-    if (!P || P.gone || P.downed || world.aiEnabled === false || e.dormant) return out;
+    if (!P0 || P0.gone || P0.downed || world.aiEnabled === false || e.dormant || P0.frHeld) return out;
+    // (an ALLY, a wingman on the pilot's side: it fights the nearest foe awake near it; with none, it leads the pilot)
+    let P = P0;
+    if (M.ally) { const F = allyFoe(e, world, M.engage ?? 500); if (!F) return escortKeys(e, dt, M, P0, out); P = F; }
     const t = e.transform, q = P.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1], dz = q[2] - t.pos[2], d = Math.hypot(dx, dy);
     e.mindFace = Math.atan2(dy, dx); e.mindPitch = Math.atan2(dz, d || 1);
     // (an ace's phase, by its armour's share: its reach, its press and its dodge; crossing into one calls its reserve in
@@ -182,6 +237,8 @@ export function buildRulesFrame(E) {
   function frame(e, input, dt, world) {
     const r = e.rule, t = e.transform, M = r.move || {}, EN = r.en || {}, C = EN.cost || {};
     const mine = !r.mind;
+    // (the pilot's input held, a scene playing or a menu up: every mind stands down with it, the input's `held`)
+    if (mine) e.frHeld = !!(input && input.held);
     // (reeling: the stagger takes every key from it; it is carried on by what it was doing, and comes down)
     const reeling = e.stagger > 0;
     const inp = reeling ? REEL : mine ? input : mindInput(e, dt, world);
@@ -268,7 +325,7 @@ export function buildRulesFrame(E) {
     if (onGround && jumpEdge && !stuck && !(e.landT > 0)) { e.v[2] = M.jump ?? 13; e.jumpedAt = e.frTime; }
     e.ascending = !onGround && !stuck && !!(inp.jumpHeld || inp.jump) && enOk && e.frTime - (e.jumpedAt ?? -9) > 0.12 && draw((C.ascend ?? 520) * dt);
 
-    // ── the horizontal: eased toward what it wants, hard on the booster, soft on its feet, little in the air ──
+    // ── the horizontal: eased toward what it wants, hard on the booster, soft on its feet, carried on in the air ──
     if (lunging) {
       // (the lunge: straight at the foe's middle, or along the aim, at its speed; its time runs down)
       const L = e.lunge, tg = L.to && world.byId[L.to];
@@ -290,12 +347,20 @@ export function buildRulesFrame(E) {
       // (stuck: its drift checked hard, where it fired from)
       const k = Math.min(1, 8 * dt);
       e.v[0] -= e.v[0] * k; e.v[1] -= e.v[1] * k;
-    } else if (!inQb) {
+    } else if (inQb) {
+      // (a quick boost steered: its burst turned toward the keys held, at its own speed, as quick as `qbTurn` rad/s)
+      if (dir) {
+        const sp = Math.hypot(e.v[0], e.v[1]), a = Math.atan2(e.v[1], e.v[0]), b = Math.atan2(dir[1], dir[0]);
+        const d = Math.atan2(Math.sin(b - a), Math.cos(b - a)), turn = clamp(d, -(r.qbTurn ?? 9) * dt, (r.qbTurn ?? 9) * dt), n = a + turn;
+        e.v[0] = Math.cos(n) * sp; e.v[1] = Math.sin(n) * sp; e.qbDir = [Math.cos(n), Math.sin(n)];
+      }
+    } else {
       // (its speed by the wind-down's share of its control, and a dragging weapon's recoil on the boost)
-      const sp = (e.boosting ? (M.boost ?? 46) * dragK : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : 0) * (0.25 + 0.75 * ctl);
+      // (in the air off the booster it keeps its way on: what it carries, and at least its walk, steered by the keys)
+      const sp = (e.boosting ? (M.boost ?? 46) * dragK : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : Math.max((M.walk ?? 11) * (r.airWalk ?? 1), Math.hypot(e.v[0], e.v[1]))) * (0.25 + 0.75 * ctl);
       const want = e.boosting ? (dir || [fx, fy]) : dir;
       const tx = want ? want[0] * sp : (onGround ? 0 : e.v[0]), ty = want ? want[1] * sp : (onGround ? 0 : e.v[1]);
-      const k = Math.min(1, (e.boosting ? (onGround ? 5 : 3) : onGround ? 7 : 0.6) * dt);
+      const k = Math.min(1, (e.boosting ? (onGround ? 5 : 3) : onGround ? 7 : r.airSteer ?? 1.5) * dt);
       e.v[0] += (tx - e.v[0]) * k; e.v[1] += (ty - e.v[1]) * k;
     }
     // ── the vertical: gravity, the climb over it, the boost's glide ──
@@ -319,6 +384,10 @@ export function buildRulesFrame(E) {
     const lastZ = t.pos[2];
     t.pos[0] += e.v[0] * dt; t.pos[1] += e.v[1] * dt; t.pos[2] += e.v[2] * dt;
     const g2 = groundAt(t.pos[0], t.pos[1], t.pos[2]) ?? 0;
+    // (STICKY FEET: a frame on its feet that has not jumped or climbed stays on the ground over a crest or a dip, held
+    // down to it by as much as `stick` metres a step, or its pace over the ground, so a bumpy field is walked, not
+    // floated over; a drop deeper than that is a ledge, and it goes over it into the air)
+    if (onGround && !e.ascending && e.v[2] <= 0.01 && !lunging && !e.ab && t.pos[2] > g2 && t.pos[2] - g2 <= Math.max(r.stick ?? 1.2, Math.hypot(e.v[0], e.v[1]) * dt)) { t.pos[2] = g2; e.v[2] = 0; }
     if (t.pos[2] <= g2) {
       const fall = -e.v[2];
       t.pos[2] = g2;
@@ -333,7 +402,9 @@ export function buildRulesFrame(E) {
     e.landT = Math.max(0, e.landT - dt);
 
     // ── the FCS: the foe nearest the aim, held to lock ──
-    const F = r.fcs || {}, aim = aimDir(t.heading, e.aimPitch), eye = [t.pos[0], t.pos[1], t.pos[2] + (r.eyeH ?? 7)];
+    // (the pilot's lock looks where the reticle does: along the page's sight, `inp.aim`, from the frame's eye)
+    const ray = mine && Array.isArray(inp.aim) && inp.aim.length === 6 && inp.aim.every(Number.isFinite) ? inp.aim : null, rl = ray ? Math.hypot(ray[3], ray[4], ray[5]) || 1 : 1;
+    const F = r.fcs || {}, aim = ray ? [ray[3] / rl, ray[4] / rl, ray[5] / rl] : aimDir(t.heading, e.aimPitch), eye = [t.pos[0], t.pos[1], t.pos[2] + (r.eyeH ?? 7)];
     let best = null, bestA = ((F.cone ?? 26) * Math.PI) / 180;
     {
       for (const tg of foesOf(e, world)) {
@@ -360,7 +431,8 @@ export function buildRulesFrame(E) {
     e.locomotion = e.landT > 0 ? 'land'
       : e.airborne ? (e.ascending || e.v[2] > 0.5 || e.boosting || inQb ? (inQb || e.boosting ? way === 'boost' ? 'hover' : way : 'hover') : 'fall')
       : (e.boosting || inQb) ? way : hs > 0.8 ? 'forward' : 'idle';
-    e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? hs / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
+    // (the walk's phase on by the ground gone over this step: a cycle a stride)
+    e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? (hs * dt) / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
     // (the burn the page's thrusters draw: full in a quick boost, hard climbing, then boosting in the air and on the ground; off)
     e.thrust = inQb || e.ab || lunging ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
     if (e.ab || lunging) e.locomotion = e.airborne ? 'hover' : 'boost';
@@ -409,6 +481,31 @@ export function buildRulesFrame(E) {
     }
     return at;
   }
+  // WHERE THE SIGHT LOOKS (the pilot's: the page's camera through the reticle, `inp.aim` [ox, oy, oz, dx, dy, dz]): along
+  // its ray from past the frame's own body, the first foe's body it passes within, else the ground it meets (stepped and
+  // halved down onto it), else `R` out. Every gun fires at it from its own mount, so the rounds meet where the reticle is.
+  function sightPoint(e, world, ray, R) {
+    const t = e.transform, o = [ray[0], ray[1], ray[2]], dl = Math.hypot(ray[3], ray[4], ray[5]) || 1, d = [ray[3] / dl, ray[4] / dl, ray[5] / dl];
+    const at = (s) => [o[0] + d[0] * s, o[1] + d[1] * s, o[2] + d[2] * s];
+    const s0 = Math.max(0, (t.pos[0] - o[0]) * d[0] + (t.pos[1] - o[1]) * d[1] + (t.pos[2] + (e.rule.eyeH ?? 7) - o[2]) * d[2]) + 6, s1 = s0 + R;
+    let best = s1;
+    for (const tg of foesOf(e, world)) {
+      const q = tg.transform.pos, c = [q[0], q[1], q[2] + ((tg.body && tg.body.aimH) ?? 2)];
+      const s = (c[0] - o[0]) * d[0] + (c[1] - o[1]) * d[1] + (c[2] - o[2]) * d[2];
+      if (s < s0 || s >= best) continue;
+      const p = at(s), miss = Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]);
+      if (miss <= ((tg.body && tg.body.radius) || 3) * 1.2) best = s;
+    }
+    const under = (s) => { const p = at(s), g = world && world.ground ? world.ground([p[0], p[1], p[2] + 1]) : 0; return g != null && p[2] <= g; };
+    const STEP = 15;
+    for (let s = s0; s < best; s += STEP) {
+      if (!under(Math.min(best, s + STEP))) continue;
+      let a = s, b = Math.min(best, s + STEP);
+      for (let k = 0; k < 6; k++) { const m = (a + b) / 2; if (under(m)) b = m; else a = m; }
+      best = b; break;
+    }
+    return at(best);
+  }
   function mountAt(e, m) {
     const t = e.transform, h = t.heading, c = Math.cos(h), s = Math.sin(h);
     // (frame space: +y forward, +x right, +z up; the world's heading-forward is +x at heading 0)
@@ -447,8 +544,12 @@ export function buildRulesFrame(E) {
     const t = e.transform, m = (e.rule.mounts && e.rule.mounts[slot]) || [slot.endsWith('R') ? 2.4 : -2.4, 3, slot.startsWith('back') ? 8.6 : 6.2];
     const from = mountAt(e, m), tg = e.locked && world.byId[e.lockOn];
     const n = W.salvo || 1;
+    // (unlocked, the pilot's guns meet at what the reticle covers: sightPoint; a mind's, along its aim)
+    const sight = !tg && Array.isArray(inp.aim) && inp.aim.length === 6 && inp.aim.every(Number.isFinite) ? sightPoint(e, world, inp.aim, W.range ?? 400) : null;
     for (let k = 0; k < n; k++) {
-      let to = tg ? lead(from, tg, W.speed) : null;
+      // (a mind's guns fire at where the target is as they fire, not where it will be, so a round can be dodged: its
+      // mind's `leadShots` leads them; the pilot's lock leads)
+      let to = tg ? (e.rule.mind && !e.rule.mind.leadShots ? lead(from, tg, Infinity) : lead(from, tg, W.speed)) : sight;
       if (!to) { const a = aimDir(t.heading, e.aimPitch), R = W.range ?? 400; to = [from[0] + a[0] * R, from[1] + a[1] * R, from[2] + a[2] * R]; }
       const pellets = W.pellets || 1;
       for (let p = 0; p < pellets; p++) {
