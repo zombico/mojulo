@@ -142,3 +142,15 @@ describe('control with seats', () => {
     expect(L.bus.vars.__cp_winner_0).toBe(2);
   });
 });
+
+// A SPLIT SCREEN'S CORNERS (11-28, mechanics.js seatCorner): seat 4's HUD in its own view's corner, the top left; on one
+// screen the bottom, as before
+describe('the seats\' corners on a split screen', () => {
+  const FOUR = ['hero-2', 'hero-3', 'hero-4'];
+  it('seat 4\'s hp and frags in the top left on a split screen, the bottom on one screen', () => {
+    const split = lowerMechanic('frags', FRAGS, { i: 0, player: 'hero', seats: FOUR, seatSplit: true }).world.hud.filter((r) => /^P4/.test(r.label));
+    const one = lowerMechanic('frags', FRAGS, { i: 0, player: 'hero', seats: FOUR }).world.hud.filter((r) => /^P4/.test(r.label));
+    expect(split.map((r) => r.slot)).toEqual(['top-left', 'top-left']);
+    expect(one.map((r) => r.slot)).toEqual(['bottom', 'bottom']);
+  });
+});

@@ -78,6 +78,9 @@ const sidesOf = (T, P, rivals = []) => (P !== 'player' && !rivals.includes('play
 // so any of them takes a pickup or the way out; without seats seat 1's alone, as it was
 const takers = (ctx) => (Array.isArray(ctx.seats) && ctx.seats.length ? [ctx.player, ...ctx.seats.slice(0, 3)] : ctx.player);
 const seated = (ctx) => Array.isArray(ctx.seats) && ctx.seats.length > 0;
+// a seat's corner of the screen (work-mechanics.js SEAT_CORNERS); on a split screen (ctx.seatSplit) seat 4's is the top left,
+// its own view's (controllable/index.js __splitViews lays the views as the corners)
+const seatCorner = (ctx, n) => (ctx && ctx.seatSplit && n === 4 ? 'top-left' : SEAT_CORNERS[n]);
 // (a pickup is taken once: its reactions only while its zone is on, the zone shut last; two seats in it on one frame, or
 // one walking back over it, take nothing more)
 const whileOn = (zone) => ({ if: { entity: zone, field: 'on', eq: true } });
@@ -101,7 +104,7 @@ function seatedDeath(p, ctx, hits) {
     if (S.n > 1) {
       vars[S.v] = start;
       reactions.push(...hit(S.ent, S.v));
-      hud.push({ ...row(S.v, S.n), slot: SEAT_CORNERS[S.n] });
+      hud.push({ ...row(S.v, S.n), slot: seatCorner(ctx, S.n) });
     }
     watches.push({ type: down, when: { var: S.v, lte: 0 } });
     reactions.push({ on: down, do: 'set', var: S.v, to: start }, { on: down, do: 'ctrl', op: 'kill', who: S.ent });
@@ -476,7 +479,7 @@ const MECHANICS = {
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
       });
       world.reactions.push({ on: 'oneup', do: 'set', var: run, to: 0 });
-      if (seated(ctx)) takers(ctx).forEach((_, k) => { world.vars[`coins:${k + 1}`] = 0; world.hud.push({ var: `coins:${k + 1}`, label: `${SEAT_LABELS[k]} coins`, as: 'counter', slot: SEAT_CORNERS[k + 1], color: SEAT_COLORS[k] }); });
+      if (seated(ctx)) takers(ctx).forEach((_, k) => { world.vars[`coins:${k + 1}`] = 0; world.hud.push({ var: `coins:${k + 1}`, label: `${SEAT_LABELS[k]} coins`, as: 'counter', slot: seatCorner(ctx, k + 1), color: SEAT_COLORS[k] }); });
       return { world, emits: ['coin', 'oneup'] };
     },
   },
@@ -1492,7 +1495,7 @@ const MECHANICS = {
       // each seat as the player: its hp (a flat `hits` a hit, or what each round dealt), its fall when it runs out, felled
       // by the cast and its hp whole when it rises; its hp and frags in its corner, in its colour
       S.forEach((c) => {
-        const k = seatN(c), v = `hp:${k}`, at = { slot: SEAT_CORNERS[k], color: SEAT_COLORS[k - 1] };
+        const k = seatN(c), v = `hp:${k}`, at = { slot: seatCorner(ctx, k), color: SEAT_COLORS[k - 1] };
         world.vars[v] = hp;
         world.watches.push({ type: fell(c), when: { var: v, lte: 0 } });
         world.reactions.push(
@@ -1571,7 +1574,7 @@ const MECHANICS = {
       for (const k of ks) {
         world.vars[count(k)] = 0;
         world.reactions.push({ on: `press:${k}`, if: live, do: 'inc', var: count(k), by: 1 });
-        world.hud.push({ var: count(k), label: SEAT_LABELS[k - 1], as: 'counter', slot: SEAT_CORNERS[k], color: SEAT_COLORS[k - 1] });
+        world.hud.push({ var: count(k), label: SEAT_LABELS[k - 1], as: 'counter', slot: seatCorner(ctx, k), color: SEAT_COLORS[k - 1] });
         if (to) {
           const got = `__mash_to_${i}_${k}`;
           world.watches.push({ type: got, when: { var: count(k), gte: to } });
@@ -1746,6 +1749,7 @@ export function lowerMechanic(kind, params, ctx) {
     ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
     ...(ctx && ctx.seatLives === true ? { seatLives: true } : {}),
     ...(ctx && typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}),
+    ...(ctx && ctx.seatSplit === true ? { seatSplit: true } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1803,7 +1807,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}), ...(ctx.seatLives === true ? { seatLives: true } : {}), ...(typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}) }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}), ...(ctx.seatLives === true ? { seatLives: true } : {}), ...(typeof ctx.seatContest === 'string' ? { seatContest: ctx.seatContest } : {}), ...(ctx.seatSplit === true ? { seatSplit: true } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));
