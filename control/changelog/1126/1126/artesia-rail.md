@@ -42,3 +42,11 @@ silent, a fixed chain of regions each opened by the dragon freed in the one befo
 - **Snow on a map** (`era/geocube.js`, `era/stage-buildings.js`): a glyph map's tile under a snowy cube carries the
   cube's snow onto its polygon land, as a trail does, so a region's cover lies on every tile of it (Letzo's). A
   building stands on the snow as on the ground it covers. A cube with no snow, as before.
+- **The atlas of a world of world maps** (`gameworld/atlas.js`, `atlas-illustrated.js`): a world whose levels are
+  world maps now draws as one map. Before, it was refused.
+  - **Each region:** its blocks are stops along its walk, and its towns and its keep stand at theirs.
+  - **Its boss's lair:** stands at the walk's end where its climax calls one, drawn on the painted map as a cave's
+    mouth in a crag and named for its boss ("the Storm Drake's lair").
+  - **The regions** are joined by their gates.
+  - **Its trees by its biocube:** a coast's palms, an alpine land's conifers, a desert's or a bare land's few trees
+    and more stones.

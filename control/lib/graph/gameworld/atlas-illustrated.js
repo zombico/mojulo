@@ -41,6 +41,8 @@ const SPRITES = (P) => ({
   marsh: `<path d="M8 34 h24 M12 31 v-6 M16 31 v-9 M20 31 v-5 M26 31 v-8 M30 31 v-5" stroke="${P.ink}" stroke-width="1.1"/>`,
   town: `<path d="M5 36 V24 L11 18 L17 24 V36 Z M15 36 V20 L22 13 L29 20 V36 Z M25 36 V26 L30 21 L35 26 V36 Z" fill="${P.wall}" stroke="${P.ink}" stroke-width="1.1" stroke-linejoin="round"/><path d="M4 25 L11 17.5 L18 25 M14 21 L22 12.5 L30 21 M24 27 L30 20.5 L36 27" fill="none" stroke="${P.roof}" stroke-width="3" stroke-linejoin="round"/><path d="M21 36 v-5 h2 v5" fill="${P.ink}"/>`,
   castle: `<path d="M6 36 V16 h3 v3 h3 v-3 h3 V36 Z M25 36 V16 h3 v3 h3 v-3 h3 V36 Z M13 36 V10 h3 v3 h3 v-3 h3 v3 h3 v-3 h0 V36 Z" fill="${P.wall}" stroke="${P.ink}" stroke-width="1.1" stroke-linejoin="round"/><path d="M19 36 v-6 a2 2 0 0 1 4 0 v6" fill="${P.ink}"/><path d="M20 10 V3 l6 2 -6 2" fill="${P.roof}" stroke="${P.ink}" stroke-width=".8"/>`,
+  // (a boss's lair, a world map's: a cave's mouth dark in a crag, gameworld/atlas.js)
+  lair: `<path d="M2 36 L9 20 L15 14 L22 9 L29 15 L34 22 L38 36 Z" fill="${P.rock}" stroke="${P.ink}" stroke-width="1.3" stroke-linejoin="round"/><path d="M13 36 C13 27 16 23 20 23 C24 23 27 27 27 36 Z" fill="${P.ink}"/><path d="M22 9 L21 16 M29 15 L26 20" stroke="${P.ink}" stroke-width="1"/>`,
   hall: `<path d="M6 36 V20 L20 10 L34 20 V36 Z" fill="${P.wall}" stroke="${P.ink}" stroke-width="1.2" stroke-linejoin="round"/><path d="M4 21 L20 9 L36 21" fill="none" stroke="${P.roof}" stroke-width="3"/><path d="M17 36 v-8 h6 v8" fill="${P.ink}"/>`,
 });
 

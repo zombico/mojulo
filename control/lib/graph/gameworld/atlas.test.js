@@ -63,3 +63,25 @@ describe('the atlas', () => {
     expect(L.regions).toHaveLength(Object.keys(MEADOWMARK.levels).length);
   });
 });
+
+// A WORLD OF WORLD MAPS (gameworld/world-map.js; Fable of Artesia's Ceres, artesia.js): each region its blocks along its
+// walk, its towns, its keep and its boss's lair where its climax calls one; the regions joined by their gates
+import { ceresWorld, REGIONS, dragonKind } from './artesia.js';
+describe('the atlas of a world of world maps', () => {
+  const foes = { grunt: { class: 'brute' }, boss: { class: 'brute', rank: 'boss', vehicle: 'hydra' }, ...Object.fromEntries(REGIONS.filter((R) => R.dragon).map((R) => [dragonKind(R.dragon), { class: 'brute', rank: 'boss', dragon: R.dragon }])) };
+  const W = ceresWorld({ id: 'ceres', name: 'Ceres', seed: 2, foes }), A = designAtlas(W);
+  it('a region a world map: a stop a block, its towns and its keep at theirs, its dragon\'s lair at the walk\'s end', () => {
+    expect(A.regions.map((r) => r.name)).toEqual(REGIONS.map((R) => R.name));
+    const L = A.regions[0], plan = W.levels[REGIONS[0].id].glyphs.plan;
+    expect(L.trail.stops.map((s) => s.node)).toEqual([...plan.route, 'lair']);
+    const towns = Object.values(plan.key).filter((k) => k.town !== undefined).map((k) => k.name);
+    expect(L.places.filter((p) => p.kind === 'town').map((p) => p.name)).toEqual(towns);
+    expect(L.places.some((p) => p.kind === 'castle')).toBe(true);
+    expect(L.places.find((p) => p.kind === 'lair').name).toMatch(/storm drake's lair/i);
+    expect(L.places.find((p) => p.kind === 'lair').at).toEqual(L.trail.stops.at(-1).at);
+  });
+  it('the regions joined by their gates, each keyed by the shard before it; the page draws the lair\'s mark', () => {
+    expect(A.roads.map((r) => [r.from, r.to, r.kind, r.key])).toEqual(W.links.map((l) => [l.from, l.to, 'gate', l.key]));
+    expect(gameworldAtlasHtml(W)).toContain('id="lair"');
+  });
+});

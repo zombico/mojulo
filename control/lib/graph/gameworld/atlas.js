@@ -22,6 +22,9 @@ import { readGeocube } from '../era/geocube.js';
 import { stampGeocubes } from '../color-theorist/stamp.js';
 import { colorKey } from './nature.js';
 import { streamOf } from '../city/plan/dice.js';
+import { lairBossOf } from './lair.js';
+import { DRAGONS } from '../boss/dragons.js';
+import { VEHICLES } from '../boss/vehicles.js';
 
 export const ATLAS_W = 1200, ATLAS_H = 840;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -42,11 +45,13 @@ function coloursOf(G) {
 // what a level's ground grows and how it rises, read off its words: its kit, its look, its cube's flora, its land
 function groundOf(G, R) {
   const words = [R.style.kit, typeof R.style.look === 'string' ? R.style.look : R.style.look?.intent, JSON.stringify(R.style.geocube?.biocube ?? ''), JSON.stringify(R.style.land ?? {})].join(' ').toLowerCase();
-  const trees = /pine|spruce|fir|conifer|alpine|taiga/.test(words) ? 'conifer' : /jungle|bamboo|palm|tropic/.test(words) ? 'palm' : 'broadleaf';
+  const trees = /pine|spruce|fir|conifer|alpine|taiga/.test(words) ? 'conifer' : /jungle|bamboo|palm|tropic|coast/.test(words) ? 'palm' : 'broadleaf';
   const land = R.style.land ?? {}, many = (f) => (typeof land[f] === 'object' ? land[f].many ?? 0.5 : land[f] !== undefined ? 0.5 : 0);
   const hills = /downs|hill|rolling|hummock/.test(JSON.stringify(land.landscape ?? '')) ? 0.25 + 0.4 * many('landscape') : 0.12;
   const rock = 0.04 + 0.2 * many('rock'), marsh = /marsh|bog|fen|swamp|mire/.test(words) ? 0.2 : 0;
-  return { trees, forest: /meadow|plain|desert|dune/.test(words) && trees !== 'conifer' ? 0.32 : 0.5, hills, rock, marsh };
+  // (a dry or bare land: its trees few, its stones more, `"desert"` and `"bare"` its biocube's words)
+  const dry = /"desert"|"bare"/.test(words);
+  return { trees, forest: dry ? 0.1 : /meadow|plain|desert|dune/.test(words) && trees !== 'conifer' ? 0.32 : 0.5, hills, rock: dry ? rock + 0.18 : rock, marsh };
 }
 
 // the levels out from the start: the hub (or the start) at the middle, each reached level beyond the one it is reached
@@ -114,7 +119,10 @@ export function designAtlas(world) {
   const G = readGameworld(world), seed = G.seed ?? 1;
   const levels = Object.fromEntries(G.ids.map((id) => [id, resolveLevel(world, id)]));
   // each level's stages, in order (its walk's sections; a building, a city, a track one stage of its own)
-  const stagesOf = (R) => (R.building ? [{ node: 'building', section: 'building' }] : R.geotown ? [{ node: 'town', section: 'geotown' }] : R.geocity ? [{ node: 'district', section: 'geocity' }] : R.city ? [{ node: 'city', section: 'city' }] : R.roadway ? [{ node: 'roadway', section: 'roadway' }] : R.runner || R.airspace || R.obstacles ? [{ node: 'run', section: 'trail' }]
+  // (a WORLD MAP, world-map.js: its blocks along its walk, each a stop named for it, and its boss's lair after them where
+  // its climax calls one, lair.js)
+  const planOf = (R) => R.glyphs?.grid?.plan ?? R.glyphs?.plan ?? null;
+  const stagesOf = (R) => (planOf(R) ? [...planOf(R).route.map((S) => ({ node: S, section: 'block' })), ...(lairBossOf(G, R.glyphs) ? [{ node: 'lair', section: 'lair' }] : [])] : R.building ? [{ node: 'building', section: 'building' }] : R.geotown ? [{ node: 'town', section: 'geotown' }] : R.geocity ? [{ node: 'district', section: 'geocity' }] : R.city ? [{ node: 'city', section: 'city' }] : R.roadway ? [{ node: 'roadway', section: 'roadway' }] : R.runner || R.airspace || R.obstacles ? [{ node: 'run', section: 'trail' }]
     : layLevel(R.level).stages.map((s) => ({ node: s.node, section: s.section })));
   const stages = Object.fromEntries(G.ids.map((id) => [id, stagesOf(levels[id])]));
   const sizes = Object.fromEntries(G.ids.map((id) => [id, 96 + 24 * stages[id].length + (levels[id].town ? 20 : 0) + (G.hub === id ? 16 : 0)]));
@@ -133,6 +141,14 @@ export function designAtlas(world) {
     if (R.town) places.push({ kind: R.street?.walls ? 'walls' : 'town', at: along(path, 0.5), name: R.name });
     if (R.town?.castle || R.castle) places.push({ kind: 'castle', at: [r1(c[0] + oa[0] * r * 0.35 - oa[1] * r * 0.3), r1(c[1] + oa[1] * r * 0.3 + oa[0] * r * 0.2)] });
     if (R.building) places.push({ kind: 'hall', at: along(path, 0.5) });
+    // (a world map's places at their blocks' stops: its towns, its goal's keep, its boss's lair at the walk's end)
+    const P0 = planOf(R);
+    if (P0) for (const st of stops) {
+      const k = P0.key?.[st.node];
+      if (st.section === 'lair') { const b = lairBossOf(G, R.glyphs), E = G.foes?.[b.kind], row = E?.dragon ? DRAGONS[E.dragon] : E?.vehicle ? VEHICLES[E.vehicle] : null; places.push({ kind: 'lair', at: st.at, name: row ? `${row.name.replace(/^The /, 'the ')}'s lair` : 'the lair' }); }
+      else if (k?.town !== undefined) places.push({ kind: 'town', at: st.at, name: k.name });
+      else if (k?.goal) places.push({ kind: 'castle', at: st.at, name: k.name });
+    }
     // its ground: glyphs strewn on a jittered grid inside its shore, clear of its trail and places; a climb raises peaks
     // (its name's band, under its middle, kept clear: atlas-html.js writes it at r × 0.58 below the centre)
     // (wide as its small caps are, and deep enough below it that nothing standing up off the ground covers it)
